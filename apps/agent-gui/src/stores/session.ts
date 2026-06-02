@@ -467,22 +467,24 @@ export const useSessionStore = defineStore("session", () => {
     rememberPendingDraft();
   }
 
+  function selectAvailableDraftProfile(): void {
+    if (profileInfos.value.length === 0) return;
+    if (profileInfos.value.some((profile) => profile.alias === currentProfile.value)) return;
+    currentProfile.value = profileInfos.value[0].alias;
+    currentReasoningEffort.value = null;
+  }
+
   async function startOrdinaryDraftSession(): Promise<void> {
     resetForPendingDraft({ kind: "ordinary" });
     await loadProfileInfo({ refreshConfig: true });
-    if (
-      profileInfos.value.length > 0 &&
-      !profileInfos.value.some((profile) => profile.alias === currentProfile.value)
-    ) {
-      currentProfile.value = profileInfos.value[0].alias;
-      currentReasoningEffort.value = null;
-    }
+    selectAvailableDraftProfile();
   }
 
   async function startProjectDraftSession(projectId: string): Promise<void> {
     resetForPendingDraft({ kind: "project", projectId, branch: null });
     const projectStore = useProjectStore();
     await projectStore.refreshProjectConfig(projectId);
+    selectAvailableDraftProfile();
     try {
       const status = await projectStore.getProjectGitStatus(projectId);
       setPendingProjectBranch(status.branch);

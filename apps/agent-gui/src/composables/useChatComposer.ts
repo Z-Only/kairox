@@ -224,7 +224,11 @@ export function useChatComposer(options: UseChatComposerOptions) {
     const textBeforeCursor = inputText.value.slice(0, cursorPos);
     const match = textBeforeCursor.match(/(?:^|\s)@[^\s]*$/);
     if (match) {
-      const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
+      const matchIndex = match.index !== undefined ? match.index : 0;
+      const triggerText = match[0] ?? "";
+      const leadingWhitespace =
+        triggerText.length > 0 && /\s/.test(triggerText[0]) ? triggerText[0] : "";
+      const before = inputText.value.slice(0, matchIndex) + leadingWhitespace;
       const after = inputText.value.slice(cursorPos);
       inputText.value = before + `@${path} ` + after;
     }
@@ -350,10 +354,12 @@ export function useChatComposer(options: UseChatComposerOptions) {
 
     try {
       await invokeSend(content, attachmentsAtSend);
-      const composerUnchanged =
-        inputText.value === draftAtSend && attachments.value === attachmentsAtSend;
+      const attachmentsUnchanged = attachments.value === attachmentsAtSend;
+      const composerUnchanged = inputText.value === draftAtSend && attachmentsUnchanged;
       if (composerUnchanged) {
         await clearComposer(draftKeyAtSend);
+      } else if (attachmentsUnchanged && inputText.value === "") {
+        attachments.value = [];
       }
     } catch (e) {
       console.error("Failed to send message:", e);

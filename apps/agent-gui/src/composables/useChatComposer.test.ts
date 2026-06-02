@@ -79,15 +79,15 @@ describe("useChatComposer", () => {
 
     composer.inputText.value = "open @src/mai";
     composer.onSelectFile("src/main.rs");
-    expect(composer.inputText.value).toBe("open@src/main.rs ");
 
     // without workspacePath: no attachment added
     expect(composer.attachments.value).toEqual([]);
+    expect(composer.inputText.value).toBe("open @src/main.rs ");
 
     // with workspacePath: adds resolved path as attachment
     composer.inputText.value = "check @src/li";
     composer.onSelectFile("src/lib.rs", "/repo");
-    expect(composer.inputText.value).toBe("check@src/lib.rs ");
+    expect(composer.inputText.value).toBe("check @src/lib.rs ");
     expect(composer.attachments.value).toHaveLength(1);
     expect(composer.attachments.value[0].path).toBe("/repo/src/lib.rs");
     expect(composer.attachments.value[0].name).toBe("lib.rs");
@@ -420,6 +420,37 @@ describe("useChatComposer", () => {
       content: "hello from placeholder",
       attachments: []
     });
+  });
+
+  it("clears sent attachments after materializing a placeholder session", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    let composerRef: ReturnType<typeof useChatComposer> | null = null;
+    const invokeFn = vi.fn(async () => {
+      // Mirrors the live placeholder materialization path where the draft
+      // watcher can clear the textarea before the accepted send returns.
+      if (composerRef) composerRef.inputText.value = "";
+    });
+    const { composer } = createComposer({ session, invokeFn });
+    composerRef = composer;
+    composer.inputText.value = "read this";
+    composer.addFilePaths(["/repo/docs/notes.md"]);
+
+    await composer.sendMessage();
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "read this",
+      attachments: [{ path: "/repo/docs/notes.md", name: "notes.md", mime_type: "text/markdown" }]
+    });
+    expect(composer.inputText.value).toBe("");
+    expect(composer.attachments.value).toEqual([]);
   });
 
   it("keeps placeholder text when first send fails after materialization", async () => {

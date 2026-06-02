@@ -420,6 +420,93 @@ describe("project session metadata", () => {
     expect(session.composerDraftKey).toBe("new-session:project:project-1");
   });
 
+  it("uses the recovered project profile list instead of the hardcoded default on first send", async () => {
+    localStorage.setItem(
+      "kairox.last-workbench-state",
+      JSON.stringify({ kind: "project-draft", projectId: "project-1", branch: null })
+    );
+    const session = useSessionStore();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "list_workspaces") {
+        return Promise.resolve([{ workspace_id: "ws1", path: "/tmp" }]);
+      }
+      if (command === "restore_workspace") return Promise.resolve(null);
+      if (command === "list_sessions") return Promise.resolve([]);
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "ali-mo-claude",
+            provider: "ali-mo",
+            model_id: "claude-opus-4-6",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "not_initialized",
+          branch: null,
+          worktree_path: "/repo",
+          message: "not a git repository"
+        });
+      }
+      if (command === "create_project_draft_session") {
+        return Promise.resolve("draft-1");
+      }
+      if (command === "rename_session") return Promise.resolve(null);
+      if (command === "switch_session") {
+        return Promise.resolve({
+          messages: [],
+          task_titles: [],
+          task_graph: { tasks: [] },
+          token_stream: "",
+          cancelled: false,
+          last_context_usage: null,
+          model_limits: null,
+          compaction: { type: "Idle" }
+        });
+      }
+      if (command === "get_trace") return Promise.resolve([]);
+      if (command === "switch_model") return Promise.resolve(null);
+      if (command === "set_session_approval_policy") {
+        return Promise.resolve((args as { approval: string }).approval);
+      }
+      if (command === "set_session_sandbox_policy") {
+        return Promise.resolve((args as { sandboxJson: string }).sandboxJson);
+      }
+      return Promise.resolve(null);
+    });
+
+    const recovered = await session.recoverSessions();
+    await session.ensureSessionForSend();
+
+    expect(recovered).toBe(true);
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "ali-mo-claude"
+    });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "fast"
+    });
+    expect(session.currentProfile).toBe("ali-mo-claude");
+  });
+
   it("refreshes project config before showing a project draft model list", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();
