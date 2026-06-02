@@ -40,6 +40,18 @@ describe("ChatMessageItem", () => {
     expect(body.html()).toContain("<strong>bold</strong>");
   });
 
+  it("uses a block container for markdown lists so markers stay inside the message bubble", () => {
+    const wrapper = mountItem({
+      role: "assistant",
+      content: "1. first item\n2. second item"
+    });
+
+    const body = wrapper.find(".message-content.markdown-body");
+    expect(body.exists()).toBe(true);
+    expect(body.element.tagName).toBe("DIV");
+    expect(body.find("ol").exists()).toBe(true);
+  });
+
   it.each(["planner", "worker", "reviewer"] as const)(
     "renders %s role through the markdown branch",
     (role) => {

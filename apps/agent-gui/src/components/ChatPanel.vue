@@ -689,28 +689,4 @@ watch(
   color: var(--app-error-color);
   font-size: 13px;
 }
-.markdown-body :deep(pre.hljs) {
-  margin: 8px 0;
-  border-radius: var(--app-radius-md);
-  padding: 12px;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.5;
-}
-.markdown-body :deep(code) {
-  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-}
-.markdown-body :deep(:not(pre) > code) {
-  background: var(--app-card-color);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 20px;
-}
-.markdown-body :deep(p) {
-  margin: 6px 0;
-}
 </style>
