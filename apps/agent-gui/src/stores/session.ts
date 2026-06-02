@@ -16,11 +16,13 @@ import { useUiStore } from "@/stores/ui";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
+import { clearTrace } from "@/composables/useTraceStore";
 import {
   emptyProjection,
   applySessionEvent,
   setProjectionFromSnapshot,
   resetProjectionState,
+  appendAssistantErrorMessage,
   type EventReducerContext
 } from "@/stores/sessionEvents";
 import {
@@ -299,10 +301,7 @@ export const useSessionStore = defineStore("session", () => {
   // ── actions ──────────────────────────────────────────────────────
   function reportSendError(message: string) {
     lastSendError.value = message;
-    projection.value.messages.push({
-      role: "assistant",
-      content: `[error] ${message}`
-    });
+    appendAssistantErrorMessage(projection.value, message);
     projection.value.token_stream = "";
     isStreaming.value = false;
   }
@@ -374,6 +373,7 @@ export const useSessionStore = defineStore("session", () => {
     pendingSessionDraft.value = nextDraft;
     currentSessionId.value = null;
     resetProjection();
+    clearTrace();
     useTaskGraphStore().clearTaskGraph();
     rememberPendingDraft();
   }

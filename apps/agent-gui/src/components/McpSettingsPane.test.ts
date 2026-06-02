@@ -94,9 +94,14 @@ function toEffective(server: McpServerSettingsView): EffectiveMcpServerView {
   };
 }
 
-function mountPane(configSource?: "user" | "project", configProjectId?: string) {
+function mountPane(
+  configSource?: "user" | "project",
+  configProjectId?: string,
+  locale?: "en" | "zh-CN"
+) {
   const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
     reusePinia: true,
+    locale,
     mount:
       configSource || configProjectId
         ? {
@@ -252,6 +257,16 @@ describe("McpSettingsPane", () => {
     ]);
   });
 
+  it("localizes installed server search and sort controls in Chinese", async () => {
+    const wrapper = mountPane("user", undefined, "zh-CN");
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="mcp-server-search-input"]').attributes("placeholder")).toBe(
+      "搜索 MCP 服务器"
+    );
+    expect(wrapper.get('[data-test="mcp-server-sort-select"]').text()).toContain("原始顺序");
+  });
+
   it("matches installed server search against metadata", async () => {
     const wrapper = mountPane();
     await flushPromises();
@@ -274,7 +289,7 @@ describe("McpSettingsPane", () => {
     expect(wrapper.find('[data-test="mcp-server-list"]').exists()).toBe(false);
   });
 
-  it("renders source, disabled-by, and effective audit state for server rows", async () => {
+  it("keeps source, disabled-by, and effective state in summary tags without duplicating audit rows", async () => {
     mockedCommands.getEffectiveMcpServers.mockResolvedValueOnce(
       ok([
         {
@@ -290,16 +305,12 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     const audit = wrapper.find('[data-test="mcp-audit-github"]');
-    expect(audit.exists()).toBe(true);
-    expect(audit.text()).toContain("Source");
-    expect(audit.text()).toContain("User");
-    expect(audit.text()).toContain("State");
-    expect(audit.text()).toContain("Disabled");
-    expect(audit.text()).toContain("Effective");
-    expect(audit.text()).toContain("Inactive");
-    expect(audit.text()).toContain("Overrides");
-    expect(audit.text()).toContain("Disabled by");
-    expect(audit.text()).toContain("Project");
+    expect(audit.exists()).toBe(false);
+    const rowText = wrapper.find('[data-test="mcp-server-row-github"]').text();
+    expect(rowText).toContain("User");
+    expect(rowText).toContain("Disabled");
+    expect(rowText).toContain("Overrides");
+    expect(rowText).toContain("Project");
   });
 
   it("uses shared card content hierarchy for server rows", () => {
@@ -320,7 +331,14 @@ describe("McpSettingsPane", () => {
 
   it("does not keep MCP pane aria chrome inline in the component source", () => {
     expectSourceMigration(mcpSettingsPaneSource, {
-      forbidden: ['aria-label="MCP settings"', 'aria-label="MCP sections"']
+      forbidden: [
+        'aria-label="MCP settings"',
+        'aria-label="MCP sections"',
+        'aria-label="Search MCP servers"',
+        'placeholder="Search MCP servers"',
+        "Original order",
+        "No MCP servers match your search."
+      ]
     });
   });
 

@@ -23,6 +23,18 @@ export function emptyProjection(): SessionProjection {
   };
 }
 
+export function appendAssistantErrorMessage(projection: SessionProjection, message: string): void {
+  const content = `[error] ${message || "Unknown error"}`;
+  const lastMessage = projection.messages[projection.messages.length - 1];
+  if (lastMessage?.role === "assistant" && lastMessage.content === content) {
+    return;
+  }
+  projection.messages.push({
+    role: "assistant",
+    content
+  });
+}
+
 export interface EventReducerContext {
   projection: Ref<SessionProjection>;
   isStreaming: Ref<boolean>;
@@ -89,10 +101,7 @@ export function applySessionEvent(
       break;
     }
     case "AgentTaskFailed": {
-      ctx.projection.value.messages.push({
-        role: "assistant",
-        content: `[error] ${p.error || "Unknown error"}`
-      });
+      appendAssistantErrorMessage(ctx.projection.value, p.error);
       ctx.projection.value.token_stream = "";
       ctx.isStreaming.value = false;
       break;

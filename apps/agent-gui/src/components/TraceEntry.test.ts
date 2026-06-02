@@ -81,6 +81,54 @@ describe("TraceEntry", () => {
     expect(wrapper.find(".entry-detail").text()).toContain("ls -la");
   });
 
+  it("shows context output detail when expanded in L1 density", () => {
+    traceState.entries.push({
+      ...baseEntry,
+      toolId: "context",
+      title: "Context assembled",
+      outputPreview: "system:194, request:17",
+      expanded: true
+    });
+    const wrapper = mount(TraceEntry, {
+      props: { entry: traceState.entries[0], density: "L1" }
+    });
+
+    expect(wrapper.find(".entry-detail").exists()).toBe(true);
+    expect(wrapper.find(".entry-detail").text()).toContain("system:194, request:17");
+  });
+
+  it("falls back to the context title when expanded context entries have no output payload", () => {
+    traceState.entries.push({
+      ...baseEntry,
+      toolId: "context",
+      title: "Context assembled (1511 / 181616 tokens)",
+      expanded: true
+    });
+    const wrapper = mount(TraceEntry, {
+      props: { entry: traceState.entries[0], density: "L1" }
+    });
+
+    expect(wrapper.find(".entry-detail").exists()).toBe(true);
+    expect(wrapper.find(".entry-detail").text()).toContain("Context:");
+    expect(wrapper.find(".entry-detail").text()).toContain("Context assembled");
+  });
+
+  it("shows task title detail when an expanded task entry has no input or output payload", () => {
+    traceState.entries.push({
+      ...baseEntry,
+      toolId: "task",
+      title: "请只回复 OK",
+      expanded: true
+    });
+    const wrapper = mount(TraceEntry, {
+      props: { entry: traceState.entries[0], density: "L2" }
+    });
+
+    expect(wrapper.find(".entry-detail").exists()).toBe(true);
+    expect(wrapper.find(".entry-detail").text()).toContain("Task:");
+    expect(wrapper.find(".entry-detail").text()).toContain("请只回复 OK");
+  });
+
   it("toggles expanded on row click", async () => {
     traceState.entries.push({ ...baseEntry });
     const wrapper = mount(TraceEntry, {

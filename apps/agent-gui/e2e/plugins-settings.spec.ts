@@ -11,17 +11,18 @@ test.beforeEach(async ({ page }) => {
 test.describe("Plugin Settings", () => {
   test("renders installed plugins and toggles a user plugin", async ({ page }) => {
     await expect(page.getByTestId("plugin-settings-pane")).toBeVisible();
-    await expect(page.getByTestId("plugin-row-user-github")).toContainText("GitHub");
-    await expect(page.getByTestId("plugin-row-user-github")).toContainText("Enabled");
-    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Source");
-    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Active");
+    const githubRow = page.getByTestId("plugin-row-user-github");
+    await expect(githubRow).toContainText("GitHub");
+    await expect(githubRow).toContainText("User");
+    await expect(githubRow).toContainText("Enabled");
+    await expect(page.getByTestId("plugin-audit-user-github")).toHaveCount(0);
 
     await page.getByTestId("plugin-enabled-user-github").click();
-    await expect(page.getByTestId("plugin-row-user-github")).toContainText("Disabled");
-    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Disabled");
+    await expect(githubRow).toContainText("Disabled");
+    await expect(page.getByTestId("plugin-audit-user-github")).toHaveCount(0);
 
     await page.getByTestId("plugin-enabled-user-github").click();
-    await expect(page.getByTestId("plugin-row-user-github")).toContainText("Enabled");
+    await expect(githubRow).toContainText("Enabled");
   });
 
   test("deletes a user plugin and removes it from the list", async ({ page }) => {

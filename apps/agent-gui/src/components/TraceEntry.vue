@@ -26,6 +26,37 @@ const kindIcon: Record<string, string> = {
   permission: "🔑",
   memory: "🧠"
 };
+
+const hasTaskTitleDetail = computed(
+  () =>
+    props.entry.toolId === "task" &&
+    Boolean(props.entry.title) &&
+    !props.entry.input &&
+    !props.entry.outputPreview &&
+    !props.entry.reason &&
+    !(props.entry.content && props.entry.kind === "memory")
+);
+
+const hasContextTitleDetail = computed(
+  () =>
+    props.entry.toolId === "context" &&
+    Boolean(props.entry.title) &&
+    !props.entry.input &&
+    !props.entry.outputPreview &&
+    !props.entry.reason
+);
+
+const hasDetail = computed(
+  () =>
+    Boolean(
+      props.entry.input ||
+      props.entry.outputPreview ||
+      props.entry.reason ||
+      (props.entry.content && props.entry.kind === "memory")
+    ) ||
+    hasTaskTitleDetail.value ||
+    hasContextTitleDetail.value
+);
 </script>
 
 <template>
@@ -69,7 +100,7 @@ const kindIcon: Record<string, string> = {
         pending
       </KxBadge>
     </div>
-    <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
+    <div v-if="entry.expanded && hasDetail" class="entry-detail">
       <div v-if="entry.input" class="entry-section">
         <span class="entry-label">Input:</span>
         <pre class="entry-code">{{ entry.input }}</pre>
@@ -85,6 +116,14 @@ const kindIcon: Record<string, string> = {
       <div v-if="entry.content && entry.kind === 'memory'" class="entry-section">
         <span class="entry-label">Content:</span>
         <pre class="entry-code">{{ entry.content }}</pre>
+      </div>
+      <div v-if="hasTaskTitleDetail" class="entry-section">
+        <span class="entry-label">Task:</span>
+        <pre class="entry-code">{{ entry.title }}</pre>
+      </div>
+      <div v-if="hasContextTitleDetail" class="entry-section">
+        <span class="entry-label">Context:</span>
+        <pre class="entry-code">{{ entry.title }}</pre>
       </div>
     </div>
     <div v-if="density === 'L3' && entry.expanded && entry.rawEvent" class="entry-raw">

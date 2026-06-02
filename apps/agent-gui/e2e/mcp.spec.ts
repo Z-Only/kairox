@@ -75,15 +75,15 @@ test.describe("MCP Settings", () => {
 
     const githubRow = page.getByTestId("mcp-server-row-github");
     await expect(githubRow).toContainText("GitHub");
+    await expect(githubRow).toContainText("User");
+    await expect(githubRow).toContainText("Enabled");
     await expect(page.getByTestId("mcp-disable-scope-github")).toBeVisible();
-    await expect(page.getByTestId("mcp-audit-github")).toContainText("Source");
-    await expect(page.getByTestId("mcp-audit-github")).toContainText("Active");
+    await expect(page.getByTestId("mcp-audit-github")).toHaveCount(0);
 
     await page.getByTestId("mcp-disable-scope-github").click();
 
     await expect(githubRow).toContainText("Disabled by Project");
-    await expect(page.getByTestId("mcp-audit-github")).toContainText("Disabled by");
-    await expect(page.getByTestId("mcp-audit-github")).toContainText("Inactive");
+    await expect(page.getByTestId("mcp-audit-github")).toHaveCount(0);
     await expect(page.getByTestId("mcp-disable-scope-github")).toHaveCount(0);
     await expect(page.getByTestId("mcp-enable-scope-github")).toBeVisible();
 

@@ -51,7 +51,7 @@ impl AnthropicClient {
                 let mut content_blocks: Vec<serde_json::Value> = Vec::new();
 
                 // Add text content if present
-                if !msg.content.is_empty() {
+                if has_non_empty_text(&msg.content) {
                     content_blocks.push(serde_json::json!({
                         "type": "text",
                         "text": msg.content,
@@ -79,12 +79,10 @@ impl AnthropicClient {
                     }));
                 }
 
-                // Anthropic requires at least one content block in an assistant message.
+                // Empty assistant messages with no tool_use blocks carry no
+                // state and Anthropic rejects empty text blocks.
                 if content_blocks.is_empty() {
-                    content_blocks.push(serde_json::json!({
-                        "type": "text",
-                        "text": "",
-                    }));
+                    continue;
                 }
 
                 messages.push(serde_json::json!({
@@ -92,6 +90,9 @@ impl AnthropicClient {
                     "content": content_blocks,
                 }));
             } else {
+                if !has_non_empty_text(&msg.content) {
+                    continue;
+                }
                 messages.push(serde_json::json!({
                     "role": msg.role,
                     "content": msg.content,
@@ -110,7 +111,11 @@ impl AnthropicClient {
             "stream": true,
         });
 
-        if let Some(ref system_prompt) = request.system_prompt {
+        if let Some(system_prompt) = request
+            .system_prompt
+            .as_ref()
+            .filter(|prompt| has_non_empty_text(prompt))
+        {
             // Use content-block array format with cache_control on the last block
             // so Anthropic can cache the system prompt across turns.
             body["system"] = serde_json::json!([{
@@ -218,6 +223,10 @@ impl AnthropicClient {
             }
         }
     }
+}
+
+fn has_non_empty_text(value: &str) -> bool {
+    !value.trim().is_empty()
 }
 
 fn serialize_server_tool(st: &ServerTool) -> serde_json::Value {

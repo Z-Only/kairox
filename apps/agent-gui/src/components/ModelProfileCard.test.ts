@@ -63,14 +63,10 @@ beforeEach(() => {
 
 describe("ModelProfileCard", () => {
   describe("source migration guard", () => {
-    it("uses SettingsCardItem, SettingsItemSummary, SettingsStatusTag, and SettingsEffectiveAudit", () => {
+    it("uses shared summary/status chrome without duplicating the effective audit row", () => {
       expectSourceMigration(modelProfileCardSource, {
-        required: [
-          "SettingsCardItem",
-          "SettingsItemSummary",
-          "SettingsStatusTag",
-          "SettingsEffectiveAudit"
-        ]
+        required: ["SettingsCardItem", "SettingsItemSummary", "SettingsStatusTag"],
+        forbidden: ["SettingsEffectiveAudit", "model-audit-"]
       });
     });
   });
@@ -302,9 +298,9 @@ describe("ModelProfileCard", () => {
   });
 
   describe("effective audit", () => {
-    it("renders audit element with data-test attribute", () => {
+    it("does not render a duplicate audit element below summary tags", () => {
       const wrapper = mountCard(makeProfile({ alias: "gpt-4o" }));
-      expect(wrapper.find('[data-test="model-audit-gpt-4o"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="model-audit-gpt-4o"]').exists()).toBe(false);
     });
   });
 });

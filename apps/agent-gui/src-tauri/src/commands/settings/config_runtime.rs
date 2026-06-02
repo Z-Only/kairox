@@ -205,6 +205,9 @@ fn failure_message(status: &str, subject: &str, detail: &str) -> String {
         }
         "model_unavailable" => format!("{subject} model is unavailable or not found."),
         "server_error" => format!("{subject} server returned an error. Try again later."),
+        "empty_response" => {
+            format!("{subject} returned no chat output. Check model availability, quota, or plan.")
+        }
         "network_error" => format!("{subject} connection failed: {detail}"),
         "invalid_config" => format!("{subject} configuration is invalid: {detail}"),
         _ => format!("{subject} connectivity test failed: {detail}"),

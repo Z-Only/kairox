@@ -539,10 +539,12 @@ describe("ChatPanel", () => {
       .find((item) => item.text().includes("shell exec"));
     expect(toolItem).toBeTruthy();
 
-    await toolItem!.find('[data-test="chat-tool-call-toggle"]').trigger("click");
-    await flushPromises();
-
-    const startedAgo = toolItem!.find('[data-test="chat-tool-call-started-ago"]');
+    let startedAgo = toolItem!.find('[data-test="chat-tool-call-started-ago"]');
+    if (!startedAgo.exists()) {
+      await toolItem!.find('[data-test="chat-tool-call-toggle"]').trigger("click");
+      await flushPromises();
+      startedAgo = toolItem!.find('[data-test="chat-tool-call-started-ago"]');
+    }
     expect(startedAgo.exists(), toolItem!.html()).toBe(true);
     expect(startedAgo.text()).toMatch(/^started [34]s ago$/);
   });
@@ -895,8 +897,12 @@ describe("ChatPanel", () => {
     });
 
     it("Enter on a focused permission item triggers the allow click", async () => {
-      const { items } = await mountThreeItems();
-      const permissionItem = items[items.length - 1];
+      const { panel } = await mountThreeItems();
+      const permissionItem = panel
+        .querySelector<HTMLElement>('[data-test="chat-permission-item"]')
+        ?.closest<HTMLElement>("[data-chat-stream-item]");
+      expect(permissionItem).not.toBeNull();
+      if (!permissionItem) return;
       permissionItem.focus();
 
       const allowButton = permissionItem.querySelector<HTMLElement>(
