@@ -34,6 +34,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_profile_info,
             refresh_config,
             refresh_config_for_project,
+            get_gui_settings,
+            set_gui_devtools_enabled,
             initialize_workspace,
             start_session,
             send_message,
@@ -187,6 +189,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
         .typ::<BuildInfoResponse>()
+        .typ::<GuiSettingsView>()
         .typ::<MonitorInfoResponse>()
         // Skill response types
         .typ::<SkillView>()

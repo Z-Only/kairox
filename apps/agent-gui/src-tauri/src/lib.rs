@@ -43,10 +43,15 @@ pub fn run() {
 
     builder
         .setup(move |app| {
+            let home_dir = default_home_dir();
+            let db_dir = default_data_dir(&home_dir);
+            let gui_settings =
+                crate::commands::read_gui_settings(&db_dir, cfg!(debug_assertions), None)
+                    .map_err(Box::<dyn std::error::Error>::from)?;
+            let devtools_enabled = gui_settings.devtools_enabled;
+
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                let home_dir = default_home_dir();
-                let db_dir = default_data_dir(&home_dir);
                 let db_url = sqlite_database_url(&db_dir, "kairox-gui.sqlite");
 
                 eprintln!("Database: {}", db_url);
@@ -95,6 +100,7 @@ pub fn run() {
                 );
                 gui_state.profiles_config_path = Some(runtime_bootstrap.profiles_config_path);
                 gui_state.home_dir = runtime_bootstrap.data_dir.clone();
+                gui_state.devtools_enabled_at_startup = devtools_enabled;
                 handle.manage(gui_state);
 
                 // Background task: cleanup expired soft-deleted sessions (hourly, 7-day threshold)
@@ -119,6 +125,7 @@ pub fn run() {
                     });
                 }
             });
+            create_main_window(app, devtools_enabled)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -127,6 +134,8 @@ pub fn run() {
             crate::commands::get_profile_info,
             crate::commands::refresh_config,
             crate::commands::refresh_config_for_project,
+            crate::commands::get_gui_settings,
+            crate::commands::set_gui_devtools_enabled,
             crate::commands::initialize_workspace,
             crate::commands::start_session,
             crate::commands::send_message,
@@ -271,6 +280,21 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
+}
+
+#[cfg(not(test))]
+fn create_main_window(app: &mut tauri::App, devtools_enabled: bool) -> tauri::Result<()> {
+    let window_config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .ok_or(tauri::Error::WindowNotFound)?;
+    tauri::WebviewWindowBuilder::from_config(app.handle(), window_config)?
+        .devtools(devtools_enabled)
+        .build()?;
+    Ok(())
 }
 
 /// Export specta TypeScript bindings to a directory.
