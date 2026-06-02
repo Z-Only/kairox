@@ -280,15 +280,33 @@ where
         workspace_id: &WorkspaceId,
     ) -> agent_core::Result<Vec<SessionMeta>> {
         let _repository = self.project_repository()?;
-        let rows = self
+        let project_rows = self
             .store
             .list_archived_project_session_metas(workspace_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-        Ok(rows
+        let ordinary_rows = self
+            .store
+            .list_archived_sessions(workspace_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+
+        let mut sessions: Vec<SessionMeta> = project_rows
             .into_iter()
             .map(crate::project::project_session_row_to_meta)
-            .collect())
+            .chain(
+                ordinary_rows
+                    .into_iter()
+                    .map(crate::session::session_row_to_meta),
+            )
+            .collect();
+        sessions.sort_by(|first, second| {
+            second
+                .updated_at
+                .cmp(&first.updated_at)
+                .then_with(|| first.created_at.cmp(&second.created_at))
+        });
+        Ok(sessions)
     }
 
     pub(crate) async fn get_project_git_status(

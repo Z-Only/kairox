@@ -704,6 +704,10 @@ export const useSessionStore = defineStore("session", () => {
     connected.value = value;
   }
 
+  async function loadSessions(): Promise<void> {
+    sessions.value = await listOrdinarySessions();
+  }
+
   async function loadProfileInfo(options: LoadProfileInfoOptions = {}): Promise<void> {
     if (loadingProfileInfo.value && !profileInfoLoad && !options.force && !options.refreshConfig) {
       return;
@@ -847,6 +851,7 @@ export const useSessionStore = defineStore("session", () => {
     deleteSession,
     renameSession,
     initializeWorkspace,
+    loadSessions,
     loadProfileInfo,
     refreshProfileInfoForCurrentContext,
     recoverSessions,

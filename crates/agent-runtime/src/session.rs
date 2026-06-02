@@ -256,6 +256,26 @@ pub async fn list_workspaces<S: EventStore>(store: &S) -> agent_core::Result<Vec
         .collect())
 }
 
+pub(crate) fn session_row_to_meta(row: SessionRow) -> SessionMeta {
+    SessionMeta {
+        project_id: None,
+        worktree_path: None,
+        branch: None,
+        visibility: None,
+        approval_policy: row.approval_policy,
+        sandbox_policy: row.sandbox_policy,
+        session_id: SessionId::from_string(row.session_id),
+        workspace_id: WorkspaceId::from_string(row.workspace_id),
+        title: row.title,
+        model_profile: row.model_profile,
+        model_id: row.model_id,
+        provider: row.provider,
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+}
+
 /// List all active sessions for a workspace.
 pub async fn list_sessions<S: EventStore>(
     store: &S,
@@ -280,23 +300,7 @@ pub async fn list_sessions<S: EventStore>(
             }
         }
 
-        session_metas.push(SessionMeta {
-            project_id: None,
-            worktree_path: None,
-            branch: None,
-            visibility: None,
-            approval_policy: row.approval_policy.clone(),
-            sandbox_policy: row.sandbox_policy.clone(),
-            session_id: SessionId::from_string(row.session_id),
-            workspace_id: WorkspaceId::from_string(row.workspace_id),
-            title: row.title,
-            model_profile: row.model_profile,
-            model_id: row.model_id,
-            provider: row.provider,
-            deleted_at: row.deleted_at,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        });
+        session_metas.push(session_row_to_meta(row));
     }
     Ok(session_metas)
 }

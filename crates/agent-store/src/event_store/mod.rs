@@ -35,6 +35,8 @@ pub trait EventStore: Send + Sync {
     async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceRow>>;
     /// List all active (non-deleted) sessions for a workspace.
     async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>>;
+    /// List archived ordinary sessions for a workspace.
+    async fn list_archived_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>>;
     /// Rename a session by updating its title.
     async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()>;
     /// Soft-delete a session by setting deleted_at.
@@ -234,6 +236,10 @@ impl EventStore for SqliteEventStore {
 
     async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
         SqliteEventStore::list_active_sessions(self, workspace_id).await
+    }
+
+    async fn list_archived_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
+        SqliteEventStore::list_archived_sessions(self, workspace_id).await
     }
 
     async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()> {

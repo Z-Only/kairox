@@ -46,6 +46,13 @@ impl EventStore for NonSqliteEventStore {
         Ok(Vec::new())
     }
 
+    async fn list_archived_sessions(
+        &self,
+        _workspace_id: &str,
+    ) -> agent_store::Result<Vec<SessionRow>> {
+        Ok(Vec::new())
+    }
+
     async fn rename_session(&self, _session_id: &str, _title: &str) -> agent_store::Result<()> {
         Ok(())
     }

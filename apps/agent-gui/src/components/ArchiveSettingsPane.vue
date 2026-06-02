@@ -2,6 +2,7 @@
 import { commands } from "@/generated/commands";
 import { useConfirm } from "@/composables/useConfirm";
 import { useProjectStore } from "@/stores/project";
+import { useSessionStore } from "@/stores/session";
 import type { ProjectSessionInfo } from "@/stores/project";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
@@ -12,6 +13,7 @@ type ArchiveSortMode = "original" | "recent" | "title" | "project" | "branch";
 const { t } = useI18n();
 const { confirm: confirmAction } = useConfirm();
 const projectStore = useProjectStore();
+const sessionStore = useSessionStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const busySessionId = ref<string | null>(null);
@@ -153,7 +155,7 @@ async function restoreSession(sessionId: string): Promise<void> {
   error.value = null;
   try {
     await commands.restoreArchivedSession(sessionId);
-    await projectStore.loadArchivedSessions();
+    await Promise.all([projectStore.loadArchivedSessions(), sessionStore.loadSessions()]);
   } catch (caughtError) {
     error.value = formatError(caughtError);
   } finally {

@@ -194,6 +194,42 @@ async fn soft_deleted_session_still_exists_in_table() {
 }
 
 #[tokio::test]
+async fn list_archived_sessions_returns_soft_deleted_ordinary_sessions() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    store
+        .upsert_workspace("wrk_1", "/tmp/project")
+        .await
+        .unwrap();
+
+    let now = chrono::Utc::now().to_rfc3339();
+    store
+        .upsert_session(&SessionRow {
+            session_id: "ses_archived".into(),
+            workspace_id: "wrk_1".into(),
+            title: "Archived ordinary session".into(),
+            model_profile: "ali-mo-claude".into(),
+            model_id: Some("claude-opus-4-6".into()),
+            provider: Some("ali-mo".into()),
+            approval_policy: Some("on_request".into()),
+            sandbox_policy: Some("{\"kind\":\"workspace_write\"}".into()),
+            deleted_at: None,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+        .await
+        .unwrap();
+
+    store.soft_delete_session("ses_archived").await.unwrap();
+
+    let archived = store.list_archived_sessions("wrk_1").await.unwrap();
+    assert_eq!(archived.len(), 1);
+    assert_eq!(archived[0].session_id, "ses_archived");
+    assert_eq!(archived[0].title, "Archived ordinary session");
+    assert_eq!(archived[0].model_profile, "ali-mo-claude");
+    assert!(archived[0].deleted_at.is_some());
+}
+
+#[tokio::test]
 async fn list_active_sessions_returns_most_recent_first() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     store
