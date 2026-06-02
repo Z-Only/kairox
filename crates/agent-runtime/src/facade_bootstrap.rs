@@ -303,9 +303,6 @@ where
 
     /// Configure MCP servers from parsed config definitions.
     pub async fn with_mcp_servers(mut self, configs: Vec<McpServerDef>) -> Self {
-        if configs.is_empty() {
-            return self;
-        }
         let mut manager = McpServerManager::from_config(
             configs,
             self.tool_registry.clone(),
