@@ -55,6 +55,15 @@ export function temporaryTitleFromFirstMessage(content: string): string {
     : trimmedContent;
 }
 
+function isAutoSessionTitle(title: string): boolean {
+  const trimmed = title.trim();
+  return (
+    trimmed === "" ||
+    trimmed.startsWith("Session using ") ||
+    /^New Session(?: \(.+\))?(?: \d+)?$/.test(trimmed)
+  );
+}
+
 function titleCaseWords(value: string): string {
   return value
     .split(/[-_\s]+/)
@@ -646,9 +655,20 @@ export const useSessionStore = defineStore("session", () => {
     if (!sessionId) return;
 
     if (firstMessageContent !== undefined) {
-      updateSessionMetadata(sessionId, {
-        title: temporaryTitleFromFirstMessage(firstMessageContent),
+      const target = findSessionInfo(sessionId);
+      const patch: Partial<Pick<SessionInfoResponse, "title" | "visibility">> = {
         visibility: "visible"
+      };
+      if (!target || target.visibility === "draft_hidden" || isAutoSessionTitle(target.title)) {
+        patch.title = temporaryTitleFromFirstMessage(firstMessageContent);
+        try {
+          await invoke("rename_session", { sessionId, title: patch.title });
+        } catch (error) {
+          console.error("Failed to persist first-message session title:", error);
+        }
+      }
+      updateSessionMetadata(sessionId, {
+        ...patch
       });
       return;
     }

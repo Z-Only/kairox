@@ -309,7 +309,6 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   async function invokeSend(content: string, attachmentsToSend: Attachment[]) {
-    let materializedSession = false;
     if (!session.currentSessionId) {
       skipNextDraftLoad = true;
       try {
@@ -320,8 +319,6 @@ export function useChatComposer(options: UseChatComposerOptions) {
       }
       if (!session.currentSessionId) {
         skipNextDraftLoad = false;
-      } else {
-        materializedSession = true;
       }
     }
     if (!session.currentSessionId) {
@@ -331,9 +328,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
       content,
       attachments: attachmentPayload(attachmentsToSend)
     });
-    if (materializedSession) {
-      await session.refreshCurrentSessionMetadata?.(content);
-    }
+    await session.refreshCurrentSessionMetadata?.(content);
   }
 
   async function enqueueMessage(content: string, attachmentsToQueue: Attachment[]) {

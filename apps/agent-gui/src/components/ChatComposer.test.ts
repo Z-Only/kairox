@@ -293,6 +293,39 @@ describe("model reasoning selector", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
   });
 
+  it("removes the model selector popover after choosing a model", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "fast";
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "fake",
+        model_id: "fake-model",
+        local: true,
+        has_api_key: false,
+        supports_reasoning: false
+      },
+      {
+        alias: "smart",
+        provider: "ali-mo",
+        model_id: "claude-opus-4-6",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("click");
+    await flushPromises();
+
+    expect(session.currentProfile).toBe("smart");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(false);
+  });
+
   it("shows reasoning levels when hovering a reasoning-capable model", async () => {
     const { wrapper, session } = mountChatComposer();
     session.currentProfile = "smart";

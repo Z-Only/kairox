@@ -859,6 +859,62 @@ describe("project session metadata", () => {
     });
   });
 
+  it("optimistically titles an auto-titled ordinary session from the first message", async () => {
+    const session = useSessionStore();
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Session using fake",
+        profile: "ali-mo-claude",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: null,
+        deleted_at: null,
+        approval_policy: "on_request",
+        sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+      }
+    ];
+    session.currentSessionId = "ses_1";
+
+    await session.refreshCurrentSessionMetadata("hello from bootstrap session");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("rename_session", {
+      sessionId: "ses_1",
+      title: "hello from bootstrap session"
+    });
+    expect(session.sessions[0].title).toBe("hello from bootstrap session");
+    expect(session.sessions[0].visibility).toBe("visible");
+  });
+
+  it("does not overwrite a user-titled ordinary session after later sends", async () => {
+    const session = useSessionStore();
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Release planning",
+        profile: "ali-mo-claude",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: "visible",
+        deleted_at: null,
+        approval_policy: "on_request",
+        sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+      }
+    ];
+    session.currentSessionId = "ses_1";
+
+    await session.refreshCurrentSessionMetadata("second message should not rename");
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("rename_session", {
+      sessionId: "ses_1",
+      title: "second message should not rename"
+    });
+    expect(session.sessions[0].title).toBe("Release planning");
+    expect(session.sessions[0].visibility).toBe("visible");
+  });
+
   it("applies pending model and policy selections when materializing a project session", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();

@@ -504,6 +504,22 @@ describe("useChatComposer", () => {
     );
   });
 
+  it("refreshes current session metadata after an existing empty session send succeeds", async () => {
+    const refreshCurrentSessionMetadata = vi.fn(async () => undefined);
+    const session = createSession({ refreshCurrentSessionMetadata });
+    const { composer, invokeFn } = createComposer({ session });
+    composer.inputText.value = "hello from bootstrap session";
+
+    await composer.sendMessage();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "hello from bootstrap session",
+      attachments: []
+    });
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledTimes(1);
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledWith("hello from bootstrap session");
+  });
+
   it("clears sent attachments after materializing a placeholder session", async () => {
     const session = createSession({
       currentSessionId: null,
