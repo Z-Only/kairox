@@ -699,6 +699,7 @@ watch(
 .message-worker :deep(.message-content),
 .message-reviewer :deep(.message-content),
 .message-system :deep(.message-content) {
+  width: min(760px, 100%);
   color: var(--app-muted-text-color, var(--app-text-color));
   background: var(--app-muted-surface-color, var(--app-panel-color));
 }
