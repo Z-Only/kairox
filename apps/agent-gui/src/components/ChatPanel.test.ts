@@ -311,6 +311,17 @@ describe("ChatPanel", () => {
     });
   });
 
+  it("keeps short assistant replies at the chat column width instead of shrinking to a tiny bubble", () => {
+    expectSourceMigration(chatPanelSource, {
+      requiredPatterns: [
+        /\.message-assistant\s+:deep\(\.message-content\),[\s\S]*\.message-system\s+:deep\(\.message-content\)\s*\{[\s\S]*width:\s*min\(760px,\s*100%\)/
+      ],
+      forbiddenPatterns: [
+        /\.message-user\s+:deep\(\.message-content\)\s*\{[^}]*width:\s*min\(760px,\s*100%\)/
+      ]
+    });
+  });
+
   it("does not render markdown parser whitespace as extra visible chat lines", () => {
     expectSourceMigration(chatPanelSource, {
       requiredPatterns: [
