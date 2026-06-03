@@ -202,10 +202,14 @@ name = "send live attachment over IPC"
 action = "eval"
 script = """
 (async () => {
+  const repoRoot = localStorage.getItem("kairox.pilot.repoRoot");
+  if (!repoRoot) {
+    throw new Error("pilot repo root is not registered");
+  }
   await window.__TAURI_INTERNALS__.invoke("send_message", {
     content: "Use the embedded attachment block above. Do not call tools or read files. Reply with only the sentinel value shown in that block, with no prose.",
     attachments: [{
-      path: "apps/agent-gui/e2e-pilot/fixtures/live-model-attachment.txt",
+      path: `${repoRoot}/apps/agent-gui/e2e-pilot/fixtures/live-model-attachment.txt`,
       name: "live-model-attachment.txt",
       mime_type: "text/plain",
     }],

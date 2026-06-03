@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Start a debug Tauri build with the `pilot` feature, run every TOML scenario
-# under apps/agent-gui/e2e-pilot/ via tauri-pilot, then tear down.
+# Start a Tauri dev app with the `pilot` feature, run every TOML scenario under
+# apps/agent-gui/e2e-pilot/ via tauri-pilot, then tear down.
 #
-# Pre-condition: the debug binary already exists at the configured path.
-# Build it once with:
-#   cargo tauri build --debug --no-bundle --features pilot
-# (or the equivalent `cargo build -p agent-gui-tauri --features pilot`).
+# By default this uses the agent-gui Tauri CLI wrapper so the Vite dev URL,
+# app identifier, and tauri-pilot socket can be isolated per run. Passing a
+# binary path keeps the old direct-binary mode for debugging only.
 #
 # Usage:
 #   scripts/run-pilot-tests.sh [BINARY_PATH]
@@ -21,7 +20,11 @@
 #   KAIROX_PILOT_LIST_SCENARIOS=1
 #       Print the selected scenario set and exit without launching the app.
 #   KAIROX_DEV_PORT=1420
-#       Vite dev server port expected by the debug binary. Defaults to 1420.
+#       Preferred Vite dev server port. Defaults to 1420; if occupied, the
+#       Tauri dev wrapper selects the next available port.
+#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=120
+#       Max seconds to wait for the Tauri app to compile/start and expose its
+#       pilot socket.
 #
 # Exit code: 0 on all-pass, 1 on first scenario failure (or env error).
 
@@ -36,9 +39,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 cd "$REPO_ROOT"
 
-# Cargo workspaces share a single target/ at the workspace root, NOT under
-# apps/agent-gui/src-tauri/target/. The default below reflects that.
-APP_BIN="${1:-$REPO_ROOT/target/debug/agent-gui-tauri}"
+HOST_HOME="${HOME:-}"
+HOST_CARGO_HOME="${CARGO_HOME:-$HOST_HOME/.cargo}"
+HOST_RUSTUP_HOME="${RUSTUP_HOME:-$HOST_HOME/.rustup}"
+
+APP_BIN="${1:-}"
+APP_LAUNCHER="${KAIROX_PILOT_APP_LAUNCHER:-tauri-dev}"
+if [[ -n "$APP_BIN" ]]; then
+    APP_LAUNCHER="binary"
+fi
 SCENARIO_DIR="$REPO_ROOT/apps/agent-gui/e2e-pilot"
 JUNIT_DIR="$REPO_ROOT/pilot-results"
 FAILURE_DIR="$REPO_ROOT/tauri-pilot-failures"
@@ -48,6 +57,10 @@ LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
 DEV_PORT="${KAIROX_DEV_PORT:-1420}"
+PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-120}"
+PILOT_WEBVIEW_TIMEOUT_SECS="${KAIROX_PILOT_WEBVIEW_TIMEOUT_SECS:-30}"
+PILOT_IDENTIFIER=""
+TAURI_PILOT_SOCKET="${TAURI_PILOT_SOCKET:-}"
 DEFAULT_LIVE_SCENARIOS=(chat-live)
 scenarios=()
 
@@ -295,7 +308,7 @@ _select_scenarios() {
 _write_pilot_browser_state() {
     local repo_root_json
     repo_root_json="$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$REPO_ROOT")"
-    _run_with_timeout 10 tauri-pilot eval \
+    _run_with_timeout 10 _tauri_pilot eval \
         "(async () => { const repoRoot = $repo_root_json; localStorage.setItem(\"kairox.locale\", \"en\"); localStorage.setItem(\"kairox.left-sidebar-collapsed\", \"false\"); localStorage.setItem(\"kairox.right-sidebar-collapsed\", \"false\"); localStorage.removeItem(\"kairox.last-active-session-id\"); localStorage.setItem(\"kairox.pilot.repoRoot\", repoRoot); const invoke = window.__TAURI_INTERNALS__.invoke; const projects = await invoke(\"list_projects\"); if (!projects.some((project) => project.root_path === repoRoot)) { await invoke(\"add_existing_project\", { path: repoRoot }); } window.location.hash = \"#/workbench\"; window.location.reload(); return repoRoot; })()" >/dev/null
 }
 
@@ -304,7 +317,7 @@ _wait_for_app_shell() {
     local timeout_message="$2"
 
     for i in $(seq 1 30); do
-        if result="$(_run_with_timeout 5 tauri-pilot eval 'Boolean(document.querySelector("[data-test=\"app-shell\"]"))' 2>/dev/null)" && [[ "$result" = "true" ]]; then
+        if result="$(_run_with_timeout 5 _tauri_pilot eval 'Boolean(document.querySelector("[data-test=\"app-shell\"]"))' 2>/dev/null)" && [[ "$result" = "true" ]]; then
             echo "$ready_message after ${i}s"
             return
         fi
@@ -351,6 +364,68 @@ _run_with_timeout() {
     kill "$timer_pid" 2>/dev/null || true
     wait "$timer_pid" 2>/dev/null || true
     return "$status"
+}
+
+_tauri_pilot() {
+    TAURI_PILOT_SOCKET="$TAURI_PILOT_SOCKET" tauri-pilot "$@"
+}
+
+_resolve_dynamic_dev_port() {
+    KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
+        KAIROX_DEV_PREFERRED_PORT="$DEV_PORT" \
+        node --input-type=module <<'EOF'
+const { resolveTauriDevPort } = await import(process.env.KAIROX_DEV_HELPER);
+const port = await resolveTauriDevPort({
+  ...process.env,
+  KAIROX_DEV_PORT: process.env.KAIROX_DEV_PREFERRED_PORT
+});
+console.log(port);
+EOF
+}
+
+_resolve_pilot_socket() {
+    KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
+        KAIROX_DEV_SELECTED_PORT="$DEV_PORT" \
+        node --input-type=module <<'EOF'
+const {
+  buildTauriDevIdentifier,
+  buildTauriPilotSocketPath
+} = await import(process.env.KAIROX_DEV_HELPER);
+const identifier = buildTauriDevIdentifier(process.env.KAIROX_DEV_SELECTED_PORT);
+console.log(`${identifier}\n${buildTauriPilotSocketPath(identifier, process.env)}`);
+EOF
+}
+
+_resolve_pilot_socket_for_identifier() {
+    KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
+        KAIROX_PILOT_IDENTIFIER="$1" \
+        node --input-type=module <<'EOF'
+const { buildTauriPilotSocketPath } = await import(process.env.KAIROX_DEV_HELPER);
+console.log(buildTauriPilotSocketPath(process.env.KAIROX_PILOT_IDENTIFIER, process.env));
+EOF
+}
+
+_fail_if_app_exited() {
+    if [[ -n "${APP_PID:-}" ]] && ! kill -0 "$APP_PID" 2>/dev/null; then
+        echo "ERROR: Tauri app process exited before pilot became ready" >&2
+        tail -80 "$JUNIT_DIR/app.log" >&2 || true
+        exit 1
+    fi
+}
+
+_cleanup() {
+    if [[ -n "${APP_PID:-}" ]]; then
+        kill "$APP_PID" 2>/dev/null || true
+        wait "$APP_PID" 2>/dev/null || true
+    fi
+    if [[ -n "${VITE_PID:-}" ]]; then
+        kill "$VITE_PID" 2>/dev/null || true
+        wait "$VITE_PID" 2>/dev/null || true
+    fi
+    if [[ -n "${TAURI_PILOT_SOCKET:-}" && -S "$TAURI_PILOT_SOCKET" ]]; then
+        rm -f "$TAURI_PILOT_SOCKET" 2>/dev/null || true
+    fi
+    _restore_config
 }
 
 _dev_port_listening() {
@@ -416,7 +491,13 @@ if [[ "${KAIROX_PILOT_LIST_SCENARIOS:-0}" = "1" ]]; then
     exit 0
 fi
 
-if [[ ! -x "$APP_BIN" ]]; then
+if [[ "$APP_LAUNCHER" != "tauri-dev" && "$APP_LAUNCHER" != "binary" ]]; then
+    echo "ERROR: unsupported KAIROX_PILOT_APP_LAUNCHER: $APP_LAUNCHER" >&2
+    echo "       Expected one of: tauri-dev, binary" >&2
+    exit 1
+fi
+
+if [[ "$APP_LAUNCHER" = "binary" && ! -x "$APP_BIN" ]]; then
     echo "ERROR: Tauri debug binary not found or not executable: $APP_BIN" >&2
     echo "       Build it first with: cargo tauri build --debug --no-bundle --features pilot" >&2
     exit 1
@@ -439,27 +520,50 @@ echo "  mcp server:  $FIXTURE_MCP_SERVER_SCRIPT"
 _backup_project_config
 APP_PID=""
 VITE_PID=""
-trap 'if [[ -n "${APP_PID:-}" ]]; then kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true; fi; if [[ -n "${VITE_PID:-}" ]]; then kill "$VITE_PID" 2>/dev/null || true; wait "$VITE_PID" 2>/dev/null || true; fi; _restore_config' EXIT
+trap _cleanup EXIT
 _register_pilot_fixtures
 _write_pilot_project_config
 
 # ─── Launch the app ────────────────────────────────────────────────────────────
 
-_start_vite_if_needed
+if [[ "$APP_LAUNCHER" = "binary" ]]; then
+    PILOT_IDENTIFIER="dev.kairox.agent"
+    TAURI_PILOT_SOCKET="${TAURI_PILOT_SOCKET:-$(_resolve_pilot_socket_for_identifier "$PILOT_IDENTIFIER")}"
+    _start_vite_if_needed
+    HOME="$PILOT_HOME" "$APP_BIN" >"$JUNIT_DIR/app.log" 2>&1 &
+    APP_PID=$!
+else
+    DEV_PORT="$(_resolve_dynamic_dev_port)"
+    PILOT_SOCKET_INFO="$(_resolve_pilot_socket)"
+    PILOT_IDENTIFIER="$(printf '%s\n' "$PILOT_SOCKET_INFO" | sed -n '1p')"
+    TAURI_PILOT_SOCKET="$(printf '%s\n' "$PILOT_SOCKET_INFO" | sed -n '2p')"
+    echo "Tauri dev launcher:"
+    echo "  dev URL:    http://localhost:${DEV_PORT}"
+    echo "  identifier: $PILOT_IDENTIFIER"
+    echo "  socket:     $TAURI_PILOT_SOCKET"
+    (
+        cd "$REPO_ROOT"
+        HOME="$PILOT_HOME" \
+            CARGO_HOME="$HOST_CARGO_HOME" \
+            RUSTUP_HOME="$HOST_RUSTUP_HOME" \
+            KAIROX_DEV_PORT="$DEV_PORT" \
+            KAIROX_DEV_STRICT_PORT=1 \
+            KAIROX_DEV_DYNAMIC_IDENTIFIER=1 \
+            bun --filter agent-gui tauri dev --features pilot
+    ) >"$JUNIT_DIR/app.log" 2>&1 &
+    APP_PID=$!
+fi
 
-HOME="$PILOT_HOME" "$APP_BIN" &
-APP_PID=$!
-
-# Wait for the pilot socket to come up (up to 30s). `tauri-pilot ping` exits
-# non-zero while the socket isn't listening, which is wrapped in `if` so
-# `set -e` doesn't trip.
-for i in $(seq 1 30); do
-    if _run_with_timeout 5 tauri-pilot ping >/dev/null 2>&1; then
+# Wait for the pilot socket to come up. `tauri-pilot ping` exits non-zero while
+# the socket isn't listening, which is wrapped in `if` so `set -e` doesn't trip.
+for i in $(seq 1 "$PILOT_SOCKET_TIMEOUT_SECS"); do
+    if _run_with_timeout 5 _tauri_pilot ping >/dev/null 2>&1; then
         echo "tauri-pilot connected after ${i}s"
         break
     fi
-    if [[ "$i" -eq 30 ]]; then
-        echo "ERROR: tauri-pilot ping timed out after 30s" >&2
+    _fail_if_app_exited
+    if [[ "$i" -eq "$PILOT_SOCKET_TIMEOUT_SECS" ]]; then
+        echo "ERROR: tauri-pilot ping timed out after ${PILOT_SOCKET_TIMEOUT_SECS}s" >&2
         exit 1
     fi
     sleep 1
@@ -469,15 +573,16 @@ done
 # additional seconds to attach (especially under xvfb on Linux). Without this
 # extra probe the first scenario step fails with:
 #   RPC error (-32603): Eval failed: No webview available
-# We poll a trivial `eval` until it succeeds (up to 30s) so that scenarios
-# start with a known-ready webview.
-for i in $(seq 1 30); do
-    if _run_with_timeout 5 tauri-pilot eval '1' >/dev/null 2>&1; then
+# We poll a trivial `eval` until it succeeds so that scenarios start with a
+# known-ready webview.
+for i in $(seq 1 "$PILOT_WEBVIEW_TIMEOUT_SECS"); do
+    if _run_with_timeout 5 _tauri_pilot eval '1' >/dev/null 2>&1; then
         echo "webview ready after ${i}s"
         break
     fi
-    if [[ "$i" -eq 30 ]]; then
-        echo "ERROR: webview did not become ready within 30s after ping" >&2
+    _fail_if_app_exited
+    if [[ "$i" -eq "$PILOT_WEBVIEW_TIMEOUT_SECS" ]]; then
+        echo "ERROR: webview did not become ready within ${PILOT_WEBVIEW_TIMEOUT_SECS}s after ping" >&2
         exit 1
     fi
     sleep 1
@@ -504,7 +609,7 @@ for scenario in "${scenarios[@]}"; do
         _write_pilot_browser_state
         _wait_for_app_shell "scenario browser state reset" "app shell did not return after scenario browser state reset"
     fi
-    if ! tauri-pilot run "$scenario" --junit "$junit"; then
+    if ! _tauri_pilot run "$scenario" --junit "$junit"; then
         if _scenario_hit_rate_limit "$junit"; then
             echo "SKIP: $name (GitHub Models rate limit / HTTP 429; junit: $junit)" >&2
         else
