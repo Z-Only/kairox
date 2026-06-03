@@ -25,6 +25,7 @@ test:
 # Run GUI (Vitest) tests
 test-gui:
     bun --filter agent-gui test
+    bun --filter agent-gui test:scripts
 
 # Run Rust and GUI coverage gates
 coverage: coverage-rust coverage-web

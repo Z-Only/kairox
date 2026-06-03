@@ -20,6 +20,8 @@
 #       subset is provided, run only the low-request live model scenarios.
 #   KAIROX_PILOT_LIST_SCENARIOS=1
 #       Print the selected scenario set and exit without launching the app.
+#   KAIROX_DEV_PORT=1420
+#       Vite dev server port expected by the debug binary. Defaults to 1420.
 #
 # Exit code: 0 on all-pass, 1 on first scenario failure (or env error).
 
@@ -45,6 +47,7 @@ LIVE_MODEL_PROFILE="${KAIROX_PILOT_MODEL_PROFILE:-github-gpt4o-mini}"
 LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
+DEV_PORT="${KAIROX_DEV_PORT:-1420}"
 DEFAULT_LIVE_SCENARIOS=(chat-live)
 scenarios=()
 
@@ -350,25 +353,25 @@ _run_with_timeout() {
     return "$status"
 }
 
-_port_1420_listening() {
-    (echo >/dev/tcp/127.0.0.1/1420) >/dev/null 2>&1
+_dev_port_listening() {
+    (echo >/dev/tcp/127.0.0.1/"$DEV_PORT") >/dev/null 2>&1
 }
 
 _start_vite_if_needed() {
-    if _port_1420_listening; then
-        echo "Vite dev server already listening on 127.0.0.1:1420"
+    if _dev_port_listening; then
+        echo "Vite dev server already listening on 127.0.0.1:${DEV_PORT}"
         return
     fi
 
-    echo "Starting Vite dev server on 127.0.0.1:1420"
+    echo "Starting Vite dev server on 127.0.0.1:${DEV_PORT}"
     (
         cd "$REPO_ROOT/apps/agent-gui"
-        bun run dev
+        KAIROX_DEV_PORT="$DEV_PORT" KAIROX_DEV_STRICT_PORT=1 bun run dev
     ) >"$JUNIT_DIR/vite.log" 2>&1 &
     VITE_PID=$!
 
     for i in $(seq 1 60); do
-        if _port_1420_listening; then
+        if _dev_port_listening; then
             echo "Vite dev server ready after ${i}s"
             return
         fi

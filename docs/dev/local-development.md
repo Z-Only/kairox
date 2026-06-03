@@ -56,11 +56,23 @@ just gui-dev
 # or: bun --filter agent-gui dev
 ```
 
+The GUI dev server starts at port `1420` by default. If that port is already in use, Vite automatically chooses the next available port. Set `KAIROX_DEV_PORT` to start from a different port:
+
+```bash
+KAIROX_DEV_PORT=1530 bun --filter agent-gui dev
+```
+
 Run the Tauri desktop app in development mode:
 
 ```bash
 just tauri-dev
 # or: bun --filter agent-gui tauri:dev
+```
+
+The Tauri dev wrapper picks an available port, passes it to Vite, and overrides Tauri's `devUrl` for that run. This allows multiple local GUI dev instances to run side by side. When the `pilot` feature is enabled, the wrapper also adds the selected port to the dev identifier so each app gets a separate `tauri-pilot` socket:
+
+```bash
+bun --filter agent-gui tauri dev --features pilot
 ```
 
 ## Type synchronization
