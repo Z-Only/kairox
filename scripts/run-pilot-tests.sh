@@ -22,7 +22,7 @@
 #   KAIROX_DEV_PORT=1420
 #       Preferred Vite dev server port. Defaults to 1420; if occupied, the
 #       Tauri dev wrapper selects the next available port.
-#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=120
+#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=240
 #       Max seconds to wait for the Tauri app to compile/start and expose its
 #       pilot socket.
 #
@@ -57,7 +57,7 @@ LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
 DEV_PORT="${KAIROX_DEV_PORT:-1420}"
-PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-120}"
+PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-240}"
 PILOT_WEBVIEW_TIMEOUT_SECS="${KAIROX_PILOT_WEBVIEW_TIMEOUT_SECS:-30}"
 PILOT_IDENTIFIER=""
 TAURI_PILOT_SOCKET="${TAURI_PILOT_SOCKET:-}"

@@ -75,6 +75,8 @@ The Tauri dev wrapper picks an available port, passes it to Vite, and overrides 
 bun --filter agent-gui tauri dev --features pilot
 ```
 
+Kairox writes one runtime instance record per GUI/TUI process under `~/.kairox/runtime/instances/`. These JSON records include the process kind, PID, database file, and workspace path. Shutdown cleanup is best-effort because some desktop exits bypass Rust destructors; startup and instance queries prune dead-PID records before reporting any other running local instances so port, database, MCP/LSP, monitor, and workspace-file conflicts are easier to diagnose.
+
 ## Type synchronization
 
 Kairox uses [tauri-specta](https://github.com/specta-rs/tauri-specta) to auto-generate Rust→TypeScript bindings for both commands and events. The generated files live under `apps/agent-gui/src/generated/` and **must not be edited by hand**.
