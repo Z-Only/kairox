@@ -159,6 +159,7 @@ describe("McpServerCard", () => {
     it("renders the diagnostic summary", () => {
       const server = toEffective(
         makeServer({
+          tool_count: null,
           diagnostic_summary:
             "status: failed; trust: trusted; tools: unknown; verified; error: timeout"
         })
@@ -168,6 +169,31 @@ describe("McpServerCard", () => {
       expect(summary.exists()).toBe(true);
       expect(summary.text()).toContain("tools: unknown");
       expect(summary.text()).toContain("error: timeout");
+    });
+
+    it("uses refreshed health tool count in the diagnostic summary", () => {
+      const server = toEffective(
+        makeServer({
+          tool_count: null,
+          diagnostic_summary:
+            "status: running; trust: trusted; tools: unknown; verified; error: none"
+        })
+      );
+      const mcp = useMcpStore();
+      mcp.serverHealth[server.value.id] = {
+        tools: [
+          { name: "echo", description: "Echo", input_schema: {} },
+          { name: "env", description: "Env", input_schema: {} }
+        ],
+        healthy: true,
+        error: null
+      };
+
+      const wrapper = mountCard(server);
+
+      const summary = wrapper.find(`[data-test="mcp-diagnostics-${server.value.id}"]`);
+      expect(summary.text()).toContain("tools: 2 tools");
+      expect(summary.text()).not.toContain("tools: unknown");
     });
 
     it("renders overrides tag when present", () => {

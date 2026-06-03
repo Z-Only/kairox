@@ -88,6 +88,26 @@ describe("updateToolCount", () => {
     expect(state.settingsServers.value[0].tool_count).toBe(5);
   });
 
+  it("refreshes diagnostics when tool count changes", () => {
+    const { state, actions } = setup();
+    state.settingsServers.value = [
+      createServerView({
+        id: "files",
+        runtime_status: "running",
+        trusted: true,
+        tool_count: null,
+        verified: true,
+        diagnostic_summary: "status: running; trust: trusted; tools: unknown; verified; error: none"
+      })
+    ];
+
+    actions.updateToolCount("files", 2);
+
+    expect(state.settingsServers.value[0].diagnostic_summary).toBe(
+      "status: running; trust: trusted; tools: 2 tools; verified; error: none"
+    );
+  });
+
   it("updates tool count on matching effective server", () => {
     const { state, actions } = setup();
     state.effectiveServers.value = [
