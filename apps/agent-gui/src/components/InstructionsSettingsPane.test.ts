@@ -78,6 +78,7 @@ function mockGetInstructions() {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
+  mockedInvoke.mockReset();
 });
 
 describe("InstructionsSettingsPane", () => {
@@ -225,6 +226,30 @@ describe("InstructionsSettingsPane", () => {
       });
     });
 
+    it("waits for the selected project root before rendering the project editor", async () => {
+      const configSource = ref<"user" | "project">("project");
+      const configProjectId = ref<string | undefined>(projectId);
+      mockGetInstructions();
+
+      const wrapper = mountPaneWithSource(configSource, configProjectId);
+      await flushPromises();
+
+      expect(wrapper.find('[data-test="instructions-loading"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="project-instructions"]').exists()).toBe(false);
+      expect(mockedInvoke).not.toHaveBeenCalled();
+
+      seedProject();
+      await flushPromises();
+
+      expect(mockedInvoke).toHaveBeenCalledWith("get_instructions", {
+        scope: "Project",
+        projectRoot
+      });
+      expect(
+        wrapper.find<HTMLTextAreaElement>('[data-test="project-instructions"]').element.value
+      ).toBe(projectInstructions);
+    });
+
     it("is hidden under User scope", async () => {
       mockGetInstructions();
 
@@ -237,9 +262,10 @@ describe("InstructionsSettingsPane", () => {
     });
 
     it("is editable under Project scope with editable badge", async () => {
+      seedProject();
       mockGetInstructions();
 
-      const wrapper = mountPane("project");
+      const wrapper = mountPane("project", projectId);
       await nextTick();
       await nextTick();
 
@@ -253,9 +279,10 @@ describe("InstructionsSettingsPane", () => {
     });
 
     it("updates projectText on input", async () => {
+      seedProject();
       mockGetInstructions();
 
-      const wrapper = mountPane("project");
+      const wrapper = mountPane("project", projectId);
       await nextTick();
       await nextTick();
 
@@ -352,11 +379,12 @@ describe("InstructionsSettingsPane", () => {
     });
 
     it("trims whitespace from project text before saving", async () => {
+      seedProject();
       mockGetInstructions();
       mockedInvoke.mockResolvedValueOnce(null);
       mockGetInstructions();
 
-      const wrapper = mountPane("project");
+      const wrapper = mountPane("project", projectId);
       await nextTick();
       await nextTick();
 
@@ -368,7 +396,7 @@ describe("InstructionsSettingsPane", () => {
 
       expect(mockedInvoke).toHaveBeenCalledWith("upsert_instructions", {
         input: { scope: "Project", text: "padded text" },
-        projectRoot: null
+        projectRoot
       });
     });
   });
