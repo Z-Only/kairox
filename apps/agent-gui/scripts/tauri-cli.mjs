@@ -9,10 +9,10 @@ import {
   buildTauriDevArgs,
   buildTauriDevConfig,
   buildTauriDevEnv,
-  findAvailablePort,
+  buildTauriPilotSocketPath,
   hasPilotFeature,
   isEnabled,
-  parsePort
+  resolveTauriDevPort
 } from "./dev-port.mjs";
 
 const args = process.argv.slice(2);
@@ -21,9 +21,10 @@ const tauriCommand = resolveTauriCommand();
 if (args[0] !== "dev" || isEnabled(process.env.KAIROX_TAURI_RAW)) {
   runTauri(args, process.env);
 } else {
-  const port = await findAvailablePort({
-    preferredPort: parsePort(process.env.KAIROX_DEV_PORT, DEFAULT_DEV_PORT),
-    host: process.env.KAIROX_DEV_PORT_CHECK_HOST || DEFAULT_PORT_CHECK_HOST
+  const port = await resolveTauriDevPort({
+    ...process.env,
+    KAIROX_DEV_PORT: process.env.KAIROX_DEV_PORT ?? String(DEFAULT_DEV_PORT),
+    KAIROX_DEV_PORT_CHECK_HOST: process.env.KAIROX_DEV_PORT_CHECK_HOST || DEFAULT_PORT_CHECK_HOST
   });
   const enablePilotIdentifier =
     hasPilotFeature(args) || isEnabled(process.env.KAIROX_DEV_DYNAMIC_IDENTIFIER);
@@ -37,6 +38,9 @@ if (args[0] !== "dev" || isEnabled(process.env.KAIROX_TAURI_RAW)) {
   console.error(`[kairox] Vite dev URL: http://localhost:${port}`);
   if (enablePilotIdentifier) {
     console.error(`[kairox] Tauri dev identifier: ${config.identifier}`);
+    console.error(
+      `[kairox] Tauri pilot socket: ${buildTauriPilotSocketPath(config.identifier, env)}`
+    );
   }
 
   runTauri(devArgs, env);

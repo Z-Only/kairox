@@ -231,20 +231,17 @@ eval-smoke:
         --seed-synthetic-pairs 4 \
         --wait-timeout-ms 5000
 
-# Build the Tauri debug binary with the pilot plugin enabled and run the
-# tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/. Requires the
-# tauri-pilot CLI on PATH; install via:
+# Run the tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/.
+# Requires the tauri-pilot CLI on PATH; install via:
 #     cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
 # On Linux you typically need to wrap this recipe in `xvfb-run -a just
 # test-pilot`; on macOS the Tauri window will appear briefly during the run.
 test-pilot:
-    bun --filter agent-gui tauri build --debug --no-bundle --features pilot
     scripts/run-pilot-tests.sh
     @echo "✅ tauri-pilot E2E scenarios passed"
 
 # Run the bounded tauri-pilot scenarios that exercise GitHub Models through
 # the desktop app. Requires GITHUB_TOKEN with GitHub Models access.
 test-pilot-live:
-    bun --filter agent-gui tauri build --debug --no-bundle --features pilot
     KAIROX_PILOT_LIVE_MODELS=1 scripts/run-pilot-tests.sh
     @echo "✅ live tauri-pilot E2E scenarios passed"

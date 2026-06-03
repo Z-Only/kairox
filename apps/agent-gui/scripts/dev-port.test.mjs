@@ -1,15 +1,22 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
+import path from "node:path";
 import { after, describe, it } from "node:test";
 import {
   buildTauriDevConfig,
   buildTauriDevEnv,
+  buildTauriDevIdentifier,
   buildTauriDevArgs,
+  buildTauriPilotSocketPath,
   findAvailablePort,
-  hasPilotFeature
+  hasPilotFeature,
+  resolveTauriDevPort
 } from "./dev-port.mjs";
 
 const openServers = [];
+const tempDirs = [];
 
 after(async () => {
   await Promise.all(
@@ -20,6 +27,9 @@ after(async () => {
         })
     )
   );
+  for (const dir of tempDirs) {
+    fs.rmSync(dir, { force: true, recursive: true });
+  }
 });
 
 function listen(port) {
@@ -68,6 +78,16 @@ describe("dev port helpers", () => {
     });
   });
 
+  it("uses the strict preferred port without scanning", async () => {
+    assert.equal(
+      await resolveTauriDevPort({
+        KAIROX_DEV_PORT: "14217",
+        KAIROX_DEV_STRICT_PORT: "1"
+      }),
+      14_217
+    );
+  });
+
   it("inserts dynamic config before Tauri runner arguments", () => {
     const config = buildTauriDevConfig({ port: 14_217 });
     assert.deepEqual(buildTauriDevArgs(["dev", "--", "--runner-arg"], config), [
@@ -83,5 +103,22 @@ describe("dev port helpers", () => {
     assert.equal(hasPilotFeature(["dev", "--features", "pilot"]), true);
     assert.equal(hasPilotFeature(["dev", "-f", "foo", "pilot"]), true);
     assert.equal(hasPilotFeature(["dev", "--features", "foo,typegen"]), false);
+  });
+
+  it("builds a deterministic pilot socket path", () => {
+    const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "kairox-pilot-runtime-"));
+    tempDirs.push(runtimeDir);
+    fs.chmodSync(runtimeDir, 0o700);
+
+    const identifier = buildTauriDevIdentifier(14_217);
+    assert.equal(identifier, "dev.kairox.agent.dev14217");
+    assert.equal(
+      buildTauriPilotSocketPath(identifier, { XDG_RUNTIME_DIR: runtimeDir }),
+      path.join(runtimeDir, "tauri-pilot-dev.kairox.agent.dev14217.sock")
+    );
+    assert.equal(
+      buildTauriPilotSocketPath(identifier, { XDG_RUNTIME_DIR: "/tmp" }),
+      "/tmp/tauri-pilot-dev.kairox.agent.dev14217.sock"
+    );
   });
 });

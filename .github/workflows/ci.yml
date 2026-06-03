@@ -615,9 +615,6 @@ jobs:
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
         run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
 
-      - name: Build Tauri debug binary with pilot feature
-        run: bun --filter agent-gui tauri build --debug --no-bundle --features pilot
-
       - name: Run pilot E2E scenarios (Linux, with xvfb)
         if: matrix.os == 'ubuntu-latest'
         # The job-level `timeout-minutes: 30` already caps runtime. We avoid
@@ -708,9 +705,6 @@ jobs:
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
         run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
-
-      - name: Build Tauri debug binary with pilot feature
-        run: bun --filter agent-gui tauri build --debug --no-bundle --features pilot
 
       - name: Run live pilot E2E scenarios
         env:

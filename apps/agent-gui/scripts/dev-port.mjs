@@ -1,4 +1,6 @@
+import fs from "node:fs";
 import net from "node:net";
+import path from "node:path";
 
 export const DEFAULT_DEV_PORT = 1420;
 export const DEFAULT_PORT_CHECK_HOST = "127.0.0.1";
@@ -24,6 +26,10 @@ export function isEnabled(value) {
 
 export function shouldUseStrictPort(env = process.env) {
   return isEnabled(env.KAIROX_DEV_STRICT_PORT);
+}
+
+export function buildTauriDevIdentifier(port) {
+  return `dev.kairox.agent.dev${parsePort(port)}`;
 }
 
 export function isPortAvailable(port, host = DEFAULT_PORT_CHECK_HOST) {
@@ -65,6 +71,18 @@ export async function findAvailablePort({
   );
 }
 
+export async function resolveTauriDevPort(env = process.env) {
+  const preferredPort = parsePort(env.KAIROX_DEV_PORT, DEFAULT_DEV_PORT);
+  if (shouldUseStrictPort(env)) {
+    return preferredPort;
+  }
+
+  return findAvailablePort({
+    preferredPort,
+    host: env.KAIROX_DEV_PORT_CHECK_HOST || DEFAULT_PORT_CHECK_HOST
+  });
+}
+
 export function buildTauriDevConfig({ port, enablePilotIdentifier = false }) {
   const resolvedPort = parsePort(port);
   const config = {
@@ -75,10 +93,25 @@ export function buildTauriDevConfig({ port, enablePilotIdentifier = false }) {
   };
 
   if (enablePilotIdentifier) {
-    config.identifier = `dev.kairox.agent.dev${resolvedPort}`;
+    config.identifier = buildTauriDevIdentifier(resolvedPort);
   }
 
   return config;
+}
+
+export function buildTauriPilotSocketPath(identifier, env = process.env) {
+  if (process.platform === "win32") {
+    return `\\\\.\\pipe\\tauri-pilot-${identifier}`;
+  }
+  return path.join(resolvePilotSocketDir(env), `tauri-pilot-${identifier}.sock`);
+}
+
+export function resolvePilotSocketDir(env = process.env) {
+  const xdgRuntimeDir = env.XDG_RUNTIME_DIR;
+  if (xdgRuntimeDir && isPrivateDirectory(xdgRuntimeDir)) {
+    return xdgRuntimeDir;
+  }
+  return "/tmp";
 }
 
 export function buildTauriDevEnv(_env, port) {
@@ -129,4 +162,14 @@ function featureListHasPilot(value) {
     .split(/[,\s]+/)
     .filter(Boolean)
     .includes("pilot");
+}
+
+function isPrivateDirectory(dir) {
+  try {
+    const stat = fs.statSync(dir);
+    const uid = typeof process.getuid === "function" ? process.getuid() : stat.uid;
+    return stat.isDirectory() && stat.uid === uid && (stat.mode & 0o077) === 0;
+  } catch {
+    return false;
+  }
 }
