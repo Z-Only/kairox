@@ -140,9 +140,29 @@ target = "[data-test='project-instructions']"
 # Edit project instructions
 [[step]]
 name = "fill project instructions"
-action = "fill"
-target = "[data-test='project-instructions']"
-value = "Pilot project: always run tests before commit."
+action = "eval"
+script = """
+(() => {
+  const el = document.querySelector("[data-test='project-instructions']");
+  if (!el) throw new Error("project instructions textarea not found");
+  el.value = "Pilot project: always run tests before commit.";
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  return "filled";
+})()
+"""
+
+[[step]]
+name = "verify project instructions filled before save"
+action = "eval"
+script = """
+(() => {
+  const el = document.querySelector("[data-test='project-instructions']");
+  if (!el?.value?.includes("Pilot project: always run tests before commit.")) {
+    throw new Error("project instructions fill did not update textarea");
+  }
+  return "filled";
+})()
+"""
 
 [[step]]
 name = "save project instructions"

@@ -39,6 +39,9 @@ async function load(resetLoaded = true): Promise<void> {
   if (resetLoaded) {
     loaded.value = false;
   }
+  if (scope.value === "Project" && !projectRoot.value) {
+    return;
+  }
   try {
     const result = await commands.getInstructions(scope.value, projectRoot.value);
     if (isCommandResult(result)) {
