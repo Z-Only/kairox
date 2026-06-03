@@ -163,7 +163,13 @@ async fn cancel_session_interrupts_running_single_step_turn() {
     let graph = graphs.get(&session_id.to_string()).unwrap();
     let counts = graph.state_counts();
     assert_eq!(counts.running, 0);
-    assert!(counts.failed > 0);
+    assert_eq!(counts.failed, 0);
+    assert_eq!(counts.cancelled, 1);
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    assert!(trace
+        .iter()
+        .any(|entry| matches!(entry.event.payload, EventPayload::TaskCancelled { .. })));
 }
 
 #[tokio::test]
