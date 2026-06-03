@@ -27,6 +27,7 @@ mod facade_session_ops;
 
 pub use execution_mode::ExecutionMode;
 pub use local_runtime::LocalRuntime;
+pub(crate) use local_runtime::RuntimeConfig;
 
 impl<S, M> AppFacade for LocalRuntime<S, M>
 where

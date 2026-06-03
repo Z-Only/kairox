@@ -13,6 +13,7 @@ fn monitor_start_tool_has_read_risk() {
         tool_id: MONITOR_START_TOOL_ID.into(),
         arguments: serde_json::json!({"command": "echo hi", "description": "test"}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "echo hi".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -28,6 +29,7 @@ fn monitor_stop_tool_has_read_risk() {
         tool_id: MONITOR_STOP_TOOL_ID.into(),
         arguments: serde_json::json!({"monitor_id": "mon_1"}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "stop mon_1".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -50,6 +52,7 @@ async fn list_empty_returns_no_active() {
         tool_id: MONITOR_LIST_TOOL_ID.into(),
         arguments: serde_json::json!({}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "list monitors".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -68,6 +71,7 @@ async fn start_tool_invoke_returns_monitor_id() {
             "description": "test monitor"
         }),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "echo hello".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -81,12 +85,50 @@ async fn start_tool_invoke_returns_monitor_id() {
 }
 
 #[tokio::test]
+async fn start_tool_emits_events_for_invocation_session() {
+    let (tx, mut rx) = tokio::sync::broadcast::channel(64);
+    let registry = Arc::new(MonitorRegistry::new(PathBuf::from("/tmp"), tx));
+    let tool = MonitorStartTool::new(registry.clone());
+    let invocation = ToolInvocation {
+        tool_id: MONITOR_START_TOOL_ID.into(),
+        arguments: serde_json::json!({
+            "command": "sleep 60",
+            "description": "session-visible monitor"
+        }),
+        workspace_id: "wrk_test".into(),
+        session_id: "ses_monitor_visible".into(),
+        preview: "sleep 60".into(),
+        timeout_ms: 0,
+        output_limit_bytes: 0,
+    };
+
+    let output = tool.invoke(invocation).await.unwrap();
+    let expected_monitor_id = output.text.strip_prefix("Monitor started: ").unwrap();
+    let event = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(event.session_id.to_string(), "ses_monitor_visible");
+    assert!(matches!(
+        event.payload,
+        agent_core::EventPayload::MonitorStarted {
+            ref monitor_id,
+            ..
+        } if monitor_id == expected_monitor_id
+    ));
+
+    registry.stop_all().await;
+}
+
+#[tokio::test]
 async fn start_tool_missing_command_errors() {
     let tool = MonitorStartTool::new(test_registry());
     let invocation = ToolInvocation {
         tool_id: MONITOR_START_TOOL_ID.into(),
         arguments: serde_json::json!({"description": "no cmd"}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -102,6 +144,7 @@ async fn stop_tool_unknown_monitor_errors() {
         tool_id: MONITOR_STOP_TOOL_ID.into(),
         arguments: serde_json::json!({"monitor_id": "mon_999"}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "stop mon_999".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -118,6 +161,7 @@ async fn stop_tool_invoke_success() {
         tool_id: MONITOR_START_TOOL_ID.into(),
         arguments: serde_json::json!({"command": "sleep 60", "description": "to stop"}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "sleep 60".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -130,6 +174,7 @@ async fn stop_tool_invoke_success() {
         tool_id: MONITOR_STOP_TOOL_ID.into(),
         arguments: serde_json::json!({"monitor_id": monitor_id}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: format!("stop {monitor_id}"),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -145,6 +190,7 @@ async fn stop_tool_missing_monitor_id_errors() {
         tool_id: MONITOR_STOP_TOOL_ID.into(),
         arguments: serde_json::json!({}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -164,6 +210,7 @@ async fn list_with_active_monitor_shows_entries() {
             "description": "long running"
         }),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "sleep 60".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -175,6 +222,7 @@ async fn list_with_active_monitor_shows_entries() {
         tool_id: MONITOR_LIST_TOOL_ID.into(),
         arguments: serde_json::json!({}),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "list".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,
@@ -198,6 +246,7 @@ async fn start_tool_with_optional_params() {
             "timeout_ms": 60000
         }),
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: "echo test".into(),
         timeout_ms: 0,
         output_limit_bytes: 0,

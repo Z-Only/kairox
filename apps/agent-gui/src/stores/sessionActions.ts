@@ -55,6 +55,7 @@ export async function switchToKnownSession(
     try {
       const event = JSON.parse(jsonStr) as DomainEvent;
       if (event.payload.type === "ModelProfileSwitched") {
+        deps.currentProfile.value = event.payload.to_profile;
         deps.currentReasoningEffort.value = event.payload.reasoning_effort ?? null;
       }
       applyTraceEvent(event);

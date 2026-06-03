@@ -25,6 +25,7 @@ import { useUiStore } from "@/stores/ui";
 import { useMcpStore } from "@/stores/mcp";
 import { useAgentsStore } from "@/stores/agents";
 import { useCatalogStore } from "@/stores/catalog";
+import { useMemoryStore } from "@/stores/memory";
 import { applyTraceEvent } from "@/composables/useTraceStore";
 
 const Dummy = defineComponent({
@@ -166,6 +167,52 @@ describe("useTauriEvents", () => {
     listenCallback!({ payload: domainEvent });
 
     expect(applyAgentSpy).toHaveBeenCalledWith(domainEvent.payload);
+
+    wrapper.unmount();
+  });
+
+  it("refreshes memory browser data when memory lifecycle events arrive", async () => {
+    const wrapper = mount(Dummy);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const session = useSessionStore();
+    const memory = useMemoryStore();
+    session.currentSessionId = "sess-1";
+
+    vi.spyOn(session, "applyEvent").mockImplementation(() => {});
+    const loadMemoriesSpy = vi.spyOn(memory, "loadMemories").mockResolvedValue();
+
+    for (const payload of [
+      {
+        type: "MemoryProposed",
+        memory_id: "mem-1",
+        scope: "user",
+        key: "lang",
+        content: "Rust"
+      },
+      {
+        type: "MemoryAccepted",
+        memory_id: "mem-1",
+        scope: "user",
+        key: "lang",
+        content: "Rust"
+      },
+      {
+        type: "MemoryRejected",
+        memory_id: "mem-1",
+        reason: "User rejected"
+      }
+    ]) {
+      listenCallback!({
+        payload: {
+          session_id: "sess-1",
+          payload
+        }
+      });
+    }
+
+    expect(loadMemoriesSpy).toHaveBeenCalledTimes(3);
 
     wrapper.unmount();
   });

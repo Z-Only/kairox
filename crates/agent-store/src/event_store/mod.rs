@@ -35,8 +35,18 @@ pub trait EventStore: Send + Sync {
     async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceRow>>;
     /// List all active (non-deleted) sessions for a workspace.
     async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>>;
+    /// List archived ordinary sessions for a workspace.
+    async fn list_archived_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>>;
     /// Rename a session by updating its title.
     async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()>;
+    /// Update model metadata for a session after a successful profile switch.
+    async fn update_session_model_profile(
+        &self,
+        session_id: &str,
+        model_profile: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+    ) -> crate::Result<()>;
     /// Soft-delete a session by setting deleted_at.
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()>;
     /// Permanently hard-delete a session and all associated data.
@@ -236,8 +246,29 @@ impl EventStore for SqliteEventStore {
         SqliteEventStore::list_active_sessions(self, workspace_id).await
     }
 
+    async fn list_archived_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
+        SqliteEventStore::list_archived_sessions(self, workspace_id).await
+    }
+
     async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()> {
         SqliteEventStore::rename_session(self, session_id, title).await
+    }
+
+    async fn update_session_model_profile(
+        &self,
+        session_id: &str,
+        model_profile: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+    ) -> crate::Result<()> {
+        SqliteEventStore::update_session_model_profile(
+            self,
+            session_id,
+            model_profile,
+            model_id,
+            provider,
+        )
+        .await
     }
 
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()> {

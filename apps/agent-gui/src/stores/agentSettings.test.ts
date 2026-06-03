@@ -52,6 +52,7 @@ describe("useAgentSettingsStore", () => {
 
     await store.loadAgents();
 
+    expect(mockedCommands.listAgentSettings).toHaveBeenCalledWith(null);
     expect(store.agents).toEqual([agent]);
     expect(store.loading).toBe(false);
     expect(store.error).toBeNull();
@@ -95,9 +96,25 @@ describe("useAgentSettingsStore", () => {
 
     const result = await store.saveAgent({} as AgentSettingsInput);
 
+    expect(mockedCommands.upsertAgentSettings).toHaveBeenCalledWith({} as AgentSettingsInput, null);
+    expect(mockedCommands.listAgentSettings).toHaveBeenCalledWith(null);
     expect(result).toEqual(saved);
     expect(store.saving).toBe(false);
     expect(store.error).toBeNull();
+  });
+
+  it("passes a selected project root through writes and refreshes", async () => {
+    const store = useAgentSettingsStore();
+    const saved = makeAgent({ id: "project-default", scope: "Project" });
+    const input = { scope: "Project" } as AgentSettingsInput;
+    mockedCommands.upsertAgentSettings.mockResolvedValueOnce(ok(saved));
+    mockedCommands.listAgentSettings.mockResolvedValueOnce(ok([saved]));
+
+    const result = await store.saveAgent(input, " /tmp/live-project ");
+
+    expect(mockedCommands.upsertAgentSettings).toHaveBeenCalledWith(input, "/tmp/live-project");
+    expect(mockedCommands.listAgentSettings).toHaveBeenCalledWith("/tmp/live-project");
+    expect(result).toEqual(saved);
   });
 
   it("saveAgent returns null and stores the error when the command rejects", async () => {
@@ -116,6 +133,7 @@ describe("useAgentSettingsStore", () => {
     mockedCommands.openAgentsDir.mockRejectedValueOnce(new Error("opener missing"));
 
     await expect(store.openAgentsDir()).resolves.toBeUndefined();
+    expect(mockedCommands.openAgentsDir).toHaveBeenCalledWith(null);
     expect(store.error).toBeNull();
   });
 

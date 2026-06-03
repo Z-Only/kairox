@@ -789,6 +789,7 @@ fn multiple_stream_items_render_in_chronological_order() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "do the dance".into(),
+                display_content: None,
             },
         ),
         make_event_at(

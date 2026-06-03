@@ -61,6 +61,7 @@ async fn soft_delete_session_stops_session_actor() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -101,6 +102,7 @@ async fn permanently_delete_session_stops_session_actor() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

@@ -30,6 +30,7 @@ async fn full_stack_event_stream_matches_trace() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

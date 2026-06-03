@@ -97,6 +97,7 @@ fn make_invocation(command: &str) -> ToolInvocation {
         tool_id: SHELL_TOOL_ID.to_string(),
         arguments: serde_json::json!({"command": command}),
         workspace_id: "test".to_string(),
+        session_id: "ses_test".into(),
         preview: command.to_string(),
         timeout_ms: 5000,
         output_limit_bytes: 102_400,
@@ -108,6 +109,7 @@ fn make_invocation_with_timeout(command: &str, timeout_ms: u64) -> ToolInvocatio
         tool_id: SHELL_TOOL_ID.to_string(),
         arguments: serde_json::json!({"command": command}),
         workspace_id: "test".to_string(),
+        session_id: "ses_test".into(),
         preview: command.to_string(),
         timeout_ms,
         output_limit_bytes: 102_400,
@@ -163,6 +165,29 @@ async fn shell_exec_timeout_returns_error() {
         Timeout(ms) => assert_eq!(ms, 200),
         other => panic!("expected Timeout, got {:?}", other),
     }
+}
+
+#[tokio::test]
+async fn dropping_shell_exec_future_kills_child_process() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join("should_not_exist.txt");
+    let command = format!(
+        "sh -lc 'sleep 1; printf SHOULD_NOT_EXIST > {}'",
+        marker.display()
+    );
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let invocation = make_invocation_with_timeout(&command, 5_000);
+
+    let task = tokio::spawn(async move { tool.invoke(invocation).await });
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    task.abort();
+    let _ = task.await;
+    tokio::time::sleep(Duration::from_millis(1_200)).await;
+
+    assert!(
+        !marker.exists(),
+        "aborting shell.exec should kill the child before it writes the marker"
+    );
 }
 
 #[tokio::test]

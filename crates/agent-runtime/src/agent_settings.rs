@@ -26,6 +26,17 @@ pub fn build_default_agent_settings_roots(home: &Path, workspace: &Path) -> Agen
     }
 }
 
+pub fn roots_for_project(
+    roots: &AgentSettingsRoots,
+    project_root: Option<&Path>,
+) -> AgentSettingsRoots {
+    let mut next = roots.clone();
+    if let Some(project_root) = project_root {
+        next.workspace_root = Some(project_root.join(".kairox/agents"));
+    }
+    next
+}
+
 pub async fn list_agent_settings(roots: AgentSettingsRoots) -> Result<Vec<AgentSettingsView>> {
     projection::list_agent_settings(&roots).await
 }

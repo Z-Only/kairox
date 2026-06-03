@@ -147,10 +147,10 @@ export function useCommandRegistry(
 
   const matchingSkills = computed(() => {
     const q = filterText.value.toLowerCase();
-    if (!q) return skills.activeSkills;
+    if (!q) return skills.skills;
 
-    return skills.activeSkills.filter(
-      (s) => s.skill_id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
+    return skills.skills.filter(
+      (s) => s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
     );
   });
 
@@ -186,7 +186,7 @@ export function useCommandRegistry(
     for (const skill of matchingSkills.value) {
       items.push({
         kind: "skill",
-        skillId: skill.skill_id,
+        skillId: skill.id,
         displayName: skill.name
       });
     }

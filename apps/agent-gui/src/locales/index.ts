@@ -8,19 +8,13 @@ import { watch } from "vue";
 import { useUiStore } from "@/stores/ui";
 import en from "./en.json";
 import zhCN from "./zh-CN.json";
+import { readStoredLocalePreference, resolveLocalePreference } from "./localePreference";
 
-export type SupportedLocale = "system" | "en" | "zh-CN";
-
-function detectInitialLocale(): SupportedLocale {
-  if (typeof window === "undefined") return "system";
-  const stored = window.localStorage.getItem("kairox.locale");
-  if (stored === "system") return "system";
-  return stored === "zh-CN" || stored === "en" ? stored : "system";
-}
+export type { SupportedLocale } from "./localePreference";
 
 export const i18n = createI18n({
   legacy: false,
-  locale: detectInitialLocale(),
+  locale: resolveLocalePreference(readStoredLocalePreference()),
   fallbackLocale: "en",
   messages: { en, "zh-CN": zhCN }
 });
@@ -41,14 +35,7 @@ export function bindLocaleToStore() {
   watch(
     () => ui.locale,
     (next) => {
-      if (next === "system") {
-        // Detect browser language and map to supported locale
-        const browserLang = navigator.language;
-        const detected: SupportedLocale = browserLang.startsWith("zh") ? "zh-CN" : "en";
-        i18n.global.locale.value = detected;
-      } else {
-        i18n.global.locale.value = next;
-      }
+      i18n.global.locale.value = resolveLocalePreference(next);
     },
     { immediate: true }
   );

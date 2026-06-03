@@ -111,6 +111,23 @@ describe("applySessionEvent — message events", () => {
     expect(ctx.lastSendError.value).toBeNull();
   });
 
+  it("uses display_content for attached UserMessageAdded events", () => {
+    const ctx = makeCtx();
+    applySessionEvent(
+      makeEvent({
+        type: "UserMessageAdded",
+        message_id: "m1",
+        content: "```md\n// file: notes.md\nsecret\n```",
+        display_content: "@notes.md summarize this"
+      }),
+      ctx,
+      makeAgentsStore()
+    );
+    expect(ctx.projection.value.messages).toEqual([
+      { role: "user", content: "@notes.md summarize this" }
+    ]);
+  });
+
   it("clears lastSendError on UserMessageAdded", () => {
     const ctx = makeCtx({ lastSendError: ref("previous error") as Ref<string | null> });
     applySessionEvent(
@@ -119,6 +136,24 @@ describe("applySessionEvent — message events", () => {
       makeAgentsStore()
     );
     expect(ctx.lastSendError.value).toBeNull();
+  });
+
+  it("clears the previous cancellation marker on UserMessageAdded", () => {
+    const projection = emptyProjection();
+    projection.cancelled = true;
+    const ctx = makeCtx({
+      projection: ref(projection) as Ref<SessionProjection>,
+      isStreaming: ref(false)
+    });
+
+    applySessionEvent(
+      makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "continue" }),
+      ctx,
+      makeAgentsStore()
+    );
+
+    expect(ctx.projection.value.cancelled).toBe(false);
+    expect(ctx.isStreaming.value).toBe(true);
   });
 
   it("accumulates ModelTokenDelta into token_stream", () => {

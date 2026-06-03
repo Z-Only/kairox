@@ -13,7 +13,7 @@ import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 const paletteStoreMocks = vi.hoisted(() => ({
   resetProjection: vi.fn(),
-  activeSkills: [] as Array<{ skill_id: string; name: string }>,
+  skills: [] as Array<{ id: string; name: string }>,
   profileInfos: [] as Array<{
     alias: string;
     provider: string;
@@ -37,7 +37,7 @@ vi.mock("@/stores/session", () => ({
 // Skills store: empty so only built-in commands show in initial render
 vi.mock("@/stores/skills", () => ({
   useSkillsStore: () => ({
-    activeSkills: paletteStoreMocks.activeSkills
+    skills: paletteStoreMocks.skills
   })
 }));
 
@@ -50,7 +50,7 @@ describe("CommandPalette", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     paletteStoreMocks.resetProjection.mockClear();
-    paletteStoreMocks.activeSkills.splice(0);
+    paletteStoreMocks.skills.splice(0);
     paletteStoreMocks.profileInfos.splice(0);
   });
 
@@ -265,9 +265,9 @@ describe("CommandPalette", () => {
     expect(wrapper.emitted("close")).toBeTruthy();
   });
 
-  it("emits select-skill and closes when clicking a skill item", async () => {
-    paletteStoreMocks.activeSkills.push({
-      skill_id: "workspace-review",
+  it("emits select-skill and closes when clicking a discovered skill item", async () => {
+    paletteStoreMocks.skills.push({
+      id: "workspace-review",
       name: "Workspace Review"
     });
     const { wrapper } = mountWithPlugins(CommandPalette, {

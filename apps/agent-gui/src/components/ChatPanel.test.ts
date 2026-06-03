@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
+import chatPanelSource from "./ChatPanel.vue?raw";
 import chatComposerSource from "./ChatComposer.vue?raw";
 import chatModelSelectorSource from "./ChatModelSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
@@ -139,6 +140,7 @@ beforeEach(() => {
     if (command === "get_project_instruction_summary") {
       return { source_paths: [], warning: null };
     }
+    if (command === "list_project_branches") return [];
     return undefined;
   });
 });
@@ -177,6 +179,96 @@ describe("ChatPanel", () => {
     expect(wrapper.text()).not.toContain("Agent");
   });
 
+  it("renders a turn's tool trace rows before the assistant reply", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "read and write a file" },
+        { role: "assistant", content: "DONE" }
+      ];
+    });
+    const trace = useTraceStore();
+    trace.entries.push(
+      {
+        id: "ctx-1",
+        kind: "tool",
+        status: "completed",
+        title: "Context assembled",
+        toolId: "context",
+        startedAt: 10,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "root-task",
+        kind: "tool",
+        status: "completed",
+        title: "read and write a file",
+        toolId: "task",
+        startedAt: 11,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "read-tool",
+        kind: "tool",
+        status: "completed",
+        title: "Tool call: fs.read",
+        toolId: "fs.read",
+        startedAt: 12,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "read-task",
+        kind: "tool",
+        status: "completed",
+        title: "fs.read",
+        toolId: "task",
+        startedAt: 13,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "write-tool",
+        kind: "tool",
+        status: "completed",
+        title: "Tool call: fs.write",
+        toolId: "fs.write",
+        startedAt: 14,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "write-task",
+        kind: "tool",
+        status: "completed",
+        title: "fs.write",
+        toolId: "task",
+        startedAt: 15,
+        expanded: false
+      } as TraceEntryData
+    );
+    await flushPromises();
+
+    const renderedOrder = wrapper.findAll("[data-chat-stream-item]").map((item) => {
+      const message = item.find('[data-test="chat-message"]');
+      if (message.exists()) {
+        return `message:${message.attributes("data-role")}:${message.text()}`;
+      }
+      const tool = item.find('[data-test="chat-tool-call-item"]');
+      if (tool.exists()) {
+        return `tool:${tool.find(".chat-tool-call__tool-text").text()}`;
+      }
+      return item.attributes("data-chat-stream-item-kind") ?? "unknown";
+    });
+
+    expect(renderedOrder).toEqual([
+      "message:user:read and write a file",
+      "tool:Context assembled",
+      "tool:read and write a file",
+      "tool:Tool call: fs.read",
+      "tool:fs.read",
+      "tool:Tool call: fs.write",
+      "tool:fs.write",
+      "message:assistant:DONE"
+    ]);
+  });
+
   it("renders streaming text and cursor without visible assistant role labels", async () => {
     const wrapper = mountChatPanel((session) => {
       session.projection.token_stream = "Loading...";
@@ -190,6 +282,42 @@ describe("ChatPanel", () => {
     expect(streamIndicator.find(".cursor").exists()).toBe(true);
     expect(streamIndicator.find(".message-role").exists()).toBe(false);
     expect(streamIndicator.text()).not.toContain("Agent");
+  });
+
+  it("keeps message bubble styles scoped through ChatMessageItem internals", () => {
+    expectSourceMigration(chatPanelSource, {
+      required: [
+        ".message :deep(.message-content)",
+        ".message-user :deep(.message-content)",
+        ".message-assistant :deep(.message-content)"
+      ],
+      forbiddenPatterns: [
+        /^\.message-content\s*\{/m,
+        /^\.message-user\s+\.message-content/m,
+        /^\.message-assistant\s+\.message-content/m
+      ]
+    });
+  });
+
+  it("keeps assistant replies inside the central chat column without horizontal clipping", () => {
+    expectSourceMigration(chatPanelSource, {
+      requiredPatterns: [
+        /\.message-list\s*\{[\s\S]*overflow-x:\s*hidden/,
+        /\.message-list-inner\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.chat-stream-item\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.message\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.message\s+:deep\(\.message-content\)\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*min\(760px,\s*100%\)/
+      ]
+    });
+  });
+
+  it("does not render markdown parser whitespace as extra visible chat lines", () => {
+    expectSourceMigration(chatPanelSource, {
+      requiredPatterns: [
+        /\.message\s+:deep\(\.message-content\)\s*\{[\s\S]*white-space:\s*pre-wrap/,
+        /\.message\s+:deep\(\.message-content\.markdown-body\)\s*\{[\s\S]*white-space:\s*normal/
+      ]
+    });
   });
 
   it("opens a model selector from the composer badge and marks the current model", async () => {
@@ -388,6 +516,88 @@ describe("ChatPanel", () => {
     expect(wrapper.text()).not.toContain("/repo");
   });
 
+  it("shows the project name below the empty state for a pending project draft", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.currentSessionId = null;
+      session.pendingSessionDraft = {
+        kind: "project",
+        projectId: "project_1",
+        branch: null
+      };
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const emptyState = wrapper.find('[data-test="chat-empty-state"]');
+    expect(emptyState.exists()).toBe(true);
+    expect(emptyState.text()).toContain("Start a conversation");
+
+    const projectContext = wrapper.find('[data-test="project-draft-context"]');
+    expect(projectContext.exists()).toBe(true);
+    expect(projectContext.text()).toContain("Kairox");
+  });
+
+  it("shows the project name below the empty state for a hidden project draft session", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.currentSessionId = "ses_project_draft";
+      session.projection.messages = [];
+      session.projection.token_stream = "";
+      session.lastSendError = null;
+      session.isStreaming = false;
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Compiler Tools",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    projectStore.sessionsByProject = new Map([
+      [
+        "project_1",
+        [
+          {
+            sessionId: "ses_project_draft",
+            title: "New Session",
+            profile: "fast",
+            projectId: "project_1",
+            worktreePath: "/repo",
+            branch: "main",
+            visibility: "draft_hidden",
+            deletedAt: null,
+            approvalPolicy: null,
+            sandboxPolicy: null
+          }
+        ]
+      ]
+    ]);
+    await flushPromises();
+
+    const emptyState = wrapper.find('[data-test="chat-empty-state"]');
+    expect(emptyState.exists()).toBe(true);
+    expect(emptyState.text()).toContain("Start a conversation");
+
+    const projectContext = wrapper.find('[data-test="project-draft-context"]');
+    expect(projectContext.exists()).toBe(true);
+    expect(projectContext.text()).toContain("Compiler Tools");
+  });
+
   it("resolves missing branch metadata without exposing the project root path", async () => {
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "get_profile_info") return [];
@@ -502,10 +712,9 @@ describe("ChatPanel", () => {
   it("no longer renders the primary ContextMeter ring inside the composer input row (R4-B demotion)", async () => {
     // R4-B moved the primary context-usage signal out of the chat
     // composer: compaction is now rendered inline in the chat stream
-    // (`ChatCompactionItem`, PRs #471-#477) and the diagnostic meter is
-    // surfaced via the demoted `ContextMeterPill` mounted in
-    // `WorkbenchView`. The composer's input row should be free of any
-    // `<ContextMeter>` mount in either ring or bar variant.
+    // (`ChatCompactionItem`, PRs #471-#477). The compact footer pill may
+    // live near the composer, but the input row itself should stay free of
+    // any heavy `<ContextMeter>` mount in either ring or bar variant.
     const wrapper = mountChatPanel((session) => {
       session.lastContextUsage = makeUsage();
       session.projection.messages = [{ role: "user", content: "hi" }] as never;

@@ -19,6 +19,7 @@ pub struct ToolInvocation {
     pub tool_id: String,
     pub arguments: serde_json::Value,
     pub workspace_id: String,
+    pub session_id: String,
     pub preview: String,
     pub timeout_ms: u64,
     pub output_limit_bytes: usize,

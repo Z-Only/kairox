@@ -1,7 +1,16 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use agent_core::{AgentRole, AppFacade, SendMessageRequest, StartSessionRequest, TaskState};
+use agent_core::{
+    AgentRole, AppFacade, EventPayload, PermissionDecision, SendMessageRequest,
+    StartSessionRequest, TaskState,
+};
+use agent_models::{ModelClient, ModelEvent, ModelRequest};
+use agent_tools::{
+    ApprovalPolicy, SandboxPolicy, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRisk,
+};
+use async_trait::async_trait;
+use futures::stream::BoxStream;
 use tokio::sync::oneshot;
 
 use agent_store::SqliteEventStore;
@@ -12,6 +21,89 @@ use super::support::{
 };
 use crate::facade_runtime::LocalRuntime;
 use crate::task_graph::TaskGraph;
+
+struct ToolRequestModel;
+
+#[async_trait]
+impl ModelClient for ToolRequestModel {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        Ok(Box::pin(futures::stream::iter(vec![
+            Ok(ModelEvent::ToolCallRequested {
+                tool_call_id: "pending-call".into(),
+                tool_id: "write-risk".into(),
+                arguments: serde_json::json!({}),
+            }),
+            Ok(ModelEvent::Completed { usage: None }),
+        ])))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ToolThenTextModel {
+    call_count: Arc<AtomicUsize>,
+}
+
+impl ToolThenTextModel {
+    fn new() -> Self {
+        Self {
+            call_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelClient for ToolThenTextModel {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let count = self.call_count.fetch_add(1, Ordering::SeqCst);
+        let events = if count == 0 {
+            vec![
+                Ok(ModelEvent::ToolCallRequested {
+                    tool_call_id: "pending-call".into(),
+                    tool_id: "write-risk".into(),
+                    arguments: serde_json::json!({}),
+                }),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        } else {
+            vec![
+                Ok(ModelEvent::TokenDelta("Done".into())),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        };
+        Ok(Box::pin(futures::stream::iter(events)))
+    }
+}
+
+struct WriteRiskTool;
+
+#[async_trait]
+impl Tool for WriteRiskTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            tool_id: "write-risk".into(),
+            description: "test write risk tool".into(),
+            required_capability: "test".into(),
+            parameters: serde_json::json!({"type": "object", "properties": {}}),
+        }
+    }
+
+    fn risk(&self, invocation: &ToolInvocation) -> ToolRisk {
+        ToolRisk::write(invocation.tool_id.clone())
+    }
+
+    async fn invoke(&self, _invocation: ToolInvocation) -> agent_tools::Result<ToolOutput> {
+        Ok(ToolOutput {
+            text: "write-risk executed".into(),
+            truncated: false,
+        })
+    }
+}
 
 #[tokio::test]
 async fn cancel_session_interrupts_running_single_step_turn() {
@@ -45,6 +137,7 @@ async fn cancel_session_interrupts_running_single_step_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "blocked single-step".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -105,6 +198,7 @@ async fn cancel_session_rejects_queued_same_session_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -120,6 +214,7 @@ async fn cancel_session_rejects_queued_same_session_turn() {
                 workspace_id: second_workspace_id,
                 session_id: second_session_id,
                 content: "second".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -150,6 +245,196 @@ async fn cancel_session_rejects_queued_same_session_turn() {
         "expected queued turn cancellation error, got {second_result:?}"
     );
     assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn cancel_session_denies_pending_permission_and_finishes_turn() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = LocalRuntime::new(store, ToolRequestModel)
+        .with_approval_and_sandbox(ApprovalPolicy::Always, SandboxPolicy::DangerFullAccess);
+    runtime
+        .tool_registry()
+        .lock()
+        .await
+        .register(Box::new(WriteRiskTool));
+    let runtime = Arc::new(runtime);
+
+    let workspace = runtime
+        .open_workspace("/tmp/workspace".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "tool-request".into(),
+            approval_policy: Some("always".into()),
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    let turn_runtime = runtime.clone();
+    let turn_workspace_id = workspace.workspace_id.clone();
+    let turn_session_id = session_id.clone();
+    let mut turn = tokio::spawn(async move {
+        turn_runtime
+            .send_message(SendMessageRequest {
+                workspace_id: turn_workspace_id,
+                session_id: turn_session_id,
+                content: "request write tool".into(),
+                display_content: None,
+                attachments: vec![],
+            })
+            .await
+    });
+
+    let pending_observed = match tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if runtime
+                .pending_permissions
+                .lock()
+                .await
+                .contains_key("pending-call")
+            {
+                break true;
+            }
+            if turn.is_finished() {
+                break false;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    {
+        Ok(observed) => observed,
+        Err(error) => {
+            let trace = runtime.get_trace(session_id.clone()).await.unwrap();
+            panic!("permission request should become pending: {error:?}, trace={trace:?}");
+        }
+    };
+    if !pending_observed {
+        let trace = runtime.get_trace(session_id.clone()).await.unwrap();
+        let turn_result = tokio::time::timeout(std::time::Duration::from_millis(100), &mut turn)
+            .await
+            .expect("finished turn should be joinable");
+        panic!(
+            "turn finished before permission became pending: result={turn_result:?}, trace={trace:?}"
+        );
+    }
+
+    runtime
+        .cancel_session(workspace.workspace_id, session_id.clone())
+        .await
+        .unwrap();
+
+    let completed = tokio::time::timeout(std::time::Duration::from_millis(500), &mut turn).await;
+    assert!(
+        completed.is_ok(),
+        "turn waiting on permission should finish after cancellation"
+    );
+    completed.unwrap().unwrap().unwrap();
+    assert!(runtime.pending_permissions.lock().await.is_empty());
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    assert!(trace.iter().any(|entry| matches!(
+        &entry.event.payload,
+        EventPayload::PermissionDenied { request_id, reason }
+            if request_id == "pending-call" && reason == "cancelled by user"
+    )));
+    assert!(trace
+        .iter()
+        .any(|entry| matches!(entry.event.payload, EventPayload::SessionCancelled { .. })));
+}
+
+#[tokio::test]
+async fn app_facade_decide_permission_resolves_pending_permission() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = LocalRuntime::new(store, ToolThenTextModel::new())
+        .with_approval_and_sandbox(ApprovalPolicy::Always, SandboxPolicy::DangerFullAccess);
+    runtime
+        .tool_registry()
+        .lock()
+        .await
+        .register(Box::new(WriteRiskTool));
+    let runtime = Arc::new(runtime);
+
+    let workspace = runtime
+        .open_workspace("/tmp/workspace".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "tool-request".into(),
+            approval_policy: Some("always".into()),
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    let turn_runtime = runtime.clone();
+    let turn_workspace_id = workspace.workspace_id.clone();
+    let turn_session_id = session_id.clone();
+    let mut turn = tokio::spawn(async move {
+        turn_runtime
+            .send_message(SendMessageRequest {
+                workspace_id: turn_workspace_id,
+                session_id: turn_session_id,
+                content: "request write tool".into(),
+                display_content: None,
+                attachments: vec![],
+            })
+            .await
+    });
+
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if runtime
+                .pending_permissions
+                .lock()
+                .await
+                .contains_key("pending-call")
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("permission request should become pending");
+
+    AppFacade::decide_permission(
+        runtime.as_ref(),
+        PermissionDecision {
+            request_id: "pending-call".into(),
+            approve: true,
+            reason: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let completed = tokio::time::timeout(std::time::Duration::from_millis(500), &mut turn).await;
+    assert!(
+        completed.is_ok(),
+        "turn waiting on permission should finish after facade decision"
+    );
+    completed.unwrap().unwrap().unwrap();
+    assert!(runtime.pending_permissions.lock().await.is_empty());
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    assert!(trace.iter().any(|entry| matches!(
+        &entry.event.payload,
+        EventPayload::PermissionGranted { request_id } if request_id == "pending-call"
+    )));
+    assert!(trace.iter().any(|entry| matches!(
+        &entry.event.payload,
+        EventPayload::ToolInvocationCompleted {
+            invocation_id,
+            output_preview,
+            ..
+        } if invocation_id == "pending-call" && output_preview == "write-risk executed"
+    )));
 }
 
 #[tokio::test]
@@ -209,6 +494,7 @@ async fn cancel_session_does_not_cancel_other_running_session() {
                 workspace_id: first_workspace_id,
                 session_id: first_turn_session,
                 content: "first blocked turn".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -224,6 +510,7 @@ async fn cancel_session_does_not_cancel_other_running_session() {
                 workspace_id: second_workspace_id,
                 session_id: second_turn_session,
                 content: "second blocked turn".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -291,6 +578,7 @@ async fn cancel_session_interrupts_running_dag_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "/plan blocked dag".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -364,6 +652,7 @@ async fn retry_task_queues_behind_active_actor_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -447,6 +736,7 @@ async fn cancel_task_queues_behind_active_actor_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await

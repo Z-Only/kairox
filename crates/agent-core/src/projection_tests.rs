@@ -14,6 +14,7 @@ fn projects_user_and_assistant_messages() {
             EventPayload::UserMessageAdded {
                 message_id: "m1".into(),
                 content: "hello".into(),
+                display_content: None,
             },
         ),
         DomainEvent::new(
@@ -33,6 +34,27 @@ fn projects_user_and_assistant_messages() {
     assert_eq!(projection.messages.len(), 2);
     assert_eq!(projection.messages[0].role, ProjectedRole::User);
     assert_eq!(projection.messages[1].content, "hi");
+}
+
+#[test]
+fn projects_user_message_display_content_when_present() {
+    let events = vec![DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::UserMessageAdded {
+            message_id: "m1".into(),
+            content: "```md\n// file: notes.md\nsecret\n```".into(),
+            display_content: Some("@notes.md summarize this".into()),
+        },
+    )];
+
+    let projection = SessionProjection::from_events(&events);
+
+    assert_eq!(projection.messages.len(), 1);
+    assert_eq!(projection.messages[0].role, ProjectedRole::User);
+    assert_eq!(projection.messages[0].content, "@notes.md summarize this");
 }
 
 #[test]
@@ -113,6 +135,49 @@ fn projects_token_deltas_tasks_and_cancellation() {
     assert_eq!(projection.token_stream, "hello");
     assert_eq!(projection.task_titles, vec!["inspect repo"]);
     assert!(projection.cancelled);
+}
+
+#[test]
+fn clears_cancelled_state_when_a_followup_turn_starts() {
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let events = vec![
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: "m1".into(),
+                content: "long request".into(),
+                display_content: None,
+            },
+        ),
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::SessionCancelled {
+                reason: "user stopped".into(),
+            },
+        ),
+        DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: "m2".into(),
+                content: "continue".into(),
+                display_content: None,
+            },
+        ),
+    ];
+
+    let projection = SessionProjection::from_events(&events);
+
+    assert!(!projection.cancelled);
 }
 
 #[test]

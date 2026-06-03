@@ -12,6 +12,7 @@ import ChatModelSelector from "@/components/ChatModelSelector.vue";
 import ChatApprovalSelector from "@/components/ChatApprovalSelector.vue";
 import ChatSandboxSelector from "@/components/ChatSandboxSelector.vue";
 import ProjectBranchSelector from "@/components/ProjectBranchSelector.vue";
+import ContextMeterPill from "@/components/ContextMeterPill.vue";
 
 const props = defineProps<{
   workspacePath: string;
@@ -137,6 +138,7 @@ function dropQueuedMessage(targetIndex: number): void {
 
 onMounted(() => {
   void session.loadProfileInfo();
+  void skillsStore.loadSkills();
 });
 
 watch(modelPopoverOpen, (isOpen) => {
@@ -148,54 +150,6 @@ watch(modelPopoverOpen, (isOpen) => {
 
 <template>
   <div class="input-area">
-    <div class="palette-container">
-      <CommandPalette
-        ref="commandPaletteRef"
-        :visible="showCommandPalette"
-        :filter-text="paletteFilter"
-        @select-command="onSelectCommand"
-        @select-skill="onSelectSkill"
-        @select-model-profile="onSelectModelProfile"
-        @close="closePalettes"
-      />
-      <FileMentionPalette
-        ref="fileMentionPaletteRef"
-        :visible="showMentionPalette"
-        :filter-text="paletteFilter"
-        :workspace-path="props.workspacePath"
-        @select-file="(path: string) => onSelectFile(path, props.workspacePath)"
-        @close="closePalettes"
-      />
-    </div>
-    <div class="composer-meta" :class="{ 'composer-meta--branch-picker': pendingProjectId }">
-      <ChatModelSelector
-        v-model:open="modelPopoverOpen"
-        :model-options="modelOptions"
-        :current-profile="session.currentProfile"
-        :switching-model="switchingModel"
-        :active-profile-display="session.activeProfileDisplay"
-        :current-reasoning-effort="session.currentReasoningEffort"
-        @select-model="handleModelSelect"
-      />
-      <ChatApprovalSelector
-        v-model:open="approvalPopoverOpen"
-        :approval-policy="session.approvalPolicy"
-        @select-approval="handleApprovalSelect"
-      />
-      <ChatSandboxSelector
-        v-model:open="sandboxPopoverOpen"
-        :sandbox-policy="session.sandboxPolicy"
-        @select-sandbox="handleSandboxSelect"
-      />
-      <ProjectBranchSelector
-        v-if="pendingProjectId"
-        :project-id="pendingProjectId"
-        :branch="pendingProjectBranch"
-      />
-      <span v-else-if="props.sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
-        {{ props.sessionGitMeta.join(" · ") }}
-      </span>
-    </div>
     <AttachmentTray
       :attachments="attachments"
       :disabled="false"
@@ -259,6 +213,25 @@ watch(modelPopoverOpen, (isOpen) => {
         </div>
       </div>
     </div>
+    <div class="palette-container">
+      <CommandPalette
+        ref="commandPaletteRef"
+        :visible="showCommandPalette"
+        :filter-text="paletteFilter"
+        @select-command="onSelectCommand"
+        @select-skill="onSelectSkill"
+        @select-model-profile="onSelectModelProfile"
+        @close="closePalettes"
+      />
+      <FileMentionPalette
+        ref="fileMentionPaletteRef"
+        :visible="showMentionPalette"
+        :filter-text="paletteFilter"
+        :workspace-path="props.workspacePath"
+        @select-file="(path: string) => onSelectFile(path, props.workspacePath)"
+        @close="closePalettes"
+      />
+    </div>
     <div class="input-row">
       <button
         v-if="attachments.length === 0"
@@ -296,6 +269,38 @@ watch(modelPopoverOpen, (isOpen) => {
         {{ isQueueing ? t("chat.queueSend") : t("common.send") }}
       </KxButton>
     </div>
+    <div class="composer-footer">
+      <div class="composer-meta" :class="{ 'composer-meta--branch-picker': pendingProjectId }">
+        <ChatModelSelector
+          v-model:open="modelPopoverOpen"
+          :model-options="modelOptions"
+          :current-profile="session.currentProfile"
+          :switching-model="switchingModel"
+          :active-profile-display="session.activeProfileDisplay"
+          :current-reasoning-effort="session.currentReasoningEffort"
+          @select-model="handleModelSelect"
+        />
+        <ChatApprovalSelector
+          v-model:open="approvalPopoverOpen"
+          :approval-policy="session.approvalPolicy"
+          @select-approval="handleApprovalSelect"
+        />
+        <ChatSandboxSelector
+          v-model:open="sandboxPopoverOpen"
+          :sandbox-policy="session.sandboxPolicy"
+          @select-sandbox="handleSandboxSelect"
+        />
+        <ProjectBranchSelector
+          v-if="pendingProjectId"
+          :project-id="pendingProjectId"
+          :branch="pendingProjectBranch"
+        />
+        <span v-else-if="props.sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
+          {{ props.sessionGitMeta.join(" · ") }}
+        </span>
+      </div>
+      <ContextMeterPill class="composer-context-meter" data-test="composer-context-meter-pill" />
+    </div>
   </div>
 </template>
 
@@ -308,20 +313,29 @@ watch(modelPopoverOpen, (isOpen) => {
 }
 .palette-container {
   position: relative;
+  z-index: 20;
 }
 .composer-meta {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin-bottom: 6px;
   color: var(--app-muted-text-color, var(--app-text-color));
   font-size: 12px;
 }
 .composer-meta--branch-picker {
   overflow: visible;
+}
+.composer-footer {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
 }
 .git-meta {
   min-width: 0;
@@ -335,6 +349,10 @@ watch(modelPopoverOpen, (isOpen) => {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+}
+.composer-context-meter {
+  flex: 0 0 auto;
+  max-width: 100%;
 }
 .queued-message-queue {
   margin-bottom: 6px;
@@ -425,5 +443,14 @@ watch(modelPopoverOpen, (isOpen) => {
 .attach-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+@media (max-width: 720px) {
+  .composer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .composer-context-meter {
+    align-self: flex-end;
+  }
 }
 </style>

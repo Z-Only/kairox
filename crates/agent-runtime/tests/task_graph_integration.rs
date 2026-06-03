@@ -34,6 +34,7 @@ async fn plain_message_creates_root_task_completed() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -57,6 +58,7 @@ async fn root_task_title_truncates_long_content() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: long_content.clone(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -88,6 +90,7 @@ async fn task_graph_events_emitted_for_plain_message() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: "test".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -123,6 +126,7 @@ async fn multiple_messages_create_multiple_root_tasks() {
             workspace_id: ws.clone(),
             session_id: session_id.clone(),
             content: "first".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -133,6 +137,7 @@ async fn multiple_messages_create_multiple_root_tasks() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: "second".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

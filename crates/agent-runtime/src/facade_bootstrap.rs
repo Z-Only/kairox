@@ -4,9 +4,12 @@ use crate::facade_runtime::ExecutionMode;
 use crate::facade_runtime::LocalRuntime;
 use crate::skill_package::SkillPackageManager;
 use crate::{LspServerManager, McpServerManager};
-use agent_core::PermissionDecision;
 #[cfg(test)]
 use agent_core::SendMessageRequest;
+use agent_core::{
+    AgentId, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification, SessionId,
+    WorkspaceId,
+};
 use agent_lsp::{DapServerDef, LspServerDef};
 use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
@@ -168,6 +171,85 @@ where
         self.memory_store.clone()
     }
 
+    /// Accept a pending durable memory and emit the matching trace event.
+    pub async fn accept_memory(
+        &self,
+        memory_id: &str,
+        fallback_workspace_id: WorkspaceId,
+        fallback_session_id: SessionId,
+    ) -> agent_core::Result<()> {
+        let mem_store = self.memory_store.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("memory store unavailable".into())
+        })?;
+        let entry = mem_store
+            .get(memory_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?
+            .ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!("memory not found: {memory_id}"))
+            })?;
+
+        mem_store
+            .set_accepted(memory_id, true)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+
+        let (workspace_id, session_id) =
+            memory_event_ids(&entry, fallback_workspace_id, fallback_session_id);
+        let event = DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::MemoryAccepted {
+                memory_id: memory_id.to_string(),
+                scope: memory_scope_label(&entry.scope).into(),
+                key: entry.key,
+                content: entry.content,
+            },
+        );
+        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await
+    }
+
+    /// Reject a pending durable memory and emit the matching trace event.
+    pub async fn reject_memory(
+        &self,
+        memory_id: &str,
+        fallback_workspace_id: WorkspaceId,
+        fallback_session_id: SessionId,
+        reason: String,
+    ) -> agent_core::Result<()> {
+        let mem_store = self.memory_store.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("memory store unavailable".into())
+        })?;
+        let entry = mem_store
+            .get(memory_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?
+            .ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!("memory not found: {memory_id}"))
+            })?;
+
+        mem_store
+            .delete(memory_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+
+        let (workspace_id, session_id) =
+            memory_event_ids(&entry, fallback_workspace_id, fallback_session_id);
+        let event = DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::MemoryRejected {
+                memory_id: memory_id.to_string(),
+                reason,
+            },
+        );
+        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await
+    }
+
     /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
     pub async fn with_builtin_tools(mut self, workspace_root: PathBuf) -> Self {
         if self.skill_settings_roots.workspace_root.is_none()
@@ -221,9 +303,6 @@ where
 
     /// Configure MCP servers from parsed config definitions.
     pub async fn with_mcp_servers(mut self, configs: Vec<McpServerDef>) -> Self {
-        if configs.is_empty() {
-            return self;
-        }
         let mut manager = McpServerManager::from_config(
             configs,
             self.tool_registry.clone(),
@@ -388,7 +467,7 @@ where
                 self.permission_engine.clone(),
                 self.pending_permissions.clone(),
                 self.memory_store.clone(),
-                self.config.clone(),
+                self.config(),
                 self.dag_config.clone(),
                 self.agent_settings_roots.clone(),
             )
@@ -409,7 +488,7 @@ where
                 self.permission_engine.clone(),
                 self.pending_permissions.clone(),
                 self.memory_store.clone(),
-                self.config.clone(),
+                self.config(),
                 config,
                 self.agent_settings_roots.clone(),
             )
@@ -435,4 +514,30 @@ where
     ) -> agent_core::Result<()> {
         crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
     }
+}
+
+fn memory_scope_label(scope: &agent_memory::MemoryScope) -> &'static str {
+    match scope {
+        agent_memory::MemoryScope::User => "user",
+        agent_memory::MemoryScope::Workspace => "workspace",
+        agent_memory::MemoryScope::Session => "session",
+    }
+}
+
+fn memory_event_ids(
+    entry: &agent_memory::MemoryEntry,
+    fallback_workspace_id: WorkspaceId,
+    fallback_session_id: SessionId,
+) -> (WorkspaceId, SessionId) {
+    let workspace_id = entry
+        .workspace_id
+        .as_ref()
+        .map(|id| WorkspaceId::from_string(id.clone()))
+        .unwrap_or(fallback_workspace_id);
+    let session_id = entry
+        .session_id
+        .as_ref()
+        .map(|id| SessionId::from_string(id.clone()))
+        .unwrap_or(fallback_session_id);
+    (workspace_id, session_id)
 }

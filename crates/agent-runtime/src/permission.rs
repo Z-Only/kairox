@@ -9,8 +9,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-type PendingPermissionsMap =
-    Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>;
+pub type PendingPermissionsMap = Arc<Mutex<HashMap<String, PendingPermission>>>;
+
+pub struct PendingPermission {
+    session_id: SessionId,
+    reply: tokio::sync::oneshot::Sender<PermissionDecision>,
+}
 
 /// Result of a permission check for a tool invocation.
 pub struct ToolPermissionResult {
@@ -101,13 +105,23 @@ pub async fn check_tool_permission<S: EventStore>(
 
             // Wait for the user to resolve the permission request
             let (tx, rx) = tokio::sync::oneshot::channel();
-            pending_permissions
-                .lock()
-                .await
-                .insert(tool_call_id.to_string(), tx);
+            pending_permissions.lock().await.insert(
+                tool_call_id.to_string(),
+                PendingPermission {
+                    session_id: session_id.clone(),
+                    reply: tx,
+                },
+            );
 
-            let decision = rx.await;
-            let approved = matches!(decision, Ok(PermissionDecision { approve: true, .. }));
+            let (approved, denial_reason) = match rx.await {
+                Ok(PermissionDecision {
+                    approve, reason, ..
+                }) => (
+                    approve,
+                    reason.unwrap_or_else(|| "denied by user".to_string()),
+                ),
+                Err(_) => (false, "permission request abandoned".to_string()),
+            };
 
             let result_event = if approved {
                 DomainEvent::new(
@@ -127,7 +141,7 @@ pub async fn check_tool_permission<S: EventStore>(
                     PrivacyClassification::FullTrace,
                     EventPayload::PermissionDenied {
                         request_id: tool_call_id.to_string(),
-                        reason: "denied by user".into(),
+                        reason: denial_reason,
                     },
                 )
             };
@@ -146,10 +160,52 @@ pub async fn resolve_permission(
     request_id: &str,
     decision: PermissionDecision,
 ) -> agent_core::Result<()> {
-    if let Some(tx) = pending_permissions.lock().await.remove(request_id) {
-        let _ = tx.send(decision);
+    if let Some(pending) = pending_permissions.lock().await.remove(request_id) {
+        let _ = pending.reply.send(decision);
     }
     Ok(())
+}
+
+/// Resolve all pending permission requests for a cancelled session as denials.
+///
+/// Session cancellation is delivered through a cancellation token, but a turn
+/// can be parked inside `check_tool_permission` waiting for a UI decision. The
+/// token cannot make progress until that oneshot resolves, so cancellation must
+/// also close pending permission requests for the same session.
+pub async fn deny_pending_permissions_for_session(
+    pending_permissions: &PendingPermissionsMap,
+    session_id: &SessionId,
+    reason: &str,
+) -> agent_core::Result<Vec<String>> {
+    let pending = {
+        let mut map = pending_permissions.lock().await;
+        let matching_ids: Vec<String> = map
+            .iter()
+            .filter_map(|(request_id, pending)| {
+                if pending.session_id == *session_id {
+                    Some(request_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        matching_ids
+            .into_iter()
+            .filter_map(|request_id| map.remove(&request_id).map(|pending| (request_id, pending)))
+            .collect::<Vec<_>>()
+    };
+
+    let mut denied_request_ids = Vec::with_capacity(pending.len());
+    for (request_id, pending) in pending {
+        let _ = pending.reply.send(PermissionDecision {
+            request_id: request_id.clone(),
+            approve: false,
+            reason: Some(reason.to_string()),
+        });
+        denied_request_ids.push(request_id);
+    }
+
+    Ok(denied_request_ids)
 }
 
 #[cfg(test)]

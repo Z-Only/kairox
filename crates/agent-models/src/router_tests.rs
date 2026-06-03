@@ -58,8 +58,8 @@ fn lists_registered_profiles_sorted() {
 
     let names: Vec<_> = router
         .list_profiles()
-        .iter()
-        .map(|p| p.alias.as_str())
+        .into_iter()
+        .map(|p| p.alias)
         .collect();
     assert_eq!(names, vec!["deep-reasoning", "fast"]);
 }
@@ -107,8 +107,8 @@ fn register_and_list_multiple_sorted() {
     router.register(test_profile("b"), Arc::new(FakeModelClient::new(vec![])));
     let names: Vec<_> = router
         .list_profiles()
-        .iter()
-        .map(|p| p.alias.as_str())
+        .into_iter()
+        .map(|p| p.alias)
         .collect();
     assert_eq!(names, vec!["a", "b", "c"]);
 }

@@ -215,6 +215,34 @@ describe("buildChatStream", () => {
     ]);
   });
 
+  it("keeps a single turn's task and tool trace rows before the assistant output", () => {
+    const messages: ChatStreamMessageInput[] = [
+      { role: "user", content: "read and write a file" },
+      { role: "assistant", content: "DONE" }
+    ];
+    const entries: TraceEntryData[] = [
+      toolEntry({ id: "ctx-1", toolId: "context", startedAt: 10 }),
+      toolEntry({ id: "root-task", toolId: "task", startedAt: 11 }),
+      toolEntry({ id: "read-tool", toolId: "fs.read", startedAt: 12 }),
+      toolEntry({ id: "read-task", toolId: "task", startedAt: 13 }),
+      toolEntry({ id: "write-tool", toolId: "fs.write", startedAt: 14 }),
+      toolEntry({ id: "write-task", toolId: "task", startedAt: 15 })
+    ];
+
+    const result = buildChatStream(messages, entries, idle);
+
+    expect(result.map((item) => item.id)).toEqual([
+      "msg-0",
+      "ctx-1",
+      "root-task",
+      "read-tool",
+      "read-task",
+      "write-tool",
+      "write-task",
+      "msg-1"
+    ]);
+  });
+
   it("appends exactly one ChatCompactionStreamItem at the end when compaction.type === 'Running'", () => {
     const running: CompactionStatus = { type: "Running" };
     const messages: ChatStreamMessageInput[] = [{ role: "user", content: "hello" }];

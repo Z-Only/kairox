@@ -1,10 +1,10 @@
 use crate::dag_executor::DagExecutor;
 use crate::event_emitter::append_and_broadcast;
 use crate::execution_runtime::{SessionExecutionRuntime, TaskControlExecutor, TurnExecutor};
-use crate::facade_runtime::{ExecutionMode, LocalRuntime};
+use crate::facade_runtime::{ExecutionMode, LocalRuntime, RuntimeConfig};
 use crate::task_graph::TaskGraph;
 use agent_core::{
-    AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload, PermissionDecision,
+    AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload,
     PrivacyClassification, SendMessageRequest, SessionId, TaskId, WorkspaceId,
 };
 use agent_memory::MemoryStore;
@@ -28,12 +28,11 @@ where
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     tool_registry: Arc<Mutex<ToolRegistry>>,
     permission_engine: Arc<Mutex<PermissionEngine>>,
-    pending_permissions:
-        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pending_permissions: crate::permission::PendingPermissionsMap,
     memory_store: Option<Arc<dyn MemoryStore>>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
-    config: Arc<agent_config::Config>,
+    config: RuntimeConfig,
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     session_execution: SessionExecutionRuntime,
     skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
@@ -123,7 +122,8 @@ where
             corrected_by_real_usage: false,
         };
         let ratio = usage.ratio();
-        let threshold = self.config.context.auto_compact_threshold;
+        let config = self.config.snapshot();
+        let threshold = config.context.auto_compact_threshold;
 
         // 3. Decide.
         if crate::agent_loop::should_trigger_auto_compaction(&usage, threshold, already_compacting)
@@ -194,7 +194,8 @@ where
     /// wins; otherwise fall back to the session's `SessionInitialized`
     /// profile; otherwise the literal `"fake"` (test-friendly).
     async fn resolve_compactor_profile(&self, session_id: &SessionId) -> String {
-        if let Some(alias) = self.config.context.compactor_profile.clone() {
+        let config = self.config.snapshot();
+        if let Some(alias) = config.context.compactor_profile.clone() {
             return alias;
         }
         match self.store.load_session(session_id).await {
@@ -247,6 +248,7 @@ where
             }
             ExecutionMode::SingleStep => {
                 let root_path = self.root_path_for_session(&request.session_id).await;
+                let config = self.config.snapshot();
                 crate::agent_loop::run_agent_loop(
                     crate::agent_loop::AgentLoopDeps {
                         store: &self.store,
@@ -257,7 +259,7 @@ where
                         pending_permissions: &self.pending_permissions,
                         memory_store: &self.memory_store,
                         task_graphs: &self.task_graphs,
-                        config: &self.config,
+                        config: &config,
                         session_states: &self.session_states,
                         skill_registry: &self.skill_registry,
                         active_skills: &self.active_skills,

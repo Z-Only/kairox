@@ -35,6 +35,7 @@ async fn full_session_flow_sends_message_and_receives_response() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hi".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -81,6 +82,7 @@ async fn event_subscription_receives_streaming_events() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hi".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

@@ -1,6 +1,6 @@
 import { defineComponent, h, inject, nextTick } from "vue";
 import { describe, it, expect } from "vitest";
-import { mount, flushPromises } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 
 import ConfirmDialog from "./ConfirmDialog.vue";
 import confirmDialogSource from "./ConfirmDialog.vue?raw";

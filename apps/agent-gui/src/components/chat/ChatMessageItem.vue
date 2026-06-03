@@ -28,7 +28,7 @@ const roleClass: Record<ProjectedRole, string> = {
     :data-error="props.content.startsWith('[error]') ? 'true' : undefined"
   >
     <!-- eslint-disable vue/no-v-html -->
-    <span
+    <div
       v-if="
         props.role === 'assistant' ||
         props.role === 'planner' ||
@@ -38,8 +38,49 @@ const roleClass: Record<ProjectedRole, string> = {
       class="message-content markdown-body"
       :data-test="props.content.startsWith('[error]') ? 'error-banner' : undefined"
       v-html="renderMarkdown(props.content)"
-    ></span>
+    ></div>
     <!-- eslint-enable vue/no-v-html -->
     <span v-else class="message-content">{{ props.content }}</span>
   </div>
 </template>
+
+<style scoped>
+.markdown-body :deep(pre.hljs) {
+  margin: 8px 0;
+  border-radius: var(--app-radius-md);
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.markdown-body :deep(code) {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+.markdown-body :deep(:not(pre) > code) {
+  background: var(--app-card-color);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 6px 0;
+  padding-left: 0;
+  list-style-position: inside;
+}
+
+.markdown-body :deep(li) {
+  padding-left: 0.15em;
+}
+
+.markdown-body :deep(p) {
+  margin: 0;
+}
+
+.markdown-body :deep(p + p) {
+  margin-top: 6px;
+}
+</style>

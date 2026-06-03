@@ -8,7 +8,7 @@ import {
 } from "@/stores/session";
 import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
-import { useProjectStore } from "@/stores/project";
+import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
 import { traceState } from "@/composables/useTraceStore";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -372,6 +372,50 @@ describe("project session metadata", () => {
     });
   });
 
+  it("loads project metadata before opening a project placeholder from an empty project store", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") {
+        return Promise.resolve(null);
+      }
+      if (command === "get_profile_info") {
+        return Promise.resolve([]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_projects");
+    expect(projectStore.projects[0]?.displayName).toBe("Demo");
+    expect(session.currentSessionInfo?.project_id).toBe("project-1");
+    expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
+    expect(session.currentSessionInfo?.branch).toBe("main");
+  });
+
   it("recovers a persisted project placeholder and keeps its draft key", async () => {
     localStorage.setItem(
       "kairox.last-workbench-state",
@@ -418,6 +462,93 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
     expect(session.currentSessionInfo?.branch).toBe("feat/ui");
     expect(session.composerDraftKey).toBe("new-session:project:project-1");
+  });
+
+  it("uses the recovered project profile list instead of the hardcoded default on first send", async () => {
+    localStorage.setItem(
+      "kairox.last-workbench-state",
+      JSON.stringify({ kind: "project-draft", projectId: "project-1", branch: null })
+    );
+    const session = useSessionStore();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "list_workspaces") {
+        return Promise.resolve([{ workspace_id: "ws1", path: "/tmp" }]);
+      }
+      if (command === "restore_workspace") return Promise.resolve(null);
+      if (command === "list_sessions") return Promise.resolve([]);
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "ali-mo-claude",
+            provider: "ali-mo",
+            model_id: "claude-opus-4-6",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "not_initialized",
+          branch: null,
+          worktree_path: "/repo",
+          message: "not a git repository"
+        });
+      }
+      if (command === "create_project_draft_session") {
+        return Promise.resolve("draft-1");
+      }
+      if (command === "rename_session") return Promise.resolve(null);
+      if (command === "switch_session") {
+        return Promise.resolve({
+          messages: [],
+          task_titles: [],
+          task_graph: { tasks: [] },
+          token_stream: "",
+          cancelled: false,
+          last_context_usage: null,
+          model_limits: null,
+          compaction: { type: "Idle" }
+        });
+      }
+      if (command === "get_trace") return Promise.resolve([]);
+      if (command === "switch_model") return Promise.resolve(null);
+      if (command === "set_session_approval_policy") {
+        return Promise.resolve((args as { approval: string }).approval);
+      }
+      if (command === "set_session_sandbox_policy") {
+        return Promise.resolve((args as { sandboxJson: string }).sandboxJson);
+      }
+      return Promise.resolve(null);
+    });
+
+    const recovered = await session.recoverSessions();
+    await session.ensureSessionForSend();
+
+    expect(recovered).toBe(true);
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "ali-mo-claude"
+    });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "fast"
+    });
+    expect(session.currentProfile).toBe("ali-mo-claude");
   });
 
   it("refreshes project config before showing a project draft model list", async () => {
@@ -624,6 +755,255 @@ describe("project session metadata", () => {
     expect(session.currentSessionId).toBe("wt-1");
   });
 
+  it("refreshes current project session metadata from the project session list", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    const placeholder: ProjectSessionInfo = {
+      sessionId: "draft-1",
+      title: "New Session",
+      profile: "ali-mo-claude",
+      projectId: "project-1",
+      worktreePath: "/repo",
+      branch: "main",
+      visibility: "draft_hidden",
+      deletedAt: null,
+      approvalPolicy: "always",
+      sandboxPolicy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+    };
+    projectStore.sessionsByProject = new Map([["project-1", [placeholder]]]);
+    session.currentSessionId = "draft-1";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "list_project_sessions") {
+        return Promise.resolve([
+          {
+            id: "draft-1",
+            title: "请严格按顺序调用工具验证工作区写入",
+            profile: "ali-mo-claude",
+            project_id: "project-1",
+            worktree_path: "/repo",
+            branch: "main",
+            visibility: "visible",
+            deleted_at: null,
+            approval_policy: "always",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await (
+      session as typeof session & {
+        refreshCurrentSessionMetadata: () => Promise<void>;
+      }
+    ).refreshCurrentSessionMetadata();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_project_sessions", {
+      projectId: "project-1"
+    });
+    expect(projectStore.sessionsByProject.get("project-1")?.[0].title).toBe(
+      "请严格按顺序调用工具验证工作区写入"
+    );
+    expect(session.currentSessionInfo?.title).toBe("请严格按顺序调用工具验证工作区写入");
+  });
+
+  it("optimistically titles a materialized project session from the first message", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.sessionsByProject = new Map([
+      [
+        "project-1",
+        [
+          {
+            sessionId: "draft-1",
+            title: "New Session",
+            profile: "ali-mo-claude",
+            projectId: "project-1",
+            worktreePath: "/repo",
+            branch: "main",
+            visibility: "draft_hidden",
+            deletedAt: null,
+            approvalPolicy: "always",
+            sandboxPolicy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]
+      ]
+    ]);
+    session.currentSessionId = "draft-1";
+
+    await session.refreshCurrentSessionMetadata(
+      "请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。"
+    );
+
+    const updated = projectStore.sessionsByProject.get("project-1")?.[0];
+    expect(updated?.title).toBe("请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。");
+    expect(updated?.visibility).toBe("visible");
+    expect(session.currentSessionInfo?.title).toBe(
+      "请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。"
+    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", {
+      projectId: "project-1"
+    });
+  });
+
+  it("optimistically titles an auto-titled ordinary session from the first message", async () => {
+    const session = useSessionStore();
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Session using fake",
+        profile: "ali-mo-claude",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: null,
+        deleted_at: null,
+        approval_policy: "on_request",
+        sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+      }
+    ];
+    session.currentSessionId = "ses_1";
+
+    await session.refreshCurrentSessionMetadata("hello from bootstrap session");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("rename_session", {
+      sessionId: "ses_1",
+      title: "hello from bootstrap session"
+    });
+    expect(session.sessions[0].title).toBe("hello from bootstrap session");
+    expect(session.sessions[0].visibility).toBe("visible");
+  });
+
+  it("does not overwrite a user-titled ordinary session after later sends", async () => {
+    const session = useSessionStore();
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Release planning",
+        profile: "ali-mo-claude",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: "visible",
+        deleted_at: null,
+        approval_policy: "on_request",
+        sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+      }
+    ];
+    session.currentSessionId = "ses_1";
+
+    await session.refreshCurrentSessionMetadata("second message should not rename");
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("rename_session", {
+      sessionId: "ses_1",
+      title: "second message should not rename"
+    });
+    expect(session.sessions[0].title).toBe("Release planning");
+    expect(session.sessions[0].visibility).toBe("visible");
+  });
+
+  it("applies pending model and policy selections when materializing a project session", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    const readOnlySandbox = '{"kind":"read_only"}';
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    vi.spyOn(projectStore, "getProjectGitStatus").mockResolvedValue({
+      kind: "clean",
+      branch: "main",
+      worktreePath: "/repo",
+      message: null
+    });
+    vi.spyOn(projectStore, "createProjectDraftSession").mockResolvedValue({
+      sessionId: "draft-1",
+      title: "New Session",
+      profile: "fake",
+      projectId: "project-1",
+      worktreePath: "/repo",
+      branch: "main",
+      visibility: "draft_hidden",
+      deletedAt: null
+    });
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "switch_session") {
+        return Promise.resolve({
+          messages: [],
+          task_titles: [],
+          task_graph: { tasks: [] },
+          token_stream: "",
+          cancelled: false,
+          last_context_usage: null,
+          model_limits: null,
+          compaction: { type: "Idle" }
+        });
+      }
+      if (command === "get_trace") return Promise.resolve([]);
+      if (command === "switch_model") return Promise.resolve(null);
+      if (command === "set_session_approval_policy") {
+        return Promise.resolve((args as { approval: string }).approval);
+      }
+      if (command === "set_session_sandbox_policy") {
+        return Promise.resolve((args as { sandboxJson: string }).sandboxJson);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+    session.currentProfile = "ali-mo-claude";
+    session.currentReasoningEffort = "xhigh";
+    await session.setApprovalPolicy("always");
+    await session.setSandboxPolicy(readOnlySandbox);
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson: readOnlySandbox
+    });
+
+    await session.ensureSessionForSend();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "ali-mo-claude",
+      reasoningEffort: "xhigh"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson: readOnlySandbox
+    });
+    expect(session.currentProfile).toBe("ali-mo-claude");
+    expect(session.currentReasoningEffort).toBe("xhigh");
+    expect(session.approvalPolicy).toBe("always");
+    expect(session.sandboxPolicy).toBe(readOnlySandbox);
+  });
+
   it("switches to a project session through standard store side effects and exposes current session metadata", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();
@@ -651,7 +1031,9 @@ describe("project session metadata", () => {
             worktreePath: "/repo/.worktrees/project-task",
             branch: "feat/project-task",
             deletedAt: null,
-            visibility: "draft_hidden"
+            visibility: "draft_hidden",
+            approvalPolicy: "always",
+            sandboxPolicy: '{"kind":"danger_full_access"}'
           }
         ]
       ]
@@ -665,6 +1047,8 @@ describe("project session metadata", () => {
     });
     expect(session.currentSessionId).toBe("project-session-1");
     expect(session.currentProfile).toBe("slow");
+    expect(session.approvalPolicy).toBe("always");
+    expect(session.sandboxPolicy).toBe('{"kind":"danger_full_access"}');
     expect(session.projection.messages).toEqual([]);
     expect(session.currentSessionInfo?.project_id).toBe("project-1");
     expect(session.currentSessionInfo?.worktree_path).toBe("/repo/.worktrees/project-task");

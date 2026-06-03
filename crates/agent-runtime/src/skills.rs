@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use agent_core::{ActiveSkillView, SkillDetail, SkillView};
+use agent_core::{ActiveSkillView, DomainEvent, EventPayload, SkillDetail, SkillView};
 
 use crate::plugin_settings::PluginSettingsRoots;
 use crate::skill_settings::SkillSettingsRoots;
@@ -45,6 +45,24 @@ pub fn render_active_skill_block(name: &str, source: &str, body_markdown: &str) 
         "<skill name=\"{}\" source=\"{}\">\n{}\n</skill>",
         name, source, body_markdown
     )
+}
+
+pub(crate) fn active_skill_ids_from_events(events: &[DomainEvent]) -> Vec<String> {
+    let mut skill_ids = Vec::new();
+    for event in events {
+        match &event.payload {
+            EventPayload::SkillActivated { skill_id, .. }
+                if !skill_ids.iter().any(|existing| existing == skill_id) =>
+            {
+                skill_ids.push(skill_id.clone());
+            }
+            EventPayload::SkillDeactivated { skill_id, .. } => {
+                skill_ids.retain(|existing| existing != skill_id);
+            }
+            _ => {}
+        }
+    }
+    skill_ids
 }
 
 pub fn skill_metadata_to_view(metadata: &SkillMetadata) -> SkillView {

@@ -40,6 +40,7 @@ pub(super) async fn send_message(
             workspace_id,
             session_id: session_id.clone(),
             content,
+            display_content: None,
             attachments,
         })
         .await
@@ -80,6 +81,7 @@ pub(super) async fn send_queued_message_now(
             workspace_id,
             session_id: session_id.clone(),
             content: queued.content,
+            display_content: None,
             attachments: queued.attachments,
         })
         .await

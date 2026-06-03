@@ -67,6 +67,27 @@ describe("ChatModelSelector", () => {
     expect(wrapper.emitted("selectModel")).toEqual([["fast"]]);
   });
 
+  it("requests the popover to close after selecting a concrete model option", async () => {
+    const wrapper = mountSelector({ currentProfile: "smart", open: true });
+
+    await wrapper.find('[data-test="chat-model-option-fast"]').trigger("click");
+
+    expect(wrapper.emitted("selectModel")).toEqual([["fast"]]);
+    expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
+  });
+
+  it("hides the popover content after selecting a concrete model option", async () => {
+    const wrapper = mountSelector({ currentProfile: "smart" });
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="chat-model-option-fast"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(false);
+  });
+
   it("emits the hovered reasoning model and built-in effort", async () => {
     const wrapper = mountSelector();
 
@@ -78,6 +99,29 @@ describe("ChatModelSelector", () => {
     await wrapper.find('[data-test="chat-reasoning-option-high"]').trigger("click");
 
     expect(wrapper.emitted("selectModel")).toEqual([["smart", "high"]]);
+  });
+
+  it("requests the popover to close after selecting a reasoning effort", async () => {
+    const wrapper = mountSelector({ open: true });
+
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("focus");
+    await wrapper.find('[data-test="chat-reasoning-option-high"]').trigger("click");
+
+    expect(wrapper.emitted("selectModel")).toEqual([["smart", "high"]]);
+    expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
+  });
+
+  it("does not select a default reasoning effort when none is set", async () => {
+    const wrapper = mountSelector({
+      currentProfile: "smart",
+      currentReasoningEffort: null
+    });
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+    expect(wrapper.findAll(".chat-reasoning-option.selected")).toHaveLength(0);
+    expect(wrapper.findAll(".chat-reasoning-option.kx-popover-option--selected")).toHaveLength(0);
   });
 
   it("renders reasoning controls in a separate anchored card beside the model list", async () => {

@@ -1,13 +1,14 @@
 use crate::facade_runtime::LocalRuntime;
 use agent_core::facade::{
-    McpFacade, McpServerSettingsInput, McpServerSettingsView, ProfileSettingsInput,
-    ProfileSettingsView,
+    McpFacade, McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
+    ProfileSettingsInput, ProfileSettingsView,
 };
 use agent_core::{
     AddCatalogSourceRequest, CatalogQuery as CoreCatalogQuery, CatalogSourceView,
     InstallOutcomeView as CoreInstallOutcomeView, InstallRequest as CoreInstallRequest,
     InstalledEntry as CoreInstalledEntry, ServerEntry as CoreServerEntry,
 };
+use agent_mcp::{McpServerDef, McpTransportDef};
 use agent_store::EventStore;
 use async_trait::async_trait;
 
@@ -44,8 +45,9 @@ where
                     .ok()
                     .map(|d| d.join(".kairox").join("config.toml"))
             });
+        let config = self.config();
         crate::mcp_settings::list_mcp_server_settings(
-            &self.config,
+            &config,
             user_config_path.as_deref(),
             project_config_path.as_deref(),
             source_filter.as_deref(),
@@ -58,6 +60,10 @@ where
         &self,
         input: McpServerSettingsInput,
     ) -> agent_core::Result<McpServerSettingsView> {
+        let server_id = input.name.clone();
+        let server_def = input
+            .enabled
+            .then(|| server_def_from_settings_input(&input));
         let config_path =
             crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
                 .ok_or_else(|| {
@@ -65,7 +71,43 @@ where
                         "marketplace install dir not configured; cannot write MCP settings".into(),
                     )
                 })?;
-        crate::mcp_settings::upsert_mcp_server_settings(&config_path, input).await
+        let view = crate::mcp_settings::upsert_mcp_server_settings(&config_path, input).await?;
+        self.sync_mcp_server_settings_registration(&server_id, server_def)
+            .await?;
+        Ok(view)
+    }
+
+    async fn sync_mcp_server_settings_registration(
+        &self,
+        server_id: &str,
+        server_def: Option<McpServerDef>,
+    ) -> agent_core::Result<()> {
+        let Some(manager) = &self.mcp_manager else {
+            if server_def.is_some() {
+                tracing::warn!(
+                    "MCP settings update saved {server_id}, but no MCP manager is configured"
+                );
+            }
+            return Ok(());
+        };
+
+        let mut manager = manager.lock().await;
+        manager
+            .unregister_dynamic(server_id)
+            .await
+            .map_err(|error| {
+                agent_core::CoreError::InvalidState(format!(
+                    "failed to update MCP server registration: {error}"
+                ))
+            })?;
+        if let Some(def) = server_def {
+            manager.register_dynamic(def).map_err(|error| {
+                agent_core::CoreError::InvalidState(format!(
+                    "failed to update MCP server registration: {error}"
+                ))
+            })?;
+        }
+        Ok(())
     }
 
     pub(crate) async fn delete_mcp_server_settings(
@@ -113,6 +155,54 @@ where
             crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
                 .map(|path| path.display().to_string()),
         )
+    }
+}
+
+fn server_def_from_settings_input(input: &McpServerSettingsInput) -> McpServerDef {
+    let (transport, args, env) = match &input.transport {
+        McpServerSettingsTransport::Stdio { command, args, env } => (
+            McpTransportDef::Stdio {
+                command: command.clone(),
+                cwd: None,
+            },
+            args.clone(),
+            env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        ),
+        McpServerSettingsTransport::Sse { url, headers } => (
+            McpTransportDef::Sse {
+                url: url.clone(),
+                api_key_env: None,
+                headers: headers
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
+            },
+            Vec::new(),
+            Default::default(),
+        ),
+        McpServerSettingsTransport::StreamableHttp { url, headers } => (
+            McpTransportDef::StreamableHttp {
+                url: url.clone(),
+                api_key_env: None,
+                headers: headers
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
+            },
+            Vec::new(),
+            Default::default(),
+        ),
+    };
+
+    McpServerDef {
+        name: input.name.clone(),
+        transport,
+        args,
+        env,
+        keep_alive: false,
+        idle_timeout_secs: 300,
+        auto_restart: true,
+        max_restart_attempts: 3,
     }
 }
 

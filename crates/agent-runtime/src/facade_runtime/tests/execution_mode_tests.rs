@@ -14,6 +14,7 @@ async fn default_execution_mode_is_single_step() {
         workspace_id: WorkspaceId::new(),
         session_id: SessionId::new(),
         content: "hello".into(),
+        display_content: None,
         attachments: vec![],
     };
     assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
@@ -29,6 +30,7 @@ async fn plan_prefix_triggers_dag_mode() {
         workspace_id: WorkspaceId::new(),
         session_id: SessionId::new(),
         content: "/plan implement feature X".into(),
+        display_content: None,
         attachments: vec![],
     };
     assert_eq!(
@@ -47,6 +49,7 @@ async fn no_plan_prefix_uses_single_step_even_with_dag() {
         workspace_id: WorkspaceId::new(),
         session_id: SessionId::new(),
         content: "just a question".into(),
+        display_content: None,
         attachments: vec![],
     };
     assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);

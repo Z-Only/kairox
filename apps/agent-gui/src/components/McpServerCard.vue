@@ -104,6 +104,31 @@ function sourceTone(source: string): SourceTone {
 function serverToolCount(): number {
   return mcp.serverHealth[props.server.value.id]?.tools?.length ?? 0;
 }
+
+function formatToolCount(count: number): string {
+  return count === 1 ? "1 tool" : `${count} tools`;
+}
+
+const displayedDiagnosticSummary = computed(() => {
+  const summary = props.server.value.diagnostic_summary;
+  if (!summary) return "";
+
+  const healthyTools = mcp.serverHealth[props.server.value.id]?.healthy
+    ? mcp.serverHealth[props.server.value.id]?.tools.length
+    : undefined;
+  const toolCount =
+    typeof healthyTools === "number"
+      ? healthyTools
+      : typeof props.server.value.tool_count === "number"
+        ? props.server.value.tool_count
+        : undefined;
+  if (toolCount === undefined) return summary;
+
+  return summary.replace(
+    /tools: (?:unknown|\d+ tools?|1 tool)/,
+    `tools: ${formatToolCount(toolCount)}`
+  );
+});
 </script>
 
 <template>
@@ -152,11 +177,11 @@ function serverToolCount(): number {
         </SettingsStatusTag>
       </template>
       <p
-        v-if="server.value.diagnostic_summary"
+        v-if="displayedDiagnosticSummary"
         class="mcp-settings__diagnostics"
         :data-test="`mcp-diagnostics-${server.value.id}`"
       >
-        {{ server.value.diagnostic_summary }}
+        {{ displayedDiagnosticSummary }}
       </p>
       <KxInlineAlert
         v-if="server.value.last_error"

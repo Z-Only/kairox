@@ -1,7 +1,7 @@
 use crate::facade_runtime::LocalRuntime;
 use agent_core::{
-    ProjectFacade, ProjectGitStatus, ProjectId, ProjectInstructionSummary, ProjectMeta, SessionId,
-    SessionMeta, WorkspaceId,
+    ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectId, ProjectInstructionSummary,
+    ProjectMeta, SessionId, SessionMeta, WorkspaceId,
 };
 use agent_store::EventStore;
 use async_trait::async_trait;
@@ -168,7 +168,7 @@ where
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
         self.start_lsp_servers(&crate::lsp_manager::file_uri_from_path(&project.root_path))
             .await;
-        let model_profile = self.config.default_profile();
+        let model_profile = self.config().default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
@@ -217,7 +217,7 @@ where
             &worktree_path_string,
         ))
         .await;
-        let model_profile = self.config.default_profile();
+        let model_profile = self.config().default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
@@ -251,6 +251,10 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let git_status = crate::project::get_git_status(&project.root_path);
+        if matches!(git_status.kind, ProjectGitStatusKind::NotInitialized) {
+            return Ok(Vec::new());
+        }
         crate::project::list_git_branches(&project.root_path)
             .map_err(agent_core::CoreError::InvalidState)
     }
@@ -276,15 +280,33 @@ where
         workspace_id: &WorkspaceId,
     ) -> agent_core::Result<Vec<SessionMeta>> {
         let _repository = self.project_repository()?;
-        let rows = self
+        let project_rows = self
             .store
             .list_archived_project_session_metas(workspace_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-        Ok(rows
+        let ordinary_rows = self
+            .store
+            .list_archived_sessions(workspace_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+
+        let mut sessions: Vec<SessionMeta> = project_rows
             .into_iter()
             .map(crate::project::project_session_row_to_meta)
-            .collect())
+            .chain(
+                ordinary_rows
+                    .into_iter()
+                    .map(crate::session::session_row_to_meta),
+            )
+            .collect();
+        sessions.sort_by(|first, second| {
+            second
+                .updated_at
+                .cmp(&first.updated_at)
+                .then_with(|| first.created_at.cmp(&second.created_at))
+        });
+        Ok(sessions)
     }
 
     pub(crate) async fn get_project_git_status(

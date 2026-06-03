@@ -49,4 +49,37 @@ describe("KxPopover", () => {
       hostElement.remove();
     }
   });
+
+  it("removes popover content when the controlled open state closes", async () => {
+    const hostElement = document.createElement("div");
+    document.body.appendChild(hostElement);
+
+    const wrapper = mount(KxPopover, {
+      attachTo: hostElement,
+      props: {
+        open: true,
+        contentDataTest: "popover-content"
+      },
+      slots: {
+        trigger: '<button data-test="popover-trigger" type="button">Details</button>',
+        default: "<section>Context details</section>"
+      },
+      global: {
+        stubs: {
+          Teleport: true
+        }
+      }
+    });
+
+    try {
+      expect(wrapper.find('[data-test="popover-content"]').exists()).toBe(true);
+
+      await wrapper.setProps({ open: false });
+
+      expect(wrapper.find('[data-test="popover-content"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+      hostElement.remove();
+    }
+  });
 });

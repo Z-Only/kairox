@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
+import chatMessageItemSource from "@/components/chat/ChatMessageItem.vue?raw";
 
 // ChatMessageItem itself does not call `useI18n` or `useRouter`, but we use
 // `mountWithPlugins` to stay consistent with sibling chat-stream item specs
@@ -38,6 +39,28 @@ describe("ChatMessageItem", () => {
     const body = wrapper.find(".markdown-body");
     expect(body.exists()).toBe(true);
     expect(body.html()).toContain("<strong>bold</strong>");
+  });
+
+  it("does not add extra vertical margins around single markdown paragraphs", () => {
+    const wrapper = mountItem({ role: "assistant", content: "DONE" });
+
+    expect(wrapper.find(".markdown-body p").exists()).toBe(true);
+    expect(chatMessageItemSource).toContain(".markdown-body :deep(p) {\n  margin: 0;");
+    expect(chatMessageItemSource).toContain(".markdown-body :deep(p + p)");
+  });
+
+  it("uses a block container for markdown lists so markers stay inside the message bubble", () => {
+    const wrapper = mountItem({
+      role: "assistant",
+      content: "1. first item\n2. second item"
+    });
+
+    const body = wrapper.find(".message-content.markdown-body");
+    expect(body.exists()).toBe(true);
+    expect(body.element.tagName).toBe("DIV");
+    expect(body.find("ol").exists()).toBe(true);
+    expect(chatMessageItemSource).toContain("list-style-position: inside");
+    expect(chatMessageItemSource).toContain("padding-left: 0");
   });
 
   it.each(["planner", "worker", "reviewer"] as const)(

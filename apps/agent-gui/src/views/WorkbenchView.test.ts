@@ -204,7 +204,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
     wrapper.unmount();
   });
 
-  it("mounts the demoted ContextMeter pill in the workbench shell", async () => {
+  it("does not mount the context meter pill in the workbench shell", async () => {
     const router = makeRouter();
     const pinia = createTestingPinia({ createSpy: vi.fn });
 
@@ -217,21 +217,21 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          ContextMeterPill: true
+          TraceTimeline: true
         }
       }
     });
 
-    expect(wrapper.find('[data-test="workbench-context-meter-pill"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="workbench-context-meter-pill"]').exists()).toBe(false);
   });
 
-  it("source: workbench owns the ContextMeterPill mount and ChatComposer no longer owns the primary ring", () => {
+  it("source: ChatComposer owns the ContextMeterPill mount and WorkbenchView does not", () => {
     expectSourceMigration(workbenchSource, {
-      required: ["ContextMeterPill", "workbench-context-meter-pill"]
+      forbidden: ["ContextMeterPill", "workbench-context-meter-pill"]
     });
     expectSourceMigration(chatComposerSource, {
-      forbidden: ["<ContextMeter"]
+      required: ["ContextMeterPill", "composer-context-meter"],
+      forbidden: ["<ContextMeter ", "context-meter-ring", "context-meter-bar"]
     });
   });
 

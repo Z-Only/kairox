@@ -34,6 +34,7 @@ const open = defineModel<boolean>("open", { default: false });
       <slot name="trigger" />
     </PopoverTrigger>
     <PopoverContent
+      v-if="open"
       :class="['kx-popover-content', contentClass]"
       :data-test="contentDataTest"
       :side="side"

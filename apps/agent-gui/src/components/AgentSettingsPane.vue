@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAgentSettingsStore } from "@/stores/agentSettings";
+import { useProjectStore } from "@/stores/project";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
@@ -13,8 +14,10 @@ import type {
 type AgentSortOrder = "original" | "name" | "scope" | "status";
 
 const store = useAgentSettingsStore();
+const projectStore = useProjectStore();
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
+const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 
 const selectedAgentId = ref<string | null>(null);
 const editorDialogOpen = ref(false);
@@ -45,6 +48,14 @@ const nicknamesText = ref("");
 const selectedScope = computed<AgentSettingsScope>(() =>
   configSource?.value === "project" ? "Project" : "User"
 );
+const selectedProjectRoot = computed(() => {
+  if (configSource?.value !== "project") return null;
+  const projectId = configProjectId?.value;
+  if (!projectId) return null;
+  return (
+    projectStore.activeProjects.find((project) => project.projectId === projectId)?.rootPath ?? null
+  );
+});
 
 const canSave = computed(() => form.name.trim().length > 0 && form.description.trim().length > 0);
 const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
@@ -175,37 +186,38 @@ function closeEditor(): void {
 
 async function saveAgent(): Promise<void> {
   if (!canSave.value) return;
-  await store.saveAgent({
-    ...form,
-    name: form.name.trim(),
-    description: form.description.trim(),
-    tools: splitCsv(toolsText.value),
-    skills: splitCsv(skillsText.value),
-    nicknameCandidates: splitCsv(nicknamesText.value),
-    modelProfile: form.modelProfile?.trim() || null,
-    reasoningEffort: form.reasoningEffort?.trim() || null,
-    instructions: form.instructions.trimEnd()
-  });
+  await store.saveAgent(
+    {
+      ...form,
+      name: form.name.trim(),
+      description: form.description.trim(),
+      tools: splitCsv(toolsText.value),
+      skills: splitCsv(skillsText.value),
+      nicknameCandidates: splitCsv(nicknamesText.value),
+      modelProfile: form.modelProfile?.trim() || null,
+      reasoningEffort: form.reasoningEffort?.trim() || null,
+      instructions: form.instructions.trimEnd()
+    },
+    selectedProjectRoot.value
+  );
   closeEditor();
 }
 
 async function copyToUser(agent: AgentSettingsView): Promise<void> {
-  await store.copyAgent(agent.settingsId, "User");
+  await store.copyAgent(agent.settingsId, "User", selectedProjectRoot.value);
 }
 
 async function deleteAgent(agent: AgentSettingsView): Promise<void> {
-  await store.deleteAgent(agent.settingsId);
+  await store.deleteAgent(agent.settingsId, selectedProjectRoot.value);
 }
 
-onMounted(() => {
-  void store.loadAgents();
-});
-
 watch(
-  () => selectedScope.value,
-  (scope) => {
+  [() => selectedScope.value, () => selectedProjectRoot.value],
+  ([scope, projectRoot]) => {
     if (!selectedAgentId.value) form.scope = scope;
-  }
+    void store.loadAgents(projectRoot);
+  },
+  { immediate: true }
 );
 </script>
 
@@ -219,13 +231,13 @@ watch(
       <KxToolbarAction variant="primary" data-test="agent-new" @click="startCreate">
         {{ t("agents.newAgent") }}
       </KxToolbarAction>
-      <KxToolbarAction data-test="agent-open-dir" @click="store.openAgentsDir()">
+      <KxToolbarAction data-test="agent-open-dir" @click="store.openAgentsDir(selectedProjectRoot)">
         {{ t("agents.openFolder") }}
       </KxToolbarAction>
       <KxToolbarAction
         :disabled="store.loading"
         data-test="agent-refresh"
-        @click="store.loadAgents()"
+        @click="store.loadAgents(selectedProjectRoot)"
       >
         {{ store.loading ? t("agents.refreshing") : t("common.refresh") }}
       </KxToolbarAction>

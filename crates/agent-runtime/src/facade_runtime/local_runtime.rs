@@ -2,7 +2,7 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::execution_runtime::SessionExecutionRuntime;
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::{LspServerManager, McpServerManager};
-use agent_core::{DomainEvent, PermissionDecision};
+use agent_core::DomainEvent;
 use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
 use agent_mcp::installer::Installer;
@@ -12,10 +12,37 @@ use agent_store::EventStore;
 use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex;
 
 pub(crate) const EVENT_CHANNEL_CAPACITY: usize = 1024;
+
+#[derive(Clone)]
+pub(crate) struct RuntimeConfig {
+    inner: Arc<RwLock<Arc<agent_config::Config>>>,
+}
+
+impl RuntimeConfig {
+    pub(crate) fn from_arc(config: Arc<agent_config::Config>) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(config)),
+        }
+    }
+
+    pub(crate) fn snapshot(&self) -> Arc<agent_config::Config> {
+        self.inner
+            .read()
+            .expect("runtime config lock should not be poisoned")
+            .clone()
+    }
+
+    pub(crate) fn replace(&self, config: Arc<agent_config::Config>) {
+        *self
+            .inner
+            .write()
+            .expect("runtime config lock should not be poisoned") = config;
+    }
+}
 
 pub struct LocalRuntime<S, M>
 where
@@ -30,8 +57,7 @@ where
     pub(crate) tool_registry: Arc<Mutex<ToolRegistry>>,
     pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
-    pub(crate) pending_permissions:
-        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pub(crate) pending_permissions: crate::permission::PendingPermissionsMap,
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
     pub(crate) session_execution: SessionExecutionRuntime,
@@ -64,7 +90,7 @@ where
     /// Loaded TOML config (`Config::load()` in production, in-line in tests).
     /// Required by Tasks 9-10 to look up `ProfileDef` by alias and call
     /// `agent_config::resolve_limits`.
-    pub(crate) config: Arc<agent_config::Config>,
+    pub(crate) config: RuntimeConfig,
     /// Profile-alias → typed Ollama client. Populated by `with_ollama_clients`
     /// at wiring time so Task 10 can fire `probe_context_window`. Empty when
     /// no Ollama profiles are configured.
@@ -112,7 +138,7 @@ where
             skill_package_manager: Arc::new(DirectDownloadPackageManager),
             active_skills: Arc::new(Mutex::new(HashMap::new())),
             session_states: Arc::new(Mutex::new(HashMap::new())),
-            config: Arc::new(agent_config::Config {
+            config: RuntimeConfig::from_arc(Arc::new(agent_config::Config {
                 profiles: vec![],
                 mcp_servers: vec![],
                 source: agent_config::ConfigSource::Defaults,
@@ -123,7 +149,7 @@ where
                 hooks: vec![],
                 lsp_servers: vec![],
                 dap_servers: vec![],
-            }),
+            })),
             ollama_clients: HashMap::new(),
             monitor_registry: None,
             skill_catalog: std::sync::OnceLock::new(),
@@ -140,8 +166,12 @@ where
 
     /// Public accessor for the loaded `Config`. Used by UI dispatchers (TUI
     /// model overlay, GUI settings) that need to snapshot profile metadata.
-    pub fn config(&self) -> &Arc<agent_config::Config> {
-        &self.config
+    pub fn config(&self) -> Arc<agent_config::Config> {
+        self.config.snapshot()
+    }
+
+    pub fn update_config(&self, config: Arc<agent_config::Config>) {
+        self.config.replace(config);
     }
 
     pub fn monitor_registry(&self) -> Option<&Arc<MonitorRegistry>> {

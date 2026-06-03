@@ -70,6 +70,33 @@ describe("trace store", () => {
       trace.applyTraceEvent(event);
       expect(trace.entries).toHaveLength(1);
     });
+
+    it("marks an existing task entry as failed on AgentTaskFailed", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "AgentTaskCreated",
+          task_id: "t-cancelled",
+          title: "Long model turn",
+          role: "Planner",
+          dependencies: []
+        })
+      );
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "AgentTaskFailed",
+          task_id: "t-cancelled",
+          agent_id: "agent-1",
+          error: "cancelled by user"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0].status).toBe("failed");
+      expect(trace.entries[0].reason).toBe("cancelled by user");
+      expect(trace.entries[0].rawEvent).toContain("AgentTaskFailed");
+    });
   });
 
   // -----------------------------------------------------------
@@ -189,7 +216,7 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries).toHaveLength(1);
-      expect(trace.entries[0].id).toBe("tc-1");
+      expect(trace.entries[0].id).toBe("tool-tc-1");
       expect(trace.entries[0].status).toBe("running");
       expect(trace.entries[0].toolId).toBe("shell");
       expect(trace.entries[0].title).toContain("shell");
@@ -210,7 +237,7 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries).toHaveLength(1);
-      expect(trace.entries[0].id).toBe("inv-1");
+      expect(trace.entries[0].id).toBe("tool-inv-1");
       expect(trace.entries[0].status).toBe("running");
     });
 
@@ -302,6 +329,60 @@ describe("trace store", () => {
       expect(entry.title).toBe("rm -rf /");
     });
 
+    it("keeps permission prompts separate from same-id tool calls", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelToolCallRequested",
+          tool_call_id: "toolu-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionRequested",
+          request_id: "toolu-1",
+          tool_id: "shell.exec",
+          preview: 'shell.exec({"command":"printf ok"})'
+        })
+      );
+
+      expect(trace.entries).toHaveLength(2);
+      const permission = trace.entries.find((entry) => entry.kind === "permission");
+      const tool = trace.entries.find((entry) => entry.kind === "tool");
+      expect(permission?.id).toBe("toolu-1");
+      expect(permission?.status).toBe("pending");
+      expect(permission?.title).toContain("printf ok");
+      expect(tool?.id).not.toBe(permission?.id);
+      expect(tool?.toolId).toBe("shell.exec");
+
+      trace.applyTraceEvent(mkEvent({ type: "PermissionGranted", request_id: "toolu-1" }));
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationStarted",
+          invocation_id: "toolu-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationCompleted",
+          invocation_id: "toolu-1",
+          tool_id: "shell.exec",
+          output_preview: "APPROVAL-GRANT-6F2D",
+          exit_code: 0,
+          duration_ms: 12,
+          truncated: false
+        })
+      );
+
+      expect(permission?.status).toBe("completed");
+      expect(tool?.status).toBe("completed");
+      expect(tool?.outputPreview).toBe("APPROVAL-GRANT-6F2D");
+      expect(tool?.exitCode).toBe(0);
+    });
+
     it("PermissionGranted marks entry as completed", () => {
       const trace = useTraceStore();
       trace.applyTraceEvent(
@@ -330,6 +411,40 @@ describe("trace store", () => {
         mkEvent({ type: "PermissionDenied", request_id: "perm-3", reason: "nope" })
       );
       expect(trace.entries[0].status).toBe("failed");
+    });
+
+    it("PermissionDenied fails the same-id model tool-call entry", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelToolCallRequested",
+          tool_call_id: "toolu-deny-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionRequested",
+          request_id: "toolu-deny-1",
+          tool_id: "shell.exec",
+          preview: 'shell.exec({"command":"touch denied.txt"})'
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionDenied",
+          request_id: "toolu-deny-1",
+          reason: "denied by user"
+        })
+      );
+
+      const tool = trace.entries.find((entry) => entry.kind === "tool");
+      const permission = trace.entries.find((entry) => entry.kind === "permission");
+      expect(tool?.id).toBe("tool-toolu-deny-1");
+      expect(tool?.status).toBe("failed");
+      expect(tool?.outputPreview).toBe("denied by user");
+      expect(permission?.status).toBe("failed");
     });
   });
 
@@ -380,6 +495,31 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries[0].status).toBe("completed");
+    });
+
+    it("MemoryAccepted without a proposal adds a completed memory entry", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "MemoryAccepted",
+          memory_id: "mem-session-auto",
+          scope: "session",
+          key: "turn-note",
+          content: "auto accepted session note"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        id: "mem-session-auto",
+        kind: "memory",
+        status: "completed",
+        toolId: "memory.store",
+        title: "Save session memory",
+        scope: "session",
+        content: "auto accepted session note",
+        expanded: false
+      });
     });
 
     it("MemoryRejected marks entry as failed with reason", () => {

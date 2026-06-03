@@ -75,6 +75,7 @@ fn render_transcript_includes_user_assistant_and_tool_events() {
         make_event(EventPayload::UserMessageAdded {
             message_id: "u1".into(),
             content: "list rust files".into(),
+            display_content: None,
         }),
         make_event(EventPayload::AssistantMessageCompleted {
             message_id: "a1".into(),
@@ -118,6 +119,7 @@ fn render_transcript_skips_meta_events() {
         make_event(EventPayload::UserMessageAdded {
             message_id: "u1".into(),
             content: "do thing".into(),
+            display_content: None,
         }),
         make_event(EventPayload::PermissionGranted {
             request_id: "perm1".into(),

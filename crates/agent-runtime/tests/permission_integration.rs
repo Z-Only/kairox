@@ -96,6 +96,7 @@ async fn readonly_sandbox_restricts_write_tool() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "write a file".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -152,6 +153,7 @@ async fn session_restore_preserves_messages() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: content.into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -172,6 +174,7 @@ async fn session_restore_preserves_messages() {
     match &user_msg.payload {
         EventPayload::UserMessageAdded {
             content: msg_content,
+            display_content: None,
             ..
         } => {
             assert_eq!(msg_content, "hello world from test");

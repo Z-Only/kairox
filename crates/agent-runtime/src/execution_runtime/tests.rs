@@ -14,6 +14,7 @@ fn request(session_id: SessionId, content: &str) -> SendMessageRequest {
         workspace_id: WorkspaceId::from_string("wrk_execution_runtime".into()),
         session_id,
         content: content.into(),
+        display_content: None,
         attachments: vec![],
     }
 }

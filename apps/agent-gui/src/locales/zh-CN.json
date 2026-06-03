@@ -31,6 +31,8 @@
     "searchPlaceholder": "搜索记忆…",
     "emptyHint": "暂无记忆",
     "noMatchingStatusHint": "没有符合当前状态筛选的记忆",
+    "accept": "接受",
+    "reject": "拒绝",
     "deleteConfirm": "删除这条记忆？"
   },
   "nav": {
@@ -234,7 +236,8 @@
     "queuedEditAria": "编辑这条队列消息",
     "queuedDeleteAria": "删除这条队列消息",
     "queuedAttachments": "{count} 个文件",
-    "emptyState": "开始对话"
+    "emptyState": "开始对话",
+    "projectDraftContext": "项目：{project}"
   },
   "context": {
     "title": "上下文",

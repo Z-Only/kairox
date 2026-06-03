@@ -35,6 +35,12 @@ pub trait MemoryStore: Send + Sync {
     async fn store(&self, entry: MemoryEntry) -> Result<()>;
     /// Query memories by scope, keywords, and limits. Only accepted memories are returned.
     async fn query(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>>;
+    /// Query memories for management views. Accepted and pending memories are returned.
+    async fn query_including_pending(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>>;
+    /// Fetch one memory entry by ID.
+    async fn get(&self, id: &str) -> Result<Option<MemoryEntry>>;
+    /// Update the acceptance state for a memory entry.
+    async fn set_accepted(&self, id: &str, accepted: bool) -> Result<()>;
     /// Delete a memory entry by ID.
     async fn delete(&self, id: &str) -> Result<()>;
     /// List all accepted memories within a given scope.
@@ -93,64 +99,43 @@ impl SqliteMemoryStore {
             _ => MemoryScope::Session,
         }
     }
-}
 
-#[async_trait]
-impl MemoryStore for SqliteMemoryStore {
-    async fn store(&self, entry: MemoryEntry) -> Result<()> {
-        let keywords_json = serde_json::to_string(&extract_keywords(&entry.content))?;
-        let now = chrono::Utc::now().to_rfc3339();
-        let scope_str = Self::scope_str(&entry.scope);
-
-        // Upsert: if same scope + key exists, update content and keywords
-        if entry.key.is_some() {
-            let existing: i64 =
-                sqlx::query_scalar("SELECT COUNT(*) FROM memories WHERE scope = ? AND key = ?")
-                    .bind(scope_str)
-                    .bind(&entry.key)
-                    .fetch_one(&self.pool)
-                    .await?;
-
-            if existing > 0 {
-                sqlx::query(
-                    "UPDATE memories SET content = ?, keywords = ?, accepted = ?, updated_at = ? WHERE scope = ? AND key = ?",
-                )
-                .bind(&entry.content)
-                .bind(&keywords_json)
-                .bind(entry.accepted as i32)
-                .bind(&now)
-                .bind(scope_str)
-                .bind(&entry.key)
-                .execute(&self.pool)
-                .await?;
-                return Ok(());
-            }
+    fn row_to_entry(
+        row: (
+            String,
+            String,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            bool,
+        ),
+    ) -> MemoryEntry {
+        let (id, scope, key, content, session_id, workspace_id, accepted) = row;
+        MemoryEntry {
+            id,
+            scope: Self::parse_scope(&scope),
+            key,
+            content,
+            accepted,
+            session_id,
+            workspace_id,
         }
-
-        sqlx::query(
-            r#"INSERT INTO memories (id, scope, key, content, keywords, session_id, workspace_id, accepted, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
-        )
-        .bind(&entry.id)
-        .bind(scope_str)
-        .bind(&entry.key)
-        .bind(&entry.content)
-        .bind(&keywords_json)
-        .bind(&entry.session_id)
-        .bind(&entry.workspace_id)
-        .bind(entry.accepted as i32)
-        .bind(&now)
-        .bind(&now)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
     }
 
-    async fn query(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>> {
+    async fn query_internal(
+        &self,
+        query: MemoryQuery,
+        include_pending: bool,
+    ) -> Result<Vec<MemoryEntry>> {
         let mut sql = String::from(
-            "SELECT id, scope, key, content, session_id, workspace_id, accepted FROM memories WHERE accepted = 1",
+            "SELECT id, scope, key, content, session_id, workspace_id, accepted FROM memories",
         );
+        if include_pending {
+            sql.push_str(" WHERE 1 = 1");
+        } else {
+            sql.push_str(" WHERE accepted = 1");
+        }
         let mut param_idx = 1u32;
 
         if query.scope.is_some() {
@@ -196,20 +181,119 @@ impl MemoryStore for SqliteMemoryStore {
 
         let rows = q.fetch_all(&self.pool).await?;
 
-        Ok(rows
-            .into_iter()
-            .map(
-                |(id, scope, key, content, session_id, workspace_id, accepted)| MemoryEntry {
-                    id,
-                    scope: Self::parse_scope(&scope),
-                    key,
-                    content,
-                    accepted,
-                    session_id,
-                    workspace_id,
-                },
-            )
-            .collect())
+        Ok(rows.into_iter().map(Self::row_to_entry).collect())
+    }
+}
+
+#[async_trait]
+impl MemoryStore for SqliteMemoryStore {
+    async fn store(&self, entry: MemoryEntry) -> Result<()> {
+        let keywords_json = serde_json::to_string(&extract_keywords(&entry.content))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let scope_str = Self::scope_str(&entry.scope);
+
+        // Accepted keyed memories replace the previous accepted value. Pending
+        // proposals are stored separately so a model cannot overwrite an
+        // accepted durable memory before the user approves the change.
+        if entry.accepted && entry.key.is_some() {
+            let existing: i64 =
+                sqlx::query_scalar("SELECT COUNT(*) FROM memories WHERE scope = ? AND key = ?")
+                    .bind(scope_str)
+                    .bind(&entry.key)
+                    .fetch_one(&self.pool)
+                    .await?;
+
+            if existing > 0 {
+                sqlx::query(
+                    "UPDATE memories SET id = ?, content = ?, keywords = ?, session_id = ?, workspace_id = ?, accepted = ?, updated_at = ? WHERE scope = ? AND key = ?",
+                )
+                .bind(&entry.id)
+                .bind(&entry.content)
+                .bind(&keywords_json)
+                .bind(&entry.session_id)
+                .bind(&entry.workspace_id)
+                .bind(entry.accepted as i32)
+                .bind(&now)
+                .bind(scope_str)
+                .bind(&entry.key)
+                .execute(&self.pool)
+                .await?;
+                return Ok(());
+            }
+        }
+
+        sqlx::query(
+            r#"INSERT INTO memories (id, scope, key, content, keywords, session_id, workspace_id, accepted, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+        )
+        .bind(&entry.id)
+        .bind(scope_str)
+        .bind(&entry.key)
+        .bind(&entry.content)
+        .bind(&keywords_json)
+        .bind(&entry.session_id)
+        .bind(&entry.workspace_id)
+        .bind(entry.accepted as i32)
+        .bind(&now)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn query(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>> {
+        self.query_internal(query, false).await
+    }
+
+    async fn query_including_pending(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>> {
+        self.query_internal(query, true).await
+    }
+
+    async fn get(&self, id: &str) -> Result<Option<MemoryEntry>> {
+        let row = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                Option<String>,
+                String,
+                Option<String>,
+                Option<String>,
+                bool,
+            ),
+        >(
+            "SELECT id, scope, key, content, session_id, workspace_id, accepted FROM memories WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(Self::row_to_entry))
+    }
+
+    async fn set_accepted(&self, id: &str, accepted: bool) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        if accepted {
+            if let Some(entry) = self.get(id).await? {
+                if let Some(key) = &entry.key {
+                    sqlx::query("DELETE FROM memories WHERE id <> ? AND scope = ? AND key = ?")
+                        .bind(id)
+                        .bind(Self::scope_str(&entry.scope))
+                        .bind(key)
+                        .execute(&self.pool)
+                        .await?;
+                }
+            }
+        }
+
+        sqlx::query("UPDATE memories SET accepted = ?, updated_at = ? WHERE id = ?")
+            .bind(accepted as i32)
+            .bind(&now)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     async fn delete(&self, id: &str) -> Result<()> {
@@ -228,20 +312,7 @@ impl MemoryStore for SqliteMemoryStore {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(
-                |(id, scope, key, content, session_id, workspace_id, accepted)| MemoryEntry {
-                    id,
-                    scope: Self::parse_scope(&scope),
-                    key,
-                    content,
-                    accepted,
-                    session_id,
-                    workspace_id,
-                },
-            )
-            .collect())
+        Ok(rows.into_iter().map(Self::row_to_entry).collect())
     }
 
     async fn count(&self, scope: Option<MemoryScope>) -> Result<usize> {

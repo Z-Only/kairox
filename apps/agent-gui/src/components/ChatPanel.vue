@@ -358,6 +358,11 @@ const isEmptyProjectChat = computed(
     session.projection.messages.length === 0 &&
     !session.projection.token_stream
 );
+const currentProjectDisplayName = computed(() => currentProject.value?.displayName.trim() ?? "");
+const projectDraftContextText = computed(() => {
+  if (!isEmptyProjectChat.value || !currentProjectDisplayName.value) return null;
+  return t("chat.projectDraftContext", { project: currentProjectDisplayName.value });
+});
 const projectInstructionSummaryText = computed(() => {
   const projectId = currentProjectId.value;
   if (!projectId || !isEmptyProjectChat.value) return null;
@@ -428,6 +433,13 @@ watch(
           </template>
           {{ t("chat.emptyState") }}
         </KxEmptyState>
+        <div
+          v-if="projectDraftContextText"
+          class="project-draft-context"
+          data-test="project-draft-context"
+        >
+          {{ projectDraftContextText }}
+        </div>
         <template v-for="item in chatStream" :key="item.id">
           <div
             class="chat-stream-item"
@@ -560,6 +572,7 @@ watch(
 .message-list {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   position: relative;
   background:
@@ -619,10 +632,21 @@ watch(
   opacity: 0.7;
 }
 .message-list-inner {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   padding: 14px 16px;
 }
+.chat-stream-item {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
 .message {
+  box-sizing: border-box;
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -632,21 +656,34 @@ watch(
   font-size: 12px;
   line-height: 1.5;
 }
+.project-draft-context {
+  max-width: min(920px, 100%);
+  margin: -16px auto 12px;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
 .chat-empty-state {
   margin: 40px auto 28px;
   max-width: min(920px, 100%);
 }
-.message-content {
-  max-width: min(760px, 82%);
+.message :deep(.message-content) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: min(760px, 100%);
   border-radius: var(--app-radius-xl);
   padding: 10px 12px;
   white-space: pre-wrap;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.message :deep(.message-content.markdown-body) {
+  white-space: normal;
 }
 .message-user {
   justify-content: flex-end;
 }
-.message-user .message-content {
+.message-user :deep(.message-content) {
   color: var(--app-primary-contrast-color, #ffffff);
   background: var(--app-primary-color, #0077cc);
 }
@@ -657,15 +694,15 @@ watch(
 .message-system {
   justify-content: flex-start;
 }
-.message-assistant .message-content,
-.message-planner .message-content,
-.message-worker .message-content,
-.message-reviewer .message-content,
-.message-system .message-content {
+.message-assistant :deep(.message-content),
+.message-planner :deep(.message-content),
+.message-worker :deep(.message-content),
+.message-reviewer :deep(.message-content),
+.message-system :deep(.message-content) {
   color: var(--app-muted-text-color, var(--app-text-color));
   background: var(--app-muted-surface-color, var(--app-panel-color));
 }
-.message-system .message-content {
+.message-system :deep(.message-content) {
   opacity: 0.72;
   font-style: italic;
 }
@@ -688,29 +725,5 @@ watch(
   background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
   color: var(--app-error-color);
   font-size: 13px;
-}
-.markdown-body :deep(pre.hljs) {
-  margin: 8px 0;
-  border-radius: var(--app-radius-md);
-  padding: 12px;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.5;
-}
-.markdown-body :deep(code) {
-  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-}
-.markdown-body :deep(:not(pre) > code) {
-  background: var(--app-card-color);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 20px;
-}
-.markdown-body :deep(p) {
-  margin: 6px 0;
 }
 </style>

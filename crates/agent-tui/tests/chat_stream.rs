@@ -42,6 +42,7 @@ fn folds_message_events_in_chronological_order() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "hello".into(),
+                display_content: None,
             },
         ),
         make_event_at(
@@ -56,6 +57,7 @@ fn folds_message_events_in_chronological_order() {
             EventPayload::UserMessageAdded {
                 message_id: "u2".into(),
                 content: "follow-up".into(),
+                display_content: None,
             },
         ),
     ];
@@ -335,6 +337,7 @@ fn chronological_interleaving_across_item_kinds() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "run a shell command".into(),
+                display_content: None,
             },
         ),
         make_event_at(
@@ -649,6 +652,7 @@ fn monitor_interleaves_with_messages_chronologically() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "start monitoring".into(),
+                display_content: None,
             },
         ),
         make_event_at(

@@ -63,6 +63,32 @@ impl SqliteEventStore {
         Ok(rows.into_iter().map(SessionRow::from).collect())
     }
 
+    pub async fn list_archived_sessions(
+        &self,
+        workspace_id: &str,
+    ) -> crate::Result<Vec<SessionRow>> {
+        let rows = sqlx::query_as::<_, SessionRowForQuery>(
+            "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
+                    sessions.model_profile, sessions.model_id, sessions.provider,
+                    sessions.approval_policy, sessions.sandbox_policy,
+                    sessions.deleted_at, sessions.created_at, sessions.updated_at
+             FROM kairox_sessions AS sessions
+             LEFT JOIN kairox_project_sessions AS bindings
+                ON bindings.session_id = sessions.session_id
+             LEFT JOIN kairox_session_visibility AS visibility
+                ON visibility.session_id = sessions.session_id
+             WHERE sessions.workspace_id = ?1
+               AND sessions.deleted_at IS NOT NULL
+               AND bindings.session_id IS NULL
+               AND COALESCE(visibility.visibility, 'archived') = 'archived'
+             ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(SessionRow::from).collect())
+    }
+
     pub async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         sqlx::query("UPDATE kairox_sessions SET title = ?1, updated_at = ?2 WHERE session_id = ?3")
@@ -71,6 +97,29 @@ impl SqliteEventStore {
             .bind(session_id)
             .execute(&self.pool)
             .await?;
+        Ok(())
+    }
+
+    pub async fn update_session_model_profile(
+        &self,
+        session_id: &str,
+        model_profile: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+    ) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE kairox_sessions
+             SET model_profile = ?1, model_id = ?2, provider = ?3, updated_at = ?4
+             WHERE session_id = ?5",
+        )
+        .bind(model_profile)
+        .bind(model_id)
+        .bind(provider)
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 

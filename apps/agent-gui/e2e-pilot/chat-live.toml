@@ -215,26 +215,27 @@ script = """
 """
 
 [[step]]
-name = "wait for enriched attachment user message"
+name = "wait for attachment display user message"
 action = "eval"
 timeout_ms = 15000
 script = """
 (async () => {
   const deadline = Date.now() + 15000;
+  const prompt = "Use the embedded attachment block above.";
 
   while (Date.now() < deadline) {
     const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
     const text = messages.at(-1)?.textContent ?? "";
-    if (
-      text.includes("live-model-attachment.txt") &&
-      text.includes("KAIROX_PILOT_ATTACHMENT_7F3C9A")
-    ) {
+    if (text.includes(prompt)) {
+      if (text.includes("KAIROX_PILOT_ATTACHMENT_7F3C9A")) {
+        throw new Error(`attachment display leaked enriched file content: ${text}`);
+      }
       return text;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error("enriched attachment user message did not appear");
+  throw new Error("attachment display user message did not appear");
 })()
 """
 

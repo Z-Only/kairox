@@ -117,6 +117,46 @@ async fn stop_individual_monitor_keeps_others() {
 }
 
 #[tokio::test]
+async fn stop_individual_monitor_emits_user_stopped_for_start_session() {
+    let (tx, mut rx) = tokio::sync::broadcast::channel(64);
+    let registry = MonitorRegistry::new(PathBuf::from("/tmp"), tx);
+    let wid = WorkspaceId::new();
+    let sid = SessionId::new();
+
+    let monitor_id = registry
+        .start(
+            "user-stop".into(),
+            "sleep 60".into(),
+            true,
+            None,
+            wid,
+            sid.clone(),
+        )
+        .await
+        .unwrap();
+
+    let _started = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    registry.stop(&monitor_id).await.unwrap();
+    let stopped = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(stopped.session_id, sid);
+    assert!(matches!(
+        stopped.payload,
+        EventPayload::MonitorStopped {
+            monitor_id: ref stopped_id,
+            reason: MonitorStopReason::UserStopped,
+        } if stopped_id == &monitor_id
+    ));
+    assert!(registry.list().await.is_empty());
+}
+
+#[tokio::test]
 async fn monitor_ids_are_unique() {
     let registry = test_registry(PathBuf::from("/tmp"));
     let wid = WorkspaceId::new();

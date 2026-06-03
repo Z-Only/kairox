@@ -62,6 +62,7 @@ fn renders_messages_then_permission_then_tool_call_then_compaction_running() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "run a shell command".into(),
+                display_content: None,
             },
         ),
         make_event_at(
@@ -284,6 +285,7 @@ fn compaction_idle_renders_nothing_extra() {
         EventPayload::UserMessageAdded {
             message_id: "u1".into(),
             content: "hello".into(),
+            display_content: None,
         },
     )];
     let projection = SessionProjection::from_events(&events);
@@ -378,6 +380,7 @@ fn resolved_permission_is_filtered_from_stream() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "go ahead".into(),
+                display_content: None,
             },
         ),
         make_event_at(

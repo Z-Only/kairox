@@ -74,6 +74,7 @@ fn user_message_added_roundtrips() {
     let event = make_event(EventPayload::UserMessageAdded {
         message_id: "m1".into(),
         content: "hello world".into(),
+        display_content: None,
     });
     assert_eq!(roundtrip(&event), event);
 }
@@ -297,6 +298,7 @@ fn event_with_fixed_timestamp_roundtrips() {
     let event = make_event(EventPayload::UserMessageAdded {
         message_id: "m1".into(),
         content: "hello".into(),
+        display_content: None,
     })
     .with_timestamp(
         chrono::Utc

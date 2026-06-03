@@ -10,7 +10,7 @@
     "tauri": "tauri",
     "tauri:build": "tauri build",
     "tauri:dev": "tauri dev",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS=\"--localstorage-file=/tmp/kairox-vitest-localstorage.json\" vitest run",
     "test:e2e": "playwright test --workers 2",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

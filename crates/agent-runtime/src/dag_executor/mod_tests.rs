@@ -16,9 +16,7 @@ async fn make_executor() -> DagExecutor<SqliteEventStore, FakeModelClient> {
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: crate::permission::PendingPermissionsMap = Arc::new(Mutex::new(HashMap::new()));
 
     DagExecutor::new(
         Arc::new(store),

@@ -69,9 +69,8 @@ pub fn profile_supports_reasoning(def: &ProfileDef) -> bool {
 fn model_supports_reasoning(provider: &str, model_id: &str) -> bool {
     let provider = provider.to_ascii_lowercase();
     let model_id = model_id.to_ascii_lowercase();
-    let is_claude = provider == "anthropic" || model_id.contains("claude");
 
-    is_claude
+    provider == "anthropic"
         && (model_id.contains("claude-opus-4")
             || model_id.contains("claude-sonnet-4")
             || model_id.contains("claude-3-7-sonnet"))

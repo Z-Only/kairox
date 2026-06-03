@@ -6,6 +6,24 @@ import {
 import type { McpState } from "./state";
 import { formatError, unwrapCommandResult } from "./utils";
 
+function diagnosticSummaryFor(server: McpServerSettingsView): string {
+  const trust = server.trusted ? "trusted" : "untrusted";
+  const tools =
+    server.tool_count === 1
+      ? "1 tool"
+      : typeof server.tool_count === "number"
+        ? `${server.tool_count} tools`
+        : "unknown";
+  const verification = server.verified ? "verified" : "unverified";
+  const error = server.last_error ?? "none";
+  return `status: ${server.runtime_status}; trust: ${trust}; tools: ${tools}; ${verification}; error: ${error}`;
+}
+
+function withToolCount(server: McpServerSettingsView, toolCount: number): McpServerSettingsView {
+  const updated = { ...server, tool_count: toolCount };
+  return { ...updated, diagnostic_summary: diagnosticSummaryFor(updated) };
+}
+
 export function createSettings(state: McpState) {
   const { settingsServers, settingsLoading, configFileOpening, settingsError, effectiveServers } =
     state;
@@ -25,11 +43,11 @@ export function createSettings(state: McpState) {
 
   function updateToolCount(serverId: string, toolCount: number): void {
     settingsServers.value = settingsServers.value.map((server) =>
-      server.id === serverId ? { ...server, tool_count: toolCount } : server
+      server.id === serverId ? withToolCount(server, toolCount) : server
     );
     effectiveServers.value = effectiveServers.value.map((server) =>
       server.value.id === serverId
-        ? { ...server, value: { ...server.value, tool_count: toolCount } }
+        ? { ...server, value: withToolCount(server.value, toolCount) }
         : server
     );
   }

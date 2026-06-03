@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
+import { ref } from "vue";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { commands, type AgentSettingsView } from "@/generated/commands";
+import { useProjectStore } from "@/stores/project";
 import AgentSettingsPane from "./AgentSettingsPane.vue";
 import agentSettingsPaneSource from "./AgentSettingsPane.vue?raw";
 
@@ -67,6 +69,33 @@ function ok<T>(data: T): { status: "ok"; data: T } {
 
 function mountPane(locale?: "en" | "zh-CN") {
   return mountWithPlugins(AgentSettingsPane, { reusePinia: true, locale }).wrapper;
+}
+
+function mountPaneWithProjectSource() {
+  const projectStore = useProjectStore();
+  projectStore.projects = [
+    {
+      projectId: "prj_live",
+      displayName: "Live Project",
+      rootPath: "/tmp/live-project",
+      removedAt: null,
+      sortOrder: 0,
+      expanded: true,
+      pathExists: true
+    }
+  ];
+
+  return mountWithPlugins(AgentSettingsPane, {
+    reusePinia: true,
+    mount: {
+      global: {
+        provide: {
+          configSource: ref("project"),
+          configProjectId: ref("prj_live")
+        }
+      }
+    }
+  }).wrapper;
 }
 
 function renderedAgentIds(wrapper: ReturnType<typeof mountPane>): string[] {
@@ -239,7 +268,30 @@ describe("AgentSettingsPane", () => {
         description: "Review diffs.",
         reasoningEffort: "medium",
         instructions: "Lead with findings."
-      })
+      }),
+      null
+    );
+  });
+
+  it("saves project-scoped agents against the selected project root", async () => {
+    const wrapper = mountPaneWithProjectSource();
+    await flushPromises();
+
+    await wrapper.find('[data-test="agent-new"]').trigger("click");
+    await wrapper.find<HTMLInputElement>('[data-test="agent-form-name"]').setValue("default");
+    await wrapper
+      .find<HTMLInputElement>('[data-test="agent-form-description"]')
+      .setValue("Project planner override.");
+    await wrapper.find('[data-test="agent-save"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertAgentSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "Project",
+        name: "default",
+        description: "Project planner override."
+      }),
+      "/tmp/live-project"
     );
   });
 
@@ -249,7 +301,7 @@ describe("AgentSettingsPane", () => {
 
     await wrapper.find('[data-test="agent-copy-worker"]').trigger("click");
 
-    expect(mockedCommands.copyAgentSettings).toHaveBeenCalledWith("Builtin:worker", "User");
+    expect(mockedCommands.copyAgentSettings).toHaveBeenCalledWith("Builtin:worker", "User", null);
   });
 
   it("deletes writable agents", async () => {
@@ -258,7 +310,7 @@ describe("AgentSettingsPane", () => {
 
     await wrapper.find('[data-test="agent-delete-code-reviewer"]').trigger("click");
 
-    expect(mockedCommands.deleteAgentSettings).toHaveBeenCalledWith("User:code-reviewer");
+    expect(mockedCommands.deleteAgentSettings).toHaveBeenCalledWith("User:code-reviewer", null);
   });
 
   it("uses shared settings state chrome when no agents are configured", async () => {

@@ -73,12 +73,13 @@ async fn session_scope_memory_auto_accepted() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I prefer dark mode".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
         .unwrap();
 
-    let trace = runtime.get_trace(session_id).await.unwrap();
+    let trace = runtime.get_trace(session_id.clone()).await.unwrap();
 
     // Verify MemoryAccepted event with scope "session" and content "User likes dark mode"
     let accepted: Vec<_> = trace
@@ -127,7 +128,7 @@ async fn session_scope_memory_auto_accepted() {
 }
 
 #[tokio::test]
-async fn user_scope_memory_requires_approval_in_suggest_mode() {
+async fn user_scope_memory_is_proposed_for_approval_in_suggest_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"user\" key=\"preferred-language\">Rust</memory> Noted!".into()],
         ApprovalPolicy::Always,
@@ -141,56 +142,72 @@ async fn user_scope_memory_requires_approval_in_suggest_mode() {
 
     runtime
         .send_message(SendMessageRequest {
-            workspace_id,
+            workspace_id: workspace_id.clone(),
             session_id: session_id.clone(),
             content: "I like Rust".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
         .unwrap();
 
-    let trace = runtime.get_trace(session_id).await.unwrap();
+    let trace = runtime.get_trace(session_id.clone()).await.unwrap();
 
-    // In Suggest mode, durable memories are auto-denied without a MemoryProposed event.
-    // Verify NO MemoryAccepted event with scope "user"
-    let accepted: Vec<_> = trace
+    let proposed: Vec<_> = trace
         .iter()
         .filter(|t| {
             matches!(
                 &t.event.payload,
-                EventPayload::MemoryAccepted { scope, .. } if scope == "user"
+                EventPayload::MemoryProposed { scope, key, content, .. }
+                if scope == "user"
+                    && key.as_deref() == Some("preferred-language")
+                    && content == "Rust"
             )
         })
         .collect();
     assert!(
-        accepted.is_empty(),
-        "Expected NO MemoryAccepted with scope 'user' in Suggest mode, but found {}",
-        accepted.len()
+        !proposed.is_empty(),
+        "Expected MemoryProposed with scope 'user', key 'preferred-language', content 'Rust', found: {:?}",
+        trace.iter().map(|t| format!("{:?}", t.event.payload)).collect::<Vec<_>>()
     );
 
-    // Verify MemoryRejected event exists with the auto-deny reason
-    let rejected: Vec<_> = trace
-        .iter()
-        .filter(|t| {
-            matches!(
-                &t.event.payload,
-                EventPayload::MemoryRejected { reason, .. }
-                if reason == "Auto-denied: approval=Always or sandbox=ReadOnly"
-            )
-        })
-        .collect();
     assert!(
-        !rejected.is_empty(),
-        "Expected MemoryRejected with 'Auto-denied: approval=Always or sandbox=ReadOnly', found: {:?}",
+        trace.iter().all(|t| !matches!(
+            &t.event.payload,
+            EventPayload::MemoryAccepted { scope, .. } if scope == "user"
+        )),
+        "User memory should not be auto-accepted"
+    );
+    assert!(
         trace
             .iter()
-            .map(|t| format!("{:?}", t.event.payload))
-            .collect::<Vec<_>>()
+            .all(|t| !matches!(&t.event.payload, EventPayload::MemoryRejected { .. })),
+        "User memory proposal should not be auto-rejected"
+    );
+
+    let pending = runtime
+        .memory_store()
+        .expect("memory store should be configured")
+        .query_including_pending(agent_memory::MemoryQuery {
+            scope: Some(MemoryScope::User),
+            keywords: vec!["Rust".into()],
+            limit: 10,
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(pending.len(), 1);
+    assert!(!pending[0].accepted);
+    assert_eq!(pending[0].session_id.as_deref(), Some(session_id.as_str()));
+    assert_eq!(
+        pending[0].workspace_id.as_deref(),
+        Some(workspace_id.as_str())
     );
 }
 
 #[tokio::test]
-async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
+async fn workspace_scope_memory_is_proposed_even_in_autonomous_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"workspace\" key=\"build-cmd\">cargo nextest</memory> Got it!".into()],
         ApprovalPolicy::Never,
@@ -204,6 +221,7 @@ async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "Use cargo nextest for testing".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -211,26 +229,32 @@ async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
 
     let trace = runtime.get_trace(session_id).await.unwrap();
 
-    // Verify MemoryAccepted with scope "workspace", key "build-cmd", content "cargo nextest"
-    let accepted: Vec<_> = trace
+    let proposed: Vec<_> = trace
         .iter()
         .filter(|t| {
             matches!(
                 &t.event.payload,
-                EventPayload::MemoryAccepted { scope, key, content, .. }
+                EventPayload::MemoryProposed { scope, key, content, .. }
                 if scope == "workspace" && key.as_deref() == Some("build-cmd") && content == "cargo nextest"
             )
         })
         .collect();
     assert!(
-        !accepted.is_empty(),
-        "Expected MemoryAccepted with scope 'workspace', key 'build-cmd', content 'cargo nextest', found: {:?}",
+        !proposed.is_empty(),
+        "Expected MemoryProposed with scope 'workspace', key 'build-cmd', content 'cargo nextest', found: {:?}",
         trace.iter().map(|t| format!("{:?}", t.event.payload)).collect::<Vec<_>>()
+    );
+    assert!(
+        trace.iter().all(|t| !matches!(
+            &t.event.payload,
+            EventPayload::MemoryAccepted { scope, .. } if scope == "workspace"
+        )),
+        "Workspace memory should not be auto-accepted"
     );
 }
 
 #[tokio::test]
-async fn user_scope_memory_auto_accepted_in_interactive_mode() {
+async fn user_scope_memory_is_proposed_in_interactive_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"user\" key=\"editor\">Helix</memory> Saved.".into()],
         ApprovalPolicy::OnRequest,
@@ -247,6 +271,7 @@ async fn user_scope_memory_auto_accepted_in_interactive_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I use Helix".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -254,30 +279,27 @@ async fn user_scope_memory_auto_accepted_in_interactive_mode() {
 
     let trace = runtime.get_trace(session_id).await.unwrap();
 
-    let accepted: Vec<_> = trace
+    let proposed: Vec<_> = trace
         .iter()
         .filter(|t| {
             matches!(
                 &t.event.payload,
-                EventPayload::MemoryAccepted { scope, key, content, .. }
+                EventPayload::MemoryProposed { scope, key, content, .. }
                 if scope == "user" && key.as_deref() == Some("editor") && content == "Helix"
             )
         })
         .collect();
     assert!(
-        !accepted.is_empty(),
-        "Expected MemoryAccepted with scope 'user', key 'editor', content 'Helix' in Interactive mode, found: {:?}",
+        !proposed.is_empty(),
+        "Expected MemoryProposed with scope 'user', key 'editor', content 'Helix' in Interactive mode, found: {:?}",
         trace.iter().map(|t| format!("{:?}", t.event.payload)).collect::<Vec<_>>()
     );
-
-    let proposed: Vec<_> = trace
-        .iter()
-        .filter(|t| matches!(&t.event.payload, EventPayload::MemoryProposed { .. }))
-        .collect();
     assert!(
-        proposed.is_empty(),
-        "Expected NO MemoryProposed in Interactive mode (auto-accept is now the default), found {}",
-        proposed.len()
+        trace.iter().all(|t| !matches!(
+            &t.event.payload,
+            EventPayload::MemoryAccepted { scope, .. } if scope == "user"
+        )),
+        "User memory should not be auto-accepted"
     );
 }
 
@@ -302,6 +324,7 @@ async fn memory_markers_stripped_from_display() {
             workspace_id,
             session_id: session_id.clone(),
             content: "tell me something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -385,6 +408,7 @@ async fn stored_memories_injected_into_subsequent_request() {
             workspace_id,
             session_id: session_id.clone(),
             content: "What theme do I like?".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await;

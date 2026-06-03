@@ -44,6 +44,17 @@ const docsArchivedSession = {
   visibility: "archived"
 };
 
+const ordinaryArchivedSession = {
+  id: "ses_ordinary",
+  title: "Ordinary archived chat",
+  profile: "ali-mo-claude",
+  project_id: null,
+  worktree_path: null,
+  branch: null,
+  deleted_at: "2026-01-04T05:06:07Z",
+  visibility: "archived"
+};
+
 function mountArchive(confirmMock = vi.fn().mockResolvedValue(true)) {
   return mountWithPlugins(ArchiveSettingsPane, {
     reusePinia: true,
@@ -325,6 +336,32 @@ describe("ArchiveSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.restoreArchivedSession).toHaveBeenCalledWith("ses_archived");
+  });
+
+  it("refreshes ordinary sessions after restoring an ordinary archived session", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_archived_sessions") {
+        return Promise.resolve([ordinaryArchivedSession]);
+      }
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            ...ordinaryArchivedSession,
+            deleted_at: null,
+            visibility: null
+          }
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    await wrapper.find('[data-test="archive-restore-ses_ordinary"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.restoreArchivedSession).toHaveBeenCalledWith("ses_ordinary");
+    expect(mockedInvoke).toHaveBeenCalledWith("list_sessions");
   });
 
   it("shows error state when restore fails", async () => {

@@ -36,6 +36,7 @@ async fn event_emitter_forwards_key_payload_types() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello emitter test".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

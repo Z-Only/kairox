@@ -49,6 +49,8 @@ pub struct SendMessageRequest {
     pub workspace_id: WorkspaceId,
     pub session_id: SessionId,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_content: Option<String>,
     pub attachments: Vec<AttachmentInfo>,
 }
 

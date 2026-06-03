@@ -132,6 +132,7 @@ pub(super) async fn append_compaction_history<S: EventStore>(
             agent_core::EventPayload::UserMessageAdded {
                 message_id: format!("seed-user-{i}"),
                 content: format!("seed user {i}"),
+                display_content: None,
             },
         )
         .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2));
@@ -247,7 +248,7 @@ where
         runtime.permission_engine.clone(),
         runtime.pending_permissions.clone(),
         runtime.memory_store.clone(),
-        runtime.config.clone(),
+        runtime.config(),
         runtime.dag_config.clone(),
         runtime.agent_settings_roots.clone(),
     )
@@ -425,7 +426,7 @@ where
         runtime.permission_engine.clone(),
         runtime.pending_permissions.clone(),
         runtime.memory_store.clone(),
-        runtime.config.clone(),
+        runtime.config(),
         runtime.dag_config.clone(),
         runtime.agent_settings_roots.clone(),
     )

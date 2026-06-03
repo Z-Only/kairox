@@ -37,11 +37,17 @@ export const useAgentSettingsStore = defineStore("agentSettings", () => {
 
   const effectiveAgents = computed(() => agents.value.filter((agent) => agent.effective));
 
-  async function loadAgents(): Promise<void> {
+  function normalizeProjectRoot(projectRoot?: string | null): string | null {
+    const trimmed = projectRoot?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  async function loadAgents(projectRoot?: string | null): Promise<void> {
+    const normalizedProjectRoot = normalizeProjectRoot(projectRoot);
     loading.value = true;
     error.value = null;
     try {
-      agents.value = await unwrapCommandResult(commands.listAgentSettings());
+      agents.value = await unwrapCommandResult(commands.listAgentSettings(normalizedProjectRoot));
     } catch (caughtError) {
       error.value = formatError(caughtError);
     } finally {
@@ -49,12 +55,18 @@ export const useAgentSettingsStore = defineStore("agentSettings", () => {
     }
   }
 
-  async function saveAgent(input: AgentSettingsInput): Promise<AgentSettingsView | null> {
+  async function saveAgent(
+    input: AgentSettingsInput,
+    projectRoot?: string | null
+  ): Promise<AgentSettingsView | null> {
+    const normalizedProjectRoot = normalizeProjectRoot(projectRoot);
     saving.value = true;
     error.value = null;
     try {
-      const saved = await unwrapCommandResult(commands.upsertAgentSettings(input));
-      await loadAgents();
+      const saved = await unwrapCommandResult(
+        commands.upsertAgentSettings(input, normalizedProjectRoot)
+      );
+      await loadAgents(normalizedProjectRoot);
       return saved;
     } catch (caughtError) {
       error.value = formatError(caughtError);
@@ -64,21 +76,27 @@ export const useAgentSettingsStore = defineStore("agentSettings", () => {
     }
   }
 
-  async function deleteAgent(agentId: string): Promise<void> {
+  async function deleteAgent(agentId: string, projectRoot?: string | null): Promise<void> {
+    const normalizedProjectRoot = normalizeProjectRoot(projectRoot);
     error.value = null;
-    await unwrapCommandResult(commands.deleteAgentSettings(agentId));
-    await loadAgents();
+    await unwrapCommandResult(commands.deleteAgentSettings(agentId, normalizedProjectRoot));
+    await loadAgents(normalizedProjectRoot);
   }
 
-  async function copyAgent(agentId: string, scope: AgentSettingsScope): Promise<void> {
+  async function copyAgent(
+    agentId: string,
+    scope: AgentSettingsScope,
+    projectRoot?: string | null
+  ): Promise<void> {
+    const normalizedProjectRoot = normalizeProjectRoot(projectRoot);
     error.value = null;
-    await unwrapCommandResult(commands.copyAgentSettings(agentId, scope));
-    await loadAgents();
+    await unwrapCommandResult(commands.copyAgentSettings(agentId, scope, normalizedProjectRoot));
+    await loadAgents(normalizedProjectRoot);
   }
 
-  async function openAgentsDir(): Promise<void> {
+  async function openAgentsDir(projectRoot?: string | null): Promise<void> {
     try {
-      await commands.openAgentsDir();
+      await commands.openAgentsDir(normalizeProjectRoot(projectRoot));
     } catch {
       // best-effort opener
     }

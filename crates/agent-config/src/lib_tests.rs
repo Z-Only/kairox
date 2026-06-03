@@ -76,6 +76,34 @@ supports_reasoning = false
 }
 
 #[test]
+fn profile_info_requires_explicit_reasoning_for_custom_claude_gateways() {
+    let config = crate::loader::load_from_str(
+        r#"
+[profiles.ali-mo]
+provider = "ali-mo"
+model_id = "claude-opus-4-6"
+base_url = "https://idealab.example.com/api/anthropic"
+
+[profiles.ali-mo-on]
+provider = "ali-mo"
+model_id = "claude-opus-4-6"
+base_url = "https://idealab.example.com/api/anthropic"
+supports_reasoning = true
+"#,
+        "profiles.toml",
+    )
+    .expect("config parses");
+    let profiles = config.profile_info();
+
+    assert!(profiles
+        .iter()
+        .any(|profile| profile.alias == "ali-mo" && !profile.supports_reasoning));
+    assert!(profiles
+        .iter()
+        .any(|profile| profile.alias == "ali-mo-on" && profile.supports_reasoning));
+}
+
+#[test]
 fn defaults_has_empty_mcp_servers() {
     let config = Config::defaults();
     assert!(config.mcp_servers.is_empty());

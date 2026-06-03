@@ -104,11 +104,17 @@ impl Config {
         crate::loader::resolve_mcp_env(&mut overlay);
 
         // Merge profiles: overlay profiles replace base profiles with the same alias
-        let mut profile_map: HashMap<String, ProfileDef> = base.profiles.into_iter().collect();
+        // without changing that alias' position; new profiles append in overlay order.
+        let mut merged_profiles = base.profiles;
         for (alias, def) in overlay.profiles {
-            profile_map.insert(alias, def);
+            if let Some((_, existing_def)) =
+                merged_profiles.iter_mut().find(|(name, _)| name == &alias)
+            {
+                *existing_def = def;
+            } else {
+                merged_profiles.push((alias, def));
+            }
         }
-        let merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
 
         // Merge MCP servers: overlay entries replace base entries with the same name
         let mut mcp_map: HashMap<String, McpServerConfig> = base.mcp_servers.into_iter().collect();
@@ -366,3 +372,7 @@ impl Config {
             .collect()
     }
 }
+
+#[cfg(test)]
+#[path = "config_tests.rs"]
+mod tests;

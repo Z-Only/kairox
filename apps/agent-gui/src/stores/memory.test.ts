@@ -101,6 +101,86 @@ describe("deleteMemoryItem", () => {
   });
 });
 
+describe("acceptMemoryItem", () => {
+  it("marks an item accepted on success", async () => {
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: false
+      }
+    ];
+    mockedInvoke.mockResolvedValueOnce(undefined);
+
+    await memory.acceptMemoryItem("m1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("accept_memory", { id: "m1" });
+    expect(memory.memories[0].accepted).toBe(true);
+  });
+
+  it("notifies on error and keeps item pending", async () => {
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: false
+      }
+    ];
+    mockedInvoke.mockRejectedValueOnce(new Error("db error"));
+
+    await memory.acceptMemoryItem("m1");
+
+    expect(pushNotificationSpy).toHaveBeenCalledWith("error", expect.stringContaining("db error"));
+    expect(memory.memories[0].accepted).toBe(false);
+  });
+});
+
+describe("rejectMemoryItem", () => {
+  it("removes an item on success", async () => {
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: false
+      }
+    ];
+    mockedInvoke.mockResolvedValueOnce(undefined);
+
+    await memory.rejectMemoryItem("m1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("reject_memory", { id: "m1" });
+    expect(memory.memories).toHaveLength(0);
+  });
+
+  it("notifies on error and keeps the pending item", async () => {
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: false
+      }
+    ];
+    mockedInvoke.mockRejectedValueOnce(new Error("db error"));
+
+    await memory.rejectMemoryItem("m1");
+
+    expect(pushNotificationSpy).toHaveBeenCalledWith("error", expect.stringContaining("db error"));
+    expect(memory.memories).toHaveLength(1);
+  });
+});
+
 describe("setMemoryFilter", () => {
   it("updates filter and triggers loadMemories", async () => {
     const memory = useMemoryStore();

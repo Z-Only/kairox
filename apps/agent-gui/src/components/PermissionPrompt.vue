@@ -58,6 +58,12 @@ const iconLabel = computed(() => (isMemory ? "🧠" : "🔑"));
 
 async function allow() {
   try {
+    if (isMemory) {
+      await invoke("accept_memory", {
+        id: props.entry.id
+      });
+      return;
+    }
     await invoke("resolve_permission", {
       requestId: props.entry.id,
       decision: "grant"
@@ -72,6 +78,12 @@ async function allow() {
 
 async function deny() {
   try {
+    if (isMemory) {
+      await invoke("reject_memory", {
+        id: props.entry.id
+      });
+      return;
+    }
     await invoke("resolve_permission", {
       requestId: props.entry.id,
       decision: "deny"

@@ -25,7 +25,7 @@ where
     /// Inject the loaded `Config` so the runtime can resolve `ModelLimits`
     /// per session. Called by every production wiring site after `Config::load()`.
     pub fn with_config(mut self, config: Arc<agent_config::Config>) -> Self {
-        self.config = config;
+        self.config = crate::facade_runtime::RuntimeConfig::from_arc(config);
         self
     }
 
@@ -56,8 +56,8 @@ where
         session_id: &SessionId,
         model_profile_alias: &str,
     ) {
-        let profile_def = self
-            .config
+        let config = self.config();
+        let profile_def = config
             .profiles
             .iter()
             .find(|(alias, _)| alias == model_profile_alias)
@@ -99,7 +99,7 @@ where
             store: self.store.clone(),
             event_tx: self.event_tx.clone(),
             session_states: self.session_states.clone(),
-            config: self.config.clone(),
+            config: self.config(),
             ollama_clients: self.ollama_clients.clone(),
         };
         let queued_session_id = session_id.clone();
@@ -110,6 +110,21 @@ where
                     .await
             })
             .await
+    }
+}
+
+impl<S> LocalRuntime<S, agent_models::ModelRouter>
+where
+    S: EventStore + 'static,
+{
+    /// Rebuild the live router from refreshed model profile config.
+    ///
+    /// `update_config` refreshes the runtime's config snapshot, but GUI and
+    /// TUI runtimes also keep a `ModelRouter` instance for request routing.
+    /// Without replacing the router, newly added profiles are visible in
+    /// settings and switch-model validation but still fail at send time.
+    pub fn refresh_model_router_from_config(&self, config: &agent_config::Config) {
+        self.model.replace_with(config.build_router());
     }
 }
 
@@ -207,6 +222,16 @@ where
             },
         );
         crate::event_emitter::append_and_broadcast(&*store, &event_tx, &event).await?;
+
+        store
+            .update_session_model_profile(
+                session_id.as_str(),
+                &profile_alias,
+                Some(profile_def.model_id.as_str()),
+                Some(profile_def.provider.as_str()),
+            )
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
 
         // Refresh cached limits so the next send_message's agent loop does not
         // re-derive from the old profile.

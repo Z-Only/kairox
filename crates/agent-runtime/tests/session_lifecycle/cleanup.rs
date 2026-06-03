@@ -31,6 +31,7 @@ async fn cleanup_expired_removes_old_sessions_and_events() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

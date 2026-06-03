@@ -79,15 +79,15 @@ describe("useChatComposer", () => {
 
     composer.inputText.value = "open @src/mai";
     composer.onSelectFile("src/main.rs");
-    expect(composer.inputText.value).toBe("open@src/main.rs ");
 
     // without workspacePath: no attachment added
     expect(composer.attachments.value).toEqual([]);
+    expect(composer.inputText.value).toBe("open @src/main.rs ");
 
     // with workspacePath: adds resolved path as attachment
     composer.inputText.value = "check @src/li";
     composer.onSelectFile("src/lib.rs", "/repo");
-    expect(composer.inputText.value).toBe("check@src/lib.rs ");
+    expect(composer.inputText.value).toBe("check @src/lib.rs ");
     expect(composer.attachments.value).toHaveLength(1);
     expect(composer.attachments.value[0].path).toBe("/repo/src/lib.rs");
     expect(composer.attachments.value[0].name).toBe("lib.rs");
@@ -422,6 +422,160 @@ describe("useChatComposer", () => {
     });
   });
 
+  it("does not save sent placeholder text back into the old draft key", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = null;
+      })
+    });
+    const { composer, draftStore } = createComposer({ session });
+    composer.inputText.value = "hello from project placeholder";
+
+    await composer.sendMessage();
+    await vi.runAllTimersAsync();
+
+    expect(draftStore.saveDraft).not.toHaveBeenCalledWith(
+      "new-session:project:p1",
+      "hello from project placeholder"
+    );
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("new-session:project:p1");
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_new");
+  });
+
+  it("preserves queued messages when materialized draft loading finishes late", async () => {
+    let resolveMaterializedDraft!: (value: string) => void;
+    const materializedDraft = new Promise<string>((resolve) => {
+      resolveMaterializedDraft = resolve;
+    });
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:ordinary",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    const draftStore = {
+      loadDraft: vi.fn((sessionId: string) =>
+        sessionId === "ses_new" ? materializedDraft : Promise.resolve("")
+      ),
+      saveDraft: vi.fn(async () => undefined),
+      clearDraft: vi.fn(async () => undefined)
+    };
+    const { composer, invokeFn } = createComposer({ session, draftStore });
+
+    composer.inputText.value = "first live message";
+    await composer.sendMessage();
+    session.isStreaming = true;
+    composer.inputText.value = "queued follow up";
+
+    await composer.sendMessage();
+
+    expect(composer.queuedMessages.value.map((message) => message.content)).toEqual([
+      "queued follow up"
+    ]);
+
+    resolveMaterializedDraft("");
+    await vi.runAllTimersAsync();
+
+    expect(composer.queuedMessages.value.map((message) => message.content)).toEqual([
+      "queued follow up"
+    ]);
+
+    session.isStreaming = false;
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledTimes(2);
+    expect(invokeFn).toHaveBeenLastCalledWith("send_message", {
+      content: "queued follow up",
+      attachments: []
+    });
+    expect(composer.queuedMessages.value).toEqual([]);
+  });
+
+  it("refreshes current session metadata after a placeholder send succeeds", async () => {
+    const refreshCurrentSessionMetadata = vi.fn(async () => undefined);
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    (
+      session as ChatComposerSession & {
+        refreshCurrentSessionMetadata: (firstMessageContent?: string) => Promise<void>;
+      }
+    ).refreshCurrentSessionMetadata = refreshCurrentSessionMetadata;
+    const { composer, invokeFn } = createComposer({ session });
+    composer.inputText.value = "hello from project placeholder";
+
+    await composer.sendMessage();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "hello from project placeholder",
+      attachments: []
+    });
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledTimes(1);
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledWith("hello from project placeholder");
+    expect(refreshCurrentSessionMetadata.mock.invocationCallOrder[0]).toBeGreaterThan(
+      invokeFn.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("refreshes current session metadata after an existing empty session send succeeds", async () => {
+    const refreshCurrentSessionMetadata = vi.fn(async () => undefined);
+    const session = createSession({ refreshCurrentSessionMetadata });
+    const { composer, invokeFn } = createComposer({ session });
+    composer.inputText.value = "hello from bootstrap session";
+
+    await composer.sendMessage();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "hello from bootstrap session",
+      attachments: []
+    });
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledTimes(1);
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledWith("hello from bootstrap session");
+  });
+
+  it("clears sent attachments after materializing a placeholder session", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    let composerRef: ReturnType<typeof useChatComposer> | null = null;
+    const invokeFn = vi.fn(async () => {
+      // Mirrors the live placeholder materialization path where the draft
+      // watcher can clear the textarea before the accepted send returns.
+      if (composerRef) composerRef.inputText.value = "";
+    });
+    const { composer, draftStore } = createComposer({ session, invokeFn });
+    composerRef = composer;
+    composer.inputText.value = "read this";
+    composer.addFilePaths(["/repo/docs/notes.md"]);
+
+    await composer.sendMessage();
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "read this",
+      attachments: [{ path: "/repo/docs/notes.md", name: "notes.md", mime_type: "text/markdown" }]
+    });
+    expect(composer.inputText.value).toBe("");
+    expect(composer.attachments.value).toEqual([]);
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("new-session:project:p1");
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_new");
+  });
+
   it("keeps placeholder text when first send fails after materialization", async () => {
     const session = createSession({
       currentSessionId: null,
@@ -456,6 +610,17 @@ describe("useChatComposer", () => {
     expect(session.currentProfile).toBe("smart");
     expect(session.currentReasoningEffort).toBe("xhigh");
     expect(modelPopoverOpen.value).toBe(false);
+  });
+
+  it("updates current session metadata after switching models", async () => {
+    const updateSessionProfile = vi.fn();
+    const session = createSession({ updateSessionProfile });
+    const modelPopoverOpen = { value: true };
+    const { composer } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen);
+
+    expect(updateSessionProfile).toHaveBeenCalledWith("ses_1", "smart");
   });
 
   it("updates the pending session model without IPC before first send", async () => {

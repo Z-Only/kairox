@@ -26,6 +26,7 @@ async fn full_stack_task_graph_populated() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "do something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

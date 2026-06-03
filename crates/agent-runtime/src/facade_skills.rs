@@ -142,24 +142,34 @@ where
             return Ok(Vec::new());
         };
         let session_key = session_id.to_string();
-        let mut active_views = Vec::new();
-        let mut active_skills = self.active_skills.lock().await;
-        let Some(session_skills) = active_skills.get_mut(&session_key) else {
-            return Ok(active_views);
+        let skill_ids = {
+            let active_skills = self.active_skills.lock().await;
+            active_skills.get(&session_key).cloned()
+        };
+        let skill_ids = match skill_ids {
+            Some(skill_ids) => skill_ids,
+            None => {
+                let events = self
+                    .store
+                    .load_session(&session_id)
+                    .await
+                    .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+                crate::skills::active_skill_ids_from_events(&events)
+            }
         };
 
-        session_skills.retain(|skill_id| {
+        let mut active_views = Vec::new();
+        let mut retained_skill_ids = Vec::new();
+        for skill_id in skill_ids {
             let skill_id_value = agent_skills::SkillId::new(skill_id.clone());
             if let Some(metadata) = registry.get(&skill_id_value) {
                 active_views.push(skill_metadata_to_active_view(&metadata));
-                true
-            } else {
-                false
+                retained_skill_ids.push(skill_id);
             }
-        });
-        if session_skills.is_empty() {
-            active_skills.remove(&session_key);
         }
+
+        let mut active_skills = self.active_skills.lock().await;
+        active_skills.insert(session_key, retained_skill_ids);
 
         Ok(active_views)
     }

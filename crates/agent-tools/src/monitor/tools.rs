@@ -86,7 +86,7 @@ impl Tool for MonitorStartTool {
             .and_then(|v| v.as_u64());
 
         let workspace_id: WorkspaceId = WorkspaceId::from(invocation.workspace_id.clone());
-        let session_id = SessionId::new();
+        let session_id = SessionId::from(invocation.session_id.clone());
 
         let monitor_id = self
             .registry

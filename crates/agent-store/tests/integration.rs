@@ -42,6 +42,7 @@ async fn append_and_load_session_events() {
         EventPayload::UserMessageAdded {
             message_id: "m1".into(),
             content: "hello".into(),
+            display_content: None,
         },
     );
     store.append(&e1).await.unwrap();
@@ -159,6 +160,7 @@ async fn concurrent_event_writes() {
                 EventPayload::UserMessageAdded {
                     message_id: format!("m{}", i),
                     content: format!("msg {}", i),
+                    display_content: None,
                 },
             );
             store.append(&e).await.unwrap();

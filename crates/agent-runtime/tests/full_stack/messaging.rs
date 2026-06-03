@@ -33,6 +33,7 @@ async fn full_stack_send_message_text_only() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello world".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -68,6 +69,7 @@ async fn full_stack_tool_call_with_permission_grant() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "echo something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -161,6 +163,7 @@ async fn project_session_patch_apply_uses_project_worktree_root() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "patch the project file".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -217,6 +220,7 @@ async fn full_stack_agent_mode_completes_without_prompt() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

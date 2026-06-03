@@ -63,10 +63,10 @@ function mountChatComposer() {
       },
       global: {
         stubs: {
-          // ContextMeter is no longer mounted from ChatComposer — the
-          // demoted ContextMeterPill lives in WorkbenchView. We only stub
-          // out heavy children that still mount inside the composer.
-          AttachmentTray: true
+          AttachmentTray: true,
+          ContextMeterPill: {
+            template: '<div data-test="context-meter-pill" />'
+          }
         }
       }
     }
@@ -80,6 +80,10 @@ beforeEach(() => {
   mockedInvoke.mockImplementation(async (command) => {
     if (command === "refresh_config") return null;
     if (command === "get_profile_info") return useSessionStore().profileInfos;
+    if (command === "list_skills") return [];
+    if (command === "list_active_skills") return [];
+    if (command === "set_session_approval_policy") return "always";
+    if (command === "set_session_sandbox_policy") return '{"kind":"read_only"}';
     return null;
   });
 });
@@ -90,6 +94,14 @@ describe("composer textarea chrome", () => {
       required: ["KxTextarea", 'data-test="message-input"'],
       forbidden: [".message-input {", ".message-input:focus", ".message-input:disabled"]
     });
+  });
+
+  it("loads skills on mount so the command palette can activate discovered skills", async () => {
+    mountChatComposer();
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_skills");
+    expect(mockedInvoke).toHaveBeenCalledWith("list_active_skills");
   });
 });
 
@@ -103,6 +115,42 @@ describe("legacy policy selector cleanup", () => {
 });
 
 describe("composer metadata", () => {
+  it("renders model, policy, branch metadata below the input row with context on the right", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.lastContextUsage = {
+      total_tokens: 12_000,
+      budget_tokens: 180_000,
+      context_window: 200_000,
+      output_reservation: 20_000,
+      by_source: [["history", 12_000]],
+      estimator: "cl100k_base",
+      corrected_by_real_usage: false
+    };
+    await wrapper.vm.$nextTick();
+
+    const footer = wrapper.find(".composer-footer");
+    const meta = wrapper.find(".composer-meta");
+    const paletteContainer = wrapper.find(".palette-container");
+    const inputRow = wrapper.find(".input-row");
+    const contextPill = wrapper.find('[data-test="composer-context-meter-pill"]');
+
+    expect(footer.exists()).toBe(true);
+    expect(meta.exists()).toBe(true);
+    expect(paletteContainer.exists()).toBe(true);
+    expect(contextPill.exists()).toBe(true);
+    expect(paletteContainer.element.compareDocumentPosition(inputRow.element)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(inputRow.element.compareDocumentPosition(footer.element)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(footer.element.compareDocumentPosition(contextPill.element)).toBe(
+      Node.DOCUMENT_POSITION_CONTAINED_BY | Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(inputRow.find(".composer-meta").exists()).toBe(false);
+    expect(inputRow.find('[data-test="context-meter-pill"]').exists()).toBe(false);
+  });
+
   it("renders pending project branch control after approval and sandbox controls", async () => {
     const { wrapper, session } = mountChatComposer();
     const projectStore = useProjectStore();
@@ -159,7 +207,6 @@ describe("approval policy selector", () => {
   });
 
   it("invokes set_session_approval_policy when an option is clicked", async () => {
-    mockedInvoke.mockResolvedValueOnce("always");
     const { wrapper, session } = mountChatComposer();
     session.approvalPolicy = "on_request";
     await wrapper.vm.$nextTick();
@@ -209,7 +256,6 @@ describe("sandbox policy selector", () => {
 
   it("invokes set_session_sandbox_policy with canonical JSON when an option is clicked", async () => {
     const targetJson = '{"kind":"read_only"}';
-    mockedInvoke.mockResolvedValueOnce(targetJson);
     const { wrapper, session } = mountChatComposer();
     session.sandboxPolicy = '{"kind":"workspace_write","network_access":false,"writable_roots":[]}';
     await wrapper.vm.$nextTick();
@@ -245,6 +291,39 @@ describe("model reasoning selector", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("refresh_config");
     expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
+  });
+
+  it("removes the model selector popover after choosing a model", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "fast";
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "fake",
+        model_id: "fake-model",
+        local: true,
+        has_api_key: false,
+        supports_reasoning: false
+      },
+      {
+        alias: "smart",
+        provider: "ali-mo",
+        model_id: "claude-opus-4-6",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("click");
+    await flushPromises();
+
+    expect(session.currentProfile).toBe("smart");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(false);
   });
 
   it("shows reasoning levels when hovering a reasoning-capable model", async () => {
@@ -315,13 +394,16 @@ describe("model reasoning selector", () => {
     await wrapper.vm.$nextTick();
 
     const trigger = wrapper.find('[data-test="chat-model-trigger"]');
-    expect(trigger.text()).toContain("Anthropic · Claude Sonnet 4 20250514 · low");
+    expect(trigger.text()).toContain("Anthropic · Claude Sonnet 4 20250514");
+    expect(trigger.text()).not.toContain("· low");
 
     await trigger.trigger("click");
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="chat-reasoning-option-low"]').classes()).toContain("selected");
+    expect(wrapper.find('[data-test="chat-reasoning-option-low"]').classes()).not.toContain(
+      "selected"
+    );
   });
 
   it("hides reasoning levels when hovering a non-reasoning model", async () => {

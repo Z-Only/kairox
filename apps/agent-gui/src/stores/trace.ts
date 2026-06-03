@@ -39,6 +39,12 @@ export const useTraceStore = defineStore("trace", () => {
     }
   }
 
+  function toolEntryId(invocationId: string): string {
+    // Tool and permission events share provider tool_call_id values; keep
+    // the raw id available for resolve_permission-backed prompt entries.
+    return `tool-${invocationId}`;
+  }
+
   function applyTraceEvent(event: DomainEvent) {
     const p = event.payload;
     switch (p.type) {
@@ -120,7 +126,7 @@ export const useTraceStore = defineStore("trace", () => {
 
       case "ModelToolCallRequested": {
         pushEntry({
-          id: p.tool_call_id,
+          id: toolEntryId(p.tool_call_id),
           kind: "tool",
           status: "running",
           toolId: p.tool_id,
@@ -134,7 +140,7 @@ export const useTraceStore = defineStore("trace", () => {
 
       case "ToolInvocationStarted": {
         pushEntry({
-          id: p.invocation_id,
+          id: toolEntryId(p.invocation_id),
           kind: "tool",
           status: "running",
           toolId: p.tool_id,
@@ -147,7 +153,7 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "ToolInvocationCompleted": {
-        updateEntry(p.invocation_id, {
+        updateEntry(toolEntryId(p.invocation_id), {
           status: "completed",
           durationMs: p.duration_ms,
           outputPreview: p.output_preview,
@@ -159,8 +165,18 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "ToolInvocationFailed": {
-        updateEntry(p.invocation_id, {
+        updateEntry(toolEntryId(p.invocation_id), {
           status: "failed",
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
+      case "AgentTaskFailed": {
+        updateEntry(p.task_id, {
+          status: "failed",
+          reason: p.error,
+          outputPreview: p.error,
           rawEvent: rawJson(event)
         });
         break;
@@ -191,6 +207,13 @@ export const useTraceStore = defineStore("trace", () => {
       case "PermissionDenied": {
         updateEntry(p.request_id, {
           status: "failed",
+          reason: p.reason,
+          rawEvent: rawJson(event)
+        });
+        updateEntry(toolEntryId(p.request_id), {
+          status: "failed",
+          outputPreview: p.reason,
+          reason: p.reason,
           rawEvent: rawJson(event)
         });
         break;
@@ -213,10 +236,25 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "MemoryAccepted": {
-        updateEntry(p.memory_id, {
-          status: "completed",
-          rawEvent: rawJson(event)
-        });
+        if (entryIds.has(p.memory_id)) {
+          updateEntry(p.memory_id, {
+            status: "completed",
+            rawEvent: rawJson(event)
+          });
+        } else {
+          pushEntry({
+            id: p.memory_id,
+            kind: "memory",
+            status: "completed",
+            toolId: "memory.store",
+            title: `Save ${p.scope} memory`,
+            startedAt: Date.now(),
+            expanded: false,
+            scope: p.scope,
+            content: p.content,
+            rawEvent: rawJson(event)
+          });
+        }
         break;
       }
 

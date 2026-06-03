@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import {
-  DEFAULT_REASONING_EFFORT,
-  DEFAULT_REASONING_EFFORTS,
-  formatProfileDisplay
-} from "@/stores/session";
+import { DEFAULT_REASONING_EFFORTS, formatProfileDisplay } from "@/stores/session";
 import type { ProfileInfo } from "@/types";
 
 const props = defineProps<{
@@ -48,9 +44,7 @@ const reasoningModel = computed(() => {
   return current?.supports_reasoning ? current : null;
 });
 
-const activeReasoningEffort = computed(
-  () => props.currentReasoningEffort ?? DEFAULT_REASONING_EFFORT
-);
+const activeReasoningEffort = computed(() => props.currentReasoningEffort);
 
 const reasoningOptions = computed(() => {
   const options: string[] = [...DEFAULT_REASONING_EFFORTS];
@@ -76,7 +70,7 @@ function onModelHover(profile: ProfileInfo) {
 function onSelectReasoningEffort(effort: string) {
   const profile = reasoningModel.value;
   if (!profile) return;
-  emit("selectModel", profile.alias, effort);
+  selectModelProfile(profile.alias, effort);
 }
 
 function onApplyCustomReasoning() {
@@ -85,8 +79,13 @@ function onApplyCustomReasoning() {
   onSelectReasoningEffort(effort);
 }
 
-function selectModelProfile(alias: string) {
-  emit("selectModel", alias);
+function selectModelProfile(alias: string, reasoningEffort?: string) {
+  open.value = false;
+  if (reasoningEffort === undefined) {
+    emit("selectModel", alias);
+    return;
+  }
+  emit("selectModel", alias, reasoningEffort);
 }
 
 function setModelOptionEl(alias: string, el: unknown): void {
@@ -202,8 +201,9 @@ watch(
                 'kx-popover-option',
                 'chat-reasoning-option',
                 {
-                  selected: effort === activeReasoningEffort,
-                  'kx-popover-option--selected': effort === activeReasoningEffort
+                  selected: activeReasoningEffort && effort === activeReasoningEffort,
+                  'kx-popover-option--selected':
+                    activeReasoningEffort && effort === activeReasoningEffort
                 }
               ]"
               :data-test="`chat-reasoning-option-${effort}`"

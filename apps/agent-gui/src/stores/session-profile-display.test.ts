@@ -127,7 +127,7 @@ describe("session profile display", () => {
     expect(session.activeProfileDisplay).toBe("OpenAI · GPT-4o Mini");
   });
 
-  it("defaults reasoning-capable profile display to low when no effort is set", () => {
+  it("omits reasoning effort when none is set", () => {
     const session = useSessionStore();
     session.currentProfile = "smart";
     session.currentReasoningEffort = null;
@@ -142,7 +142,32 @@ describe("session profile display", () => {
       }
     ];
 
-    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-5.2 · low");
+    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-5.2");
+  });
+
+  it("uses the sorted model-option fallback when current profile is unavailable", () => {
+    const session = useSessionStore();
+    session.currentProfile = "missing";
+    session.profileInfos = [
+      {
+        alias: "fake",
+        provider: "fake",
+        model_id: "fake",
+        local: true,
+        has_api_key: true,
+        supports_reasoning: false
+      },
+      {
+        alias: "ali-mo-claude",
+        provider: "ali-mo",
+        model_id: "claude-opus-4-6",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+
+    expect(session.activeProfileDisplay).toBe("Ali Mo · Claude Opus 4 6");
   });
 
   it("updates current reasoning effort from ModelProfileSwitched events", () => {

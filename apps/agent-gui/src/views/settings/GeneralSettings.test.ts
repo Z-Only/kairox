@@ -87,6 +87,20 @@ describe("GeneralSettings", () => {
     expect(ui.locale).toBe("zh-CN");
   });
 
+  it("defaults the language preference to System when no stored locale exists", async () => {
+    localStorage.clear();
+    const { wrapper } = mountWithPlugins(GeneralSettings, {
+      reusePinia: false
+    });
+    const ui = useUiStore();
+    await flushPromises();
+
+    expect(ui.locale).toBe("system");
+    expect(wrapper.find<HTMLSelectElement>('[data-test="settings-locale"]').element.value).toBe(
+      "system"
+    );
+  });
+
   it("calls setTheme on the ui store when theme select changes", async () => {
     const { wrapper } = mountWithPlugins(GeneralSettings, {
       reusePinia: false

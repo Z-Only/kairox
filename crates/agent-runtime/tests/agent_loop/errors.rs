@@ -64,6 +64,7 @@ async fn agent_loop_handles_model_error_gracefully() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await;
@@ -121,6 +122,7 @@ async fn agent_loop_treats_empty_model_stream_as_failure() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await;

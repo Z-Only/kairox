@@ -71,11 +71,43 @@ describe("ui store", () => {
       expect(ui.locale).toBe("system");
     });
 
+    it("migrates the unmarked legacy English default to system", () => {
+      window.localStorage.setItem("kairox.locale", "en");
+      setActivePinia(createPinia());
+
+      const ui = useUiStore();
+
+      expect(ui.locale).toBe("system");
+      expect(window.localStorage.getItem("kairox.locale")).toBe("system");
+    });
+
+    it("migrates the unmarked legacy Chinese default to system", () => {
+      window.localStorage.setItem("kairox.locale", "zh-CN");
+      setActivePinia(createPinia());
+
+      const ui = useUiStore();
+
+      expect(ui.locale).toBe("system");
+      expect(window.localStorage.getItem("kairox.locale")).toBe("system");
+    });
+
+    it("keeps an explicitly selected English locale", () => {
+      window.localStorage.setItem("kairox.locale", "en");
+      window.localStorage.setItem("kairox.locale.explicit", "true");
+      setActivePinia(createPinia());
+
+      const ui = useUiStore();
+
+      expect(ui.locale).toBe("en");
+      expect(window.localStorage.getItem("kairox.locale")).toBe("en");
+    });
+
     it("setLocale persists to localStorage", () => {
       const ui = useUiStore();
       ui.setLocale("zh-CN");
       expect(ui.locale).toBe("zh-CN");
       expect(window.localStorage.getItem("kairox.locale")).toBe("zh-CN");
+      expect(window.localStorage.getItem("kairox.locale.explicit")).toBe("true");
     });
 
     it("rejects invalid locale from storage", () => {

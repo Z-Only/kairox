@@ -196,7 +196,9 @@ describe("project store", () => {
       worktreePath: "/tmp/demo",
       branch: null,
       deletedAt: null,
-      visibility: "draft_hidden"
+      visibility: "draft_hidden",
+      approvalPolicy: null,
+      sandboxPolicy: null
     });
     expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", { projectId: "p1" });
     expect(store.sessionsByProject.get("p1")?.map((session) => session.sessionId)).toEqual([

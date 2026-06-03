@@ -54,6 +54,7 @@ pub(crate) async fn load_active_skill_blocks(
     skill_registry: &Option<Arc<dyn agent_skills::SkillRegistry>>,
     active_skills: &Arc<Mutex<HashMap<String, Vec<String>>>>,
     session_id: &agent_core::SessionId,
+    session_events: &[agent_core::DomainEvent],
 ) -> agent_core::Result<Vec<String>> {
     let Some(registry) = skill_registry else {
         return Ok(Vec::new());
@@ -61,18 +62,16 @@ pub(crate) async fn load_active_skill_blocks(
     let session_key = session_id.to_string();
     let skill_ids = {
         let mut active_skills = active_skills.lock().await;
-        let Some(session_skills) = active_skills.get_mut(&session_key) else {
-            return Ok(Vec::new());
-        };
-        session_skills.retain(|skill_id| {
+        let mut skill_ids = active_skills
+            .get(&session_key)
+            .cloned()
+            .unwrap_or_else(|| crate::skills::active_skill_ids_from_events(session_events));
+        skill_ids.retain(|skill_id| {
             registry
                 .get(&agent_skills::SkillId::new(skill_id.clone()))
                 .is_some()
         });
-        let skill_ids = session_skills.clone();
-        if session_skills.is_empty() {
-            active_skills.remove(&session_key);
-        }
+        active_skills.insert(session_key.clone(), skill_ids.clone());
         skill_ids
     };
 
@@ -109,6 +108,15 @@ where
     S: EventStore + 'static,
     M: ModelClient + 'static,
 {
+    let display_content = request
+        .display_content
+        .as_ref()
+        .filter(|content| content.as_str() != request.content)
+        .cloned();
+    let user_display_content = display_content
+        .clone()
+        .unwrap_or_else(|| request.content.clone());
+
     // ── 1. Record user message ──────────────────────────────────────
     let user_event = DomainEvent::new(
         request.workspace_id.clone(),
@@ -118,6 +126,7 @@ where
         EventPayload::UserMessageAdded {
             message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
             content: request.content.clone(),
+            display_content,
         },
     );
     append_and_broadcast(&**deps.store, deps.event_tx, &user_event).await?;
@@ -130,7 +139,8 @@ where
         serde_json::json!({
             "workspace_id": request.workspace_id.as_str(),
             "session_id": request.session_id.as_str(),
-            "content": request.content,
+            "content": user_display_content.as_str(),
+            "model_content": request.content.as_str(),
         }),
     )
     .await;
@@ -172,11 +182,11 @@ where
     let cancel_token = deps.turn_cancellation.clone();
 
     // ── 6. Create root task ─────────────────────────────────────────
-    let root_title: String = if request.content.chars().count() > 50 {
-        let truncated: String = request.content.chars().take(50).collect();
+    let root_title: String = if user_display_content.chars().count() > 50 {
+        let truncated: String = user_display_content.chars().take(50).collect();
         format!("{truncated}...")
     } else {
-        request.content.clone()
+        user_display_content.clone()
     };
     let root_task_id = {
         let mut guard = deps.task_graphs.lock().await;
@@ -273,7 +283,6 @@ where
         crate::memory_handler::store_memory_markers(
             &**deps.store,
             deps.event_tx,
-            deps.permission_engine,
             deps.memory_store,
             &request.workspace_id,
             &request.session_id,
@@ -320,6 +329,7 @@ where
             &root_task_id,
             deps.config,
             deps.root_path.as_deref(),
+            &cancel_token,
         )
         .await?;
 

@@ -57,6 +57,7 @@ async fn baseline_send_message_records_user_and_assistant_events() {
             workspace_id: _ws.clone(),
             session_id: sid.clone(),
             content: "hello baseline".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -179,6 +180,7 @@ async fn baseline_subscribe_receives_events() {
             workspace_id: ws,
             session_id: sid.clone(),
             content: "subscribe test".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -241,6 +243,7 @@ async fn baseline_trace_returns_session_events() {
             workspace_id: ws,
             session_id: sid.clone(),
             content: "trace test".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -271,6 +274,7 @@ async fn baseline_trace_export_wraps_session_events() {
             workspace_id: ws,
             session_id: sid.clone(),
             content: "trace export test".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -302,6 +306,7 @@ async fn baseline_turn_emits_context_assembled_event() {
             workspace_id: ws,
             session_id: sid.clone(),
             content: "context assembly check".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

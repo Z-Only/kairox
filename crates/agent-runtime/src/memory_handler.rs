@@ -8,8 +8,7 @@
 //!    that gets appended to the prompt.
 //!
 //! 2. **Storage** – after the model responds, `<memory>` markers are extracted
-//!    from the assistant text and persisted according to the active
-//!    `(ApprovalPolicy, SandboxPolicy)` pair and the memory scope.
+//!    from the assistant text and persisted according to their memory scope.
 
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{
@@ -20,9 +19,7 @@ use agent_memory::{
     MemoryStore,
 };
 use agent_store::EventStore;
-use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Retrieve relevant memories and format them as a system prompt section.
 ///
@@ -99,16 +96,14 @@ pub async fn retrieve_memory_section(
 /// Process memory markers extracted from the assistant response.
 ///
 /// Strips `<memory>` tags from display text and persists each marker according
-/// to the active `(ApprovalPolicy, SandboxPolicy)` pair:
+/// to the memory scope:
 ///
 /// - **Session scope** – always auto-accepted and stored.
-/// - **User / Workspace scope** – auto-accepted when the sandbox permits writes
-///   (`WorkspaceWrite` or `DangerFullAccess`) AND approval is not `Always`.
-///   Otherwise auto-denied (`MemoryRejected`).
+/// - **User / Workspace scope** – stored as a pending proposal. The user must
+///   explicitly accept or reject it before it can affect future context.
 pub async fn store_memory_markers<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
-    permission_engine: &Arc<Mutex<PermissionEngine>>,
     memory_store: &Option<Arc<dyn MemoryStore>>,
     workspace_id: &WorkspaceId,
     session_id: &SessionId,
@@ -123,25 +118,41 @@ pub async fn store_memory_markers<S: EventStore>(
 
     let markers = extract_memory_markers(assistant_text);
     for marker in markers {
-        let entry = MemoryEntry::from_marker(marker, None, None, false);
+        let entry = MemoryEntry::from_marker(
+            marker,
+            Some(session_id.to_string()),
+            Some(workspace_id.to_string()),
+            false,
+        );
         let mem_id = entry.id.clone();
         let mem_scope = entry.scope.clone();
         let mem_key = entry.key.clone();
         let mem_content = entry.content.clone();
-        let auto_accept = if durable_memory_requires_confirmation(&entry.scope) {
-            let engine = permission_engine.lock().await;
-            let approval = engine.approval_policy();
-            let sandbox_allows_write = !matches!(engine.sandbox_policy(), SandboxPolicy::ReadOnly);
-            sandbox_allows_write && !matches!(approval, ApprovalPolicy::Always)
-        } else {
-            // Session scope: always auto-accept.
-            true
-        };
+        let requires_confirmation = durable_memory_requires_confirmation(&entry.scope);
 
-        if auto_accept {
+        if requires_confirmation {
+            if mem_store.store(entry).await.is_err() {
+                continue;
+            }
+            let propose_event = DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::MemoryProposed {
+                    memory_id: mem_id,
+                    scope: format!("{:?}", mem_scope).to_lowercase(),
+                    key: mem_key,
+                    content: mem_content,
+                },
+            );
+            let _ = append_and_broadcast(store, event_tx, &propose_event).await;
+        } else {
             let mut accepted = entry.clone();
             accepted.accepted = true;
-            let _ = mem_store.store(accepted).await;
+            if mem_store.store(accepted).await.is_err() {
+                continue;
+            }
             let accept_event = DomainEvent::new(
                 workspace_id.clone(),
                 session_id.clone(),
@@ -155,18 +166,6 @@ pub async fn store_memory_markers<S: EventStore>(
                 },
             );
             let _ = append_and_broadcast(store, event_tx, &accept_event).await;
-        } else {
-            let reject_event = DomainEvent::new(
-                workspace_id.clone(),
-                session_id.clone(),
-                AgentId::system(),
-                PrivacyClassification::FullTrace,
-                EventPayload::MemoryRejected {
-                    memory_id: mem_id,
-                    reason: "Auto-denied: approval=Always or sandbox=ReadOnly".into(),
-                },
-            );
-            let _ = append_and_broadcast(store, event_tx, &reject_event).await;
         }
     }
 }

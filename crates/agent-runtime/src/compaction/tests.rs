@@ -21,6 +21,7 @@ fn user(i: usize, t: i64) -> DomainEvent {
         EventPayload::UserMessageAdded {
             message_id: format!("u{i}"),
             content: format!("u{i}"),
+            display_content: None,
         },
         t,
     )
@@ -114,6 +115,7 @@ async fn fixture_session_with_n_pairs(n: usize) -> (Arc<SqliteEventStore>, Works
             EventPayload::UserMessageAdded {
                 message_id: format!("u{i}"),
                 content: format!("user {i}"),
+                display_content: None,
             },
         )
         .with_timestamp(base + Duration::seconds(i as i64 * 2));

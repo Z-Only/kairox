@@ -75,6 +75,8 @@ fn main() {
             agent_gui_tauri::commands::get_project_instruction_summary,
             agent_gui_tauri::commands::resolve_permission,
             agent_gui_tauri::commands::query_memories,
+            agent_gui_tauri::commands::accept_memory,
+            agent_gui_tauri::commands::reject_memory,
             agent_gui_tauri::commands::delete_memory,
             agent_gui_tauri::commands::list_workspaces,
             agent_gui_tauri::commands::rename_session,

@@ -24,7 +24,7 @@ describe("useTraceStore", () => {
 
       expect(traceState.entries).toHaveLength(1);
       const entry = traceState.entries[0];
-      expect(entry.id).toBe("tc-1");
+      expect(entry.id).toBe("tool-tc-1");
       expect(entry.kind).toBe("tool");
       expect(entry.status).toBe("running");
       expect(entry.toolId).toBe("shell");
@@ -47,7 +47,7 @@ describe("useTraceStore", () => {
 
       expect(traceState.entries).toHaveLength(1);
       const entry = traceState.entries[0];
-      expect(entry.id).toBe("inv-1");
+      expect(entry.id).toBe("tool-inv-1");
       expect(entry.kind).toBe("tool");
       expect(entry.status).toBe("running");
       expect(entry.toolId).toBe("fs_read");

@@ -126,6 +126,7 @@ impl EvalHarness {
                 workspace_id: self.workspace_id.clone(),
                 session_id: session_id.clone(),
                 content: scenario.prompt.clone(),
+                display_content: None,
                 attachments: Vec::new(),
             })
             .await;
@@ -428,7 +429,7 @@ fn trace_event(entry: TraceEntry) -> DomainEvent {
 /// workspace; callers can override via `options.fake_tool_id` and
 /// `options.fake_tool_arguments`.
 fn install_fake_tool_call(router: &mut ModelRouter, options: &EvalRunOptions) -> Result<()> {
-    let profile = router.get_profile("fake").cloned().ok_or_else(|| {
+    let profile = router.get_profile("fake").ok_or_else(|| {
         EvalError::Cli(
             "--fake-emit-tool-call requested but the loaded config has no `fake` profile"
                 .to_string(),
@@ -471,6 +472,7 @@ async fn seed_synthetic_history_pairs(
             EventPayload::UserMessageAdded {
                 message_id: format!("eval-seed-user-{i}"),
                 content: format!("seed user {i}"),
+                display_content: None,
             },
         )
         .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2));
