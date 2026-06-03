@@ -10,6 +10,11 @@ use agent_core::AppFacade;
 #[cfg(test)]
 use agent_models::ModelRouter;
 #[cfg(not(test))]
+use agent_runtime::instance_registry::{
+    format_runtime_instance_summary, RuntimeInstanceKind, RuntimeInstanceRegistration,
+    RuntimeInstanceRegistry,
+};
+#[cfg(not(test))]
 use agent_runtime::ui_bootstrap::{
     build_ui_runtime, default_data_dir, default_home_dir, load_catalog_sources, load_ui_config,
     sqlite_database_url, UiRuntimeOptions,
@@ -25,9 +30,12 @@ use app_state::GuiState;
 
 #[cfg(not(test))]
 pub fn run() {
+    use std::sync::{Arc, Mutex};
     use tauri::Manager;
 
     let _specta_builder = specta::create_specta();
+    let runtime_instance_guard = Arc::new(Mutex::new(None));
+    let runtime_instance_guard_for_setup = Arc::clone(&runtime_instance_guard);
 
     // `mut` is only used when the `pilot` feature is enabled in a debug build;
     // suppress the lint when the `#[cfg]` block below is compiled out.
@@ -41,10 +49,36 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_pilot::init());
     }
 
-    builder
+    let app = builder
         .setup(move |app| {
             let home_dir = default_home_dir();
             let db_dir = default_data_dir(&home_dir);
+            let cwd = std::env::current_dir().expect("Cannot get current dir");
+            let instance_registry = RuntimeInstanceRegistry::new(&db_dir);
+            if let Err(error) = instance_registry.prune_stale() {
+                eprintln!("Runtime instance registry warning: {error}");
+            }
+            let runtime_instance_guard = instance_registry
+                .register(RuntimeInstanceRegistration {
+                    kind: RuntimeInstanceKind::Gui,
+                    database_filename: "kairox-gui.sqlite".to_string(),
+                    workspace_root: Some(cwd.clone()),
+                })
+                .map_err(Box::<dyn std::error::Error>::from)?;
+            match instance_registry.list_other_instances() {
+                Ok(records) if !records.is_empty() => {
+                    eprintln!(
+                        "Other Kairox instances: {}",
+                        format_runtime_instance_summary(&records)
+                    );
+                }
+                Ok(_) => {}
+                Err(error) => eprintln!("Runtime instance registry warning: {error}"),
+            }
+            *runtime_instance_guard_for_setup
+                .lock()
+                .expect("runtime instance guard mutex poisoned") = Some(runtime_instance_guard);
+
             let gui_settings =
                 crate::commands::read_gui_settings(&db_dir, cfg!(debug_assertions), None)
                     .map_err(Box::<dyn std::error::Error>::from)?;
@@ -72,7 +106,6 @@ pub fn run() {
                     ApprovalPolicy::default(),
                     SandboxPolicy::default().kind_str()
                 );
-                let cwd = std::env::current_dir().expect("Cannot get current dir");
                 eprintln!(
                     "Catalog sources: {} (enabled: {})",
                     catalog_load.sources.len(),
@@ -280,8 +313,24 @@ pub fn run() {
             crate::commands::save_draft,
             crate::commands::get_draft,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run tauri application");
+        .build(tauri::generate_context!())
+        .expect("failed to build tauri application");
+    app.run(move |_app_handle, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            let guard = runtime_instance_guard
+                .lock()
+                .expect("runtime instance guard mutex poisoned")
+                .take();
+            if let Some(guard) = guard {
+                if let Err(error) = guard.cleanup() {
+                    eprintln!("Runtime instance registry warning: {error}");
+                }
+            }
+        }
+    });
 }
 
 #[cfg(not(test))]

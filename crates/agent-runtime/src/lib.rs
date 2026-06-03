@@ -21,6 +21,7 @@ pub(crate) mod facade_skills;
 pub(crate) mod facade_turn_executor;
 pub mod hooks;
 pub mod hooks_settings;
+pub mod instance_registry;
 pub mod instructions_settings;
 pub mod lsp_manager;
 pub(crate) mod marketplace_toml;

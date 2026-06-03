@@ -14,6 +14,10 @@ use std::time::Duration;
 
 use agent_core::build_info::BuildInfo;
 use agent_core::AppFacade;
+use agent_runtime::instance_registry::{
+    format_runtime_instance_summary, RuntimeInstanceKind, RuntimeInstanceRegistration,
+    RuntimeInstanceRegistry,
+};
 use agent_runtime::ui_bootstrap::{
     build_ui_runtime_from_store, connect_ui_event_store, default_data_dir, default_home_dir,
     ensure_workspace_session, load_catalog_sources, load_ui_config, spawn_runtime_event_forwarder,
@@ -202,6 +206,24 @@ async fn main() -> Result<()> {
 
     // 3. Load config and build runtime
     let workspace_path = std::env::current_dir()?;
+    let instance_registry = RuntimeInstanceRegistry::new(&data_dir);
+    if let Err(error) = instance_registry.prune_stale() {
+        startup_messages.push(format!("Runtime instance registry warning: {error}"));
+    }
+    let _runtime_instance_guard = instance_registry.register(RuntimeInstanceRegistration {
+        kind: RuntimeInstanceKind::Tui,
+        database_filename: "kairox.sqlite".to_string(),
+        workspace_root: Some(workspace_path.clone()),
+    })?;
+    match instance_registry.list_other_instances() {
+        Ok(records) if !records.is_empty() => startup_messages.push(format!(
+            "Other Kairox instances: {}",
+            format_runtime_instance_summary(&records)
+        )),
+        Ok(_) => {}
+        Err(error) => startup_messages.push(format!("Runtime instance registry warning: {error}")),
+    }
+
     let workspace_files = walk_workspace_files(&workspace_path, 500);
     let config_load = load_ui_config(&data_dir);
     startup_messages.extend(config_load.warnings);
