@@ -59,6 +59,7 @@ export function applySessionEvent(
     case "UserMessageAdded": {
       ctx.lastSendError.value = null;
       ctx.projection.value.cancelled = false;
+      ctx.projection.value.token_stream = "";
       ctx.projection.value.messages.push({
         role: "user",
         content: p.display_content ?? p.content
@@ -89,6 +90,7 @@ export function applySessionEvent(
     }
     case "SessionCancelled":
       ctx.projection.value.cancelled = true;
+      ctx.projection.value.token_stream = "";
       ctx.isStreaming.value = false;
       break;
     case "AgentTaskCreated": {

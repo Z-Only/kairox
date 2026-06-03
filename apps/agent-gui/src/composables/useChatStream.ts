@@ -21,6 +21,7 @@ import { computed, type ComputedRef } from "vue";
 import type { CompactionStatus, ProjectedRole } from "@/types";
 import type { TraceEntryData } from "@/types/trace";
 import type {
+  ChatCancellationStreamItem,
   ChatCompactionStreamItem,
   ChatMessageStreamItem,
   ChatMonitorStreamItem,
@@ -154,11 +155,18 @@ function buildTraceStreamItems(traceEntries: ReadonlyArray<TraceEntryData>): Cha
 function groupTraceItemsByTurn(traceItems: ReadonlyArray<ChatStreamItem>): ChatStreamItem[][] {
   const groups: ChatStreamItem[][] = [];
   let currentGroup: ChatStreamItem[] = [];
+  let currentGroupHasTraceTurnStart = false;
 
   for (const item of traceItems) {
-    if (startsTraceTurn(item) && currentGroup.length > 0) {
-      groups.push(currentGroup);
-      currentGroup = [];
+    if (startsTraceTurn(item)) {
+      if (currentGroup.length > 0 && currentGroupHasTraceTurnStart) {
+        groups.push(currentGroup);
+        currentGroup = [];
+      }
+      currentGroupHasTraceTurnStart = true;
+    }
+    if (currentGroup.length === 0) {
+      currentGroupHasTraceTurnStart = startsTraceTurn(item);
     }
     currentGroup.push(item);
   }
@@ -173,6 +181,14 @@ function startsTraceTurn(item: ChatStreamItem): boolean {
 
 function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
   switch (entry.kind) {
+    case "cancellation": {
+      const item: ChatCancellationStreamItem = {
+        kind: "cancellation",
+        id: entry.id
+      };
+      if (entry.reason !== undefined) item.reason = entry.reason;
+      return item;
+    }
     case "tool": {
       const item: ChatToolCallStreamItem = {
         kind: "tool_call",

@@ -18,7 +18,8 @@ export type ChatStreamItem =
   | ChatPermissionStreamItem
   | ChatPermissionGroupStreamItem
   | ChatCompactionStreamItem
-  | ChatMonitorStreamItem;
+  | ChatMonitorStreamItem
+  | ChatCancellationStreamItem;
 
 export interface ChatMessageStreamItem {
   kind: "message";
@@ -109,4 +110,10 @@ export interface ChatMonitorStreamItem {
   command?: string;
   /** Stop reason label when status is "completed". */
   stopReason?: string;
+}
+
+export interface ChatCancellationStreamItem {
+  kind: "cancellation";
+  id: string;
+  reason?: string;
 }

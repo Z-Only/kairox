@@ -15,6 +15,7 @@ const projectText = ref("");
 const saving = ref(false);
 const errorMsg = ref("");
 const loaded = ref(false);
+let loadRequestId = 0;
 
 const scope = computed<ConfigScope>(() => (configSource?.value === "project" ? "Project" : "User"));
 
@@ -35,15 +36,26 @@ const effectiveInstructions = computed(() => {
 });
 
 async function load(resetLoaded = true): Promise<void> {
+  const requestId = ++loadRequestId;
+  const requestedScope = scope.value;
+  const requestedProjectRoot = projectRoot.value;
+  const isCurrentRequest = () =>
+    requestId === loadRequestId &&
+    requestedScope === scope.value &&
+    requestedProjectRoot === projectRoot.value;
+
   errorMsg.value = "";
   if (resetLoaded) {
     loaded.value = false;
   }
-  if (scope.value === "Project" && !projectRoot.value) {
+  if (requestedScope === "Project" && !requestedProjectRoot) {
     return;
   }
   try {
-    const result = await commands.getInstructions(scope.value, projectRoot.value);
+    const result = await commands.getInstructions(requestedScope, requestedProjectRoot);
+    if (!isCurrentRequest()) {
+      return;
+    }
     if (isCommandResult(result)) {
       if (result.status === "error") throw new Error(String(result.error));
       view.value = (result as { data: InstructionsView }).data;
@@ -54,6 +66,9 @@ async function load(resetLoaded = true): Promise<void> {
     projectText.value = view.value.project ?? "";
     loaded.value = true;
   } catch (e) {
+    if (!isCurrentRequest()) {
+      return;
+    }
     errorMsg.value = String(e);
   }
 }
@@ -73,17 +88,17 @@ function isCommandResult(
 async function save(): Promise<void> {
   errorMsg.value = "";
   saving.value = true;
+  const savedScope = scope.value;
+  const savedProjectRoot = projectRoot.value;
   try {
-    const text =
-      configSource?.value === "project" ? projectText.value.trim() : userText.value.trim();
-    const result = await commands.upsertInstructions(
-      { scope: scope.value, text },
-      projectRoot.value
-    );
+    const text = savedScope === "Project" ? projectText.value.trim() : userText.value.trim();
+    const result = await commands.upsertInstructions({ scope: savedScope, text }, savedProjectRoot);
     if (isCommandResult(result) && result.status === "error") {
       throw new Error(String(result.error));
     }
-    await load(false);
+    if (savedScope === scope.value && savedProjectRoot === projectRoot.value) {
+      await load(false);
+    }
   } catch (e) {
     errorMsg.value = String(e);
   } finally {

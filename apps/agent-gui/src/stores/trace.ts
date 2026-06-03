@@ -45,6 +45,14 @@ export const useTraceStore = defineStore("trace", () => {
     return `tool-${invocationId}`;
   }
 
+  function nextCancellationEntryId(): string {
+    let index = 1;
+    while (entryIds.has(`session-cancelled-${index}`)) {
+      index++;
+    }
+    return `session-cancelled-${index}`;
+  }
+
   function applyTraceEvent(event: DomainEvent) {
     const p = event.payload;
     switch (p.type) {
@@ -68,6 +76,21 @@ export const useTraceStore = defineStore("trace", () => {
         // pseudo-tool entry here so the legacy trace view could double as
         // a chat log; that entry now shows up as a duplicate row in the
         // unified chat stream, so we drop it.
+        break;
+      }
+
+      case "SessionCancelled": {
+        pushEntry({
+          id: nextCancellationEntryId(),
+          kind: "cancellation",
+          status: "completed",
+          toolId: "cancellation",
+          title: "Session cancelled",
+          startedAt: Date.now(),
+          expanded: false,
+          reason: p.reason,
+          rawEvent: rawJson(event)
+        });
         break;
       }
 

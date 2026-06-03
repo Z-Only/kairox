@@ -17,6 +17,12 @@ const projectStore = useProjectStore();
 const scrollbar = ref<HTMLElement | null>(null);
 
 const chatStream = useChatStream();
+const hasCancellationStreamItem = computed(() =>
+  chatStream.value.some((item) => item.kind === "cancellation")
+);
+const showProjectionCancellationMarker = computed(
+  () => session.projection.cancelled && !hasCancellationStreamItem.value
+);
 
 // === Keyboard navigation across chat-stream items ========================
 // j / ArrowDown — focus next item; k / ArrowUp — focus previous item.
@@ -487,6 +493,14 @@ watch(
               :command="item.command"
               :stop-reason="item.stopReason"
             />
+            <KxBadge
+              v-else-if="item.kind === 'cancellation'"
+              class="cancelled-marker"
+              tone="warning"
+              data-test="cancelled-marker"
+            >
+              {{ t("chat.cancelled") }}
+            </KxBadge>
           </div>
         </template>
         <div
@@ -506,7 +520,7 @@ watch(
           >
         </div>
         <KxBadge
-          v-if="session.projection.cancelled"
+          v-if="showProjectionCancellationMarker"
           class="cancelled-marker"
           tone="warning"
           data-test="cancelled-marker"
