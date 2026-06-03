@@ -113,6 +113,29 @@ describe("trace store", () => {
   });
 
   // -----------------------------------------------------------
+  // applyTraceEvent — SessionCancelled
+  // -----------------------------------------------------------
+  describe("SessionCancelled", () => {
+    it("adds a durable cancellation entry for the chat stream", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({ type: "SessionCancelled", reason: "user requested cancellation" })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        id: "session-cancelled-1",
+        kind: "cancellation",
+        status: "completed",
+        toolId: "cancellation",
+        title: "Session cancelled",
+        reason: "user requested cancellation"
+      });
+    });
+  });
+
+  // -----------------------------------------------------------
   // applyTraceEvent — ContextAssembled
   // -----------------------------------------------------------
   describe("ContextAssembled", () => {

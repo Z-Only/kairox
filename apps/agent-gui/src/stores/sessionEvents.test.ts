@@ -141,6 +141,7 @@ describe("applySessionEvent — message events", () => {
   it("clears the previous cancellation marker on UserMessageAdded", () => {
     const projection = emptyProjection();
     projection.cancelled = true;
+    projection.token_stream = "stale cancelled tokens";
     const ctx = makeCtx({
       projection: ref(projection) as Ref<SessionProjection>,
       isStreaming: ref(false)
@@ -153,6 +154,7 @@ describe("applySessionEvent — message events", () => {
     );
 
     expect(ctx.projection.value.cancelled).toBe(false);
+    expect(ctx.projection.value.token_stream).toBe("");
     expect(ctx.isStreaming.value).toBe(true);
   });
 
@@ -228,13 +230,19 @@ describe("applySessionEvent — message events", () => {
 // ---------------------------------------------------------------------------
 describe("applySessionEvent — session lifecycle", () => {
   it("marks cancelled on SessionCancelled", () => {
-    const ctx = makeCtx({ isStreaming: ref(true) });
+    const projection = emptyProjection();
+    projection.token_stream = "partial response";
+    const ctx = makeCtx({
+      projection: ref(projection) as Ref<SessionProjection>,
+      isStreaming: ref(true)
+    });
     applySessionEvent(
       makeEvent({ type: "SessionCancelled", reason: "user stopped" }),
       ctx,
       makeAgentsStore()
     );
     expect(ctx.projection.value.cancelled).toBe(true);
+    expect(ctx.projection.value.token_stream).toBe("");
     expect(ctx.isStreaming.value).toBe(false);
   });
 });

@@ -46,6 +46,18 @@ function memoryEntry(overrides: Partial<TraceEntryData> & { id: string }): Trace
   };
 }
 
+function cancellationEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
+  return {
+    kind: "cancellation" as TraceEntryKind,
+    status: "completed",
+    title: "Session cancelled",
+    startedAt: 0,
+    expanded: false,
+    toolId: "cancellation",
+    ...overrides
+  };
+}
+
 describe("buildChatStream", () => {
   it("returns an empty list when there are no messages, no trace entries, and compaction is Idle", () => {
     const result = buildChatStream([], [], idle);
@@ -241,6 +253,45 @@ describe("buildChatStream", () => {
       "write-task",
       "msg-1"
     ]);
+  });
+
+  it("preserves a cancelled turn marker after a successful follow-up turn", () => {
+    const messages: ChatStreamMessageInput[] = [
+      { role: "user", content: "long request" },
+      { role: "user", content: "follow up" },
+      { role: "assistant", content: "CANCEL_FOLLOWUP_OK" }
+    ];
+    const entries: TraceEntryData[] = [
+      // Real cancellation traces can arrive before the context row for the
+      // cancelled turn because cancellation races the in-flight turn cleanup.
+      cancellationEntry({
+        id: "cancel-1",
+        reason: "user requested cancellation",
+        startedAt: 9
+      }),
+      toolEntry({ id: "ctx-1", toolId: "context", startedAt: 10 }),
+      toolEntry({ id: "task-1", toolId: "task", startedAt: 11 }),
+      toolEntry({ id: "ctx-2", toolId: "context", startedAt: 20 }),
+      toolEntry({ id: "task-2", toolId: "task", startedAt: 21 })
+    ];
+
+    const result = buildChatStream(messages, entries, idle);
+
+    expect(result.map((item) => item.id)).toEqual([
+      "msg-0",
+      "cancel-1",
+      "ctx-1",
+      "task-1",
+      "msg-1",
+      "ctx-2",
+      "task-2",
+      "msg-2"
+    ]);
+    expect(result[1]).toMatchObject({
+      kind: "cancellation",
+      id: "cancel-1",
+      reason: "user requested cancellation"
+    });
   });
 
   it("appends exactly one ChatCompactionStreamItem at the end when compaction.type === 'Running'", () => {

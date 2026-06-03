@@ -1,6 +1,6 @@
 export type TraceEntryStatus = "running" | "completed" | "failed" | "pending";
 
-export type TraceEntryKind = "tool" | "permission" | "memory" | "monitor";
+export type TraceEntryKind = "tool" | "permission" | "memory" | "monitor" | "cancellation";
 
 export interface TraceEntryData {
   id: string;
