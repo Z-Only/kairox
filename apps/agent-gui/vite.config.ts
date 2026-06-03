@@ -1,9 +1,11 @@
 import { fileURLToPath, URL } from "node:url";
 import { createLogger, defineConfig } from "vite";
 import { createKairoxVitePlugins } from "./build/vitePlugins";
+import { DEFAULT_DEV_PORT, parsePort, shouldUseStrictPort } from "./scripts/dev-port.mjs";
 
 const logger = createLogger();
 const defaultWarn = logger.warn;
+const devServerPort = parsePort(process.env.KAIROX_DEV_PORT ?? process.env.PORT, DEFAULT_DEV_PORT);
 logger.warn = (message, options) => {
   if (
     message.includes("[INVALID_ANNOTATION]") &&
@@ -27,5 +29,5 @@ export default defineConfig({
   },
   customLogger: logger,
   clearScreen: false,
-  server: { port: 1420, host: "0.0.0.0", strictPort: true }
+  server: { port: devServerPort, host: "0.0.0.0", strictPort: shouldUseStrictPort() }
 });

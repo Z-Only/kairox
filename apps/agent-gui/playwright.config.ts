@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { DEFAULT_DEV_PORT, parsePort } from "./scripts/dev-port.mjs";
+
+const devPort = parsePort(process.env.KAIROX_DEV_PORT, DEFAULT_DEV_PORT);
+const devBaseUrl = `http://localhost:${devPort}`;
 
 /**
  * Playwright E2E configuration for Kairox GUI.
@@ -22,7 +26,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
 
   use: {
-    baseURL: "http://localhost:1420",
+    baseURL: devBaseUrl,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     // Project convention is `data-test` for component test hooks (matches the
@@ -39,7 +43,11 @@ export default defineConfig({
 
   webServer: {
     command: "bun run dev",
-    port: 1420,
+    port: devPort,
+    env: {
+      KAIROX_DEV_PORT: String(devPort),
+      KAIROX_DEV_STRICT_PORT: "1"
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 30_000
   }

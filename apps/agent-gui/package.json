@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite --host 0.0.0.0 --port 1420",
+    "dev": "vite --host 0.0.0.0",
     "lint:style": "stylelint \"src/**/*.{vue,css,scss,sass,less}\"",
-    "tauri": "tauri",
+    "tauri": "node scripts/tauri-cli.mjs",
     "tauri:build": "tauri build",
-    "tauri:dev": "tauri dev",
+    "tauri:dev": "bun run tauri -- dev",
     "test": "NODE_OPTIONS=\"--localstorage-file=/tmp/kairox-vitest-localstorage.json\" vitest run",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "test:e2e": "playwright test --workers 2",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"
