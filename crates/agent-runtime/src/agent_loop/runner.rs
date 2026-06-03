@@ -215,13 +215,12 @@ where
     loop {
         // Guard: cancellation
         if cancel_token.is_cancelled() {
-            fail_root_task(
+            cancel_root_task(
                 &**deps.store,
                 deps.event_tx,
                 deps.task_graphs,
                 request,
                 &root_task_id,
-                "cancelled by user",
             )
             .await;
             break;
@@ -267,13 +266,12 @@ where
         .await?;
 
         if cancel_token.is_cancelled() {
-            fail_root_task(
+            cancel_root_task(
                 &**deps.store,
                 deps.event_tx,
                 deps.task_graphs,
                 request,
                 &root_task_id,
-                "cancelled by user",
             )
             .await;
             break;
@@ -423,6 +421,31 @@ async fn fail_root_task<S: EventStore + 'static>(
         EventPayload::AgentTaskFailed {
             task_id: root_task_id.clone(),
             error: reason.to_string(),
+        },
+    );
+    let _ = append_and_broadcast(store, event_tx, &event).await;
+}
+
+async fn cancel_root_task<S: EventStore + 'static>(
+    store: &S,
+    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
+    task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
+    request: &SendMessageRequest,
+    root_task_id: &TaskId,
+) {
+    {
+        let mut guard = task_graphs.lock().await;
+        if let Some(graph) = guard.get_mut(&request.session_id.to_string()) {
+            let _ = graph.mark_cancelled(root_task_id);
+        }
+    }
+    let event = DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        EventPayload::TaskCancelled {
+            task_id: root_task_id.clone(),
         },
     );
     let _ = append_and_broadcast(store, event_tx, &event).await;
