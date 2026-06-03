@@ -59,8 +59,7 @@ where
     config: DagConfig,
     agent_settings_roots: AgentSettingsRoots,
     strategies: HashMap<AgentRole, Arc<dyn AgentStrategy>>,
-    pending_permissions:
-        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>>,
+    pending_permissions: crate::permission::PendingPermissionsMap,
 }
 
 impl<S, M> DagExecutor<S, M>
@@ -80,9 +79,7 @@ where
         event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
         tool_registry: Arc<Mutex<ToolRegistry>>,
         permission_engine: Arc<Mutex<PermissionEngine>>,
-        pending_permissions: Arc<
-            Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-        >,
+        pending_permissions: crate::permission::PendingPermissionsMap,
         memory_store: Option<Arc<dyn MemoryStore>>,
         model_config: Arc<agent_config::Config>,
         config: DagConfig,

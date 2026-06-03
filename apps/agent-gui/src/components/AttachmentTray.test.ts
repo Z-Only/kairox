@@ -178,8 +178,9 @@ describe("AttachmentTray", () => {
       // causing the Teleport content to render (Teleport: true stub renders inline)
       const previewOverlay = wrapper.find(".thumbnail-preview-overlay");
       // When Teleport is stubbed to true, content may render inline
-      // Verify the preview image URL at minimum by checking the component's state
+      // Verify the preview rendered at minimum by checking the overlay.
       expect(img.exists()).toBe(true);
+      expect(previewOverlay.exists()).toBe(true);
     });
 
     it("hides preview on mouseleave", async () => {

@@ -126,9 +126,8 @@ async fn dag_executor_request_model_uses_latest_reasoning_effort() {
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: agent_runtime::permission::PendingPermissionsMap =
+        Arc::new(Mutex::new(HashMap::new()));
 
     let executor = DagExecutor::new(
         store.clone(),
@@ -202,9 +201,8 @@ async fn dag_executor_request_model_uses_profile_server_tools() {
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: agent_runtime::permission::PendingPermissionsMap =
+        Arc::new(Mutex::new(HashMap::new()));
     let mut model_config = agent_config::Config::defaults();
     let mut reasoning_profile = model_config
         .profiles
@@ -299,9 +297,8 @@ async fn dag_executor_request_model_prefers_agent_reasoning_effort_override() {
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: agent_runtime::permission::PendingPermissionsMap =
+        Arc::new(Mutex::new(HashMap::new()));
 
     let executor = DagExecutor::new(
         store.clone(),

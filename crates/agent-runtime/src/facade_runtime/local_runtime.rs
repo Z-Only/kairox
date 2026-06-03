@@ -2,7 +2,7 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::execution_runtime::SessionExecutionRuntime;
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::{LspServerManager, McpServerManager};
-use agent_core::{DomainEvent, PermissionDecision};
+use agent_core::DomainEvent;
 use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
 use agent_mcp::installer::Installer;
@@ -57,8 +57,7 @@ where
     pub(crate) tool_registry: Arc<Mutex<ToolRegistry>>,
     pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
-    pub(crate) pending_permissions:
-        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pub(crate) pending_permissions: crate::permission::PendingPermissionsMap,
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
     pub(crate) session_execution: SessionExecutionRuntime,

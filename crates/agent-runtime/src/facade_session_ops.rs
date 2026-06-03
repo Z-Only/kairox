@@ -114,8 +114,9 @@ where
     }
 
     async fn decide_permission(&self, decision: PermissionDecision) -> agent_core::Result<()> {
-        let _ = decision;
-        Ok(())
+        let request_id = decision.request_id.clone();
+        crate::permission::resolve_permission(&self.pending_permissions, &request_id, decision)
+            .await
     }
 
     async fn cancel_session(
@@ -129,6 +130,12 @@ where
         self.session_execution
             .cancel_session(&session_id, "user requested cancellation".into())
             .await?;
+        crate::permission::deny_pending_permissions_for_session(
+            &self.pending_permissions,
+            &session_id,
+            "cancelled by user",
+        )
+        .await?;
         crate::session::cancel_session(&*self.store, &self.event_tx, workspace_id, session_id).await
     }
 

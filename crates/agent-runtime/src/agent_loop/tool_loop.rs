@@ -1,8 +1,8 @@
 use crate::event_emitter::append_and_broadcast;
 use crate::task_graph::TaskGraph;
 use agent_core::{
-    AgentId, AgentRole, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
-    SessionId, TaskId, WorkspaceId,
+    AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId,
+    WorkspaceId,
 };
 use agent_models::ToolCall;
 use agent_store::EventStore;
@@ -36,9 +36,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     workspace_id: &WorkspaceId,
     session_id: &SessionId,
-    pending_permissions: &Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>,
-    >,
+    pending_permissions: &crate::permission::PendingPermissionsMap,
     task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
     root_task_id: &TaskId,
     config: &agent_config::Config,

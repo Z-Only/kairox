@@ -17,7 +17,6 @@ pub(crate) use turn_context::server_tools_for_profile;
 pub(crate) use turn_context::TurnContext;
 
 use crate::task_graph::TaskGraph;
-use agent_core::PermissionDecision;
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
 use agent_store::EventStore;
@@ -40,8 +39,7 @@ where
     pub(crate) event_tx: &'a tokio::sync::broadcast::Sender<agent_core::DomainEvent>,
     pub(crate) tool_registry: &'a Arc<Mutex<ToolRegistry>>,
     pub(crate) permission_engine: &'a Arc<Mutex<PermissionEngine>>,
-    pub(crate) pending_permissions:
-        &'a Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pub(crate) pending_permissions: &'a crate::permission::PendingPermissionsMap,
     pub(crate) memory_store: &'a Option<Arc<dyn MemoryStore>>,
     pub(crate) task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
     pub(crate) config: &'a Arc<agent_config::Config>,

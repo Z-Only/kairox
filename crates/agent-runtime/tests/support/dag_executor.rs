@@ -41,9 +41,8 @@ pub async fn make_executor_with_config(
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: agent_runtime::permission::PendingPermissionsMap =
+        Arc::new(Mutex::new(HashMap::new()));
 
     DagExecutor::new(
         Arc::new(store),
@@ -222,9 +221,8 @@ pub async fn make_executor_with_roots(
             writable_roots: vec![],
         },
     )));
-    let pending: Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-    > = Arc::new(Mutex::new(HashMap::new()));
+    let pending: agent_runtime::permission::PendingPermissionsMap =
+        Arc::new(Mutex::new(HashMap::new()));
 
     DagExecutor::new(
         Arc::new(store),

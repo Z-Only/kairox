@@ -4,7 +4,7 @@ use crate::execution_runtime::{SessionExecutionRuntime, TaskControlExecutor, Tur
 use crate::facade_runtime::{ExecutionMode, LocalRuntime, RuntimeConfig};
 use crate::task_graph::TaskGraph;
 use agent_core::{
-    AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload, PermissionDecision,
+    AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload,
     PrivacyClassification, SendMessageRequest, SessionId, TaskId, WorkspaceId,
 };
 use agent_memory::MemoryStore;
@@ -28,8 +28,7 @@ where
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     tool_registry: Arc<Mutex<ToolRegistry>>,
     permission_engine: Arc<Mutex<PermissionEngine>>,
-    pending_permissions:
-        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pending_permissions: crate::permission::PendingPermissionsMap,
     memory_store: Option<Arc<dyn MemoryStore>>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
