@@ -236,6 +236,54 @@ Plugins can include MCP servers. The distinction:
 
 If you ship a workflow tool, prefer a plugin so the user gets one install instead of three. If you maintain a long-lived MCP server that many people use independently, ship it standalone and let users wire it up.
 
+## LSP & DAP — code intelligence and debugging
+
+The `agent-lsp` crate provides Language Server Protocol (LSP) and Debug Adapter Protocol (DAP) clients. Unlike MCP servers — which expose _new_ capabilities — LSP and DAP servers give the agent access to existing developer tooling: go-to-definition, find-references, hover docs, breakpoints, and variable inspection.
+
+### Architecture
+
+| Type           | Key struct                                               | Purpose                                                                       |
+| -------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| LSP client     | `LspClient`                                              | JSON-RPC client that speaks the LSP protocol over a stdio transport           |
+| DAP client     | `DapClient`                                              | JSON-RPC client that speaks the DAP protocol over a stdio transport           |
+| Lifecycle      | `LspServerLifecycle` / `DapServerLifecycle`              | Owns the child process, tracks `ServerStatus`, handles start / stop / restart |
+| Transport      | `LspStdioTransport`                                      | Spawns the server process, wires stdin/stdout, drains stderr to tracing       |
+| Tool providers | `LspToolProvider` / `DapToolProvider` (in `agent-tools`) | Wrap the clients as dynamic `Tool` instances so the agent can call them       |
+
+### Server lifecycle
+
+Each LSP/DAP server is defined in configuration and managed by a lifecycle struct. The lifecycle:
+
+1. Spawns the server process via stdio transport.
+2. Sends the `initialize` request with project root URI and client capabilities.
+3. Tracks `ServerStatus` — `Stopped`, `Starting`, `Running`, or `Failed`.
+4. On shutdown, sends `shutdown` + `exit` notifications and kills the child process.
+
+### Dynamic tool injection
+
+When an LSP server starts, the runtime registers an `LspToolProvider` that exposes LSP operations — `textDocument/definition`, `textDocument/references`, `textDocument/hover`, etc. — as tools the agent can call during a session. DAP servers work the same way via `DapToolProvider`, exposing debug operations like `launch`, `setBreakpoints`, and `variables`.
+
+These tools appear alongside MCP tools and built-in tools in the tool registry. The agent picks the right tool based on the task — a `search.ripgrep` for text search, an LSP `textDocument/definition` for precise navigation.
+
+### Example: declaring an LSP server in `kairox.toml`
+
+```toml
+[[lsp]]
+name = "rust-analyzer"
+command = "rust-analyzer"
+args = []
+languages = ["rust"]
+file_patterns = ["*.rs"]
+```
+
+```toml
+[[dap]]
+name = "codelldb"
+command = "codelldb"
+args = ["--port", "0"]
+languages = ["rust", "c", "cpp"]
+```
+
 ## Choosing the right surface
 
 | Need                                                              | Use                                                                   |
@@ -243,6 +291,8 @@ If you ship a workflow tool, prefer a plugin so the user gets one install instea
 | Reusable prompt for the current project, edited inline.           | Workspace skill                                                       |
 | Personal prompt library that travels with the user.               | User skill                                                            |
 | External capability spoken to over a process / network boundary.  | MCP server                                                            |
+| Code intelligence (go-to-definition, references, hover).          | LSP server                                                            |
+| Interactive debugging (breakpoints, stepping, variables).         | DAP server                                                            |
 | Bundle of related skills + tools + hooks + MCP for a workflow.    | Plugin                                                                |
 | One-off scratch prompt for a single session.                      | Session skill                                                         |
 | Behavior change that should apply to _every_ session in the repo. | Instructions config (see [Configuration](../reference/configuration)) |
