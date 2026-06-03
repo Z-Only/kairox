@@ -174,11 +174,8 @@ describe("AttachmentTray", () => {
       const img = wrapper.find("img.attachment-thumbnail");
       await img.trigger("mouseenter", { clientX: 200, clientY: 300 });
 
-      // Teleport is stubbed, but the previewAttachment ref should be set
-      // causing the Teleport content to render (Teleport: true stub renders inline)
-      const previewOverlay = wrapper.find(".thumbnail-preview-overlay");
-      // When Teleport is stubbed to true, content may render inline
-      // Verify the preview image URL at minimum by checking the component's state
+      // Teleport is stubbed, so verify the original thumbnail remains mounted
+      // after preview state changes.
       expect(img.exists()).toBe(true);
     });
 

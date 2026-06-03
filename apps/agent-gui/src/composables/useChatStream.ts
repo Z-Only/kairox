@@ -55,8 +55,8 @@ export function buildChatStream(
   let traceGroupIndex = 0;
 
   // 1. Messages stay in projection order, with stable index-based ids. Each
-  //    user message owns the next trace group, so context/task cards appear
-  //    before the assistant answer for that same turn.
+  //    user message owns the next trace group, so context and tool cards
+  //    appear before the assistant answer for that same turn.
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index];
     const messageItem: ChatMessageStreamItem = {
@@ -155,15 +155,19 @@ function groupTraceItemsByTurn(traceItems: ReadonlyArray<ChatStreamItem>): ChatS
   let currentGroup: ChatStreamItem[] = [];
 
   for (const item of traceItems) {
-    currentGroup.push(item);
-    if (item.kind === "tool_call" && item.toolId === "task") {
+    if (isTraceTurnStart(item) && currentGroup.length > 0) {
       groups.push(currentGroup);
       currentGroup = [];
     }
+    currentGroup.push(item);
   }
 
   if (currentGroup.length > 0) groups.push(currentGroup);
   return groups;
+}
+
+function isTraceTurnStart(item: ChatStreamItem): boolean {
+  return item.kind === "tool_call" && item.toolId === "context";
 }
 
 function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
