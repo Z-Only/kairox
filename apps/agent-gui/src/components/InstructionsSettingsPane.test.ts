@@ -140,6 +140,61 @@ describe("InstructionsSettingsPane", () => {
       expect(wrapper.find('[data-test="instructions-loading"]').exists()).toBe(true);
       expect(wrapper.find('[data-test="project-instructions"]').exists()).toBe(false);
     });
+
+    it("ignores stale load results after the selected scope changes", async () => {
+      seedProject();
+      const configSource = ref<"user" | "project">("user");
+      const configProjectId = ref<string | undefined>(projectId);
+      let resolveUserLoad!: (value: {
+        system: string;
+        user: string | null;
+        project: string | null;
+      }) => void;
+      let resolveProjectLoad!: (value: {
+        system: string;
+        user: string | null;
+        project: string | null;
+      }) => void;
+      mockedInvoke
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveUserLoad = resolve;
+          })
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveProjectLoad = resolve;
+          })
+        );
+
+      const wrapper = mountPaneWithSource(configSource, configProjectId);
+      await nextTick();
+
+      configSource.value = "project";
+      await nextTick();
+
+      resolveProjectLoad({
+        system: systemInstructions,
+        user: userInstructions,
+        project: "Fresh project instructions"
+      });
+      await flushPromises();
+
+      expect(
+        wrapper.find<HTMLTextAreaElement>('[data-test="project-instructions"]').element.value
+      ).toBe("Fresh project instructions");
+
+      resolveUserLoad({
+        system: systemInstructions,
+        user: "Stale user instructions",
+        project: "Stale project instructions"
+      });
+      await flushPromises();
+
+      expect(
+        wrapper.find<HTMLTextAreaElement>('[data-test="project-instructions"]').element.value
+      ).toBe("Fresh project instructions");
+    });
   });
 
   describe("system level", () => {
@@ -341,6 +396,72 @@ describe("InstructionsSettingsPane", () => {
         input: { scope: "Project", text: "Updated project" },
         projectRoot: projectId
       });
+    });
+
+    it("does not reload a different scope after save completes", async () => {
+      seedProject();
+      const configSource = ref<"user" | "project">("user");
+      const configProjectId = ref<string | undefined>(projectId);
+      let resolveUserSave!: (value: null) => void;
+      let resolveProjectLoad!: (value: {
+        system: string;
+        user: string | null;
+        project: string | null;
+      }) => void;
+      let resolveUnexpectedReload:
+        | ((value: { system: string; user: string | null; project: string | null }) => void)
+        | undefined;
+      mockGetInstructions();
+      mockedInvoke
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveUserSave = resolve;
+          })
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveProjectLoad = resolve;
+          })
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveUnexpectedReload = resolve;
+          })
+        );
+
+      const wrapper = mountPaneWithSource(configSource, configProjectId);
+      await flushPromises();
+
+      await wrapper
+        .find<HTMLTextAreaElement>('[data-test="user-instructions"]')
+        .setValue("Updated user");
+      await wrapper.find('[data-test="instructions-save"]').trigger("click");
+
+      configSource.value = "project";
+      await nextTick();
+      resolveProjectLoad({
+        system: systemInstructions,
+        user: userInstructions,
+        project: "Loaded project instructions"
+      });
+      await flushPromises();
+
+      await wrapper
+        .find<HTMLTextAreaElement>('[data-test="project-instructions"]')
+        .setValue("Draft project instructions");
+      resolveUserSave(null);
+      await flushPromises();
+      resolveUnexpectedReload?.({
+        system: systemInstructions,
+        user: userInstructions,
+        project: "Unexpected project reload"
+      });
+      await flushPromises();
+
+      expect(mockedInvoke).toHaveBeenCalledTimes(3);
+      expect(
+        wrapper.find<HTMLTextAreaElement>('[data-test="project-instructions"]').element.value
+      ).toBe("Draft project instructions");
     });
 
     it("disables save button while saving", async () => {
