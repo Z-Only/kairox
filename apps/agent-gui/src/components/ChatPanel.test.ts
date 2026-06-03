@@ -221,6 +221,15 @@ describe("ChatPanel", () => {
     });
   });
 
+  it("does not render markdown parser whitespace as extra visible chat lines", () => {
+    expectSourceMigration(chatPanelSource, {
+      requiredPatterns: [
+        /\.message\s+:deep\(\.message-content\)\s*\{[\s\S]*white-space:\s*pre-wrap/,
+        /\.message\s+:deep\(\.message-content\.markdown-body\)\s*\{[\s\S]*white-space:\s*normal/
+      ]
+    });
+  });
+
   it("opens a model selector from the composer badge and marks the current model", async () => {
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "get_profile_info") {

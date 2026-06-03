@@ -77,6 +77,10 @@ const roleClass: Record<ProjectedRole, string> = {
 }
 
 .markdown-body :deep(p) {
-  margin: 6px 0;
+  margin: 0;
+}
+
+.markdown-body :deep(p + p) {
+  margin-top: 6px;
 }
 </style>

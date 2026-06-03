@@ -677,6 +677,9 @@ watch(
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.message :deep(.message-content.markdown-body) {
+  white-space: normal;
+}
 .message-user {
   justify-content: flex-end;
 }

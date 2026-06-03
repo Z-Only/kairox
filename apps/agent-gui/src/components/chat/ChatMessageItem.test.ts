@@ -41,6 +41,14 @@ describe("ChatMessageItem", () => {
     expect(body.html()).toContain("<strong>bold</strong>");
   });
 
+  it("does not add extra vertical margins around single markdown paragraphs", () => {
+    const wrapper = mountItem({ role: "assistant", content: "DONE" });
+
+    expect(wrapper.find(".markdown-body p").exists()).toBe(true);
+    expect(chatMessageItemSource).toContain(".markdown-body :deep(p) {\n  margin: 0;");
+    expect(chatMessageItemSource).toContain(".markdown-body :deep(p + p)");
+  });
+
   it("uses a block container for markdown lists so markers stay inside the message bubble", () => {
     const wrapper = mountItem({
       role: "assistant",
