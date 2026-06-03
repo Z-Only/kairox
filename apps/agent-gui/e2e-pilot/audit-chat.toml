@@ -116,8 +116,7 @@ script = """
   while (Date.now() < deadline) {
     const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
     const text = messages.find((message) =>
-      message.textContent?.includes("Pilot attachment IPC coverage from audit-chat") &&
-      message.textContent?.includes("audit-chat.toml")
+      message.textContent?.includes("Pilot attachment IPC coverage from audit-chat")
     )?.textContent ?? "";
     if (text) {
       return text;
@@ -130,23 +129,19 @@ script = """
 """
 
 [[step]]
-name = "assert audit attachment message includes file metadata"
+name = "assert audit attachment message keeps display content"
 action = "eval"
 script = """
 (() => {
   const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
   const text = messages.find((message) =>
-    message.textContent?.includes("Pilot attachment IPC coverage from audit-chat") &&
-    message.textContent?.includes("audit-chat.toml")
+    message.textContent?.includes("Pilot attachment IPC coverage from audit-chat")
   )?.textContent ?? "";
   if (!text.includes("Pilot attachment IPC coverage from audit-chat")) {
     throw new Error(`attachment message missing prompt text: ${text}`);
   }
-  if (!text.includes("audit-chat.toml")) {
-    throw new Error(`attachment message missing filename: ${text}`);
-  }
-  if (!text.includes("send audit attachment over IPC")) {
-    throw new Error(`attachment message missing real file content: ${text}`);
+  if (text.includes("send audit attachment over IPC")) {
+    throw new Error(`attachment message leaked real file content: ${text}`);
   }
   return text;
 })()

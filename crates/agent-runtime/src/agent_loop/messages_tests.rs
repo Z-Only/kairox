@@ -24,6 +24,7 @@ fn build_model_messages_substitutes_compaction_summary_for_event_range() {
                     EventPayload::UserMessageAdded {
                         message_id: format!("u{i}"),
                         content: format!("user {i}"),
+                        display_content: None,
                     },
                     t,
                 ),
@@ -112,6 +113,7 @@ fn build_model_messages_replays_tool_use_before_tool_result() {
             EventPayload::UserMessageAdded {
                 message_id: "u0".into(),
                 content: "read fixture".into(),
+                display_content: None,
             },
             0,
         ),
@@ -164,6 +166,35 @@ fn build_model_messages_replays_tool_use_before_tool_result() {
 }
 
 #[test]
+fn build_model_messages_keeps_model_content_for_attached_user_messages() {
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let events = vec![DomainEvent::new(
+        workspace_id,
+        session_id,
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::UserMessageAdded {
+            message_id: "u-attachment".into(),
+            content: "```md\n// file: attachment-fixture.md\nsecret\n```".into(),
+            display_content: Some("please inspect @docs/attachment-fixture.md".into()),
+        },
+    )];
+
+    let messages = build_model_messages(
+        "```md\n// file: attachment-fixture.md\nsecret\n```",
+        &events,
+    );
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(
+        messages[0].content,
+        "```md\n// file: attachment-fixture.md\nsecret\n```"
+    );
+}
+
+#[test]
 fn build_model_messages_replays_permission_denial_as_tool_result() {
     let base = chrono::Utc::now();
     let workspace_id = WorkspaceId::new();
@@ -184,6 +215,7 @@ fn build_model_messages_replays_permission_denial_as_tool_result() {
             EventPayload::UserMessageAdded {
                 message_id: "u0".into(),
                 content: "write a file".into(),
+                display_content: None,
             },
             0,
         ),
@@ -252,6 +284,7 @@ fn build_model_messages_closes_cancelled_turn_before_next_user_message() {
             EventPayload::UserMessageAdded {
                 message_id: "u0".into(),
                 content: "write a very long numbered list".into(),
+                display_content: None,
             },
             0,
         ),
@@ -278,6 +311,7 @@ fn build_model_messages_closes_cancelled_turn_before_next_user_message() {
             EventPayload::UserMessageAdded {
                 message_id: "u1".into(),
                 content: "AFTER-CANCEL-OK".into(),
+                display_content: None,
             },
             4,
         ),

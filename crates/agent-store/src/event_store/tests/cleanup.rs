@@ -89,6 +89,7 @@ async fn cleanup_expired_also_deletes_associated_events() {
         EventPayload::UserMessageAdded {
             message_id: "m1".into(),
             content: "hello".into(),
+            display_content: None,
         },
     );
     store.append(&event).await.unwrap();

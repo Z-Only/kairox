@@ -126,6 +126,7 @@ impl EvalHarness {
                 workspace_id: self.workspace_id.clone(),
                 session_id: session_id.clone(),
                 content: scenario.prompt.clone(),
+                display_content: None,
                 attachments: Vec::new(),
             })
             .await;
@@ -471,6 +472,7 @@ async fn seed_synthetic_history_pairs(
             EventPayload::UserMessageAdded {
                 message_id: format!("eval-seed-user-{i}"),
                 content: format!("seed user {i}"),
+                display_content: None,
             },
         )
         .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2));

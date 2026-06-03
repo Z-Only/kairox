@@ -33,6 +33,7 @@ async fn full_workspace_session_round_trip() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello agent".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

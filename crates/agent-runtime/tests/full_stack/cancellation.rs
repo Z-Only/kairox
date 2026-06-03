@@ -112,6 +112,7 @@ async fn cancellation_stops_agent_loop_mid_stream() {
             workspace_id: ws_id,
             session_id: sid_clone,
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

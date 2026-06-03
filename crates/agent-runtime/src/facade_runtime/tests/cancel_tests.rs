@@ -137,6 +137,7 @@ async fn cancel_session_interrupts_running_single_step_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "blocked single-step".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -197,6 +198,7 @@ async fn cancel_session_rejects_queued_same_session_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -212,6 +214,7 @@ async fn cancel_session_rejects_queued_same_session_turn() {
                 workspace_id: second_workspace_id,
                 session_id: second_session_id,
                 content: "second".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -279,6 +282,7 @@ async fn cancel_session_denies_pending_permission_and_finishes_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "request write tool".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -377,6 +381,7 @@ async fn app_facade_decide_permission_resolves_pending_permission() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "request write tool".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -489,6 +494,7 @@ async fn cancel_session_does_not_cancel_other_running_session() {
                 workspace_id: first_workspace_id,
                 session_id: first_turn_session,
                 content: "first blocked turn".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -504,6 +510,7 @@ async fn cancel_session_does_not_cancel_other_running_session() {
                 workspace_id: second_workspace_id,
                 session_id: second_turn_session,
                 content: "second blocked turn".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -571,6 +578,7 @@ async fn cancel_session_interrupts_running_dag_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "/plan blocked dag".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -644,6 +652,7 @@ async fn retry_task_queues_behind_active_actor_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -727,6 +736,7 @@ async fn cancel_task_queues_behind_active_actor_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await

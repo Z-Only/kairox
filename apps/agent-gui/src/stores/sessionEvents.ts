@@ -61,7 +61,7 @@ export function applySessionEvent(
       ctx.projection.value.cancelled = false;
       ctx.projection.value.messages.push({
         role: "user",
-        content: p.content
+        content: p.display_content ?? p.content
       });
       ctx.isStreaming.value = true;
       break;

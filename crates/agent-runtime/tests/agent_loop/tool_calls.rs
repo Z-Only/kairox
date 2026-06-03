@@ -96,6 +96,7 @@ async fn agent_loop_processes_tool_call_and_continues() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "read something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -234,6 +235,7 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "echo something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -391,6 +393,7 @@ async fn cancelling_turn_fails_running_tool_invocation_promptly() {
                 workspace_id: send_workspace_id,
                 session_id: send_session_id,
                 content: "call slow tool".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await

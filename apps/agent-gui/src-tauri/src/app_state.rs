@@ -262,6 +262,7 @@ model_id = "fake"
                 workspace_id: workspace.workspace_id,
                 session_id,
                 content: "hello".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await

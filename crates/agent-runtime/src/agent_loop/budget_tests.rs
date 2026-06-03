@@ -60,6 +60,7 @@ fn within_budget_keeps_tail_user_and_pairs_tool_calls() {
         events.push(make_event(EventPayload::UserMessageAdded {
             message_id: format!("u{i}"),
             content: format!("user turn {i} ").repeat(20),
+            display_content: None,
         }));
         events.push(make_event(EventPayload::AssistantMessageCompleted {
             message_id: format!("a{i}"),

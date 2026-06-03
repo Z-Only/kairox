@@ -108,6 +108,15 @@ where
     S: EventStore + 'static,
     M: ModelClient + 'static,
 {
+    let display_content = request
+        .display_content
+        .as_ref()
+        .filter(|content| content.as_str() != request.content)
+        .cloned();
+    let user_display_content = display_content
+        .clone()
+        .unwrap_or_else(|| request.content.clone());
+
     // ── 1. Record user message ──────────────────────────────────────
     let user_event = DomainEvent::new(
         request.workspace_id.clone(),
@@ -117,6 +126,7 @@ where
         EventPayload::UserMessageAdded {
             message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
             content: request.content.clone(),
+            display_content,
         },
     );
     append_and_broadcast(&**deps.store, deps.event_tx, &user_event).await?;
@@ -129,7 +139,8 @@ where
         serde_json::json!({
             "workspace_id": request.workspace_id.as_str(),
             "session_id": request.session_id.as_str(),
-            "content": request.content,
+            "content": user_display_content.as_str(),
+            "model_content": request.content.as_str(),
         }),
     )
     .await;
@@ -171,11 +182,11 @@ where
     let cancel_token = deps.turn_cancellation.clone();
 
     // ── 6. Create root task ─────────────────────────────────────────
-    let root_title: String = if request.content.chars().count() > 50 {
-        let truncated: String = request.content.chars().take(50).collect();
+    let root_title: String = if user_display_content.chars().count() > 50 {
+        let truncated: String = user_display_content.chars().take(50).collect();
         format!("{truncated}...")
     } else {
-        request.content.clone()
+        user_display_content.clone()
     };
     let root_task_id = {
         let mut guard = deps.task_graphs.lock().await;

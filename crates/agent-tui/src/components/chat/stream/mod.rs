@@ -67,11 +67,12 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
             EventPayload::UserMessageAdded {
                 message_id,
                 content,
+                display_content,
             } => {
                 items.push(ChatStreamItem::Message {
                     id: message_id.clone(),
                     role: MessageRole::User,
-                    content: content.clone(),
+                    content: display_content.clone().unwrap_or_else(|| content.clone()),
                     timestamp_ms,
                 });
             }

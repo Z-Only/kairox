@@ -48,6 +48,7 @@ async fn compact_session_queues_behind_active_actor_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -139,6 +140,7 @@ async fn auto_compaction_queues_after_threshold_turn() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "trigger".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -221,6 +223,7 @@ async fn auto_compaction_emits_skipped_when_already_compacting() {
                 workspace_id: workspace.workspace_id,
                 session_id: session_id.clone(),
                 content: "trigger".into(),
+                display_content: None,
                 attachments: vec![],
             },
             tokio_util::sync::CancellationToken::new(),
@@ -278,6 +281,7 @@ async fn auto_compaction_skipped_when_threshold_disabled() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "trigger".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -355,6 +359,7 @@ async fn dag_turn_also_triggers_auto_compaction() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "/plan run a tiny experiment".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

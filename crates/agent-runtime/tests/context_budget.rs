@@ -58,6 +58,7 @@ async fn context_assembled_event_emitted_with_budget_respected() {
                 workspace_id: workspace_id.clone(),
                 session_id: session_id.clone(),
                 content: format!("turn {} please", i),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -191,6 +192,7 @@ base_url = "{}"
             workspace_id: ws_info.workspace_id,
             session_id: session_id.clone(),
             content: "hi".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

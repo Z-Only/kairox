@@ -73,6 +73,7 @@ async fn session_scope_memory_auto_accepted() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I prefer dark mode".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -144,6 +145,7 @@ async fn user_scope_memory_is_proposed_for_approval_in_suggest_mode() {
             workspace_id: workspace_id.clone(),
             session_id: session_id.clone(),
             content: "I like Rust".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -219,6 +221,7 @@ async fn workspace_scope_memory_is_proposed_even_in_autonomous_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "Use cargo nextest for testing".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -268,6 +271,7 @@ async fn user_scope_memory_is_proposed_in_interactive_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I use Helix".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -320,6 +324,7 @@ async fn memory_markers_stripped_from_display() {
             workspace_id,
             session_id: session_id.clone(),
             content: "tell me something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -403,6 +408,7 @@ async fn stored_memories_injected_into_subsequent_request() {
             workspace_id,
             session_id: session_id.clone(),
             content: "What theme do I like?".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await;

@@ -28,6 +28,7 @@ async fn send_message_records_user_and_assistant_events() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hi".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

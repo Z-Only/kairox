@@ -103,8 +103,14 @@ where
                     .await
                     .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
                 if visibility.as_deref() == Some("draft_hidden") {
-                    self.mark_session_visible(&request.session_id, request.content.clone())
-                        .await?;
+                    self.mark_session_visible(
+                        &request.session_id,
+                        request
+                            .display_content
+                            .clone()
+                            .unwrap_or_else(|| request.content.clone()),
+                    )
+                    .await?;
                 }
             }
         }

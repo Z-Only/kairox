@@ -12,6 +12,7 @@ fn serializes_user_message_event_with_required_envelope_fields() {
         EventPayload::UserMessageAdded {
             message_id: "msg-user-1".into(),
             content: "explain the repo".into(),
+            display_content: None,
         },
     )
     .with_timestamp(chrono::Utc.with_ymd_and_hms(2026, 4, 29, 2, 0, 0).unwrap());

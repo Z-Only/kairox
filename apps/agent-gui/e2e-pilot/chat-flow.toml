@@ -144,8 +144,7 @@ script = """
   while (Date.now() < deadline) {
     const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
     const text = messages.find((message) =>
-      message.textContent?.includes("Pilot attachment IPC coverage from chat-flow") &&
-      message.textContent?.includes("chat-flow.toml")
+      message.textContent?.includes("Pilot attachment IPC coverage from chat-flow")
     )?.textContent ?? "";
     if (text) {
       return text;
@@ -158,23 +157,19 @@ script = """
 """
 
 [[step]]
-name = "assert attachment message includes file metadata"
+name = "assert attachment message keeps display content"
 action = "eval"
 script = """
 (() => {
   const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
   const text = messages.find((message) =>
-    message.textContent?.includes("Pilot attachment IPC coverage from chat-flow") &&
-    message.textContent?.includes("chat-flow.toml")
+    message.textContent?.includes("Pilot attachment IPC coverage from chat-flow")
   )?.textContent ?? "";
   if (!text.includes("Pilot attachment IPC coverage from chat-flow")) {
     throw new Error(`attachment message missing prompt text: ${text}`);
   }
-  if (!text.includes("chat-flow.toml")) {
-    throw new Error(`attachment message missing filename: ${text}`);
-  }
-  if (!text.includes("send chat attachment over IPC")) {
-    throw new Error(`attachment message missing real file content: ${text}`);
+  if (text.includes("send chat attachment over IPC")) {
+    throw new Error(`attachment message leaked real file content: ${text}`);
   }
   return text;
 })()

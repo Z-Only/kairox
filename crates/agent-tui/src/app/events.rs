@@ -14,10 +14,14 @@ impl App {
         let mut sync_permission_focus_after_dispatch = false;
 
         match &event.payload {
-            EventPayload::UserMessageAdded { content, .. } => {
+            EventPayload::UserMessageAdded {
+                content,
+                display_content,
+                ..
+            } => {
                 self.state.current_session.messages.push(ProjectedMessage {
                     role: ProjectedRole::User,
-                    content: content.clone(),
+                    content: display_content.clone().unwrap_or_else(|| content.clone()),
                 });
                 self.state.render_scheduler.mark_dirty();
             }

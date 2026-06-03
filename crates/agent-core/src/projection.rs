@@ -63,11 +63,15 @@ pub enum ProjectedRole {
 impl SessionProjection {
     pub fn apply(&mut self, event: &DomainEvent) {
         match &event.payload {
-            EventPayload::UserMessageAdded { content, .. } => {
+            EventPayload::UserMessageAdded {
+                content,
+                display_content,
+                ..
+            } => {
                 self.cancelled = false;
                 self.messages.push(ProjectedMessage {
                     role: ProjectedRole::User,
-                    content: content.clone(),
+                    content: display_content.clone().unwrap_or_else(|| content.clone()),
                 });
             }
             EventPayload::ModelTokenDelta { delta } => self.token_stream.push_str(delta),

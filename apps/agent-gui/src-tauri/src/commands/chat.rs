@@ -122,7 +122,7 @@ pub async fn send_message(
             Ok(enriched) => enriched,
             Err(e) => {
                 eprintln!("[commands] attachment enrichment failed: {e}");
-                content
+                content.clone()
             }
         };
 
@@ -131,6 +131,7 @@ pub async fn send_message(
                 workspace_id,
                 session_id,
                 content: enriched,
+                display_content: Some(content),
                 attachments,
             })
             .await;

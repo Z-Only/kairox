@@ -94,6 +94,7 @@ async fn agent_loop_stops_when_no_tool_calls() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -163,6 +164,7 @@ async fn reasoning_capable_profile_does_not_default_effort() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -198,6 +200,7 @@ async fn agent_loop_ignores_usage_only_completion_before_text() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -251,6 +254,7 @@ async fn agent_loop_emits_completion_event_sequence() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

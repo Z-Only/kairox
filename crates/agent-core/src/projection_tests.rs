@@ -14,6 +14,7 @@ fn projects_user_and_assistant_messages() {
             EventPayload::UserMessageAdded {
                 message_id: "m1".into(),
                 content: "hello".into(),
+                display_content: None,
             },
         ),
         DomainEvent::new(
@@ -33,6 +34,27 @@ fn projects_user_and_assistant_messages() {
     assert_eq!(projection.messages.len(), 2);
     assert_eq!(projection.messages[0].role, ProjectedRole::User);
     assert_eq!(projection.messages[1].content, "hi");
+}
+
+#[test]
+fn projects_user_message_display_content_when_present() {
+    let events = vec![DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::UserMessageAdded {
+            message_id: "m1".into(),
+            content: "```md\n// file: notes.md\nsecret\n```".into(),
+            display_content: Some("@notes.md summarize this".into()),
+        },
+    )];
+
+    let projection = SessionProjection::from_events(&events);
+
+    assert_eq!(projection.messages.len(), 1);
+    assert_eq!(projection.messages[0].role, ProjectedRole::User);
+    assert_eq!(projection.messages[0].content, "@notes.md summarize this");
 }
 
 #[test]
@@ -128,6 +150,7 @@ fn clears_cancelled_state_when_a_followup_turn_starts() {
             EventPayload::UserMessageAdded {
                 message_id: "m1".into(),
                 content: "long request".into(),
+                display_content: None,
             },
         ),
         DomainEvent::new(
@@ -147,6 +170,7 @@ fn clears_cancelled_state_when_a_followup_turn_starts() {
             EventPayload::UserMessageAdded {
                 message_id: "m2".into(),
                 content: "continue".into(),
+                display_content: None,
             },
         ),
     ];

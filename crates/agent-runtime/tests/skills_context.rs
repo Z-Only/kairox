@@ -64,6 +64,7 @@ async fn send_message_skips_missing_active_skills_documents() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "continue despite missing skill document".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -119,6 +120,7 @@ async fn send_message_includes_active_skill_block_in_model_request() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "review this patch".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -197,6 +199,7 @@ async fn recreated_runtime_injects_active_skills_from_events_without_listing_fir
             workspace_id: workspace.workspace_id,
             session_id,
             content: "review this patch".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -259,6 +262,7 @@ async fn send_message_includes_profile_server_tools_in_model_request() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "use provider tools".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

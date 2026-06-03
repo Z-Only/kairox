@@ -16,6 +16,7 @@ async fn appends_and_replays_session_events_with_full_fidelity() {
         EventPayload::UserMessageAdded {
             message_id: "m1".into(),
             content: "hello".into(),
+            display_content: None,
         },
     );
     let second = DomainEvent::new(
@@ -50,6 +51,7 @@ async fn stores_queryable_scalar_envelope_columns() {
         EventPayload::UserMessageAdded {
             message_id: "m1".into(),
             content: "hello".into(),
+            display_content: None,
         },
     );
 

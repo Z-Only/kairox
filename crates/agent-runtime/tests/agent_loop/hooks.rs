@@ -105,6 +105,7 @@ async fn agent_loop_runs_pre_and_post_tool_hooks() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "read something".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -153,6 +154,7 @@ async fn agent_loop_runs_stop_hook_after_text_turn() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

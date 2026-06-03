@@ -1,13 +1,33 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
-use agent_models::FakeModelClient;
+use agent_core::{AppFacade, EventPayload, SendMessageRequest, StartSessionRequest};
+use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
 use agent_store::SqliteEventStore;
-use tokio::sync::oneshot;
+use async_trait::async_trait;
+use futures::stream::BoxStream;
+use tokio::sync::{oneshot, Mutex as TokioMutex};
 
 use super::support::BlockingModelClient;
 use crate::facade_runtime::LocalRuntime;
+
+struct RecordingModelClient {
+    requests: Arc<TokioMutex<Vec<ModelRequest>>>,
+}
+
+#[async_trait]
+impl ModelClient for RecordingModelClient {
+    async fn stream(
+        &self,
+        request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        self.requests.lock().await.push(request);
+        Ok(Box::pin(futures::stream::iter(vec![
+            Ok(ModelEvent::TokenDelta("ok".into())),
+            Ok(ModelEvent::Completed { usage: None }),
+        ])))
+    }
+}
 
 #[tokio::test]
 async fn send_message_returns_session_busy_when_compacting() {
@@ -46,6 +66,7 @@ async fn send_message_returns_session_busy_when_compacting() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         },
     )
@@ -56,6 +77,68 @@ async fn send_message_returns_session_busy_when_compacting() {
         }
         other => panic!("expected SessionBusy, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn send_message_keeps_display_content_separate_from_model_content() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let requests = Arc::new(TokioMutex::new(Vec::new()));
+    let model = RecordingModelClient {
+        requests: requests.clone(),
+    };
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/workspace".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "```md\n// file: notes.md\nsecret\n```".into(),
+            display_content: Some("@notes.md summarize this".into()),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let user_event = trace
+        .iter()
+        .find_map(|entry| match &entry.event.payload {
+            EventPayload::UserMessageAdded {
+                content,
+                display_content,
+                ..
+            } => Some((content.as_str(), display_content.as_deref())),
+            _ => None,
+        })
+        .expect("user message event should be recorded");
+    assert_eq!(user_event.0, "```md\n// file: notes.md\nsecret\n```");
+    assert_eq!(user_event.1, Some("@notes.md summarize this"));
+
+    let captured = requests.lock().await;
+    let model_user_messages: Vec<_> = captured[0]
+        .messages
+        .iter()
+        .filter(|message| message.role == "user")
+        .map(|message| message.content.as_str())
+        .collect();
+    assert_eq!(
+        model_user_messages,
+        vec!["```md\n// file: notes.md\nsecret\n```"]
+    );
 }
 
 #[tokio::test]
@@ -90,6 +173,7 @@ async fn send_message_queues_same_session_turn_when_actor_turn_running() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -105,6 +189,7 @@ async fn send_message_queues_same_session_turn_when_actor_turn_running() {
                 workspace_id: second_workspace_id,
                 session_id: second_session_id,
                 content: "second".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -152,6 +237,7 @@ async fn send_message_returns_session_busy_when_compacting_during_actor_turn() {
                 workspace_id: first_workspace_id,
                 session_id: first_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
@@ -171,6 +257,7 @@ async fn send_message_returns_session_busy_when_compacting_during_actor_turn() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "second".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await;

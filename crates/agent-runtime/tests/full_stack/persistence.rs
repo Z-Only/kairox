@@ -48,6 +48,7 @@ async fn full_stack_data_persists_across_reconnection() {
                 workspace_id: ws.workspace_id.clone(),
                 session_id: sid,
                 content: "persist this".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await

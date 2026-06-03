@@ -140,6 +140,7 @@ fn trace_export_envelope_counts_events() {
             EventPayload::UserMessageAdded {
                 message_id: "msg-1".into(),
                 content: "hello".into(),
+                display_content: None,
             },
         ),
     ];

@@ -174,6 +174,7 @@ async fn plugin_skill_block_appears_in_model_request() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "review this patch".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -240,6 +241,7 @@ async fn disabled_plugin_skill_is_pruned_before_model_request_blocks() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "plugin disabled".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await
@@ -251,6 +253,7 @@ async fn disabled_plugin_skill_is_pruned_before_model_request_blocks() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "plugin re-enabled".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

@@ -45,6 +45,7 @@ fn every_event_payload_variant_has_event_type() {
         EventPayload::UserMessageAdded {
             message_id: "m1".into(),
             content: "hello".into(),
+            display_content: None,
         },
         EventPayload::AgentTaskCreated {
             task_id: agent_core::TaskId::new(),
@@ -311,6 +312,7 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::UserMessageAdded {
             message_id: "msg-42".into(),
             content: "explain this code".into(),
+            display_content: None,
         },
         EventPayload::AgentTaskCreated {
             task_id: agent_core::TaskId::new(),

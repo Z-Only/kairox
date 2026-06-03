@@ -179,6 +179,96 @@ describe("ChatPanel", () => {
     expect(wrapper.text()).not.toContain("Agent");
   });
 
+  it("renders a turn's tool trace rows before the assistant reply", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "read and write a file" },
+        { role: "assistant", content: "DONE" }
+      ];
+    });
+    const trace = useTraceStore();
+    trace.entries.push(
+      {
+        id: "ctx-1",
+        kind: "tool",
+        status: "completed",
+        title: "Context assembled",
+        toolId: "context",
+        startedAt: 10,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "root-task",
+        kind: "tool",
+        status: "completed",
+        title: "read and write a file",
+        toolId: "task",
+        startedAt: 11,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "read-tool",
+        kind: "tool",
+        status: "completed",
+        title: "Tool call: fs.read",
+        toolId: "fs.read",
+        startedAt: 12,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "read-task",
+        kind: "tool",
+        status: "completed",
+        title: "fs.read",
+        toolId: "task",
+        startedAt: 13,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "write-tool",
+        kind: "tool",
+        status: "completed",
+        title: "Tool call: fs.write",
+        toolId: "fs.write",
+        startedAt: 14,
+        expanded: false
+      } as TraceEntryData,
+      {
+        id: "write-task",
+        kind: "tool",
+        status: "completed",
+        title: "fs.write",
+        toolId: "task",
+        startedAt: 15,
+        expanded: false
+      } as TraceEntryData
+    );
+    await flushPromises();
+
+    const renderedOrder = wrapper.findAll("[data-chat-stream-item]").map((item) => {
+      const message = item.find('[data-test="chat-message"]');
+      if (message.exists()) {
+        return `message:${message.attributes("data-role")}:${message.text()}`;
+      }
+      const tool = item.find('[data-test="chat-tool-call-item"]');
+      if (tool.exists()) {
+        return `tool:${tool.find(".chat-tool-call__tool-text").text()}`;
+      }
+      return item.attributes("data-chat-stream-item-kind") ?? "unknown";
+    });
+
+    expect(renderedOrder).toEqual([
+      "message:user:read and write a file",
+      "tool:Context assembled",
+      "tool:read and write a file",
+      "tool:Tool call: fs.read",
+      "tool:fs.read",
+      "tool:Tool call: fs.write",
+      "tool:fs.write",
+      "message:assistant:DONE"
+    ]);
+  });
+
   it("renders streaming text and cursor without visible assistant role labels", async () => {
     const wrapper = mountChatPanel((session) => {
       session.projection.token_stream = "Loading...";

@@ -111,6 +111,23 @@ describe("applySessionEvent — message events", () => {
     expect(ctx.lastSendError.value).toBeNull();
   });
 
+  it("uses display_content for attached UserMessageAdded events", () => {
+    const ctx = makeCtx();
+    applySessionEvent(
+      makeEvent({
+        type: "UserMessageAdded",
+        message_id: "m1",
+        content: "```md\n// file: notes.md\nsecret\n```",
+        display_content: "@notes.md summarize this"
+      }),
+      ctx,
+      makeAgentsStore()
+    );
+    expect(ctx.projection.value.messages).toEqual([
+      { role: "user", content: "@notes.md summarize this" }
+    ]);
+  });
+
   it("clears lastSendError on UserMessageAdded", () => {
     const ctx = makeCtx({ lastSendError: ref("previous error") as Ref<string | null> });
     applySessionEvent(

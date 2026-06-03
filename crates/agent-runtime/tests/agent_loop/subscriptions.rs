@@ -33,6 +33,7 @@ async fn subscribe_session_receives_events() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            display_content: None,
             attachments: vec![],
         })
         .await

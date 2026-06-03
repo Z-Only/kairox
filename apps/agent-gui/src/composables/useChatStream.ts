@@ -10,8 +10,9 @@
  * Ordering for this lane is deliberately deterministic — messages stay in
  * projection order, while trace-derived items are sorted by
  * `TraceEntryData.startedAt` ascending (insertion order if timestamps are
- * equal) and grouped into user turns. A trace group is inserted directly
- * after its user prompt and before the assistant output for that turn.
+ * equal) and grouped into user turns. A turn starts at its context-assembly
+ * trace when one exists; the full trace group is inserted directly after its
+ * user prompt and before the assistant output for that turn.
  *
  * Wiring into ChatPanel happens in a follow-up PR — this composable is
  * pure read-only and does not mutate either store.
@@ -155,15 +156,19 @@ function groupTraceItemsByTurn(traceItems: ReadonlyArray<ChatStreamItem>): ChatS
   let currentGroup: ChatStreamItem[] = [];
 
   for (const item of traceItems) {
-    currentGroup.push(item);
-    if (item.kind === "tool_call" && item.toolId === "task") {
+    if (startsTraceTurn(item) && currentGroup.length > 0) {
       groups.push(currentGroup);
       currentGroup = [];
     }
+    currentGroup.push(item);
   }
 
   if (currentGroup.length > 0) groups.push(currentGroup);
   return groups;
+}
+
+function startsTraceTurn(item: ChatStreamItem): boolean {
+  return item.kind === "tool_call" && item.toolId === "context";
 }
 
 function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {

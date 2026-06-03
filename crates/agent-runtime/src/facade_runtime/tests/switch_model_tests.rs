@@ -304,6 +304,7 @@ async fn switch_model_queues_behind_active_actor_turn() {
                 workspace_id: turn_workspace_id,
                 session_id: turn_session_id,
                 content: "first".into(),
+                display_content: None,
                 attachments: vec![],
             })
             .await
