@@ -236,6 +236,54 @@ plugin 也可以内含 MCP server。两者的区别在于:
 
 如果你要发布一个 workflow tool,优先选 plugin,这样用户做一次安装而不是三次。如果你维护的是一个被很多人独立使用的长期 MCP server,就让它独立发布,由用户自行接线。
 
+## LSP & DAP —— 代码智能与调试
+
+`agent-lsp` crate 提供 Language Server Protocol (LSP) 和 Debug Adapter Protocol (DAP) 客户端。与引入*新*能力的 MCP server 不同，LSP 和 DAP server 让 agent 直接使用现有的开发者工具链：跳转到定义、查找引用、悬停文档、断点和变量检查。
+
+### 架构
+
+| 类型       | 关键结构体                                                   | 职责                                                          |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| LSP 客户端 | `LspClient`                                                  | 通过 stdio transport 进行 LSP 协议 JSON-RPC 通信              |
+| DAP 客户端 | `DapClient`                                                  | 通过 stdio transport 进行 DAP 协议 JSON-RPC 通信              |
+| 生命周期   | `LspServerLifecycle` / `DapServerLifecycle`                  | 持有子进程、跟踪 `ServerStatus`、处理启动/停止/重启           |
+| 传输层     | `LspStdioTransport`                                          | 启动 server 进程、连接 stdin/stdout、将 stderr 输出到 tracing |
+| 工具提供者 | `LspToolProvider` / `DapToolProvider`（在 `agent-tools` 中） | 将客户端包装为动态 `Tool` 实例，供 agent 调用                 |
+
+### Server 生命周期
+
+每个 LSP/DAP server 通过配置定义，由 lifecycle 结构体管理：
+
+1. 通过 stdio transport 启动 server 进程。
+2. 发送 `initialize` 请求，附带项目根 URI 和客户端 capabilities。
+3. 跟踪 `ServerStatus` —— `Stopped`、`Starting`、`Running` 或 `Failed`。
+4. 关闭时发送 `shutdown` + `exit` 通知并终止子进程。
+
+### 动态工具注入
+
+LSP server 启动后，runtime 注册 `LspToolProvider`，将 LSP 操作（`textDocument/definition`、`textDocument/references`、`textDocument/hover` 等）暴露为 agent 可在 session 中调用的 tool。DAP server 通过 `DapToolProvider` 以同样方式暴露调试操作（`launch`、`setBreakpoints`、`variables` 等）。
+
+这些 tool 与 MCP tool 和内置 tool 一起出现在 tool registry 中。Agent 根据任务选择合适的 tool —— 文本搜索用 `search.ripgrep`，精确导航用 LSP 的 `textDocument/definition`。
+
+### 示例：在 `kairox.toml` 中声明 LSP server
+
+```toml
+[[lsp]]
+name = "rust-analyzer"
+command = "rust-analyzer"
+args = []
+languages = ["rust"]
+file_patterns = ["*.rs"]
+```
+
+```toml
+[[dap]]
+name = "codelldb"
+command = "codelldb"
+args = ["--port", "0"]
+languages = ["rust", "c", "cpp"]
+```
+
 ## 选哪一种扩展面
 
 | 需求                                                     | 用什么                                                            |
@@ -243,6 +291,8 @@ plugin 也可以内含 MCP server。两者的区别在于:
 | 当前项目内可复用、就地编辑的 prompt。                    | Workspace skill                                                   |
 | 跟随用户走的个人 prompt 库。                             | User skill                                                        |
 | 通过进程或网络边界调用的外部能力。                       | MCP server                                                        |
+| 代码智能（跳转到定义、引用、悬停文档）。                 | LSP server                                                        |
+| 交互式调试（断点、单步执行、变量检查）。                 | DAP server                                                        |
 | 把 skill + tool + hook + MCP 打包在一起的工作流 bundle。 | Plugin                                                            |
 | 单 session 内一次性的临时 prompt。                       | Session skill                                                     |
 | 应当作用于此仓库下*每一个* session 的行为变更。          | Instructions 配置(见 [Configuration](../reference/configuration)) |

@@ -33,7 +33,8 @@ function enNav(): DefaultTheme.NavItem[] {
       items: [
         { text: "Configuration", link: "/reference/configuration" },
         { text: "Crate Index", link: "/reference/crate-index" },
-        { text: "CLI & Keyboard", link: "/reference/cli-and-keyboard" }
+        { text: "CLI & Keyboard", link: "/reference/cli-and-keyboard" },
+        { text: "Eval Harness", link: "/reference/eval-harness" }
       ]
     },
     {
@@ -83,7 +84,8 @@ function zhNav(): DefaultTheme.NavItem[] {
       items: [
         { text: "配置", link: "/zh/reference/configuration" },
         { text: "Crate 索引", link: "/zh/reference/crate-index" },
-        { text: "命令与快捷键", link: "/zh/reference/cli-and-keyboard" }
+        { text: "命令与快捷键", link: "/zh/reference/cli-and-keyboard" },
+        { text: "评估工具", link: "/zh/reference/eval-harness" }
       ]
     },
     {
@@ -137,7 +139,8 @@ function enSidebar(): DefaultTheme.Sidebar {
         items: [
           { text: "Configuration", link: "/reference/configuration" },
           { text: "Crate Index", link: "/reference/crate-index" },
-          { text: "CLI & Keyboard", link: "/reference/cli-and-keyboard" }
+          { text: "CLI & Keyboard", link: "/reference/cli-and-keyboard" },
+          { text: "Eval Harness", link: "/reference/eval-harness" }
         ]
       }
     ],
@@ -186,7 +189,8 @@ function zhSidebar(): DefaultTheme.Sidebar {
         items: [
           { text: "配置", link: "/zh/reference/configuration" },
           { text: "Crate 索引", link: "/zh/reference/crate-index" },
-          { text: "命令与快捷键", link: "/zh/reference/cli-and-keyboard" }
+          { text: "命令与快捷键", link: "/zh/reference/cli-and-keyboard" },
+          { text: "评估工具", link: "/zh/reference/eval-harness" }
         ]
       }
     ],
