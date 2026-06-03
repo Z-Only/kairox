@@ -497,6 +497,31 @@ describe("trace store", () => {
       expect(trace.entries[0].status).toBe("completed");
     });
 
+    it("MemoryAccepted without a proposal adds a completed memory entry", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "MemoryAccepted",
+          memory_id: "mem-session-auto",
+          scope: "session",
+          key: "turn-note",
+          content: "auto accepted session note"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        id: "mem-session-auto",
+        kind: "memory",
+        status: "completed",
+        toolId: "memory.store",
+        title: "Save session memory",
+        scope: "session",
+        content: "auto accepted session note",
+        expanded: false
+      });
+    });
+
     it("MemoryRejected marks entry as failed with reason", () => {
       const trace = useTraceStore();
       trace.applyTraceEvent(

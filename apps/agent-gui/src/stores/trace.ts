@@ -236,10 +236,25 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "MemoryAccepted": {
-        updateEntry(p.memory_id, {
-          status: "completed",
-          rawEvent: rawJson(event)
-        });
+        if (entryIds.has(p.memory_id)) {
+          updateEntry(p.memory_id, {
+            status: "completed",
+            rawEvent: rawJson(event)
+          });
+        } else {
+          pushEntry({
+            id: p.memory_id,
+            kind: "memory",
+            status: "completed",
+            toolId: "memory.store",
+            title: `Save ${p.scope} memory`,
+            startedAt: Date.now(),
+            expanded: false,
+            scope: p.scope,
+            content: p.content,
+            rawEvent: rawJson(event)
+          });
+        }
         break;
       }
 
