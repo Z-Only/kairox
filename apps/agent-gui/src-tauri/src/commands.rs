@@ -330,21 +330,28 @@ async fn switch_session_inner(
             .list_sessions(&workspace_id)
             .await
             .map_err(|e| format!("Failed to list sessions: {e}"))?;
-        if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-            let approval: Option<agent_tools::ApprovalPolicy> = session
-                .approval_policy
-                .as_deref()
-                .and_then(|s| s.parse().ok());
-            let sandbox: Option<agent_tools::SandboxPolicy> = session
-                .sandbox_policy
-                .as_deref()
-                .and_then(|s| serde_json::from_str(s).ok());
-            if let Some(a) = approval {
-                state.runtime.set_approval_policy(a).await;
-            }
-            if let Some(s) = sandbox {
-                state.runtime.set_sandbox_policy(s).await;
-            }
+        let projects = state
+            .runtime
+            .list_projects(&workspace_id)
+            .await
+            .map_err(|e| format!("Failed to list projects: {e}"))?;
+        let mut project_sessions = Vec::new();
+        for project in projects {
+            let mut sessions = state
+                .runtime
+                .list_project_sessions(project.project_id)
+                .await
+                .map_err(|e| format!("Failed to list project sessions: {e}"))?;
+            project_sessions.append(&mut sessions);
+        }
+
+        let (approval, sandbox) =
+            session_policies_for_switch(&session_id, &sessions, &project_sessions);
+        if let Some(a) = approval {
+            state.runtime.set_approval_policy(a).await;
+        }
+        if let Some(s) = sandbox {
+            state.runtime.set_sandbox_policy(s).await;
         }
     }
 
@@ -354,4 +361,80 @@ async fn switch_session_inner(
     }
 
     Ok(())
+}
+
+fn session_policies_for_switch(
+    session_id: &agent_core::SessionId,
+    ordinary_sessions: &[SessionMeta],
+    project_sessions: &[SessionMeta],
+) -> (
+    Option<agent_tools::ApprovalPolicy>,
+    Option<agent_tools::SandboxPolicy>,
+) {
+    ordinary_sessions
+        .iter()
+        .chain(project_sessions.iter())
+        .find(|s| s.session_id == *session_id)
+        .map(parse_session_policies)
+        .unwrap_or((None, None))
+}
+
+fn parse_session_policies(
+    session: &SessionMeta,
+) -> (
+    Option<agent_tools::ApprovalPolicy>,
+    Option<agent_tools::SandboxPolicy>,
+) {
+    let approval = session
+        .approval_policy
+        .as_deref()
+        .and_then(|s| s.parse().ok());
+    let sandbox = session
+        .sandbox_policy
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    (approval, sandbox)
+}
+
+#[cfg(test)]
+mod switch_session_policy_tests {
+    use super::session_policies_for_switch;
+    use agent_core::{SessionId, SessionMeta, WorkspaceId};
+
+    fn meta(id: &str, approval_policy: Option<&str>, sandbox_policy: Option<&str>) -> SessionMeta {
+        SessionMeta {
+            session_id: SessionId::from_string(id.to_string()),
+            workspace_id: WorkspaceId::from_string("wrk_test".to_string()),
+            title: "Test".into(),
+            model_profile: "fake".into(),
+            model_id: None,
+            provider: None,
+            approval_policy: approval_policy.map(str::to_string),
+            sandbox_policy: sandbox_policy.map(str::to_string),
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
+            deleted_at: None,
+            created_at: "2026-06-02T00:00:00Z".into(),
+            updated_at: "2026-06-02T00:00:00Z".into(),
+        }
+    }
+
+    #[test]
+    fn switch_policy_lookup_includes_project_sessions() {
+        let session_id = SessionId::from_string("ses_project".to_string());
+        let ordinary_sessions = vec![meta("ses_other", Some("never"), None)];
+        let project_sessions = vec![meta(
+            "ses_project",
+            Some("always"),
+            Some(r#"{"kind":"read_only"}"#),
+        )];
+
+        let (approval, sandbox) =
+            session_policies_for_switch(&session_id, &ordinary_sessions, &project_sessions);
+
+        assert_eq!(approval, Some(agent_tools::ApprovalPolicy::Always));
+        assert_eq!(sandbox, Some(agent_tools::SandboxPolicy::ReadOnly));
+    }
 }

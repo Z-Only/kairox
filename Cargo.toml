@@ -53,6 +53,7 @@ rand = "0.8"
 wiremock = "0.6.5"
 async-stream = "0.3.6"
 regex = "1.12.3"
+libc = "0.2.186"
 url = "2"
 zip = "8"
 

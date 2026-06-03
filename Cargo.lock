@@ -282,6 +282,7 @@ dependencies = [
  "agent-lsp",
  "agent-mcp",
  "async-trait",
+ "libc",
  "lsp-types",
  "regex",
  "serde",

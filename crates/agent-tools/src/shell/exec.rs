@@ -64,7 +64,10 @@ impl Tool for ShellExecTool {
             .unwrap_or("");
         let (program, args) = parse_command(command);
         let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        let risk = classify_command(&program, &arg_refs);
+        let mut risk = classify_command(&program, &arg_refs);
+        if uses_shell_control_syntax(command) && !matches!(risk, CommandRisk::Destructive) {
+            risk = CommandRisk::Write;
+        }
 
         match risk {
             CommandRisk::ReadOnly => ToolRisk::read(SHELL_TOOL_ID),
@@ -80,8 +83,7 @@ impl Tool for ShellExecTool {
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
-        let (program, args) = parse_command(command);
-        if program.is_empty() {
+        if command.trim().is_empty() {
             return Err(ExecutionFailed("empty command".to_string()));
         }
 
@@ -96,19 +98,23 @@ impl Tool for ShellExecTool {
             self.max_output_bytes
         };
 
-        let mut cmd = tokio::process::Command::new(&program);
-        cmd.args(&args)
-            .current_dir(&self.workspace_root)
+        let mut cmd = shell_command(command);
+        cmd.current_dir(&self.workspace_root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
 
         apply_sandbox_env(&mut cmd);
 
-        let result = tokio::time::timeout(timeout_duration, cmd.output()).await;
+        let child = cmd.spawn().map_err(|e| ExecutionFailed(e.to_string()))?;
+        let mut cleanup = ProcessCleanup::new(&child);
+        let mut output_fut = Box::pin(child.wait_with_output());
+
+        let result = tokio::time::timeout(timeout_duration, &mut output_fut).await;
 
         match result {
             Ok(Ok(output)) => {
+                cleanup.disarm();
                 if output.status.success() {
                     let (text, truncated) = truncate_bytes(&output.stdout, output_limit);
                     Ok(ToolOutput {
@@ -130,8 +136,115 @@ impl Tool for ShellExecTool {
                     })
                 }
             }
-            Ok(Err(e)) => Err(ExecutionFailed(e.to_string())),
-            Err(_) => Err(Timeout(timeout_duration.as_millis() as u64)),
+            Ok(Err(e)) => {
+                cleanup.disarm();
+                Err(ExecutionFailed(e.to_string()))
+            }
+            Err(_) => {
+                cleanup.kill();
+                let _ = tokio::time::timeout(Duration::from_secs(1), &mut output_fut).await;
+                cleanup.disarm();
+                Err(Timeout(timeout_duration.as_millis() as u64))
+            }
         }
     }
+}
+
+#[cfg(windows)]
+fn shell_command(command: &str) -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new("cmd");
+    cmd.arg("/C").arg(command);
+    cmd
+}
+
+#[cfg(not(windows))]
+fn shell_command(command: &str) -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new("sh");
+    cmd.arg("-c").arg(command);
+    cmd.process_group(0);
+    cmd
+}
+
+struct ProcessCleanup {
+    #[cfg(unix)]
+    pgid: Option<i32>,
+}
+
+impl ProcessCleanup {
+    fn new(child: &tokio::process::Child) -> Self {
+        Self {
+            #[cfg(unix)]
+            pgid: child.id().map(|id| id as i32),
+        }
+    }
+
+    fn disarm(&mut self) {
+        #[cfg(unix)]
+        {
+            self.pgid = None;
+        }
+    }
+
+    fn kill(&mut self) {
+        #[cfg(unix)]
+        if let Some(pgid) = self.pgid.take() {
+            kill_process_group(pgid);
+        }
+    }
+}
+
+impl Drop for ProcessCleanup {
+    fn drop(&mut self) {
+        self.kill();
+    }
+}
+
+#[cfg(unix)]
+fn kill_process_group(pgid: i32) {
+    // SAFETY: `pgid` is derived from the spawned shell child pid after placing
+    // that child in its own process group. The group may have already exited.
+    unsafe {
+        libc::kill(-pgid, libc::SIGKILL);
+    }
+}
+
+fn uses_shell_control_syntax(command: &str) -> bool {
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut escaped = false;
+
+    for ch in command.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+
+        if ch == '\\' {
+            escaped = true;
+            continue;
+        }
+
+        if in_single {
+            if ch == '\'' {
+                in_single = false;
+            }
+            continue;
+        }
+
+        if in_double {
+            if ch == '"' {
+                in_double = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '\'' => in_single = true,
+            '"' => in_double = true,
+            '>' | '<' | '|' | ';' | '&' => return true,
+            _ => {}
+        }
+    }
+
+    false
 }
