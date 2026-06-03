@@ -6,6 +6,33 @@ fn test_registry(workspace: PathBuf) -> MonitorRegistry {
     MonitorRegistry::new(workspace, tx)
 }
 
+async fn collect_events_until<F>(
+    rx: &mut tokio::sync::broadcast::Receiver<DomainEvent>,
+    timeout: Duration,
+    mut done: F,
+) -> Vec<DomainEvent>
+where
+    F: FnMut(&[DomainEvent]) -> bool,
+{
+    let mut events = vec![];
+    let deadline = tokio::time::Instant::now() + timeout;
+
+    while !done(&events) {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            break;
+        }
+
+        match tokio::time::timeout(deadline - now, rx.recv()).await {
+            Ok(Ok(ev)) => events.push(ev),
+            Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => continue,
+            Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) | Err(_) => break,
+        }
+    }
+
+    events
+}
+
 #[tokio::test]
 async fn start_and_list_monitor() {
     let registry = test_registry(PathBuf::from("/tmp"));
@@ -59,15 +86,12 @@ async fn monitor_emits_events_for_echo() {
         .await
         .unwrap();
 
-    // Collect events for up to 2 seconds
-    let mut events = vec![];
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
-            Ok(Ok(ev)) => events.push(ev),
-            _ => break,
-        }
-    }
+    let events = collect_events_until(&mut rx, Duration::from_secs(2), |events| {
+        events.iter().any(
+            |e| matches!(&e.payload, EventPayload::MonitorEvent { line, .. } if line == "hello"),
+        )
+    })
+    .await;
 
     let has_started = events
         .iter()
@@ -224,14 +248,18 @@ async fn monitor_emits_stopped_event_on_normal_exit() {
         .await
         .unwrap();
 
-    let mut events = vec![];
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
-            Ok(Ok(ev)) => events.push(ev),
-            _ => break,
-        }
-    }
+    let events = collect_events_until(&mut rx, Duration::from_secs(2), |events| {
+        events.iter().any(|e| {
+            matches!(
+                &e.payload,
+                EventPayload::MonitorStopped {
+                    reason: MonitorStopReason::ExitCode { code: 0 },
+                    ..
+                }
+            )
+        })
+    })
+    .await;
 
     let has_stopped = events.iter().any(|e| {
         matches!(
@@ -262,18 +290,30 @@ async fn monitor_emits_multiple_lines() {
         .await
         .unwrap();
 
-    let mut lines = vec![];
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
-            Ok(Ok(ev)) => {
+    let events = collect_events_until(&mut rx, Duration::from_secs(2), |events| {
+        let lines: Vec<_> = events
+            .iter()
+            .filter_map(|ev| {
                 if let EventPayload::MonitorEvent { line, .. } = &ev.payload {
-                    lines.push(line.clone());
+                    Some(line.as_str())
+                } else {
+                    None
                 }
+            })
+            .collect();
+        lines.contains(&"alpha") && lines.contains(&"beta")
+    })
+    .await;
+    let lines: Vec<_> = events
+        .iter()
+        .filter_map(|ev| {
+            if let EventPayload::MonitorEvent { line, .. } = &ev.payload {
+                Some(line.clone())
+            } else {
+                None
             }
-            _ => break,
-        }
-    }
+        })
+        .collect();
 
     assert!(lines.contains(&"alpha".to_string()), "should emit 'alpha'");
     assert!(lines.contains(&"beta".to_string()), "should emit 'beta'");
@@ -296,14 +336,12 @@ async fn spawn_failure_emits_failed_event() {
         .await
         .unwrap();
 
-    let mut events = vec![];
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
-            Ok(Ok(ev)) => events.push(ev),
-            _ => break,
-        }
-    }
+    let events = collect_events_until(&mut rx, Duration::from_secs(2), |events| {
+        events
+            .iter()
+            .any(|e| matches!(&e.payload, EventPayload::MonitorFailed { .. }))
+    })
+    .await;
 
     let has_failed = events
         .iter()

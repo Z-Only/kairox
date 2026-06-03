@@ -141,6 +141,22 @@ async fn shell_exec_pwd_is_workspace_root() {
 }
 
 #[tokio::test]
+async fn shell_exec_supports_workspace_redirection() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join("redirect.txt");
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let invocation = make_invocation("echo SHELL_REDIRECT_OK > redirect.txt");
+
+    let result = tool.invoke(invocation).await.unwrap();
+
+    assert_eq!(result.text, "");
+    assert_eq!(
+        std::fs::read_to_string(marker).unwrap().trim(),
+        "SHELL_REDIRECT_OK"
+    );
+}
+
+#[tokio::test]
 async fn shell_exec_captures_stderr_on_failure() {
     let dir = tempfile::tempdir().unwrap();
     let tool = ShellExecTool::new(dir.path().to_path_buf());
@@ -219,6 +235,15 @@ fn risk_mapping_write() {
     let dir = tempfile::tempdir().unwrap();
     let tool = ShellExecTool::new(dir.path().to_path_buf());
     let inv = make_invocation("cp file1 file2");
+    let risk = tool.risk(&inv);
+    assert_eq!(risk, ToolRisk::write(SHELL_TOOL_ID));
+}
+
+#[test]
+fn risk_mapping_redirection_is_write() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let inv = make_invocation("echo hello > output.txt");
     let risk = tool.risk(&inv);
     assert_eq!(risk, ToolRisk::write(SHELL_TOOL_ID));
 }
