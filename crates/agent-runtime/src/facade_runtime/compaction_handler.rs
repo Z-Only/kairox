@@ -46,20 +46,14 @@ where
         }
 
         // Pick the profile alias for the summarisation call:
-        // ContextPolicy.compactor_profile takes priority; otherwise fall
-        // back to the session's current profile (from SessionInitialized).
+        // ContextPolicy.compactor_profile takes priority; otherwise use the
+        // session's latest profile, including any mid-session model switch.
         let config = self.config();
-        let profile_alias = config.context.compactor_profile.clone().unwrap_or_else(|| {
-            events
-                .iter()
-                .find_map(|e| match &e.payload {
-                    agent_core::EventPayload::SessionInitialized { model_profile } => {
-                        Some(model_profile.clone())
-                    }
-                    _ => None,
-                })
-                .unwrap_or_else(|| "fake".to_string())
-        });
+        let profile_alias = config
+            .context
+            .compactor_profile
+            .clone()
+            .unwrap_or_else(|| crate::agent_loop::latest_model_profile_for(&events));
 
         let store = self.store.clone();
         let event_tx = self.event_tx.clone();
