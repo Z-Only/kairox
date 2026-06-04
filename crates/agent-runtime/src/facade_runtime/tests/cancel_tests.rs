@@ -22,7 +22,10 @@ use super::support::{
 use crate::facade_runtime::LocalRuntime;
 use crate::task_graph::TaskGraph;
 
-const PERMISSION_PENDING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+// Full-workspace test runs can spend several seconds in context assembly and
+// actor scheduling before a fake model reaches the tool call that asks for
+// permission, especially after dependency cold starts.
+const PERMISSION_PENDING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 struct ToolRequestModel;
 
