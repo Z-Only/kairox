@@ -87,12 +87,14 @@ export interface ProjectedModelLimits {
 }
 
 /**
- * Mirrors `crates/agent-core/src/projection.rs::CompactionStatus`.
+ * Mirrors `crates/agent-core/src/projection.rs::CompactionStatus`, plus
+ * UI-only states derived from live events.
  * `Skipped` payload mirrors `ContextCompactionSkipped` in events.rs.
  */
 export type CompactionStatus =
   | { type: "Idle" }
   | { type: "Running" }
+  | { type: "Completed" }
   | { type: "Failed"; error: string }
   | { type: "Skipped"; reason: CompactionSkipReason; ratio: number | null };
 

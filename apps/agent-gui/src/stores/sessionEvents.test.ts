@@ -393,7 +393,7 @@ describe("applySessionEvent — context lifecycle", () => {
     expect(ctx.lastContextUsage.value).toEqual(usage);
   });
 
-  it("sets compacting=true on ContextCompactionStarted", () => {
+  it("sets compacting=true and projects Running on ContextCompactionStarted", () => {
     const ctx = makeCtx();
     applySessionEvent(
       makeEvent({
@@ -405,12 +405,16 @@ describe("applySessionEvent — context lifecycle", () => {
       ctx,
       makeAgentsStore()
     );
+    expect(ctx.projection.value.compaction).toEqual({ type: "Running" });
     expect(ctx.compacting.value).toBe(true);
     expect(ctx.lastCompactionError.value).toBeNull();
   });
 
-  it("clears compacting on ContextCompactionCompleted", () => {
-    const ctx = makeCtx({ compacting: ref(true) });
+  it("clears compacting and projects Completed on ContextCompactionCompleted", () => {
+    const ctx = makeCtx({
+      compacting: ref(true),
+      lastCompactionError: ref("previous error")
+    });
     applySessionEvent(
       makeEvent({
         type: "ContextCompactionCompleted",
@@ -421,10 +425,12 @@ describe("applySessionEvent — context lifecycle", () => {
       ctx,
       makeAgentsStore()
     );
+    expect(ctx.projection.value.compaction).toEqual({ type: "Completed" });
     expect(ctx.compacting.value).toBe(false);
+    expect(ctx.lastCompactionError.value).toBeNull();
   });
 
-  it("records error on ContextCompactionFailed", () => {
+  it("records error and projects Failed on ContextCompactionFailed", () => {
     const ctx = makeCtx({ compacting: ref(true) });
     applySessionEvent(
       makeEvent({
@@ -435,8 +441,39 @@ describe("applySessionEvent — context lifecycle", () => {
       ctx,
       makeAgentsStore()
     );
+    expect(ctx.projection.value.compaction).toEqual({ type: "Failed", error: "timeout" });
     expect(ctx.compacting.value).toBe(false);
     expect(ctx.lastCompactionError.value).toBe("timeout");
+  });
+
+  it("keeps the failed status when fallback completion follows ContextCompactionFailed", () => {
+    const ctx = makeCtx({ compacting: ref(true) });
+    applySessionEvent(
+      makeEvent({
+        type: "ContextCompactionFailed",
+        error: "model timeout",
+        fallback_used: true
+      }),
+      ctx,
+      makeAgentsStore()
+    );
+    applySessionEvent(
+      makeEvent({
+        type: "ContextCompactionCompleted",
+        summary_id: "sum_1",
+        after_tokens: 10_000,
+        fallback_used: true
+      }),
+      ctx,
+      makeAgentsStore()
+    );
+
+    expect(ctx.projection.value.compaction).toEqual({
+      type: "Failed",
+      error: "model timeout"
+    });
+    expect(ctx.compacting.value).toBe(false);
+    expect(ctx.lastCompactionError.value).toBe("model timeout");
   });
 
   it("sets compaction Skipped status with reason and ratio", () => {

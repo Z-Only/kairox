@@ -135,15 +135,21 @@ export function applySessionEvent(
       break;
     }
     case "ContextCompactionStarted": {
+      ctx.projection.value.compaction = { type: "Running" };
       ctx.compacting.value = true;
       ctx.lastCompactionError.value = null;
       break;
     }
     case "ContextCompactionCompleted": {
+      if (!(p.fallback_used && ctx.projection.value.compaction.type === "Failed")) {
+        ctx.projection.value.compaction = { type: "Completed" };
+        ctx.lastCompactionError.value = null;
+      }
       ctx.compacting.value = false;
       break;
     }
     case "ContextCompactionFailed": {
+      ctx.projection.value.compaction = { type: "Failed", error: p.error };
       ctx.compacting.value = false;
       ctx.lastCompactionError.value = p.error;
       break;
