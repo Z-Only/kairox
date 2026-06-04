@@ -165,13 +165,16 @@ where
     } else {
         None
     };
+    let project_instruction_block = project_instructions.as_ref().map(|instructions| {
+        format!("<project-instructions>\n{instructions}\n</project-instructions>")
+    });
 
     let assembler = agent_memory::ContextAssembler::new_standalone();
     let bundle = assembler
         .assemble(
             agent_memory::ContextRequest {
                 system_prompt: Some(system_prompt.clone()),
-                project_instructions,
+                project_instructions: project_instructions.clone(),
                 active_skills: active_skill_blocks.clone(),
                 user_request: request.content.clone(),
                 session_history,
@@ -181,6 +184,11 @@ where
             budget.clone(),
         )
         .await;
+
+    if let Some(block) = project_instruction_block {
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&block);
+    }
 
     if !active_skill_blocks.is_empty() {
         system_prompt.push_str("\n\n<active_skills>\n");
