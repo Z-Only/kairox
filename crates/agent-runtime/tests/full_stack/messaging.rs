@@ -189,6 +189,105 @@ async fn project_session_patch_apply_uses_project_worktree_root() {
 }
 
 #[tokio::test]
+async fn project_session_monitor_start_uses_project_worktree_root() {
+    let gui_root = tempfile::tempdir().expect("gui root");
+    let project_root = tempfile::tempdir().expect("project root");
+    let gui_root = std::fs::canonicalize(gui_root.path()).expect("canonical gui root");
+    let project_root = std::fs::canonicalize(project_root.path()).expect("canonical project root");
+    let cwd_file = project_root.join("monitor-cwd.txt");
+
+    let model = FakeModelClient::new(vec!["Monitor started".into()]).with_tool_call_for(
+        "monitor.start",
+        serde_json::json!({
+            "description": "project monitor cwd",
+            "command": "pwd > monitor-cwd.txt; printf 'ready\\n'; sleep 60",
+            "persistent": true,
+        }),
+    );
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = LocalRuntime::new(store, model)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::OnRequest,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
+        .with_builtin_tools(gui_root.clone())
+        .await;
+
+    let workspace = runtime
+        .open_workspace(gui_root.display().to_string())
+        .await
+        .unwrap();
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id.clone(),
+            project_root.display().to_string(),
+        )
+        .await
+        .unwrap();
+    let session_id = runtime
+        .create_project_draft_session(project.project_id)
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "start the project monitor".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    for _ in 0..20 {
+        if cwd_file.exists() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert_eq!(
+        fs::read_to_string(&cwd_file)
+            .expect("read monitor cwd marker")
+            .trim(),
+        project_root.display().to_string()
+    );
+    assert!(
+        !gui_root.join("monitor-cwd.txt").exists(),
+        "monitor.start should not resolve relative paths against the GUI root"
+    );
+
+    let registry = runtime
+        .monitor_registry()
+        .expect("runtime should expose the shared monitor registry");
+    let monitors = registry.list().await;
+    assert!(
+        monitors
+            .iter()
+            .any(|monitor| monitor.description == "project monitor cwd"),
+        "shared monitor registry should list the workspace-scoped monitor"
+    );
+    registry.stop_all().await;
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<&str> = trace
+        .iter()
+        .map(|entry| entry.event.event_type.as_str())
+        .collect();
+    assert!(
+        event_types.contains(&"ToolInvocationCompleted"),
+        "expected monitor.start to complete, got {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"ToolInvocationFailed"),
+        "monitor.start should not fail for project sessions"
+    );
+}
+
+#[tokio::test]
 async fn full_stack_agent_mode_completes_without_prompt() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["response".into()]);

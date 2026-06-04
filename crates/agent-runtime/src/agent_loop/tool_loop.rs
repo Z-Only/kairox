@@ -8,7 +8,7 @@ use agent_models::ToolCall;
 use agent_store::EventStore;
 use agent_tools::{
     workspace_scoped_builtin_tool, PermissionEngine, Tool, ToolError, ToolInvocation, ToolRegistry,
-    ToolRisk,
+    ToolRisk, WorkspaceScopedBuiltinTools,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,6 +40,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
     root_task_id: &TaskId,
     config: &agent_config::Config,
+    workspace_scoped_builtin_tools: &Option<Arc<WorkspaceScopedBuiltinTools>>,
     root_path: Option<&std::path::Path>,
     turn_cancellation: &CancellationToken,
 ) -> agent_core::Result<ToolLoopResult> {
@@ -59,7 +60,10 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
         };
 
         let tool: Option<Box<dyn Tool>> = if let Some(root_path) = root_path {
-            workspace_scoped_builtin_tool(&tc.name, root_path.to_path_buf())
+            workspace_scoped_builtin_tools
+                .as_ref()
+                .and_then(|tools| tools.tool(&tc.name, root_path.to_path_buf()))
+                .or_else(|| workspace_scoped_builtin_tool(&tc.name, root_path.to_path_buf()))
         } else {
             None
         };

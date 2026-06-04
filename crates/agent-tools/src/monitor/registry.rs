@@ -60,6 +60,29 @@ impl MonitorRegistry {
         workspace_id: WorkspaceId,
         session_id: SessionId,
     ) -> crate::Result<String> {
+        self.start_in_workspace(
+            self.workspace_root.clone(),
+            description,
+            command,
+            persistent,
+            timeout_ms,
+            workspace_id,
+            session_id,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn start_in_workspace(
+        &self,
+        workspace_root: PathBuf,
+        description: String,
+        command: String,
+        persistent: bool,
+        timeout_ms: Option<u64>,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+    ) -> crate::Result<String> {
         let monitors = self.monitors.lock().await;
         if monitors.len() >= MAX_MONITORS {
             return Err(crate::ToolError::ExecutionFailed(format!(
@@ -84,7 +107,6 @@ impl MonitorRegistry {
 
         let event_tx = self.event_tx.clone();
         let monitors = self.monitors.clone();
-        let workspace_root = self.workspace_root.clone();
         let child_pid = Arc::new(AtomicU32::new(0));
         let mid = monitor_id.clone();
         let wid = workspace_id.clone();

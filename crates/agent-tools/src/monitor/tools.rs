@@ -2,6 +2,7 @@ use crate::permission::ToolRisk;
 use crate::registry::{Tool, ToolDefinition, ToolInvocation, ToolOutput};
 use agent_core::{SessionId, WorkspaceId};
 use async_trait::async_trait;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::registry::MonitorRegistry;
@@ -12,11 +13,22 @@ pub const MONITOR_LIST_TOOL_ID: &str = "monitor.list";
 
 pub struct MonitorStartTool {
     registry: Arc<MonitorRegistry>,
+    workspace_root: Option<PathBuf>,
 }
 
 impl MonitorStartTool {
     pub fn new(registry: Arc<MonitorRegistry>) -> Self {
-        Self { registry }
+        Self {
+            registry,
+            workspace_root: None,
+        }
+    }
+
+    pub fn for_workspace(registry: Arc<MonitorRegistry>, workspace_root: PathBuf) -> Self {
+        Self {
+            registry,
+            workspace_root: Some(workspace_root),
+        }
     }
 }
 
@@ -88,17 +100,30 @@ impl Tool for MonitorStartTool {
         let workspace_id: WorkspaceId = WorkspaceId::from(invocation.workspace_id.clone());
         let session_id = SessionId::from(invocation.session_id.clone());
 
-        let monitor_id = self
-            .registry
-            .start(
-                description,
-                command,
-                persistent,
-                timeout_ms,
-                workspace_id,
-                session_id,
-            )
-            .await?;
+        let monitor_id = if let Some(workspace_root) = &self.workspace_root {
+            self.registry
+                .start_in_workspace(
+                    workspace_root.clone(),
+                    description,
+                    command,
+                    persistent,
+                    timeout_ms,
+                    workspace_id,
+                    session_id,
+                )
+                .await?
+        } else {
+            self.registry
+                .start(
+                    description,
+                    command,
+                    persistent,
+                    timeout_ms,
+                    workspace_id,
+                    session_id,
+                )
+                .await?
+        };
 
         Ok(ToolOutput {
             text: format!("Monitor started: {monitor_id}"),

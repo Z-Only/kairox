@@ -20,7 +20,7 @@ use crate::task_graph::TaskGraph;
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, ToolRegistry};
+use agent_tools::{PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -46,6 +46,7 @@ where
     pub(crate) session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     pub(crate) skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub(crate) active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
+    pub(crate) workspace_scoped_builtin_tools: &'a Option<Arc<WorkspaceScopedBuiltinTools>>,
     pub(crate) turn_cancellation: CancellationToken,
     pub(crate) root_path: Option<std::path::PathBuf>,
 }

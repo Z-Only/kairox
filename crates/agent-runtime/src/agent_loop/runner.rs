@@ -326,6 +326,7 @@ where
             deps.task_graphs,
             &root_task_id,
             deps.config,
+            deps.workspace_scoped_builtin_tools,
             deps.root_path.as_deref(),
             &cancel_token,
         )
