@@ -593,7 +593,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/tauri-pilot
-          key: tauri-pilot-${{ matrix.os }}-v0.5.1
+          key: tauri-pilot-${{ matrix.os }}-v0.7.0
 
       - name: Install Linux system deps for Tauri and xvfb
         if: matrix.os == 'ubuntu-latest'
@@ -613,7 +613,7 @@ jobs:
 
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
+        run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.7.0 tauri-pilot-cli --locked
 
       - name: Run pilot E2E scenarios (Linux, with xvfb)
         if: matrix.os == 'ubuntu-latest'
@@ -685,7 +685,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/tauri-pilot
-          key: tauri-pilot-ubuntu-latest-v0.5.1
+          key: tauri-pilot-ubuntu-latest-v0.7.0
 
       - name: Install Linux system deps for Tauri and xvfb
         run: |
@@ -704,7 +704,7 @@ jobs:
 
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
+        run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.7.0 tauri-pilot-cli --locked
 
       - name: Run live pilot E2E scenarios
         env:
