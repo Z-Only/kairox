@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useSessionStore } from "@/stores/session";
 import { useUiStore } from "@/stores/ui";
+import { useProjectStore } from "@/stores/project";
 import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
@@ -9,6 +10,7 @@ const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const ui = useUiStore();
+const projectStore = useProjectStore();
 const { t } = useI18n();
 const { currentSessionId } = storeToRefs(session);
 const { leftSidebarCollapsed, rightSidebarCollapsed, leftSidebarWidth, rightSidebarWidth } =
@@ -30,9 +32,19 @@ async function syncRouteToSession(id: string | undefined) {
   if (id === currentSessionId.value) return;
   syncing.value = true;
   try {
-    await session.switchSession(id);
+    try {
+      await session.switchSession(id);
+    } catch (switchErr) {
+      try {
+        await projectStore.restoreProjectSession(id);
+        await session.switchSession(id);
+      } catch (restoreErr) {
+        console.error("[WorkbenchView] switchSession failed:", switchErr);
+        console.error("[WorkbenchView] restoreProjectSession failed:", restoreErr);
+        throw switchErr;
+      }
+    }
   } catch (err) {
-    console.error("[WorkbenchView] switchSession failed:", err);
     ui.pushNotification("error", t("workbench.sessionNotFound", { id }));
     await router.replace({ name: "workbench" });
   } finally {
