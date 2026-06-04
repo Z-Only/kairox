@@ -30,7 +30,7 @@ pub use policy::{
 };
 pub use provider::{
     workspace_scoped_builtin_tool, BuiltinProvider, DapToolProvider, LspToolProvider,
-    McpToolAdapter,
+    McpToolAdapter, WorkspaceScopedBuiltinTools,
 };
 pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,

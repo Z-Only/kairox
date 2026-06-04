@@ -9,7 +9,7 @@ use agent_mcp::installer::Installer;
 use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::EventStore;
-use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry};
+use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -96,6 +96,7 @@ where
     /// no Ollama profiles are configured.
     pub(crate) ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
     pub(crate) monitor_registry: Option<Arc<MonitorRegistry>>,
+    pub(crate) workspace_scoped_builtin_tools: Option<Arc<WorkspaceScopedBuiltinTools>>,
     // Skill catalog
     pub(crate) skill_catalog: std::sync::OnceLock<Arc<AggregateSkillCatalogProvider>>,
     pub(crate) skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
@@ -152,6 +153,7 @@ where
             })),
             ollama_clients: HashMap::new(),
             monitor_registry: None,
+            workspace_scoped_builtin_tools: None,
             skill_catalog: std::sync::OnceLock::new(),
             skill_sources_toml: None,
             skill_catalog_http: None,

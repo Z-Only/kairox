@@ -16,6 +16,7 @@ use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
     ApprovalPolicy, BuiltinProvider, PermissionEngine, SandboxPolicy, ToolProvider, ToolRegistry,
+    WorkspaceScopedBuiltinTools,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -291,6 +292,9 @@ where
         let provider =
             BuiltinProvider::with_defaults_and_event_tx(workspace_root, self.event_tx.clone());
         self.monitor_registry = Some(provider.monitor_registry().clone());
+        self.workspace_scoped_builtin_tools = Some(Arc::new(
+            WorkspaceScopedBuiltinTools::with_monitor_registry(provider.monitor_registry().clone()),
+        ));
         self.tool_registry
             .lock()
             .await

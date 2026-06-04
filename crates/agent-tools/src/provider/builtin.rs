@@ -1,7 +1,10 @@
 use crate::browser::{BrowserBatchTool, BrowserTool};
 use crate::computer_use::ComputerUseTool;
 use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
-use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool};
+use crate::monitor::{
+    MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool, MONITOR_LIST_TOOL_ID,
+    MONITOR_START_TOOL_ID, MONITOR_STOP_TOOL_ID,
+};
 use crate::patch::PatchApplyTool;
 use crate::registry::{Tool, ToolDefinition, ToolProvider};
 use crate::search::RipgrepSearchTool;
@@ -16,6 +19,46 @@ use std::sync::Arc;
 pub struct BuiltinProvider {
     tools: HashMap<String, Arc<dyn Tool>>,
     monitor_registry: Arc<MonitorRegistry>,
+}
+
+#[derive(Clone)]
+pub struct WorkspaceScopedBuiltinTools {
+    monitor_registry: Arc<MonitorRegistry>,
+}
+
+impl WorkspaceScopedBuiltinTools {
+    pub fn new(event_tx: tokio::sync::broadcast::Sender<DomainEvent>) -> Self {
+        Self::with_monitor_registry(Arc::new(MonitorRegistry::new(PathBuf::from("."), event_tx)))
+    }
+
+    pub fn with_monitor_registry(monitor_registry: Arc<MonitorRegistry>) -> Self {
+        Self { monitor_registry }
+    }
+
+    pub fn tool(&self, tool_id: &str, workspace_root: PathBuf) -> Option<Box<dyn Tool>> {
+        if let Some(tool) = workspace_scoped_stateless_builtin_tool(tool_id, workspace_root.clone())
+        {
+            return Some(tool);
+        }
+
+        match tool_id {
+            MONITOR_START_TOOL_ID => Some(Box::new(MonitorStartTool::for_workspace(
+                self.monitor_registry.clone(),
+                workspace_root,
+            ))),
+            MONITOR_STOP_TOOL_ID => Some(Box::new(MonitorStopTool::new(
+                self.monitor_registry.clone(),
+            ))),
+            MONITOR_LIST_TOOL_ID => Some(Box::new(MonitorListTool::new(
+                self.monitor_registry.clone(),
+            ))),
+            _ => None,
+        }
+    }
+
+    pub async fn stop_all_monitors(&self) {
+        self.monitor_registry.stop_all().await;
+    }
 }
 
 impl BuiltinProvider {
@@ -80,6 +123,13 @@ impl BuiltinProvider {
 }
 
 pub fn workspace_scoped_builtin_tool(
+    tool_id: &str,
+    workspace_root: PathBuf,
+) -> Option<Box<dyn Tool>> {
+    workspace_scoped_stateless_builtin_tool(tool_id, workspace_root)
+}
+
+fn workspace_scoped_stateless_builtin_tool(
     tool_id: &str,
     workspace_root: PathBuf,
 ) -> Option<Box<dyn Tool>> {
