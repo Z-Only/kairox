@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use agent_core::{ContextSource, ContextUsage};
+use agent_models::sanitize_markdown_data_uri_images;
 use tiktoken_rs::CoreBPE;
 
 use crate::extractor::extract_keywords;
@@ -67,6 +68,11 @@ impl ContextAssembler {
 
     pub async fn assemble(&self, request: ContextRequest, budget: ContextBudget) -> ContextBundle {
         let mut sections: Vec<(ContextSource, String, u64)> = Vec::new();
+        let mut history_images = Vec::new();
+        let mut request_images = Vec::new();
+        let (sanitized_request, request_image_summaries) =
+            sanitize_context_text(&request.user_request);
+        request_images.extend(request_image_summaries);
 
         // P0: System prompt (never dropped)
         if let Some(sp) = &request.system_prompt {
@@ -103,7 +109,7 @@ impl ContextAssembler {
         }
 
         // P1: User request (dropped second-to-last)
-        let request_text = format!("User request: {}", request.user_request);
+        let request_text = format!("User request: {sanitized_request}");
         let n = self.count_tokens(&request_text);
         sections.push((ContextSource::Request, request_text, n));
 
@@ -117,7 +123,7 @@ impl ContextAssembler {
         // P2: Memories — query store if available, otherwise use provided
         let memories = if request.memories.is_empty() {
             if let Some(store) = &self.memory_store {
-                let keywords = extract_keywords(&request.user_request);
+                let keywords = extract_keywords(&sanitized_request);
                 store
                     .query(MemoryQuery {
                         scope: None,
@@ -142,7 +148,9 @@ impl ContextAssembler {
 
         // P3: Session history
         for h in &request.session_history {
-            let text = format!("History: {h}");
+            let (sanitized_history, history_image_summaries) = sanitize_context_text(h);
+            history_images.extend(history_image_summaries);
+            let text = format!("History: {sanitized_history}");
             let n = self.count_tokens(&text);
             sections.push((ContextSource::History, text, n));
         }
@@ -158,6 +166,14 @@ impl ContextAssembler {
         // Images are the lowest priority and are dropped before SelectedFile.
         {
             let mut images = request.images.clone();
+            let mut next_position = images
+                .iter()
+                .map(|image| image.position)
+                .max()
+                .map(|position| position + 1)
+                .unwrap_or(0);
+            append_embedded_images(&mut images, &mut next_position, history_images);
+            append_embedded_images(&mut images, &mut next_position, request_images);
             prune_images(&mut images, &request.image_pruning);
             for img in &images {
                 let text = format!("Image: {}", img.content);
@@ -237,5 +253,33 @@ impl ContextAssembler {
 
     fn count_tokens(&self, text: &str) -> u64 {
         self.tokenizer.encode_with_special_tokens(text).len() as u64
+    }
+}
+
+fn sanitize_context_text(text: &str) -> (String, Vec<agent_models::EmbeddedImageSummary>) {
+    match sanitize_markdown_data_uri_images(text) {
+        Some(sanitized) => (sanitized.text, sanitized.images),
+        None => (text.to_string(), Vec::new()),
+    }
+}
+
+fn append_embedded_images(
+    images: &mut Vec<ImageEntry>,
+    next_position: &mut usize,
+    embedded_images: Vec<agent_models::EmbeddedImageSummary>,
+) {
+    for image in embedded_images {
+        let alt = image.alt_text.trim();
+        let content = if alt.is_empty() {
+            format!("embedded attachment ({})", image.mime_type)
+        } else {
+            format!("embedded attachment: {alt} ({})", image.mime_type)
+        };
+        images.push(ImageEntry {
+            position: *next_position,
+            estimated_tokens: image.estimated_tokens,
+            content,
+        });
+        *next_position += 1;
     }
 }

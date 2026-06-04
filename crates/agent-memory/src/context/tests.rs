@@ -53,6 +53,53 @@ async fn assembles_request_with_standalone_assembler() {
 }
 
 #[tokio::test]
+async fn markdown_data_uri_images_are_not_counted_as_request_text() {
+    let assembler = ContextAssembler::new_standalone();
+    let encoded_image = "A".repeat(24_000);
+    let user_request =
+        format!("read this ![fixture.png](data:image/png;base64,{encoded_image}) now");
+
+    let bundle = assembler
+        .assemble(
+            ContextRequest {
+                user_request,
+                ..Default::default()
+            },
+            test_budget(200_000, 1_000),
+        )
+        .await;
+
+    let request_tokens: u64 = bundle
+        .usage
+        .by_source
+        .iter()
+        .filter(|(source, _)| matches!(source, ContextSource::Request))
+        .map(|(_, tokens)| *tokens)
+        .sum();
+    let image_tokens: u64 = bundle
+        .usage
+        .by_source
+        .iter()
+        .filter(|(source, _)| matches!(source, ContextSource::Image))
+        .map(|(_, tokens)| *tokens)
+        .sum();
+    let combined = bundle.messages.join("\n");
+
+    assert!(
+        request_tokens < 200,
+        "request text tokens should ignore image base64, got {request_tokens}"
+    );
+    assert!(
+        image_tokens > 0,
+        "embedded image should be counted as image context"
+    );
+    assert!(
+        !combined.contains(&encoded_image),
+        "context bundle should not retain raw image base64"
+    );
+}
+
+#[tokio::test]
 async fn includes_memories_from_store() {
     let (assembler, store) = test_assembler_with_store().await;
     store
