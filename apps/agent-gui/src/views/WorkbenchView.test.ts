@@ -12,6 +12,7 @@ import { routes } from "@/router/routes";
 import en from "@/locales/en.json";
 import { useUiStore } from "@/stores/ui";
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
 import WorkbenchView from "./WorkbenchView.vue";
 import workbenchSource from "./WorkbenchView.vue?raw";
 import chatComposerSource from "@/components/ChatComposer.vue?raw";
@@ -92,6 +93,54 @@ describe("WorkbenchView (Pre-work A regression)", () => {
     const call = (ui.pushNotification as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("error");
     expect(String(call[1])).toContain("badId");
+  });
+
+  it("restores project sessions addressed directly by the workbench route", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn });
+    const session = useSessionStore(pinia);
+    const projectStore = useProjectStore(pinia);
+    const ui = useUiStore(pinia);
+
+    (session.switchSession as unknown as ReturnType<typeof vi.fn>) = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Project session not loaded yet"))
+      .mockResolvedValueOnce(undefined);
+    (projectStore.restoreProjectSession as unknown as ReturnType<typeof vi.fn>) = vi
+      .fn()
+      .mockResolvedValue({
+        projectId: "project-1",
+        displayName: "Project",
+        rootPath: "/tmp/project",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      });
+
+    await router.push("/workbench/project-session-1");
+    await router.isReady();
+
+    mount(WorkbenchView, {
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true
+        }
+      }
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(session.switchSession).toHaveBeenCalledTimes(2);
+    expect(session.switchSession).toHaveBeenNthCalledWith(1, "project-session-1");
+    expect(projectStore.restoreProjectSession).toHaveBeenCalledWith("project-session-1");
+    expect(session.switchSession).toHaveBeenNthCalledWith(2, "project-session-1");
+    expect(ui.pushNotification).not.toHaveBeenCalled();
+    expect(router.currentRoute.value.params.sessionId).toBe("project-session-1");
   });
 
   it("audit anchors: exposes stable workbench pilot selector", async () => {
