@@ -79,6 +79,20 @@ describe("ChatPermissionItem", () => {
     expect(wrapper.find('[data-test="permission-allow"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="permission-deny"]').exists()).toBe(true);
   });
+
+  it("does not render tool shortcut hints for memory prompts", () => {
+    const wrapper = mountItem({
+      id: "mem_2",
+      variant: "memory",
+      toolId: "memory.store",
+      title: "Save user memory",
+      scope: "user",
+      content: "Remember the validation token"
+    });
+    expect(wrapper.find('[data-test="chat-permission-item-shortcuts"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Allow (Y)");
+    expect(wrapper.text()).not.toContain("Deny once (D)");
+  });
 });
 
 describe("ChatPermissionItem keyboard shortcuts (R5-pkb)", () => {
@@ -187,6 +201,17 @@ describe("ChatPermissionItem keyboard shortcuts (R5-pkb)", () => {
     // @keydown only listens within its own subtree, so nothing should
     // dispatch resolve_permission.
     document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "y", bubbles: true }));
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("does not map D to reject_memory for memory prompts", async () => {
+    const wrapper = mountItem({
+      id: "mem_kbd",
+      variant: "memory",
+      toolId: "memory.store",
+      title: "Save user memory"
+    });
+    await wrapper.find('[data-test="chat-permission-item"]').trigger("keydown", { key: "d" });
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 });
