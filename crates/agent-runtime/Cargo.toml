@@ -43,7 +43,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 tempfile = { workspace = true }
-tiktoken-rs = "0.11"
+tiktoken-rs = "0.12"
 zip = { workspace = true }
 
 [dev-dependencies]
