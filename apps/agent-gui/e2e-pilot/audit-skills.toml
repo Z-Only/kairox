@@ -105,6 +105,36 @@ action = "wait"
 selector = "[data-test='skill-settings-pane']"
 timeout_ms = 5000
 
+[[step]]
+name = "wait for builtin skill creator row"
+action = "wait"
+selector = "[data-test='skill-row-builtin-skill-creator']"
+timeout_ms = 15000
+
+[[step]]
+name = "builtin skill creator is visible and read only"
+action = "eval"
+script = """
+(() => {
+  const row = document.querySelector("[data-test='skill-row-builtin-skill-creator']");
+  const text = row?.textContent ?? "";
+  for (const expected of [
+    "skill-creator",
+    "Builtin",
+    "Use when a user wants to create",
+  ]) {
+    if (!text.includes(expected)) {
+      throw new Error(`builtin skill creator row missing ${expected}: ${text}`);
+    }
+  }
+  const enabled = document.querySelector("[data-test='skill-enabled-builtin-skill-creator']");
+  if (!enabled?.disabled) {
+    throw new Error("builtin skill creator enable control should be disabled");
+  }
+  return text;
+})()
+"""
+
 # Return to workbench
 [[step]]
 name = "return to workbench"
