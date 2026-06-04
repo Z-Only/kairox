@@ -177,6 +177,63 @@ async fn reasoning_capable_profile_does_not_default_effort() {
 }
 
 #[tokio::test]
+async fn project_instructions_are_sent_in_model_request() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let runtime = LocalRuntime::new(
+        store,
+        RecordingTextModel {
+            requests: requests.clone(),
+        },
+    );
+    let project_root = tempfile::tempdir().expect("project root");
+    tokio::fs::write(
+        project_root.path().join("AGENTS.md"),
+        "PROJECT_BEHAVIOR_CHECK=WT_INSTRUCTION_0604",
+    )
+    .await
+    .expect("write project instructions");
+
+    let workspace = runtime
+        .open_workspace(project_root.path().display().to_string())
+        .await
+        .unwrap();
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id.clone(),
+            project_root.path().display().to_string(),
+        )
+        .await
+        .unwrap();
+    let session_id = runtime
+        .create_project_draft_session(project.project_id)
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "perform project behavior check".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let requests = requests.lock().await;
+    let request = requests.first().expect("model should be called");
+    let system_prompt = request
+        .system_prompt
+        .as_deref()
+        .expect("system prompt should be present");
+    assert!(
+        system_prompt.contains("PROJECT_BEHAVIOR_CHECK=WT_INSTRUCTION_0604"),
+        "project instructions should be included in the model request system prompt: {system_prompt}"
+    );
+}
+
+#[tokio::test]
 async fn agent_loop_ignores_usage_only_completion_before_text() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let runtime = LocalRuntime::new(store, EarlyUsageThenTextModel);
