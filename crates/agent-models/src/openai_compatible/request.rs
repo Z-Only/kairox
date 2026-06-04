@@ -1,4 +1,5 @@
 use super::OpenAiCompatibleClient;
+use crate::content_parts::{split_markdown_data_uri_images, MultimodalContentPart};
 use crate::{ModelRequest, Result};
 
 impl OpenAiCompatibleClient {
@@ -51,6 +52,15 @@ impl OpenAiCompatibleClient {
             } else {
                 if !has_non_empty_text(&msg.content) {
                     continue;
+                }
+                if msg.role == "user" {
+                    if let Some(content_parts) = openai_multimodal_content(&msg.content) {
+                        messages.push(serde_json::json!({
+                            "role": msg.role,
+                            "content": content_parts,
+                        }));
+                        continue;
+                    }
                 }
                 messages.push(serde_json::json!({
                     "role": msg.role,
@@ -106,4 +116,24 @@ impl OpenAiCompatibleClient {
 
 fn has_non_empty_text(value: &str) -> bool {
     !value.trim().is_empty()
+}
+
+fn openai_multimodal_content(content: &str) -> Option<Vec<serde_json::Value>> {
+    split_markdown_data_uri_images(content).map(|parts| {
+        parts
+            .into_iter()
+            .map(|part| match part {
+                MultimodalContentPart::Text(text) => serde_json::json!({
+                    "type": "text",
+                    "text": text,
+                }),
+                MultimodalContentPart::Image { mime_type, data } => serde_json::json!({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": format!("data:{mime_type};base64,{data}"),
+                    },
+                }),
+            })
+            .collect()
+    })
 }

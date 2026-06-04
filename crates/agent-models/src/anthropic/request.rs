@@ -1,4 +1,5 @@
 use super::AnthropicClient;
+use crate::content_parts::{split_markdown_data_uri_images, MultimodalContentPart};
 use crate::types::ServerTool;
 use crate::ModelRequest;
 
@@ -92,6 +93,15 @@ impl AnthropicClient {
             } else {
                 if !has_non_empty_text(&msg.content) {
                     continue;
+                }
+                if msg.role == "user" {
+                    if let Some(content_blocks) = anthropic_multimodal_content(&msg.content) {
+                        messages.push(serde_json::json!({
+                            "role": msg.role,
+                            "content": content_blocks,
+                        }));
+                        continue;
+                    }
                 }
                 messages.push(serde_json::json!({
                     "role": msg.role,
@@ -227,6 +237,28 @@ impl AnthropicClient {
 
 fn has_non_empty_text(value: &str) -> bool {
     !value.trim().is_empty()
+}
+
+fn anthropic_multimodal_content(content: &str) -> Option<Vec<serde_json::Value>> {
+    split_markdown_data_uri_images(content).map(|parts| {
+        parts
+            .into_iter()
+            .map(|part| match part {
+                MultimodalContentPart::Text(text) => serde_json::json!({
+                    "type": "text",
+                    "text": text,
+                }),
+                MultimodalContentPart::Image { mime_type, data } => serde_json::json!({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": data,
+                    },
+                }),
+            })
+            .collect()
+    })
 }
 
 fn serialize_server_tool(st: &ServerTool) -> serde_json::Value {

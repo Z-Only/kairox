@@ -115,6 +115,29 @@ fn builds_request_with_reasoning_effort() {
 }
 
 #[test]
+fn builds_multimodal_request_from_markdown_image_data_uri() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text(
+        "claude",
+        "![fixture.png](data:image/png;base64,AQIDBA==)\n\nRead the code.",
+    );
+
+    let body = client.build_messages_request(&request);
+
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages[0]["role"], "user");
+    let blocks = messages[0]["content"].as_array().unwrap();
+    assert_eq!(blocks.len(), 2);
+    assert_eq!(blocks[0]["type"], "image");
+    assert_eq!(blocks[0]["source"]["type"], "base64");
+    assert_eq!(blocks[0]["source"]["media_type"], "image/png");
+    assert_eq!(blocks[0]["source"]["data"], "AQIDBA==");
+    assert_eq!(blocks[1]["type"], "text");
+    assert_eq!(blocks[1]["text"], "Read the code.");
+    assert!(!blocks[1]["text"].as_str().unwrap().contains("base64"));
+}
+
+#[test]
 fn builds_anthropic_request_with_tool_use_and_result() {
     let config = AnthropicConfig::default();
     let client = AnthropicClient::new(config);

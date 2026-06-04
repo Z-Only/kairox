@@ -102,6 +102,39 @@ fn builds_chat_request_with_tools() {
 }
 
 #[test]
+fn builds_multimodal_chat_request_from_markdown_image_data_uri() {
+    let client = OpenAiCompatibleClient::new(OpenAiCompatibleConfig {
+        base_url: "https://api.openai.com/v1".into(),
+        api_key_env: "OPENAI_API_KEY".into(),
+        default_model: "gpt-4.1".into(),
+        headers: vec![],
+        capability_overrides: None,
+        temperature: None,
+        top_p: None,
+        extra_params: None,
+    });
+    let request = ModelRequest::user_text(
+        "fast",
+        "![fixture.png](data:image/png;base64,AQIDBA==)\n\nRead the code.",
+    );
+
+    let body = client.build_chat_request(&request).unwrap();
+
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages[0]["role"], "user");
+    let content = messages[0]["content"].as_array().unwrap();
+    assert_eq!(content.len(), 2);
+    assert_eq!(content[0]["type"], "image_url");
+    assert_eq!(
+        content[0]["image_url"]["url"],
+        "data:image/png;base64,AQIDBA=="
+    );
+    assert_eq!(content[1]["type"], "text");
+    assert_eq!(content[1]["text"], "Read the code.");
+    assert!(!content[1]["text"].as_str().unwrap().contains("base64"));
+}
+
+#[test]
 fn builds_chat_request_with_tool_calls_and_results() {
     let config = OpenAiCompatibleConfig {
         base_url: "https://api.openai.com/v1".into(),
