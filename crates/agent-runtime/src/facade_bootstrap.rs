@@ -15,12 +15,37 @@ use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
-    ApprovalPolicy, BuiltinProvider, PermissionEngine, SandboxPolicy, ToolProvider, ToolRegistry,
-    WorkspaceScopedBuiltinTools,
+    ApprovalPolicy, BuiltinProvider, MonitorEventSink, MonitorRegistry, PermissionEngine,
+    SandboxPolicy, ToolProvider, ToolRegistry, WorkspaceScopedBuiltinTools,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+struct PersistingMonitorEventSink<S>
+where
+    S: EventStore + 'static,
+{
+    store: Arc<S>,
+    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+}
+
+#[async_trait::async_trait]
+impl<S> MonitorEventSink for PersistingMonitorEventSink<S>
+where
+    S: EventStore + 'static,
+{
+    async fn emit(&self, event: DomainEvent) {
+        if let Err(error) = self.store.append(&event).await {
+            tracing::warn!(
+                error = %error,
+                event_type = %event.event_type,
+                "failed to persist monitor event"
+            );
+        }
+        let _ = self.event_tx.send(event);
+    }
+}
 
 impl<S, M> LocalRuntime<S, M>
 where
@@ -289,11 +314,20 @@ where
                     &workspace_root,
                 );
         }
-        let provider =
-            BuiltinProvider::with_defaults_and_event_tx(workspace_root, self.event_tx.clone());
-        self.monitor_registry = Some(provider.monitor_registry().clone());
+        let monitor_registry = Arc::new(MonitorRegistry::new_with_event_sink(
+            workspace_root.clone(),
+            Arc::new(PersistingMonitorEventSink {
+                store: self.store.clone(),
+                event_tx: self.event_tx.clone(),
+            }),
+        ));
+        let provider = BuiltinProvider::with_defaults_and_monitor_registry(
+            workspace_root,
+            monitor_registry.clone(),
+        );
+        self.monitor_registry = Some(monitor_registry.clone());
         self.workspace_scoped_builtin_tools = Some(Arc::new(
-            WorkspaceScopedBuiltinTools::with_monitor_registry(provider.monitor_registry().clone()),
+            WorkspaceScopedBuiltinTools::with_monitor_registry(monitor_registry),
         ));
         self.tool_registry
             .lock()

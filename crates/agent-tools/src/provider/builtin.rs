@@ -71,6 +71,14 @@ impl BuiltinProvider {
         workspace_root: PathBuf,
         event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     ) -> Self {
+        let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root.clone(), event_tx));
+        Self::with_defaults_and_monitor_registry(workspace_root, monitor_registry)
+    }
+
+    pub fn with_defaults_and_monitor_registry(
+        workspace_root: PathBuf,
+        monitor_registry: Arc<MonitorRegistry>,
+    ) -> Self {
         let mut tools: HashMap<String, Arc<dyn Tool>> = HashMap::new();
 
         let shell = Box::new(ShellExecTool::new(workspace_root.clone())) as Box<dyn Tool>;
@@ -87,7 +95,6 @@ impl BuiltinProvider {
 
         let computer_use = Box::new(ComputerUseTool::new()) as Box<dyn Tool>;
 
-        let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root, event_tx));
         let mon_start = Box::new(MonitorStartTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_stop = Box::new(MonitorStopTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_list = Box::new(MonitorListTool::new(monitor_registry.clone())) as Box<dyn Tool>;
