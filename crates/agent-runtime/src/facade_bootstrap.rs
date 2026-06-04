@@ -258,6 +258,10 @@ where
             let home_dir = std::env::var_os("HOME")
                 .map(PathBuf::from)
                 .unwrap_or_else(|| PathBuf::from("."));
+            let data_dir = home_dir.join(".kairox");
+            if let Err(error) = crate::skills::ensure_builtin_skills_root(&data_dir).await {
+                tracing::warn!(error = %error, "failed to materialize builtin skills");
+            }
             self.skill_settings_roots =
                 crate::skills::build_default_skill_settings_roots(&home_dir, &workspace_root);
         }
