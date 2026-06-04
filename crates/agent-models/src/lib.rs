@@ -1,4 +1,5 @@
 pub mod anthropic;
+mod content_parts;
 pub mod fake;
 pub mod model_registry;
 pub mod ollama;
