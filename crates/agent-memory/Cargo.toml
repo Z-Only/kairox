@@ -19,7 +19,7 @@ serde_json = { workspace = true }
 specta = { workspace = true, optional = true, features = ["chrono"] }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
-tiktoken-rs = "0.11"
+tiktoken-rs = "0.12"
 tokio = { workspace = true, features = ["time"] }
 uuid = { workspace = true }
 
