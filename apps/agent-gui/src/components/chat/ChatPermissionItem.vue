@@ -93,7 +93,7 @@ function onKeydown(event: KeyboardEvent) {
     handled = clickAnchor('[data-test="permission-allow"]');
   } else if (lower === "n" || key === "Escape") {
     handled = clickAnchor('[data-test="permission-deny"]');
-  } else if (lower === "d") {
+  } else if (lower === "d" && props.variant === "tool") {
     // Deny-once is not currently rendered by PermissionPrompt; fall back
     // to plain Deny so the hint stays meaningful when the dedicated
     // anchor is absent.
@@ -122,6 +122,7 @@ function onKeydown(event: KeyboardEvent) {
   >
     <PermissionPrompt :entry="adaptedEntry" />
     <div
+      v-if="variant === 'tool'"
       class="chat-permission-item__shortcuts"
       data-test="chat-permission-item-shortcuts"
       aria-hidden="true"
