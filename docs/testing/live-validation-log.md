@@ -21,6 +21,62 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 07:50 CST — GUI devtools setting persistence (#812)
+
+- Commit: `efadf0af`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`, `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, started the real GUI with pilot, opened
+  Settings -> General, verified the developer tools toggle default state, toggled
+  it off and on through the GUI, checked the persisted `gui-settings.toml` file
+  and restart indicator after each change, then returned to the workbench,
+  selected `ali-mo-claude`, and sent a no-tool prompt. The prompt split the
+  expected marker into `DEVTOOLS_SETTING_FINAL_` and `OK_0605` so the full
+  `DEVTOOLS_SETTING_FINAL_OK_0605` string did not exist before the model response.
+- Method: `HOME=/tmp/kairox-devtools-setting-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-devtools-setting-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+KAIROX_DEV_PORT=1436 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features
+pilot` compiled the app and printed the isolated pilot socket. On this machine,
+  `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
+  macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
+  continued by running `KAIROX_DEV_PORT=1436 KAIROX_DEV_STRICT_PORT=1 bun run
+  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+  `./target/debug/agent-gui-tauri` under the same temp environment. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
+  supplied only as a local process env var.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/kairox-devtools-setting-runtime-0605/tauri-pilot-dev.kairox.agent.dev1436.sock`,
+  and `windows` showed
+  `http://localhost:1436/#/workbench/ses_76612cdf838c4557819b99c4d26835d9`.
+  Initial `get_gui_settings` returned `devtools_enabled=true`,
+  `default_devtools_enabled=true`, and `requires_restart=false`; no
+  `/tmp/kairox-devtools-setting-home-0605/.kairox/gui-settings.toml` existed yet.
+  The Settings -> General checkbox `[data-test="settings-devtools"]` was checked,
+  with no restart or error message. Clicking the checkbox off through the GUI made
+  `get_gui_settings` return `devtools_enabled=false` and `requires_restart=true`;
+  the UI checkbox was unchecked, `[data-test="settings-devtools-restart"]`
+  displayed `需要重启`, no error was visible, and
+  `.kairox/gui-settings.toml` contained `devtools_enabled = false`. Clicking the
+  checkbox on again made `get_gui_settings` return `devtools_enabled=true` and
+  `requires_restart=false`; the checkbox was checked, restart/error messages were
+  absent, and `.kairox/gui-settings.toml` contained `devtools_enabled = true`.
+  The GUI model selector displayed `Ali Mo · Claude Opus 4 6`; before send, the
+  textarea did not contain `DEVTOOLS_SETTING_FINAL_OK_0605` and the send button
+  was enabled. Page polling found `DEVTOOLS_SETTING_FINAL_OK_0605` on the first
+  check after send. Exported trace for session
+  `ses_76612cdf838c4557819b99c4d26835d9` had `event_count=11`, with events
+  `SessionInitialized`, `ModelProfileSwitched`, `UserMessageAdded`,
+  `ContextAssembled`, `AgentTaskCreated`, `AgentTaskStarted`, three
+  `ModelTokenDelta`, `AssistantMessageCompleted`, and `AgentTaskCompleted`. The
+  trace summary showed `user_prompt_has_full_marker=false`,
+  `user_prompt_has_split_marker=true`, and `assistant_has_full_marker=true`.
+  `tauri-pilot logs --level error` reported `No logs captured`.
+- Result: Pass for GUI devtools settings. The toggle reflects the debug-build
+  default, persists explicit overrides, sets the restart-required state only when
+  the persisted value differs from the running window state, clears that state
+  when toggled back, and does not break live Ali Mo interaction in the same GUI
+  run.
+
 ### 2026-06-05 07:38 CST — GUI generic worktree basename label (#845)
 
 - Commit: `33a1fdc9`
