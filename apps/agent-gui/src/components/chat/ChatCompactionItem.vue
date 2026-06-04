@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import type { CompactionStatus, CompactionReason } from "@/types";
 
-// Rust `CompactionStatus` has no Completed variant; we accept a local extended discriminator + sibling props so a parent dispatcher can drive every visual state (running/completed/failed/skipped).
-type ChatCompactionStatus = CompactionStatus | { type: "Completed" };
-
 const props = defineProps<{
-  status: ChatCompactionStatus;
+  status: CompactionStatus;
   reason?: CompactionReason;
   ratio?: number;
   durationMs?: number;

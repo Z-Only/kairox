@@ -311,6 +311,20 @@ describe("buildChatStream", () => {
     expect(result.filter((item) => item.kind === "compaction")).toHaveLength(1);
   });
 
+  it("appends a completed compaction item after ContextCompactionCompleted is projected", () => {
+    const completed: CompactionStatus = { type: "Completed" };
+    const messages: ChatStreamMessageInput[] = [{ role: "assistant", content: "done" }];
+
+    const result = buildChatStream(messages, [], completed);
+
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual<ChatCompactionStreamItem>({
+      kind: "compaction",
+      id: "compaction-Completed",
+      status: completed
+    });
+  });
+
   it("appends a Skipped compaction item at the end with id 'compaction-Skipped'", () => {
     const skipped: CompactionStatus = {
       type: "Skipped",
