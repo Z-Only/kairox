@@ -98,3 +98,28 @@ fn within_budget_keeps_tail_user_and_pairs_tool_calls() {
         }
     }
 }
+
+#[test]
+fn within_budget_counts_markdown_data_uri_images_as_images_not_text() {
+    let events = vec![make_event(EventPayload::UserMessageAdded {
+        message_id: "u-history".into(),
+        content: "previous useful context".into(),
+        display_content: None,
+    })];
+    let encoded_image = "A".repeat(24_000);
+    let user_content =
+        format!("read this ![fixture.png](data:image/png;base64,{encoded_image}) now");
+
+    let messages = build_model_messages_within_budget(&user_content, &events, 500);
+
+    assert!(
+        messages
+            .iter()
+            .any(|message| message.content == "previous useful context"),
+        "history that fits beside an image should not be trimmed as if the base64 were text"
+    );
+    assert_eq!(
+        messages.last().map(|message| message.content.as_str()),
+        Some(user_content.as_str())
+    );
+}

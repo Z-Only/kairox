@@ -127,7 +127,9 @@ fn openai_multimodal_content(content: &str) -> Option<Vec<serde_json::Value>> {
                     "type": "text",
                     "text": text,
                 }),
-                MultimodalContentPart::Image { mime_type, data } => serde_json::json!({
+                MultimodalContentPart::Image {
+                    mime_type, data, ..
+                } => serde_json::json!({
                     "type": "image_url",
                     "image_url": {
                         "url": format!("data:{mime_type};base64,{data}"),

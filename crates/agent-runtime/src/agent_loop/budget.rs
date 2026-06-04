@@ -1,4 +1,5 @@
 use agent_core::DomainEvent;
+use agent_models::sanitize_markdown_data_uri_images;
 
 use super::build_model_messages;
 
@@ -40,12 +41,31 @@ pub fn build_model_messages_within_budget(
         Err(_) => return messages, // tokenizer unavailable; emit as-is
     };
     let count_message = |m: &agent_models::ModelMessage| -> u64 {
+        let (countable_content, image_tokens) = match sanitize_markdown_data_uri_images(&m.content)
+        {
+            Some(sanitized) => (
+                sanitized.text,
+                sanitized
+                    .images
+                    .iter()
+                    .map(|image| image.estimated_tokens)
+                    .sum(),
+            ),
+            None => (m.content.clone(), 0),
+        };
+        let countable_message = agent_models::ModelMessage {
+            content: countable_content,
+            ..m.clone()
+        };
         // Use compact JSON to mirror what the OpenAI/Anthropic adapters
         // ultimately serialise. Failures fall back to content-only count.
-        match serde_json::to_string(m) {
+        let text_tokens = match serde_json::to_string(&countable_message) {
             Ok(s) => bpe.encode_with_special_tokens(&s).len() as u64,
-            Err(_) => bpe.encode_with_special_tokens(&m.content).len() as u64,
-        }
+            Err(_) => bpe
+                .encode_with_special_tokens(&countable_message.content)
+                .len() as u64,
+        };
+        text_tokens + image_tokens
     };
 
     // Always keep the trailing user message (the active turn). Trim from the

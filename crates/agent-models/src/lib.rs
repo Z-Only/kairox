@@ -11,6 +11,10 @@ pub mod types;
 
 pub use anthropic::AnthropicClient;
 pub use anthropic::AnthropicConfig;
+pub use content_parts::{
+    estimate_data_uri_image_tokens, sanitize_markdown_data_uri_images, EmbeddedImageSummary,
+    MultimodalContentPart, SanitizedMarkdownContent,
+};
 pub use fake::FakeModelClient;
 pub use model_registry::{lookup as lookup_limits, LimitSource, ModelLimits};
 pub use ollama::OllamaClient;
