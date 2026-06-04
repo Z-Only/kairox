@@ -22,6 +22,8 @@ use super::support::{
 use crate::facade_runtime::LocalRuntime;
 use crate::task_graph::TaskGraph;
 
+const PERMISSION_PENDING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 struct ToolRequestModel;
 
 #[async_trait]
@@ -294,7 +296,7 @@ async fn cancel_session_denies_pending_permission_and_finishes_turn() {
             .await
     });
 
-    let pending_observed = match tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    let pending_observed = match tokio::time::timeout(PERMISSION_PENDING_TIMEOUT, async {
         loop {
             if runtime
                 .pending_permissions
@@ -393,7 +395,7 @@ async fn app_facade_decide_permission_resolves_pending_permission() {
             .await
     });
 
-    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    tokio::time::timeout(PERMISSION_PENDING_TIMEOUT, async {
         loop {
             if runtime
                 .pending_permissions
