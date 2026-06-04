@@ -55,7 +55,7 @@ where
         self
     }
 
-    pub(crate) fn skill_settings_roots(&self) -> crate::skill_settings::SkillSettingsRoots {
+    pub fn skill_settings_roots(&self) -> crate::skill_settings::SkillSettingsRoots {
         self.skill_settings_roots.clone()
     }
 

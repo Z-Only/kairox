@@ -8,6 +8,7 @@ mod tests;
 
 pub use actions::{delete_skill, set_skill_activation_mode, set_skill_enabled, update_skill};
 pub use install::{install_github_skill, install_remote_skill};
+pub(crate) use roots::skill_roots;
 pub use roots::SkillSettingsRoots;
 pub use view::{get_skill_settings_detail, list_skill_settings};
 

@@ -12,7 +12,7 @@ pub struct SkillSettingsRoots {
     pub plugin_roots: Vec<(String, PathBuf)>,
 }
 
-pub(super) fn skill_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
+pub(crate) fn skill_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
     let mut skill_roots = Vec::new();
     if let Some(root) = &roots.builtin_root {
         skill_roots.push(SkillRoot::new(SkillSourceKind::Builtin, root));
