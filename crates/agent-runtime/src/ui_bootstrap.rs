@@ -227,12 +227,19 @@ pub async fn build_ui_runtime_from_store(
             .map_err(|error| RuntimeError::Other(format!("memory store: {error}")))?,
     ) as Arc<dyn MemoryStore>;
 
+    let builtin_skills_root = crate::skills::ensure_builtin_skills_root(&options.data_dir).await?;
     let mut skill_roots =
         crate::skills::build_default_skill_roots(&options.home_dir, &options.workspace_root);
-    let skill_settings_roots = crate::skills::build_default_skill_settings_roots(
+    for root in &mut skill_roots {
+        if root.kind == agent_skills::SkillSourceKind::Builtin {
+            root.path = builtin_skills_root.clone();
+        }
+    }
+    let mut skill_settings_roots = crate::skills::build_default_skill_settings_roots(
         &options.home_dir,
         &options.workspace_root,
     );
+    skill_settings_roots.builtin_root = Some(builtin_skills_root);
     let agent_settings_roots = crate::agent_settings::build_default_agent_settings_roots(
         &options.home_dir,
         &options.workspace_root,
@@ -290,6 +297,10 @@ pub async fn build_ui_runtime_from_store(
         catalog_sources: options.catalog_sources,
     })
 }
+
+#[cfg(test)]
+#[path = "ui_bootstrap_tests.rs"]
+mod tests;
 
 pub async fn ensure_workspace_session<F>(
     facade: &F,

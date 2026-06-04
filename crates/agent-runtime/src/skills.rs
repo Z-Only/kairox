@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use agent_core::{ActiveSkillView, DomainEvent, EventPayload, SkillDetail, SkillView};
 
@@ -6,8 +6,56 @@ use crate::plugin_settings::PluginSettingsRoots;
 use crate::skill_settings::SkillSettingsRoots;
 use agent_skills::{SkillActivationMode, SkillDocument, SkillMetadata, SkillRoot, SkillSourceKind};
 
+const BUILTIN_SKILLS_DIR_NAME: &str = "builtin-skills";
+
+struct BuiltinSkillAsset {
+    directory_name: &'static str,
+    markdown: &'static str,
+}
+
+const BUILTIN_SKILL_ASSETS: &[BuiltinSkillAsset] = &[BuiltinSkillAsset {
+    directory_name: "skill-creator",
+    markdown: include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/builtin-skills/skill-creator/SKILL.md"
+    )),
+}];
+
+pub fn builtin_skills_root(data_dir: &Path) -> PathBuf {
+    data_dir.join(BUILTIN_SKILLS_DIR_NAME)
+}
+
+pub async fn ensure_builtin_skills_root(data_dir: &Path) -> crate::Result<PathBuf> {
+    let root = builtin_skills_root(data_dir);
+    for asset in BUILTIN_SKILL_ASSETS {
+        let skill_directory = root.join(asset.directory_name);
+        tokio::fs::create_dir_all(&skill_directory)
+            .await
+            .map_err(|error| {
+                crate::RuntimeError::Other(format!(
+                    "create builtin skill dir {}: {error}",
+                    skill_directory.display()
+                ))
+            })?;
+        let skill_path = skill_directory.join("SKILL.md");
+        tokio::fs::write(&skill_path, asset.markdown)
+            .await
+            .map_err(|error| {
+                crate::RuntimeError::Other(format!(
+                    "write builtin skill {}: {error}",
+                    skill_path.display()
+                ))
+            })?;
+    }
+    Ok(root)
+}
+
 pub fn build_default_skill_roots(home: &Path, workspace: &Path) -> Vec<SkillRoot> {
     vec![
+        SkillRoot::new(
+            SkillSourceKind::Builtin,
+            builtin_skills_root(&home.join(".kairox")),
+        ),
         SkillRoot::new(SkillSourceKind::User, home.join(".config/kairox/skills")),
         SkillRoot::new(SkillSourceKind::Workspace, workspace.join(".kairox/skills")),
     ]
@@ -17,7 +65,7 @@ pub fn build_default_skill_settings_roots(home: &Path, workspace: &Path) -> Skil
     SkillSettingsRoots {
         workspace_root: Some(workspace.join(".kairox/skills")),
         user_root: Some(home.join(".config/kairox/skills")),
-        builtin_root: None,
+        builtin_root: Some(builtin_skills_root(&home.join(".kairox"))),
         plugin_roots: Vec::new(),
     }
 }
