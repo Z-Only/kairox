@@ -3,6 +3,7 @@ use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, Workspa
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -25,6 +26,7 @@ pub struct MonitorInfo {
 struct MonitorHandle {
     info: MonitorInfo,
     abort_handle: tokio::task::AbortHandle,
+    child_pid: Arc<AtomicU32>,
     workspace_id: WorkspaceId,
     session_id: SessionId,
 }
@@ -83,9 +85,11 @@ impl MonitorRegistry {
         let event_tx = self.event_tx.clone();
         let monitors = self.monitors.clone();
         let workspace_root = self.workspace_root.clone();
+        let child_pid = Arc::new(AtomicU32::new(0));
         let mid = monitor_id.clone();
         let wid = workspace_id.clone();
         let sid = session_id.clone();
+        let child_pid_for_task = child_pid.clone();
 
         let join_handle = tokio::spawn(async move {
             run_monitor(RunMonitorArgs {
@@ -98,6 +102,7 @@ impl MonitorRegistry {
                 monitors,
                 workspace_id: wid,
                 session_id: sid,
+                child_pid: child_pid_for_task,
             })
             .await;
         });
@@ -105,6 +110,7 @@ impl MonitorRegistry {
         let handle = MonitorHandle {
             info,
             abort_handle: join_handle.abort_handle(),
+            child_pid,
             workspace_id: workspace_id.clone(),
             session_id: session_id.clone(),
         };
@@ -133,6 +139,7 @@ impl MonitorRegistry {
     pub async fn stop(&self, monitor_id: &str) -> crate::Result<()> {
         let mut monitors = self.monitors.lock().await;
         if let Some(handle) = monitors.remove(monitor_id) {
+            terminate_process_group(handle.child_pid.load(Ordering::Relaxed));
             handle.abort_handle.abort();
             let _ = self.event_tx.send(DomainEvent::new(
                 handle.workspace_id,
@@ -162,6 +169,7 @@ impl MonitorRegistry {
     pub async fn stop_all(&self) {
         let mut monitors = self.monitors.lock().await;
         for (_, handle) in monitors.drain() {
+            terminate_process_group(handle.child_pid.load(Ordering::Relaxed));
             handle.abort_handle.abort();
         }
     }
@@ -177,6 +185,7 @@ struct RunMonitorArgs {
     monitors: Arc<Mutex<HashMap<String, MonitorHandle>>>,
     workspace_id: WorkspaceId,
     session_id: SessionId,
+    child_pid: Arc<AtomicU32>,
 }
 
 async fn run_monitor(args: RunMonitorArgs) {
@@ -190,6 +199,7 @@ async fn run_monitor(args: RunMonitorArgs) {
         monitors,
         workspace_id,
         session_id,
+        child_pid,
     } = args;
 
     let emit = |payload: EventPayload| {
@@ -209,6 +219,8 @@ async fn run_monitor(args: RunMonitorArgs) {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .stdin(Stdio::null());
+    cmd.kill_on_drop(true);
+    configure_monitor_command(&mut cmd);
 
     cmd.env_clear();
     for var in ALLOWED_ENV_VARS {
@@ -228,6 +240,9 @@ async fn run_monitor(args: RunMonitorArgs) {
             return;
         }
     };
+    if let Some(pid) = child.id() {
+        child_pid.store(pid, Ordering::Relaxed);
+    }
 
     let stdout = match child.stdout {
         Some(s) => s,
@@ -287,6 +302,27 @@ async fn run_monitor(args: RunMonitorArgs) {
         read_loop.await;
     }
 }
+
+#[cfg(unix)]
+fn configure_monitor_command(cmd: &mut tokio::process::Command) {
+    cmd.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn configure_monitor_command(_cmd: &mut tokio::process::Command) {}
+
+#[cfg(unix)]
+fn terminate_process_group(pid: u32) {
+    if pid == 0 {
+        return;
+    }
+    unsafe {
+        libc::kill(-(pid as libc::pid_t), libc::SIGTERM);
+    }
+}
+
+#[cfg(not(unix))]
+fn terminate_process_group(_pid: u32) {}
 
 #[cfg(test)]
 #[path = "registry_tests.rs"]
