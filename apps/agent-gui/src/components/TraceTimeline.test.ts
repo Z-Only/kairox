@@ -71,9 +71,10 @@ function getContrastRatio(foregroundColor: string, backgroundColor: string) {
 // requires the i18n plugin and the confirmDialog injection.
 // `mountWithPlugins` wires i18n plus a fresh Pinia; we provide the
 // confirm injection via `mount.global.provide`.
-function mountTimeline() {
+function mountTimeline(locale: "en" | "zh-CN" = "en") {
   return mountWithPlugins(TraceTimeline, {
     reusePinia: true,
+    locale,
     mount: {
       global: {
         provide: {
@@ -175,6 +176,27 @@ describe("TraceTimeline", () => {
     expect(search.attributes("type")).toBe("search");
     expect(search.attributes("aria-label")).toBe("Search trace events");
     expect(traceTimelineSource).toContain("trace-search-input");
+  });
+
+  it("localizes trace filter controls", () => {
+    traceState.entries = [makeTraceEntry("build", { title: "Build trace", status: "completed" })];
+
+    const wrapper = mountTimeline("zh-CN");
+    useTaskGraphStore().clearTaskGraph();
+
+    const typeSelect = wrapper.get('[data-test="trace-kind-select"]');
+    expect(typeSelect.attributes("aria-label")).toBe("追踪类型");
+    expect(typeSelect.findAll("option").map((option) => option.text())).toEqual([
+      "全部类型",
+      "工具",
+      "权限",
+      "记忆"
+    ]);
+
+    const search = wrapper.get('[data-test="trace-search-input"]');
+    expect(search.attributes("aria-label")).toBe("搜索追踪事件");
+    expect(search.attributes("placeholder")).toBe("搜索追踪事件");
+    expect(wrapper.find(".density-label").text()).toBe("详细程度：");
   });
 
   it("filters visible trace entries by failed status", async () => {

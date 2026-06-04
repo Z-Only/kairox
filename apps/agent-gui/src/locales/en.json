@@ -625,7 +625,16 @@
     "filterAll": "All",
     "filterActive": "Active",
     "filterFailed": "Failed",
-    "filterDone": "Done"
+    "filterDone": "Done",
+    "filterKindAll": "All types",
+    "filterKindTools": "Tools",
+    "filterKindPermissions": "Permissions",
+    "filterKindMemories": "Memories",
+    "statusFiltersAria": "Trace status filters",
+    "kindSelectAria": "Trace type",
+    "searchAria": "Search trace events",
+    "searchPlaceholder": "Search trace events",
+    "densityLabel": "Detail:"
   },
   "permission": {
     "allow": "Allow",

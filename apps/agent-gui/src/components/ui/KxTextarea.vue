@@ -15,6 +15,8 @@ const props = withDefaults(
     ariaLabel?: string;
     variant?: TextareaVariant;
     resize?: TextareaResize;
+    autoResize?: boolean;
+    maxAutoResizeHeight?: number | string;
   }>(),
   {
     modelValue: "",
@@ -25,7 +27,9 @@ const props = withDefaults(
     disabled: false,
     ariaLabel: undefined,
     variant: "default",
-    resize: "vertical"
+    resize: "vertical",
+    autoResize: false,
+    maxAutoResizeHeight: undefined
   }
 );
 
@@ -35,6 +39,7 @@ const emit = defineEmits<{
 }>();
 
 const attrs = useAttrs();
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const forwardedAttrs = computed(() => {
   const { class: _class, "aria-label": _ariaLabel, ...rest } = attrs;
@@ -50,14 +55,54 @@ const textareaClasses = computed(() => [
 
 const effectiveAriaLabel = computed(() => props.ariaLabel ?? (attrs["aria-label"] as string));
 
+const maxAutoResizeHeightPx = computed(() => {
+  if (!props.maxAutoResizeHeight) return null;
+  const parsed = Number(props.maxAutoResizeHeight);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+});
+
+function resetAutoResizeStyles(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = "";
+  textarea.style.overflowY = "";
+}
+
+function resizeToContent(): void {
+  const textarea = textareaRef.value;
+  if (!textarea) return;
+
+  if (!props.autoResize) {
+    resetAutoResizeStyles(textarea);
+    return;
+  }
+
+  textarea.style.height = "auto";
+  const maxHeight = maxAutoResizeHeightPx.value;
+  const scrollHeight = textarea.scrollHeight;
+  const nextHeight = maxHeight ? Math.min(scrollHeight, maxHeight) : scrollHeight;
+  textarea.style.height = `${nextHeight}px`;
+  textarea.style.overflowY = maxHeight && scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
 function onInput(event: Event): void {
+  resizeToContent();
   emit("update:modelValue", (event.target as HTMLTextAreaElement).value);
   emit("input", event);
 }
+
+watch(
+  () => [props.modelValue, props.autoResize, props.maxAutoResizeHeight, props.rows],
+  () => {
+    void nextTick(resizeToContent);
+  },
+  { immediate: true }
+);
+
+onMounted(resizeToContent);
 </script>
 
 <template>
   <textarea
+    ref="textareaRef"
     v-bind="forwardedAttrs"
     :class="textareaClasses"
     :value="modelValue"

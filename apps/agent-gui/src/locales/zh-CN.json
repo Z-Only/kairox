@@ -724,7 +724,16 @@
     "filterAll": "全部",
     "filterActive": "活跃",
     "filterFailed": "失败",
-    "filterDone": "完成"
+    "filterDone": "完成",
+    "filterKindAll": "全部类型",
+    "filterKindTools": "工具",
+    "filterKindPermissions": "权限",
+    "filterKindMemories": "记忆",
+    "statusFiltersAria": "追踪状态筛选",
+    "kindSelectAria": "追踪类型",
+    "searchAria": "搜索追踪事件",
+    "searchPlaceholder": "搜索追踪事件",
+    "densityLabel": "详细程度："
   },
   "permission": {
     "allow": "允许",

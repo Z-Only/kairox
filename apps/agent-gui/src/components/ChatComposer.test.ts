@@ -91,7 +91,13 @@ beforeEach(() => {
 describe("composer textarea chrome", () => {
   it("uses shared KxTextarea while preserving the message-input selector", () => {
     expectSourceMigration(chatComposerSource, {
-      required: ["KxTextarea", 'data-test="message-input"'],
+      required: [
+        "KxTextarea",
+        'data-test="message-input"',
+        "auto-resize",
+        ':max-auto-resize-height="160"',
+        'resize="none"'
+      ],
       forbidden: [".message-input {", ".message-input:focus", ".message-input:disabled"]
     });
   });
