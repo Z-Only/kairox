@@ -95,6 +95,15 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
     }
 }
 
+fn mcp_server_hint_from_tool_id(tool_id: &str) -> Option<&str> {
+    let rest = tool_id.strip_prefix("mcp.")?;
+    let (server, tool) = rest.split_once('.')?;
+    if server.is_empty() || tool.is_empty() {
+        return None;
+    }
+    Some(server)
+}
+
 fn from_policy_decision(decision: PolicyDecision) -> PermissionOutcome {
     match decision {
         PolicyDecision::Allowed => PermissionOutcome::Allowed,
@@ -170,7 +179,11 @@ impl PermissionEngine {
     }
 
     pub fn decide(&self, risk: &ToolRisk) -> PermissionOutcome {
-        let policy_risk = to_policy_risk(risk, None);
+        let mcp_server_hint = match risk.effect {
+            ToolEffect::McpInvoke => mcp_server_hint_from_tool_id(&risk.tool_id),
+            _ => None,
+        };
+        let policy_risk = to_policy_risk(risk, mcp_server_hint);
         from_policy_decision(self.policy.decide(&policy_risk))
     }
 }
