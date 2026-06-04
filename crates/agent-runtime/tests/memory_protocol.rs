@@ -3,11 +3,11 @@
 //! Tests cover: scope-based auto-accept/reject, marker stripping from display
 //! output, and injection of stored memories into subsequent requests.
 
-use agent_core::{AppFacade, EventPayload, SendMessageRequest, StartSessionRequest};
+use agent_core::{AppFacade, ContextSource, EventPayload, SendMessageRequest, StartSessionRequest};
 use agent_memory::{MemoryEntry, MemoryScope, MemoryStore, SqliteMemoryStore};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
-use agent_store::SqliteEventStore;
+use agent_store::{EventStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::sync::Arc;
 
@@ -371,12 +371,15 @@ async fn stored_memories_injected_into_subsequent_request() {
     let mem_pool = memory_pool().await;
     let mem_store = SqliteMemoryStore::new(mem_pool).await.unwrap();
 
-    // Store an accepted user-scoped memory
+    // Store an accepted keyed workspace memory. Querying by the key exercises
+    // the same path as GUI memory recall: memory retrieval can fall back to
+    // accepted durable memories even when keyword search does not match
+    // content.
     let entry = MemoryEntry {
         id: format!("mem_{}", uuid::Uuid::new_v4().simple()),
-        scope: MemoryScope::User,
-        key: Some("theme".into()),
-        content: "prefers dark mode".into(),
+        scope: MemoryScope::Workspace,
+        key: Some("kairox_live_memory_0604".into()),
+        content: "KAIROX_WORKSPACE_MEMORY_VALUE_0604".into(),
         accepted: true,
         session_id: None,
         workspace_id: None,
@@ -384,7 +387,10 @@ async fn stored_memories_injected_into_subsequent_request() {
     mem_store.store(entry).await.unwrap();
 
     // Verify the memory was stored
-    let stored = mem_store.list_by_scope(MemoryScope::User).await.unwrap();
+    let stored = mem_store
+        .list_by_scope(MemoryScope::Workspace)
+        .await
+        .unwrap();
     assert_eq!(stored.len(), 1, "Pre-stored memory should be queryable");
 
     let store = SqliteEventStore::in_memory().await.unwrap();
@@ -407,7 +413,7 @@ async fn stored_memories_injected_into_subsequent_request() {
         .send_message(SendMessageRequest {
             workspace_id,
             session_id: session_id.clone(),
-            content: "What theme do I like?".into(),
+            content: "What is the value for kairox_live_memory_0604?".into(),
             display_content: None,
             attachments: vec![],
         })
@@ -420,9 +426,29 @@ async fn stored_memories_injected_into_subsequent_request() {
     );
 
     // Verify the session produced a response
-    let projection = runtime.get_session_projection(session_id).await.unwrap();
+    let projection = runtime
+        .get_session_projection(session_id.clone())
+        .await
+        .unwrap();
     assert!(
         !projection.messages.is_empty(),
         "Should have chat messages after sending a message with stored memory context"
+    );
+
+    let events = runtime.store().load_session(&session_id).await.unwrap();
+    let usage = events
+        .iter()
+        .find_map(|event| match &event.payload {
+            EventPayload::ContextAssembled { usage } => Some(usage),
+            _ => None,
+        })
+        .expect("ContextAssembled event should be emitted");
+    assert!(
+        usage
+            .by_source
+            .iter()
+            .any(|(source, tokens)| *source == ContextSource::Memory && *tokens > 0),
+        "stored memories should be accounted as a memory context source, got {:?}",
+        usage.by_source
     );
 }

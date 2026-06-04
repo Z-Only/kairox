@@ -30,7 +30,22 @@ pub async fn retrieve_memory_section(
     memory_store: &Option<Arc<dyn MemoryStore>>,
     user_content: &str,
 ) -> Option<String> {
-    let mem_store = memory_store.as_ref()?;
+    let memories = retrieve_relevant_memories(memory_store, user_content).await;
+    render_memory_section(&memories)
+}
+
+/// Retrieve accepted memories relevant to the current user content.
+///
+/// Keyword search is attempted first. If it finds no matches, fall back to all
+/// accepted durable memories so cross-session context remains available even
+/// for sparse queries or key-only prompts.
+pub async fn retrieve_relevant_memories(
+    memory_store: &Option<Arc<dyn MemoryStore>>,
+    user_content: &str,
+) -> Vec<MemoryEntry> {
+    let Some(mem_store) = memory_store.as_ref() else {
+        return Vec::new();
+    };
 
     let keywords = agent_memory::extract_keywords(user_content);
 
@@ -63,6 +78,11 @@ pub async fn retrieve_memory_section(
             .unwrap_or_default();
     }
 
+    memories
+}
+
+/// Render the model-facing memory prompt section.
+pub fn render_memory_section(memories: &[MemoryEntry]) -> Option<String> {
     if memories.is_empty() {
         return None;
     }

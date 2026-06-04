@@ -123,14 +123,16 @@ where
     };
 
     // System prompt with instructions + memory.
-    let mut system_prompt = super::SYSTEM_PROMPT.to_string();
+    let mut base_system_prompt = super::SYSTEM_PROMPT.to_string();
     if let Some(ref instructions) = deps.config.instructions {
-        system_prompt.push_str("\n\n");
-        system_prompt.push_str(instructions);
+        base_system_prompt.push_str("\n\n");
+        base_system_prompt.push_str(instructions);
     }
-    if let Some(section) =
-        crate::memory_handler::retrieve_memory_section(deps.memory_store, &request.content).await
-    {
+    let relevant_memories =
+        crate::memory_handler::retrieve_relevant_memories(deps.memory_store, &request.content)
+            .await;
+    let mut system_prompt = base_system_prompt.clone();
+    if let Some(section) = crate::memory_handler::render_memory_section(&relevant_memories) {
         system_prompt.push_str(&section);
     }
 
@@ -173,8 +175,9 @@ where
     let bundle = assembler
         .assemble(
             agent_memory::ContextRequest {
-                system_prompt: Some(system_prompt.clone()),
+                system_prompt: Some(base_system_prompt.clone()),
                 project_instructions: project_instructions.clone(),
+                memories: relevant_memories.clone(),
                 active_skills: active_skill_blocks.clone(),
                 user_request: request.content.clone(),
                 session_history,
