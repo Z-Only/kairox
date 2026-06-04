@@ -33,7 +33,7 @@ impl RetryConfig {
         let capped = base.min(self.max_delay_ms as f64);
 
         // Add random jitter: 0-25% of current delay
-        let jitter = rand::thread_rng().gen_range(0.0..0.25) * capped;
+        let jitter = rand::rng().random_range(0.0..0.25) * capped;
         let total_ms = (capped + jitter) as u64;
 
         std::time::Duration::from_millis(total_ms)
