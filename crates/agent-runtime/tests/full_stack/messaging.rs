@@ -270,7 +270,13 @@ async fn project_session_monitor_start_uses_project_worktree_root() {
             .any(|monitor| monitor.description == "project monitor cwd"),
         "shared monitor registry should list the workspace-scoped monitor"
     );
-    registry.stop_all().await;
+    let monitor_id = monitors
+        .iter()
+        .find(|monitor| monitor.description == "project monitor cwd")
+        .expect("project monitor should be listed")
+        .monitor_id
+        .clone();
+    registry.stop(&monitor_id).await.unwrap();
 
     let trace = runtime.get_trace(session_id).await.unwrap();
     let event_types: Vec<&str> = trace
@@ -284,6 +290,18 @@ async fn project_session_monitor_start_uses_project_worktree_root() {
     assert!(
         !event_types.contains(&"ToolInvocationFailed"),
         "monitor.start should not fail for project sessions"
+    );
+    assert!(
+        event_types.contains(&"MonitorStarted"),
+        "monitor.start should persist MonitorStarted, got {event_types:?}"
+    );
+    assert!(
+        event_types.contains(&"MonitorEvent"),
+        "monitor stdout should persist MonitorEvent, got {event_types:?}"
+    );
+    assert!(
+        event_types.contains(&"MonitorStopped"),
+        "monitor.stop should persist MonitorStopped, got {event_types:?}"
     );
 }
 

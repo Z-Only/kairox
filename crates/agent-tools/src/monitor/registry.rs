@@ -14,6 +14,22 @@ use crate::shell::sandbox::ALLOWED_ENV_VARS;
 const DEFAULT_MONITOR_TIMEOUT_MS: u64 = 300_000; // 5 min
 const MAX_MONITORS: usize = 32;
 
+#[async_trait::async_trait]
+pub trait MonitorEventSink: Send + Sync {
+    async fn emit(&self, event: DomainEvent);
+}
+
+struct BroadcastMonitorEventSink {
+    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+}
+
+#[async_trait::async_trait]
+impl MonitorEventSink for BroadcastMonitorEventSink {
+    async fn emit(&self, event: DomainEvent) {
+        let _ = self.event_tx.send(event);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MonitorInfo {
     pub monitor_id: String,
@@ -33,7 +49,7 @@ struct MonitorHandle {
 
 pub struct MonitorRegistry {
     workspace_root: PathBuf,
-    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+    event_sink: Arc<dyn MonitorEventSink>,
     monitors: Arc<Mutex<HashMap<String, MonitorHandle>>>,
     id_counter: Arc<std::sync::atomic::AtomicU64>,
 }
@@ -43,9 +59,19 @@ impl MonitorRegistry {
         workspace_root: PathBuf,
         event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     ) -> Self {
+        Self::new_with_event_sink(
+            workspace_root,
+            Arc::new(BroadcastMonitorEventSink { event_tx }),
+        )
+    }
+
+    pub fn new_with_event_sink(
+        workspace_root: PathBuf,
+        event_sink: Arc<dyn MonitorEventSink>,
+    ) -> Self {
         Self {
             workspace_root,
-            event_tx,
+            event_sink,
             monitors: Arc::new(Mutex::new(HashMap::new())),
             id_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
         }
@@ -105,7 +131,7 @@ impl MonitorRegistry {
             timeout_ms: timeout,
         };
 
-        let event_tx = self.event_tx.clone();
+        let event_sink = self.event_sink.clone();
         let monitors = self.monitors.clone();
         let child_pid = Arc::new(AtomicU32::new(0));
         let mid = monitor_id.clone();
@@ -120,7 +146,7 @@ impl MonitorRegistry {
                 persistent,
                 timeout_ms: timeout,
                 workspace_root,
-                event_tx,
+                event_sink,
                 monitors,
                 workspace_id: wid,
                 session_id: sid,
@@ -141,19 +167,21 @@ impl MonitorRegistry {
             .await
             .insert(monitor_id.clone(), handle);
 
-        let _ = self.event_tx.send(DomainEvent::new(
-            workspace_id,
-            session_id,
-            AgentId::system(),
-            PrivacyClassification::FullTrace,
-            EventPayload::MonitorStarted {
-                monitor_id: monitor_id.clone(),
-                description,
-                command: "(started)".into(),
-                persistent,
-                timeout_ms: timeout,
-            },
-        ));
+        self.event_sink
+            .emit(DomainEvent::new(
+                workspace_id,
+                session_id,
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::MonitorStarted {
+                    monitor_id: monitor_id.clone(),
+                    description,
+                    command: "(started)".into(),
+                    persistent,
+                    timeout_ms: timeout,
+                },
+            ))
+            .await;
 
         Ok(monitor_id)
     }
@@ -163,16 +191,18 @@ impl MonitorRegistry {
         if let Some(handle) = monitors.remove(monitor_id) {
             terminate_process_group(handle.child_pid.load(Ordering::Relaxed));
             handle.abort_handle.abort();
-            let _ = self.event_tx.send(DomainEvent::new(
-                handle.workspace_id,
-                handle.session_id,
-                AgentId::system(),
-                PrivacyClassification::FullTrace,
-                EventPayload::MonitorStopped {
-                    monitor_id: monitor_id.to_string(),
-                    reason: MonitorStopReason::UserStopped,
-                },
-            ));
+            self.event_sink
+                .emit(DomainEvent::new(
+                    handle.workspace_id,
+                    handle.session_id,
+                    AgentId::system(),
+                    PrivacyClassification::FullTrace,
+                    EventPayload::MonitorStopped {
+                        monitor_id: monitor_id.to_string(),
+                        reason: MonitorStopReason::UserStopped,
+                    },
+                ))
+                .await;
             Ok(())
         } else {
             Err(crate::ToolError::NotFound(format!("monitor {monitor_id}")))
@@ -203,11 +233,28 @@ struct RunMonitorArgs {
     persistent: bool,
     timeout_ms: u64,
     workspace_root: PathBuf,
-    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+    event_sink: Arc<dyn MonitorEventSink>,
     monitors: Arc<Mutex<HashMap<String, MonitorHandle>>>,
     workspace_id: WorkspaceId,
     session_id: SessionId,
     child_pid: Arc<AtomicU32>,
+}
+
+async fn emit_monitor_event(
+    event_sink: Arc<dyn MonitorEventSink>,
+    workspace_id: WorkspaceId,
+    session_id: SessionId,
+    payload: EventPayload,
+) {
+    event_sink
+        .emit(DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        ))
+        .await;
 }
 
 async fn run_monitor(args: RunMonitorArgs) {
@@ -217,7 +264,7 @@ async fn run_monitor(args: RunMonitorArgs) {
         persistent,
         timeout_ms,
         workspace_root,
-        event_tx,
+        event_sink,
         monitors,
         workspace_id,
         session_id,
@@ -225,13 +272,12 @@ async fn run_monitor(args: RunMonitorArgs) {
     } = args;
 
     let emit = |payload: EventPayload| {
-        let _ = event_tx.send(DomainEvent::new(
+        emit_monitor_event(
+            event_sink.clone(),
             workspace_id.clone(),
             session_id.clone(),
-            AgentId::system(),
-            PrivacyClassification::FullTrace,
             payload,
-        ));
+        )
     };
 
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
@@ -257,7 +303,8 @@ async fn run_monitor(args: RunMonitorArgs) {
             emit(EventPayload::MonitorFailed {
                 monitor_id: monitor_id.clone(),
                 error: e.to_string(),
-            });
+            })
+            .await;
             monitors.lock().await.remove(&monitor_id);
             return;
         }
@@ -272,7 +319,8 @@ async fn run_monitor(args: RunMonitorArgs) {
             emit(EventPayload::MonitorFailed {
                 monitor_id: monitor_id.clone(),
                 error: "no stdout handle".into(),
-            });
+            })
+            .await;
             monitors.lock().await.remove(&monitor_id);
             return;
         }
@@ -292,14 +340,16 @@ async fn run_monitor(args: RunMonitorArgs) {
                     emit(EventPayload::MonitorEvent {
                         monitor_id: monitor_id.clone(),
                         line,
-                    });
+                    })
+                    .await;
                 }
                 Ok(None) => break,
                 Err(e) => {
                     emit(EventPayload::MonitorFailed {
                         monitor_id: monitor_id.clone(),
                         error: e.to_string(),
-                    });
+                    })
+                    .await;
                     monitors.lock().await.remove(&monitor_id);
                     return;
                 }
@@ -308,7 +358,8 @@ async fn run_monitor(args: RunMonitorArgs) {
         emit(EventPayload::MonitorStopped {
             monitor_id: monitor_id.clone(),
             reason: MonitorStopReason::ExitCode { code: 0 },
-        });
+        })
+        .await;
         monitors.lock().await.remove(&monitor_id);
     };
 
@@ -317,7 +368,8 @@ async fn run_monitor(args: RunMonitorArgs) {
             emit(EventPayload::MonitorStopped {
                 monitor_id: monitor_id.clone(),
                 reason: MonitorStopReason::Timeout,
-            });
+            })
+            .await;
             monitors.lock().await.remove(&monitor_id);
         }
     } else {

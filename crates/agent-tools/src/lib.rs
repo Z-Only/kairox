@@ -20,7 +20,8 @@ pub use browser::{BrowserAction, BrowserBatchTool, BrowserResult, BrowserState, 
 pub use computer_use::{ComputerAction, ComputerResult, ComputerUseTool};
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use monitor::{
-    MonitorInfo, MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool,
+    MonitorEventSink, MonitorInfo, MonitorListTool, MonitorRegistry, MonitorStartTool,
+    MonitorStopTool,
 };
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
 pub use permission::{PermissionEngine, PermissionOutcome, ToolEffect, ToolRisk};
