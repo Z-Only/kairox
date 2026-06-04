@@ -297,6 +297,11 @@ function pathBaseName(path: string): string | null {
   return normalizePathForCompare(path).split(/[\\/]/).filter(Boolean).at(-1) ?? null;
 }
 
+function worktreeNameFromBranch(branch: string): string | null {
+  const normalized = branch.trim().replace(/[\\/]+/g, "-");
+  return normalized || null;
+}
+
 function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
   if (!sessionInfo?.worktree_path) return false;
   const worktreePath = normalizePathForCompare(sessionInfo.worktree_path);
@@ -308,9 +313,17 @@ function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
   );
 }
 
-function worktreeSessionName(sessionInfo: typeof currentSession.value): string | null {
+function worktreeSessionName(
+  sessionInfo: typeof currentSession.value,
+  branch: string | null
+): string | null {
   if (!sessionInfo?.worktree_path || !isWorktreeSession(sessionInfo)) return null;
-  return pathBaseName(sessionInfo.worktree_path);
+  const baseName = pathBaseName(sessionInfo.worktree_path);
+  if (!baseName) return branch ? worktreeNameFromBranch(branch) : null;
+  if (baseName.toLocaleLowerCase() === "worktree" && branch) {
+    return worktreeNameFromBranch(branch) ?? baseName;
+  }
+  return baseName;
 }
 
 function gitBranchLookupKey(sessionInfo: NonNullable<typeof currentSession.value>): string {
@@ -354,7 +367,7 @@ const sessionGitMeta = computed(() => {
   if (!branch) return [];
 
   const gitMetaParts: string[] = [];
-  const worktreeName = worktreeSessionName(sessionInfo);
+  const worktreeName = worktreeSessionName(sessionInfo, branch);
   if (worktreeName) gitMetaParts.push(worktreeName);
   gitMetaParts.push(branch);
   return gitMetaParts;
