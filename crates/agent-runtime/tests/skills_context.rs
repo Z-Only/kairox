@@ -10,6 +10,7 @@ use agent_core::{
 use agent_memory::{ContextAssembler, ContextRequest};
 use agent_models::types::ServerTool;
 use agent_models::FakeModelClient;
+use agent_runtime::skill_settings::SkillSettingsRoots;
 use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::SqliteEventStore;
@@ -282,6 +283,89 @@ async fn send_message_includes_profile_server_tools_in_model_request() {
                 user_location: None,
             },
         ]
+    );
+}
+
+#[tokio::test]
+async fn project_session_discovers_new_project_skill_for_next_turn() {
+    let gui_root = tempfile::tempdir().expect("gui root should be created");
+    let project_root = tempfile::tempdir().expect("project root should be created");
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let captured_requests = Arc::new(AsyncMutex::new(Vec::new()));
+    let model = RecordingModelClient::new(captured_requests.clone());
+    let runtime = LocalRuntime::new(store, model).with_skill_settings_roots(SkillSettingsRoots {
+        workspace_root: Some(gui_root.path().join(".kairox/skills")),
+        user_root: Some(gui_root.path().join(".config/kairox/skills")),
+        builtin_root: None,
+        plugin_roots: Vec::new(),
+    });
+
+    let workspace = runtime
+        .open_workspace(gui_root.path().display().to_string())
+        .await
+        .expect("workspace should open");
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id.clone(),
+            project_root.path().display().to_string(),
+        )
+        .await
+        .expect("project should be added");
+    let session_id = runtime
+        .create_project_draft_session(project.project_id)
+        .await
+        .expect("project session should be created");
+
+    write_test_skill(
+        &project_root.path().join(".kairox/skills"),
+        "project-review",
+        "Review current project changes",
+        "Prefer project-local guidance from the current worktree.",
+    );
+
+    runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            session_id: session_id.clone(),
+            skill_id: "project-review".into(),
+        })
+        .await
+        .expect("project skill activation should discover current project root");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "use the project skill".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .expect("send_message should complete");
+
+    let requests = captured_requests.lock().await;
+    let request = requests
+        .first()
+        .expect("model should receive one request after send_message");
+    let request_text = std::iter::once(request.system_prompt.as_deref().unwrap_or_default())
+        .chain(
+            request
+                .messages
+                .iter()
+                .map(|message| message.content.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        request_text.contains("<skill name=\"project-review\" source=\"workspace\">"),
+        "expected project skill block in model request, got:\n{request_text}"
+    );
+    assert!(
+        request_text.contains("Prefer project-local guidance from the current worktree."),
+        "expected project skill body in model request, got:\n{request_text}"
     );
 }
 

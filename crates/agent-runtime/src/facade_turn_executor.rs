@@ -36,6 +36,7 @@ where
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     session_execution: SessionExecutionRuntime,
     skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
+    skill_settings_roots: crate::skill_settings::SkillSettingsRoots,
     active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
 }
 
@@ -59,6 +60,7 @@ where
             session_states: runtime.session_states.clone(),
             session_execution: runtime.session_execution.clone(),
             skill_registry: runtime.skill_registry.clone(),
+            skill_settings_roots: runtime.skill_settings_roots.clone(),
             active_skills: runtime.active_skills.clone(),
         }
     }
@@ -240,6 +242,19 @@ where
             }
             ExecutionMode::SingleStep => {
                 let root_path = self.root_path_for_session(&request.session_id).await;
+                let skill_registry = crate::skills::discover_skill_registry_for_settings_roots(
+                    root_path
+                        .as_deref()
+                        .map(|root_path| {
+                            crate::skills::skill_settings_roots_for_project_root(
+                                self.skill_settings_roots.clone(),
+                                root_path,
+                            )
+                        })
+                        .unwrap_or_else(|| self.skill_settings_roots.clone()),
+                    self.skill_registry.clone(),
+                )
+                .await?;
                 let config = self.config.snapshot();
                 crate::agent_loop::run_agent_loop(
                     crate::agent_loop::AgentLoopDeps {
@@ -253,7 +268,7 @@ where
                         task_graphs: &self.task_graphs,
                         config: &config,
                         session_states: &self.session_states,
-                        skill_registry: &self.skill_registry,
+                        skill_registry: &skill_registry,
                         active_skills: &self.active_skills,
                         turn_cancellation: cancellation,
                         root_path,

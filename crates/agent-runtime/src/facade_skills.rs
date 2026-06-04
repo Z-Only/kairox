@@ -12,7 +12,7 @@ use agent_core::{
     EventPayload, PrivacyClassification, SessionId,
 };
 use agent_mcp::catalog::skills::{SkillCatalogProvider, SkillCatalogQuery};
-use agent_store::EventStore;
+use agent_store::{EventStore, ProjectMetaRepository};
 use async_trait::async_trait;
 
 impl<S, M> LocalRuntime<S, M>
@@ -23,7 +23,15 @@ where
     pub(crate) async fn list_skills(
         &self,
     ) -> agent_core::Result<Vec<agent_core::facade::SkillView>> {
-        let Some(registry) = &self.skill_registry else {
+        self.list_skills_with_roots(self.skill_settings_roots())
+            .await
+    }
+
+    pub async fn list_skills_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+    ) -> agent_core::Result<Vec<agent_core::facade::SkillView>> {
+        let Some(registry) = self.skill_registry_for_roots(roots).await? else {
             return Ok(Vec::new());
         };
         Ok(registry.list().iter().map(skill_metadata_to_view).collect())
@@ -33,7 +41,16 @@ where
         &self,
         skill_id: String,
     ) -> agent_core::Result<Option<agent_core::facade::SkillDetail>> {
-        let Some(registry) = &self.skill_registry else {
+        self.get_skill_with_roots(self.skill_settings_roots(), skill_id)
+            .await
+    }
+
+    pub async fn get_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        skill_id: String,
+    ) -> agent_core::Result<Option<agent_core::facade::SkillDetail>> {
+        let Some(registry) = self.skill_registry_for_roots(roots).await? else {
             return Ok(None);
         };
         let skill_id = agent_skills::SkillId::new(skill_id);
@@ -51,7 +68,18 @@ where
         &self,
         request: ActivateSkillRequest,
     ) -> agent_core::Result<ActiveSkillView> {
-        let registry = self.skill_registry.as_ref().ok_or_else(|| {
+        let roots = self
+            .skill_settings_roots_for_session(&request.session_id)
+            .await;
+        self.activate_skill_with_roots(roots, request).await
+    }
+
+    pub async fn activate_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        request: ActivateSkillRequest,
+    ) -> agent_core::Result<ActiveSkillView> {
+        let registry = self.skill_registry_for_roots(roots).await?.ok_or_else(|| {
             agent_core::CoreError::InvalidState("skill registry not configured".into())
         })?;
         let skill_id = agent_skills::SkillId::new(request.skill_id.clone());
@@ -97,7 +125,18 @@ where
         &self,
         request: DeactivateSkillRequest,
     ) -> agent_core::Result<()> {
-        let registry = self.skill_registry.as_ref().ok_or_else(|| {
+        let roots = self
+            .skill_settings_roots_for_session(&request.session_id)
+            .await;
+        self.deactivate_skill_with_roots(roots, request).await
+    }
+
+    pub async fn deactivate_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        request: DeactivateSkillRequest,
+    ) -> agent_core::Result<()> {
+        let registry = self.skill_registry_for_roots(roots).await?.ok_or_else(|| {
             agent_core::CoreError::InvalidState("skill registry not configured".into())
         })?;
         let skill_id = agent_skills::SkillId::new(request.skill_id.clone());
@@ -138,7 +177,16 @@ where
         &self,
         session_id: SessionId,
     ) -> agent_core::Result<Vec<ActiveSkillView>> {
-        let Some(registry) = &self.skill_registry else {
+        let roots = self.skill_settings_roots_for_session(&session_id).await;
+        self.list_active_skills_with_roots(roots, session_id).await
+    }
+
+    pub async fn list_active_skills_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        session_id: SessionId,
+    ) -> agent_core::Result<Vec<ActiveSkillView>> {
+        let Some(registry) = self.skill_registry_for_roots(roots).await? else {
             return Ok(Vec::new());
         };
         let session_key = session_id.to_string();
@@ -172,6 +220,34 @@ where
         active_skills.insert(session_key, retained_skill_ids);
 
         Ok(active_views)
+    }
+
+    pub async fn skill_settings_roots_for_session(
+        &self,
+        session_id: &SessionId,
+    ) -> crate::skill_settings::SkillSettingsRoots {
+        let roots = self.skill_settings_roots();
+        let Some(repository) = self.store.sqlite_pool().map(ProjectMetaRepository::new) else {
+            return roots;
+        };
+        match repository.get_session_binding(session_id.as_str()).await {
+            Ok(Some(binding)) => crate::skills::skill_settings_roots_for_project_root(
+                roots,
+                std::path::Path::new(&binding.worktree_path),
+            ),
+            _ => roots,
+        }
+    }
+
+    pub async fn skill_registry_for_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+    ) -> agent_core::Result<Option<std::sync::Arc<dyn agent_skills::SkillRegistry>>> {
+        crate::skills::discover_skill_registry_for_settings_roots(
+            roots,
+            self.skill_registry.clone(),
+        )
+        .await
     }
 
     pub(crate) async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {
@@ -210,8 +286,17 @@ where
         &self,
         request: InstallRemoteSkillRequest,
     ) -> agent_core::Result<SkillSettingsView> {
+        self.install_remote_skill_with_roots(self.skill_settings_roots(), request)
+            .await
+    }
+
+    pub async fn install_remote_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        request: InstallRemoteSkillRequest,
+    ) -> agent_core::Result<SkillSettingsView> {
         crate::skill_settings::install_remote_skill(
-            self.skill_settings_roots(),
+            roots,
             self.skill_package_manager.as_ref(),
             request,
         )
@@ -222,8 +307,17 @@ where
         &self,
         request: InstallGithubSkillRequest,
     ) -> agent_core::Result<SkillSettingsView> {
+        self.install_github_skill_with_roots(self.skill_settings_roots(), request)
+            .await
+    }
+
+    pub async fn install_github_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        request: InstallGithubSkillRequest,
+    ) -> agent_core::Result<SkillSettingsView> {
         crate::skill_settings::install_github_skill(
-            self.skill_settings_roots(),
+            roots,
             self.skill_package_manager.as_ref(),
             request,
         )
@@ -234,12 +328,17 @@ where
         &self,
         skill_id: String,
     ) -> agent_core::Result<SkillSettingsView> {
-        crate::skill_settings::update_skill(
-            self.skill_settings_roots(),
-            self.skill_package_manager.as_ref(),
-            &skill_id,
-        )
-        .await
+        self.update_skill_with_roots(self.skill_settings_roots(), skill_id)
+            .await
+    }
+
+    pub async fn update_skill_with_roots(
+        &self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+        skill_id: String,
+    ) -> agent_core::Result<SkillSettingsView> {
+        crate::skill_settings::update_skill(roots, self.skill_package_manager.as_ref(), &skill_id)
+            .await
     }
 
     pub(crate) async fn list_skill_catalog(

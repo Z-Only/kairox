@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use agent_core::{ActiveSkillView, DomainEvent, EventPayload, SkillDetail, SkillView};
 
@@ -68,6 +69,31 @@ pub fn build_default_skill_settings_roots(home: &Path, workspace: &Path) -> Skil
         builtin_root: Some(builtin_skills_root(&home.join(".kairox"))),
         plugin_roots: Vec::new(),
     }
+}
+
+pub(crate) fn skill_settings_roots_for_project_root(
+    mut roots: SkillSettingsRoots,
+    project_root: &Path,
+) -> SkillSettingsRoots {
+    roots.workspace_root = Some(project_root.join(".kairox/skills"));
+    roots
+}
+
+pub(crate) async fn discover_skill_registry_for_settings_roots(
+    roots: SkillSettingsRoots,
+    fallback: Option<Arc<dyn agent_skills::SkillRegistry>>,
+) -> agent_core::Result<Option<Arc<dyn agent_skills::SkillRegistry>>> {
+    let skill_roots = crate::skill_settings::skill_roots(&roots);
+    if skill_roots.is_empty() {
+        return Ok(fallback);
+    }
+
+    let registry = agent_skills::FileSkillRegistry::discover(skill_roots)
+        .await
+        .map_err(|error| {
+            agent_core::CoreError::InvalidState(format!("skill discovery: {error}"))
+        })?;
+    Ok(Some(Arc::new(registry)))
 }
 
 pub async fn build_plugin_skill_roots(
