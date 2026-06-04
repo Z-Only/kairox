@@ -21,6 +21,61 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 07:38 CST — GUI generic worktree basename label (#845)
+
+- Commit: `33a1fdc9`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`, `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, created a real git project at
+  `/tmp/kairox-generic-label-project-0605/repo`, created a project worktree
+  session for branch `wt-validation-0604`, moved the actual git worktree to
+  `/tmp/kairox-generic-label-project-0605/repo/worktree`, and updated the temp
+  GUI DB session binding to model an existing/external project session whose
+  `worktree_path` basename is the generic word `worktree`. Navigated the real GUI
+  to that session, verified the composer git metadata, selected `ali-mo-claude`,
+  and sent a no-tool prompt. The prompt split the expected marker into
+  `GENERIC_WORKTREE_LABEL_FINAL_` and `OK_0605` so the full
+  `GENERIC_WORKTREE_LABEL_FINAL_OK_0605` string did not exist before the model
+  response.
+- Method: `HOME=/tmp/kairox-generic-label-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-generic-label-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+KAIROX_DEV_PORT=1435 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features
+pilot` compiled the app and printed the isolated pilot socket. On this machine,
+  `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
+  macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
+  continued by running `KAIROX_DEV_PORT=1435 KAIROX_DEV_STRICT_PORT=1 bun run
+  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+  `./target/debug/agent-gui-tauri` under the same temp environment. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
+  supplied only as a local process env var.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/kairox-generic-label-runtime-0605/tauri-pilot-dev.kairox.agent.dev1435.sock`,
+  and `windows` showed
+  `http://localhost:1435/#/workbench/ses_385833cb4e53422497313ef7200bcd52`.
+  `list_project_sessions` returned session
+  `ses_385833cb4e53422497313ef7200bcd52` with
+  `worktree_path=/tmp/kairox-generic-label-project-0605/repo/worktree`, branch
+  `wt-validation-0604`, and `visibility=visible`. `get_session_git_status`
+  returned `kind=clean`, branch `wt-validation-0604`, and the same moved
+  worktree path. The GUI composer `[data-test="session-git-meta"]` rendered
+  exactly `wt-validation-0604 · wt-validation-0604`; DOM checks showed
+  `containsWorktreeWord=false` and `containsMovedPath=false`, so neither the
+  generic basename nor the full path leaked into the label. The GUI model selector
+  displayed `Ali Mo · Claude Opus 4 6`. Before send, the textarea did not contain
+  `GENERIC_WORKTREE_LABEL_FINAL_OK_0605` and the send button was enabled. Page
+  polling found `GENERIC_WORKTREE_LABEL_FINAL_OK_0605` on the first check after
+  send. Exported trace had `event_count=11`, with events `SessionInitialized`,
+  `ModelProfileSwitched`, `UserMessageAdded`, `ContextAssembled`,
+  `AgentTaskCreated`, `AgentTaskStarted`, three `ModelTokenDelta`,
+  `AssistantMessageCompleted`, and `AgentTaskCompleted`. The trace summary showed
+  `user_prompt_has_full_marker=false`, `user_prompt_has_split_marker=true`, and
+  `assistant_has_full_marker=true`. `tauri-pilot logs --level error` reported
+  `No logs captured`.
+- Result: Pass for generic worktree basename display. A non-main project session
+  whose `worktree_path` ends in `worktree` renders a stable branch-derived
+  worktree name plus branch, instead of showing `worktree · <branch>` or leaking
+  the absolute path.
+
 ### 2026-06-05 07:21 CST — GUI composer textarea autosize before and after send (#825)
 
 - Commit: `d0d548ea`
