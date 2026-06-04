@@ -36,6 +36,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   input: [event: Event];
+  change: [event: Event];
 }>();
 
 const attrs = useAttrs();
@@ -83,10 +84,20 @@ function resizeToContent(): void {
   textarea.style.overflowY = maxHeight && scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
+function emitModelValue(event: Event): void {
+  emit("update:modelValue", (event.target as HTMLTextAreaElement).value);
+}
+
 function onInput(event: Event): void {
   resizeToContent();
-  emit("update:modelValue", (event.target as HTMLTextAreaElement).value);
+  emitModelValue(event);
   emit("input", event);
+}
+
+function onChange(event: Event): void {
+  resizeToContent();
+  emitModelValue(event);
+  emit("change", event);
 }
 
 watch(
@@ -117,6 +128,7 @@ onMounted(resizeToContent);
     autocorrect="off"
     spellcheck="false"
     @input="onInput"
+    @change="onChange"
   />
 </template>
 
