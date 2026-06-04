@@ -191,23 +191,15 @@ where
 
     /// Pick the model profile alias the compactor should use. Mirrors the
     /// inherent `LocalRuntime::compact_session` path: `compactor_profile`
-    /// wins; otherwise fall back to the session's `SessionInitialized`
-    /// profile; otherwise the literal `"fake"` (test-friendly).
+    /// wins; otherwise use the session's latest profile, including any
+    /// mid-session model switch.
     async fn resolve_compactor_profile(&self, session_id: &SessionId) -> String {
         let config = self.config.snapshot();
         if let Some(alias) = config.context.compactor_profile.clone() {
             return alias;
         }
         match self.store.load_session(session_id).await {
-            Ok(events) => events
-                .iter()
-                .find_map(|e| match &e.payload {
-                    EventPayload::SessionInitialized { model_profile } => {
-                        Some(model_profile.clone())
-                    }
-                    _ => None,
-                })
-                .unwrap_or_else(|| "fake".to_string()),
+            Ok(events) => crate::agent_loop::latest_model_profile_for(&events),
             Err(_) => "fake".to_string(),
         }
     }

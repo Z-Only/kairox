@@ -98,6 +98,19 @@ fn mcp_trusted_server_always_allowed() {
 }
 
 #[test]
+fn mcp_trusted_server_allowed_through_generic_decision_path() {
+    let mut engine = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
+    engine.trust_server("echo_fixture".into());
+
+    let risk = ToolRisk {
+        tool_id: "mcp.echo_fixture.echo".to_string(),
+        effect: ToolEffect::McpInvoke,
+    };
+
+    assert_eq!(engine.decide(&risk), PermissionOutcome::Allowed);
+}
+
+#[test]
 fn trust_and_revoke_roundtrip() {
     let mut engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
     engine.trust_server("srv-a".into());

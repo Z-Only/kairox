@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 
 use super::support::{
     append_compaction_history, install_responding_dag_executor, test_config_with_threshold,
-    wait_for_event, BlockingModelClient,
+    test_config_with_two_profiles, wait_for_event, BlockingModelClient,
 };
 use crate::facade_runtime::LocalRuntime;
 
@@ -102,6 +102,59 @@ async fn compact_session_queues_behind_active_actor_turn() {
     assert_eq!(stream_calls.load(Ordering::SeqCst), 2);
 }
 
+#[tokio::test]
+async fn compact_session_uses_latest_switched_model_profile() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["summary from switched profile".into()]);
+    let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+
+    let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fast".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+    append_compaction_history(
+        runtime.event_store_for_test(),
+        &workspace.workspace_id,
+        &session_id,
+        8,
+    )
+    .await;
+
+    runtime
+        .switch_model(session_id.clone(), "opus".into(), None)
+        .await
+        .expect("switch should succeed");
+
+    runtime
+        .compact_session(
+            session_id.clone(),
+            agent_core::CompactionReason::UserRequested,
+        )
+        .await
+        .expect("compaction should succeed");
+
+    let events = runtime
+        .event_store_for_test()
+        .load_session(&session_id)
+        .await
+        .unwrap();
+    let summarised_by_profile = events.iter().find_map(|event| match &event.payload {
+        agent_core::EventPayload::CompactionSummary {
+            summarised_by_profile,
+            ..
+        } => Some(summarised_by_profile.as_str()),
+        _ => None,
+    });
+
+    assert_eq!(summarised_by_profile, Some("opus"));
+}
+
 // ------------------------------------------------------------------
 // Turn-end auto-compaction (race-free) integration tests.
 // Spec: docs/superpowers/specs/2026-05-27-race-free-auto-compaction-design.md
@@ -180,6 +233,78 @@ async fn auto_compaction_queues_after_threshold_turn() {
         )),
         "no ContextCompactionSkipped expected on the trigger path"
     );
+}
+
+#[tokio::test]
+async fn auto_compaction_uses_latest_switched_model_profile() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["trigger".into(), "summary".into()]);
+    let mut config = (*test_config_with_two_profiles()).clone();
+    config.context.auto_compact_threshold = 0.001;
+    let runtime = LocalRuntime::new(store, model).with_config(Arc::new(config));
+
+    let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fast".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+    append_compaction_history(
+        runtime.event_store_for_test(),
+        &workspace.workspace_id,
+        &session_id,
+        8,
+    )
+    .await;
+
+    runtime
+        .switch_model(session_id.clone(), "opus".into(), None)
+        .await
+        .expect("switch should succeed");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "trigger auto compaction".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let saw_completed = wait_for_event(
+        runtime.event_store_for_test(),
+        &session_id,
+        |p| {
+            matches!(
+                p,
+                agent_core::EventPayload::ContextCompactionCompleted { .. }
+            )
+        },
+        std::time::Duration::from_secs(5),
+    )
+    .await;
+    assert!(saw_completed, "expected ContextCompactionCompleted event");
+
+    let events = runtime
+        .event_store_for_test()
+        .load_session(&session_id)
+        .await
+        .unwrap();
+    let summarised_by_profile = events.iter().rev().find_map(|event| match &event.payload {
+        agent_core::EventPayload::CompactionSummary {
+            summarised_by_profile,
+            ..
+        } => Some(summarised_by_profile.as_str()),
+        _ => None,
+    });
+
+    assert_eq!(summarised_by_profile, Some("opus"));
 }
 
 #[tokio::test]

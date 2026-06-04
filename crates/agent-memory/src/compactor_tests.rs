@@ -2,7 +2,7 @@ use super::*;
 use agent_core::{
     AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, WorkspaceId,
 };
-use agent_models::{ModelClient, ModelEvent, ModelRequest};
+use agent_models::{ModelClient, ModelEvent, ModelRequest, ModelUsage};
 use async_trait::async_trait;
 use futures::stream::{self, BoxStream, StreamExt};
 use std::sync::{Arc, Mutex};
@@ -22,6 +22,21 @@ fn make_event(payload: EventPayload) -> DomainEvent {
 struct StubModel {
     fail_count: Arc<Mutex<u32>>,
     success_text: String,
+}
+
+struct EventModel {
+    events: Vec<ModelEvent>,
+}
+
+#[async_trait]
+impl ModelClient for EventModel {
+    async fn stream(
+        &self,
+        _req: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let events = self.events.clone().into_iter().map(Ok);
+        Ok(stream::iter(events).boxed())
+    }
 }
 
 impl StubModel {
@@ -175,6 +190,37 @@ async fn compact_with_llm_rejects_empty_response() {
         .await
         .expect_err("empty summary should fail");
     assert!(matches!(err, CompactorError::Empty));
+}
+
+#[tokio::test]
+async fn compact_with_llm_ignores_initial_usage_completion_before_tokens() {
+    let model = EventModel {
+        events: vec![
+            ModelEvent::Completed {
+                usage: Some(ModelUsage {
+                    input_tokens: 512,
+                    output_tokens: 9,
+                    cache_creation_input_tokens: Some(256),
+                    cache_read_input_tokens: None,
+                }),
+            },
+            ModelEvent::TokenDelta("## User goal\nkeep the real summary\n".into()),
+            ModelEvent::Completed {
+                usage: Some(ModelUsage {
+                    input_tokens: 512,
+                    output_tokens: 16,
+                    cache_creation_input_tokens: None,
+                    cache_read_input_tokens: None,
+                }),
+            },
+        ],
+    };
+
+    let summary = Compactor::compact_with_llm(&model, "fast", "transcript")
+        .await
+        .expect("initial usage event should not end summary collection");
+
+    assert!(summary.contains("keep the real summary"));
 }
 
 #[test]

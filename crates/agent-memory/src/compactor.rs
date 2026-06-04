@@ -143,7 +143,14 @@ impl Compactor {
         while let Some(event) = stream.next().await {
             match event {
                 Ok(ModelEvent::TokenDelta(delta)) => buf.push_str(&delta),
-                Ok(ModelEvent::Completed { .. }) => return Ok(buf),
+                Ok(ModelEvent::Completed { usage }) => {
+                    if buf.trim().is_empty() && usage.is_some() {
+                        // Anthropic `message_start.usage` is surfaced as a
+                        // Completed event before text deltas arrive.
+                        continue;
+                    }
+                    return Ok(buf);
+                }
                 Ok(ModelEvent::Failed { message }) => return Err(message),
                 Ok(ModelEvent::ToolCallRequested { .. }) => {
                     // Summarisation prompts do not advertise tools; if a model

@@ -102,6 +102,21 @@ describe("composer textarea chrome", () => {
     });
   });
 
+  it("sends a draft flushed by the textarea change event before the send button click", async () => {
+    const { wrapper } = mountChatComposer();
+    const textarea = wrapper.find<HTMLTextAreaElement>('textarea[data-test="message-input"]');
+
+    textarea.element.value = "post-turn click draft";
+    await textarea.trigger("change");
+    await wrapper.find('[data-test="send-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("send_message", {
+      content: "post-turn click draft",
+      attachments: []
+    });
+  });
+
   it("loads skills on mount so the command palette can activate discovered skills", async () => {
     mountChatComposer();
     await flushPromises();
