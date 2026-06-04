@@ -180,6 +180,63 @@ async fn stop_individual_monitor_emits_user_stopped_for_start_session() {
     assert!(registry.list().await.is_empty());
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn stop_kills_monitor_process_group_children() {
+    let temp = tempfile::tempdir().unwrap();
+    let pid_path = temp.path().join("sleep.pid");
+    let command = format!(
+        "sleep 60 & echo $! > '{}'; printf 'ready\\n'; wait",
+        pid_path.display()
+    );
+    let (tx, mut rx) = tokio::sync::broadcast::channel(64);
+    let registry = MonitorRegistry::new(PathBuf::from("/tmp"), tx);
+
+    let monitor_id = registry
+        .start(
+            "process-group".into(),
+            command,
+            false,
+            Some(60_000),
+            WorkspaceId::new(),
+            SessionId::new(),
+        )
+        .await
+        .unwrap();
+
+    let events = collect_events_until(&mut rx, Duration::from_secs(2), |events| {
+        events.iter().any(
+            |event| matches!(&event.payload, EventPayload::MonitorEvent { line, .. } if line == "ready"),
+        )
+    })
+    .await;
+    assert!(
+        events.iter().any(
+            |event| matches!(&event.payload, EventPayload::MonitorEvent { line, .. } if line == "ready"),
+        ),
+        "monitor command did not report readiness"
+    );
+
+    let sleep_pid: libc::pid_t = std::fs::read_to_string(&pid_path)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    assert!(
+        process_is_running(sleep_pid),
+        "sleep process should be running before stop"
+    );
+
+    registry.stop(&monitor_id).await.unwrap();
+    let stopped = wait_for_process_exit(sleep_pid, Duration::from_secs(3)).await;
+    if !stopped {
+        unsafe {
+            libc::kill(sleep_pid, libc::SIGKILL);
+        }
+    }
+    assert!(stopped, "monitor.stop should terminate child process group");
+}
+
 #[tokio::test]
 async fn monitor_ids_are_unique() {
     let registry = test_registry(PathBuf::from("/tmp"));
@@ -204,6 +261,23 @@ async fn monitor_ids_are_unique() {
     assert_ne!(id1, id2);
 
     registry.stop_all().await;
+}
+
+#[cfg(unix)]
+fn process_is_running(pid: libc::pid_t) -> bool {
+    unsafe { libc::kill(pid, 0) == 0 }
+}
+
+#[cfg(unix)]
+async fn wait_for_process_exit(pid: libc::pid_t, timeout: Duration) -> bool {
+    let deadline = tokio::time::Instant::now() + timeout;
+    while tokio::time::Instant::now() < deadline {
+        if !process_is_running(pid) {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    !process_is_running(pid)
 }
 
 #[tokio::test]
