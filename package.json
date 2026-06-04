@@ -29,13 +29,13 @@
     "prepare": "bun scripts/prepare.cjs"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.0.1",
-    "@commitlint/config-conventional": "^21.0.1",
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.5",
+    "lint-staged": "^17.0.7",
     "mermaid": "^11.4.1",
-    "oxfmt": "^0.52.0",
-    "oxlint": "^1.67.0",
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
     "postcss-html": "^1.8.1",
     "stylelint": "^17.12.0",
     "stylelint-config-recommended-vue": "^1.6.1",
