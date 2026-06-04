@@ -693,6 +693,41 @@ describe("ChatPanel", () => {
     expect(gitMeta.text()).not.toContain("/repo/.kairox/worktrees/project-chat");
   });
 
+  it("derives a stable worktree name from the branch when the path basename is generic", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project worktree session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo/worktree",
+          branch: "wt-validation-0604",
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toBe("wt-validation-0604 · wt-validation-0604");
+    expect(gitMeta.text()).not.toContain("worktree");
+    expect(gitMeta.text()).not.toContain("/repo/worktree");
+  });
+
   it("keeps model selector and git metadata stable with long labels", () => {
     expectSourceMigration(chatComposerSource, {
       requiredPatterns: [
