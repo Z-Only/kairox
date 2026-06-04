@@ -21,6 +21,58 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 07:21 CST — GUI composer textarea autosize before and after send (#825)
+
+- Commit: `d0d548ea`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`, `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, started the real GUI with pilot, selected
+  `ali-mo-claude`, opened a fresh workbench session, measured the empty composer,
+  filled a 26-line prompt through the GUI textarea, measured the expanded composer,
+  clicked the GUI send button, measured the cleared composer, then verified the
+  live model response. The prompt split the expected marker into
+  `AUTOSIZE_FINAL_` and `OK_0605` so the full `AUTOSIZE_FINAL_OK_0605` string did
+  not exist before the model response.
+- Method: `HOME=/tmp/kairox-composer-autosize-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-composer-autosize-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+KAIROX_DEV_PORT=1434 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features
+pilot` compiled the app and printed the isolated pilot socket. On this machine,
+  `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
+  macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
+  continued by running `KAIROX_DEV_PORT=1434 KAIROX_DEV_STRICT_PORT=1 bun run
+  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+  `./target/debug/agent-gui-tauri` under the same temp environment. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"`; after one launcher
+  attempt missed that env because the user profile stores a direct `api_key`, the
+  app was restarted with the env populated from that profile and a fresh session
+  was used for the pass evidence.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/kairox-composer-autosize-runtime-0605/tauri-pilot-dev.kairox.agent.dev1434.sock`,
+  and `windows` showed
+  `http://localhost:1434/#/workbench/ses_d471bcfd2ee5442492515c97364875f5`.
+  The GUI model selector displayed `Ali Mo · Claude Opus 4 6`. Empty composer
+  measurement was `valueLength=0`, `styleHeight=32px`, `clientHeight=32`,
+  `scrollHeight=32`, `overflowY=hidden`, `computedResize=none`, and
+  `sendDisabled=true`. After filling 26 lines, measurement was
+  `valueLength=1014`, `styleHeight=160px`, `clientHeight=158`,
+  `scrollHeight=480`, `overflowY=auto`, `computedResize=none`,
+  `sendDisabled=false`, and `containsFullMarker=false`. Immediately after
+  clicking send, the composer measured `valueLength=0`, `styleHeight=32px`,
+  `clientHeight=32`, `scrollHeight=32`, `overflowY=hidden`, and
+  `sendDisabled=true`. Page polling found `AUTOSIZE_FINAL_OK_0605` on the first
+  check after send. Exported trace for session
+  `ses_d471bcfd2ee5442492515c97364875f5` had `event_count=9`, with events
+  `SessionInitialized`, `UserMessageAdded`, `ContextAssembled`,
+  `AgentTaskCreated`, `AgentTaskStarted`, two `ModelTokenDelta`,
+  `AssistantMessageCompleted`, and `AgentTaskCompleted`. The trace summary
+  showed `user_prompt_has_full_marker=false`,
+  `user_prompt_has_split_marker=true`, and `assistant_has_full_marker=true`.
+  `tauri-pilot logs --level error` reported `No logs captured`.
+- Result: Pass for the real GUI composer autosize path. The textarea expands to
+  the configured 160px cap with internal scrolling for long input, stays
+  non-resizable by the browser, and shrinks back to the single-line height after
+  send while the live Ali Mo turn completes normally.
+
 ### 2026-06-05 07:03 CST — GUI composer textarea `change` flush before send (#826)
 
 - Commit: `abe74b86`
