@@ -455,7 +455,7 @@ describe("ChatPanel", () => {
     expect(fallbackOption.text()).toContain("Current");
   });
 
-  it("shows current session worktree and branch metadata in the composer", async () => {
+  it("shows current session worktree name and branch metadata in the composer", async () => {
     const wrapper = mountChatPanel((session) => {
       session.sessions = [
         {
@@ -485,11 +485,8 @@ describe("ChatPanel", () => {
 
     const gitMeta = wrapper.find('[data-test="session-git-meta"]');
     expect(gitMeta.exists()).toBe(true);
-    expect(gitMeta.text()).toContain("worktree");
-    expect(gitMeta.text()).toContain("feat/project-chat");
-    expect(gitMeta.text().indexOf("worktree")).toBeLessThan(
-      gitMeta.text().indexOf("feat/project-chat")
-    );
+    expect(gitMeta.text()).toBe("project-chat · feat/project-chat");
+    expect(gitMeta.text()).not.toContain("worktree");
   });
 
   it("shows only the branch as git metadata for a main project workspace", async () => {
@@ -661,7 +658,7 @@ describe("ChatPanel", () => {
     expect(wrapper.text()).not.toContain("/repo");
   });
 
-  it("shows worktree and branch without exposing a worktree path", async () => {
+  it("shows worktree name and branch without exposing a worktree path", async () => {
     const wrapper = mountChatPanel((session) => {
       session.sessions = [
         {
@@ -691,11 +688,8 @@ describe("ChatPanel", () => {
 
     const gitMeta = wrapper.find('[data-test="session-git-meta"]');
     expect(gitMeta.exists()).toBe(true);
-    expect(gitMeta.text()).toContain("worktree");
-    expect(gitMeta.text()).toContain("feat/project-chat");
-    expect(gitMeta.text().indexOf("worktree")).toBeLessThan(
-      gitMeta.text().indexOf("feat/project-chat")
-    );
+    expect(gitMeta.text()).toBe("project-chat · feat/project-chat");
+    expect(gitMeta.text()).not.toContain("worktree");
     expect(gitMeta.text()).not.toContain("/repo/.kairox/worktrees/project-chat");
   });
 

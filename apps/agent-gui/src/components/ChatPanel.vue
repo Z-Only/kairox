@@ -293,6 +293,10 @@ function normalizePathForCompare(path: string): string {
   return path.trim().replace(/[\\/]+$/, "");
 }
 
+function pathBaseName(path: string): string | null {
+  return normalizePathForCompare(path).split(/[\\/]/).filter(Boolean).at(-1) ?? null;
+}
+
 function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
   if (!sessionInfo?.worktree_path) return false;
   const worktreePath = normalizePathForCompare(sessionInfo.worktree_path);
@@ -302,6 +306,11 @@ function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
     sessionInfo.worktree_path.includes("/.worktrees/") ||
     sessionInfo.worktree_path.includes("/.kairox/worktrees/")
   );
+}
+
+function worktreeSessionName(sessionInfo: typeof currentSession.value): string | null {
+  if (!sessionInfo?.worktree_path || !isWorktreeSession(sessionInfo)) return null;
+  return pathBaseName(sessionInfo.worktree_path);
 }
 
 function gitBranchLookupKey(sessionInfo: NonNullable<typeof currentSession.value>): string {
@@ -345,7 +354,8 @@ const sessionGitMeta = computed(() => {
   if (!branch) return [];
 
   const gitMetaParts: string[] = [];
-  if (isWorktreeSession(sessionInfo)) gitMetaParts.push("worktree");
+  const worktreeName = worktreeSessionName(sessionInfo);
+  if (worktreeName) gitMetaParts.push(worktreeName);
   gitMetaParts.push(branch);
   return gitMetaParts;
 });
