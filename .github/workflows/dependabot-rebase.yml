@@ -5,19 +5,22 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write
+  pull-requests: read
 
 jobs:
   rebase-dependabot-prs:
     runs-on: ubuntu-latest
     steps:
-      - name: Rebase open Dependabot PRs
+      - name: Update open Dependabot PRs
         run: |
-          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author "app/dependabot" --state open --json number --jq '.[].number')
-          for pr in $prs; do
-            echo "Requesting rebase for PR #$pr"
-            gh pr comment "$pr" --repo "$GITHUB_REPOSITORY" --body "@dependabot rebase" || true
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author "app/dependabot" --state open --json headRefName --jq '.[].headRefName')
+          for branch in $prs; do
+            echo "Merging main into $branch"
+            gh api "repos/$GITHUB_REPOSITORY/merges" \
+              -f base="$branch" \
+              -f head="main" \
+              -f commit_message="Merge branch 'main' into $branch" || true
             sleep 2
           done
         env:
