@@ -56,4 +56,35 @@ describe("KxTextarea", () => {
     expect(textarea.classes()).toContain("kx-textarea--preview");
     expect(textarea.classes()).toContain("kx-textarea--resize-none");
   });
+
+  it("auto-resizes to content up to a configured maximum height", async () => {
+    const wrapper = mount(KxTextarea, {
+      props: {
+        modelValue: "one line",
+        autoResize: true,
+        maxAutoResizeHeight: 120
+      }
+    });
+
+    const textarea = wrapper.get<HTMLTextAreaElement>("textarea");
+    Object.defineProperty(textarea.element, "scrollHeight", {
+      configurable: true,
+      value: 78
+    });
+
+    await wrapper.setProps({ modelValue: "line one\nline two\nline three" });
+
+    expect(textarea.element.style.height).toBe("78px");
+    expect(textarea.element.style.overflowY).toBe("hidden");
+
+    Object.defineProperty(textarea.element, "scrollHeight", {
+      configurable: true,
+      value: 180
+    });
+
+    await wrapper.setProps({ modelValue: "line one\nline two\nline three\nline four\nline five" });
+
+    expect(textarea.element.style.height).toBe("120px");
+    expect(textarea.element.style.overflowY).toBe("auto");
+  });
 });

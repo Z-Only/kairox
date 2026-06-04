@@ -248,6 +248,9 @@ watch(modelPopoverOpen, (isOpen) => {
         data-test="message-input"
         rows="1"
         variant="composer"
+        resize="none"
+        auto-resize
+        :max-auto-resize-height="160"
         :placeholder="t('chat.placeholder')"
         @keydown="handleKeydown"
         @input="handleInput"

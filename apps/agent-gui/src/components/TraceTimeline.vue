@@ -72,12 +72,12 @@ const traceFilterOptions = computed<{ id: TraceStatusFilter; label: string; coun
   ]
 );
 
-const traceKindOptions: { id: TraceKindFilter; label: string }[] = [
-  { id: "all", label: "All types" },
-  { id: "tool", label: "Tools" },
-  { id: "permission", label: "Permissions" },
-  { id: "memory", label: "Memories" }
-];
+const traceKindOptions = computed<{ id: TraceKindFilter; label: string }[]>(() => [
+  { id: "all", label: t("trace.filterKindAll") },
+  { id: "tool", label: t("trace.filterKindTools") },
+  { id: "permission", label: t("trace.filterKindPermissions") },
+  { id: "memory", label: t("trace.filterKindMemories") }
+]);
 
 const visibleTraceEntries = computed(() =>
   traceState.entries.filter(
@@ -133,7 +133,7 @@ const visibleTraceEntries = computed(() =>
       <div v-if="traceState.entries.length > 0" class="trace-filters" data-test="trace-filters">
         <KxChipGroup
           class="trace-status-filters"
-          aria-label="Trace status filters"
+          :aria-label="t('trace.statusFiltersAria')"
           data-test="trace-status-filters"
         >
           <KxChipButton
@@ -151,7 +151,7 @@ const visibleTraceEntries = computed(() =>
           v-model="selectedTraceKindFilter"
           class="trace-kind-select"
           size="compact"
-          aria-label="Trace type"
+          :aria-label="t('trace.kindSelectAria')"
           data-test="trace-kind-select"
         >
           <option v-for="option in traceKindOptions" :key="option.id" :value="option.id">
@@ -162,14 +162,14 @@ const visibleTraceEntries = computed(() =>
           v-model="traceSearchQuery"
           type="search"
           size="compact"
-          aria-label="Search trace events"
-          placeholder="Search trace events"
+          :aria-label="t('trace.searchAria')"
+          :placeholder="t('trace.searchPlaceholder')"
           class="trace-search-input"
           data-test="trace-search-input"
         />
       </div>
       <div class="density-toolbar">
-        <span class="density-label">Detail:</span>
+        <span class="density-label">{{ t("trace.densityLabel") }}</span>
         <KxButton
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
