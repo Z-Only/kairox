@@ -21,6 +21,64 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 10:33 CST — GUI builtin read/search/shell tools
+
+- Commit: `c6a431b0`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`,
+  `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, registered a temp git project at
+  `/tmp/kairox-read-shell-project-0605`, opened a project session in the real
+  GUI, selected `Ali Mo · Claude Opus 4 6`, and sent one live model turn that
+  had to call `fs.list`, `fs.read`, `search.ripgrep`, and `shell.exec` exactly
+  once in that order. The fixture project had `notes/alpha.txt` containing
+  `READ_SEARCH_SENTINEL_0605` and `notes/beta.txt` as a second list entry. The
+  final response marker was split into `READ_SHELL_TOOLS_FINAL_` and `OK_0605`
+  so the full `READ_SHELL_TOOLS_FINAL_OK_0605` string did not exist before the
+  model response.
+- Method: `HOME=/tmp/kairox-read-shell-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-read-shell-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+CARGO_TARGET_DIR=/Users/chanyu/AIProjects/kairox/target KAIROX_DEV_PORT=1443
+KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
+  profile used `provider = "ali-mo"` and `api_key_env =
+  "KAIROX_VALIDATION_ALI_MO_KEY"`; the env value was supplied only to the local
+  process from the user profile and was not written to temp files or logs. No
+  Starpoint approval or AMFI workaround was needed.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/tauri-pilot-dev.kairox.agent.dev1443.sock`, `windows` showed
+  `http://localhost:1443/#/workbench/ses_4b2a2f58fbff4d388db68b18fdfb4f0a`,
+  and `tauri-pilot logs --level error` reported `No logs captured`. IPC
+  `list_profiles_with_limits` showed `ali-mo-claude` with `has_api_key=true`,
+  `provider="ali-mo"`, `model_id="claude-opus-4-6"`, `context_window=200000`,
+  and `output_limit=16384`. The GUI project session materialized as
+  `ses_4b2a2f58fbff4d388db68b18fdfb4f0a` with profile `ali-mo-claude`, branch
+  `main`, workspace-write sandbox, and worktree path
+  `/tmp/kairox-read-shell-project-0605`; `get_session_git_status` returned
+  `kind=clean`. The chat stream showed completed `Tool call:` rows and
+  completed trace rows for `fs.list`, `fs.read`, `search.ripgrep`, and
+  `shell.exec`, then page text contained `READ_SHELL_TOOLS_FINAL_OK_0605`.
+  `tauri-pilot assert count '[data-test="permission-prompt"]' 0` and
+  `assert count '[data-test="chat-permission-item"]' 0` both passed.
+  Exported trace had `event_count=41`, with `ModelToolCallRequested` and
+  `ToolInvocationCompleted` in order for `fs.list`, `fs.read`,
+  `search.ripgrep`, and `shell.exec`; it had four `PermissionGranted` events and
+  no `PermissionRequested`, `PermissionDenied`, or `ToolInvocationFailed`
+  events. `fs.list` output included `notes/alpha.txt` and `notes/beta.txt`;
+  `fs.read` output included `READ_SEARCH_SENTINEL_0605 in alpha notes`;
+  `search.ripgrep` output used the fallback search engine and found the sentinel
+  in `notes/alpha.txt`; `shell.exec` output was
+  `/private/tmp/kairox-read-shell-project-0605`, confirming the shell ran in the
+  project root rather than the GUI app cwd. The trace summary also confirmed the
+  user prompt lacked the full final marker while `AssistantMessageCompleted`
+  content was exactly `READ_SHELL_TOOLS_FINAL_OK_0605`. After shutdown, no
+  process from this worktree or listener on port `1443` remained, and the temp
+  `HOME`, runtime dir, project fixture, and exported trace file were removed.
+- Result: Pass for the live GUI/runtime builtin read/search/shell path. Ali Mo
+  can see and call the read-class tools and a read-only shell command from a
+  project session, Kairox auto-grants those read effects without showing a
+  permission card, records the tool sequence in trace, scopes shell execution to
+  the project root, and completes the live turn normally.
+
 ### 2026-06-05 09:58 CST — GUI provider `code_execution` server tool
 
 - Commit: `76b3ae2c`
