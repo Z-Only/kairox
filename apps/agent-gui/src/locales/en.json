@@ -546,6 +546,8 @@
     "sortStatus": "Status",
     "sortTimeout": "Timeout",
     "add": "Add hook",
+    "templates": "Quick templates",
+    "templatesHint": "Click to pre-fill a new hook from this template.",
     "editorTitle": "Hook settings",
     "editorDescription": "Editing {scope} hooks.",
     "enabled": "Enabled",

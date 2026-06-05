@@ -283,18 +283,30 @@ watch(
     </SettingsState>
 
     <template v-else>
-      <div class="hooks-pane__templates" data-test="hook-templates">
-        <KxButton
-          v-for="template in view?.templates ?? []"
-          :key="template.id"
-          size="sm"
-          :data-test="`hook-template-${template.id}`"
-          type="button"
-          @click="applyTemplate(template)"
-        >
-          {{ template.name }}
-        </KxButton>
-      </div>
+      <fieldset
+        v-if="(view?.templates ?? []).length > 0"
+        class="hooks-pane__templates"
+        data-test="hook-templates"
+      >
+        <legend class="hooks-pane__templates-legend">{{ t("hooks.templates") }}</legend>
+        <p class="hooks-pane__templates-hint">{{ t("hooks.templatesHint") }}</p>
+        <div class="hooks-pane__templates-row">
+          <KxTooltip
+            v-for="template in view?.templates ?? []"
+            :key="template.id"
+            :text="template.description"
+          >
+            <KxButton
+              size="sm"
+              :data-test="`hook-template-${template.id}`"
+              type="button"
+              @click="applyTemplate(template)"
+            >
+              {{ template.name }}
+            </KxButton>
+          </KxTooltip>
+        </div>
+      </fieldset>
 
       <div class="hooks-pane__grid">
         <section class="hooks-pane__list">
@@ -490,10 +502,29 @@ watch(
 }
 
 .hooks-pane__templates {
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.hooks-pane__templates-legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--app-text-color-2);
+  padding: 0 4px;
+}
+
+.hooks-pane__templates-hint {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--app-text-color-3, var(--app-text-color-2));
+}
+
+.hooks-pane__templates-row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
 }
 
 .hooks-pane__grid {
