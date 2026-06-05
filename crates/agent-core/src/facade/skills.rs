@@ -140,3 +140,7 @@ pub trait SkillsFacade: Send + Sync {
         Ok(None)
     }
 }
+
+#[cfg(test)]
+#[path = "skills_tests.rs"]
+mod tests;

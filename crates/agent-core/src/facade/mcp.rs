@@ -190,3 +190,7 @@ pub trait McpFacade: Send + Sync {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "mcp_tests.rs"]
+mod tests;

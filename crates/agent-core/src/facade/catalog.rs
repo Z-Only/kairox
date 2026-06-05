@@ -125,3 +125,7 @@ pub struct AddCatalogSourceRequest {
     #[cfg_attr(feature = "specta", specta(type = u32))]
     pub cache_ttl_seconds: Option<u64>,
 }
+
+#[cfg(test)]
+#[path = "catalog_tests.rs"]
+mod tests;
