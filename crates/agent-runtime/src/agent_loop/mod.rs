@@ -19,7 +19,7 @@ pub(crate) use turn_context::TurnContext;
 use crate::task_graph::TaskGraph;
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
-use agent_store::EventStore;
+use agent_store::{EventStore, TrajectoryStore};
 use agent_tools::{PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -47,6 +47,7 @@ where
     pub(crate) skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub(crate) active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
     pub(crate) workspace_scoped_builtin_tools: &'a Option<Arc<WorkspaceScopedBuiltinTools>>,
+    pub(crate) trajectory_store: &'a Option<Arc<dyn TrajectoryStore>>,
     pub(crate) turn_cancellation: CancellationToken,
     pub(crate) root_path: Option<std::path::PathBuf>,
 }

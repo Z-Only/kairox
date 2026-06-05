@@ -268,4 +268,43 @@ where
             None => Ok(Vec::new()),
         }
     }
+
+    async fn list_trajectories(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<Vec<agent_core::TrajectoryMeta>> {
+        match self.trajectory_store.as_ref() {
+            Some(ts) => ts
+                .list_by_session(session_id.as_str())
+                .await
+                .map_err(|e| agent_core::CoreError::InvalidState(e.to_string())),
+            None => Ok(vec![]),
+        }
+    }
+
+    async fn get_trajectory_steps(
+        &self,
+        trajectory_id: agent_core::TrajectoryId,
+    ) -> agent_core::Result<Vec<agent_core::TrajectoryStep>> {
+        match self.trajectory_store.as_ref() {
+            Some(ts) => ts
+                .load_steps(&trajectory_id)
+                .await
+                .map_err(|e| agent_core::CoreError::InvalidState(e.to_string())),
+            None => Ok(vec![]),
+        }
+    }
+
+    async fn export_trajectory(
+        &self,
+        trajectory_id: agent_core::TrajectoryId,
+    ) -> agent_core::Result<serde_json::Value> {
+        match self.trajectory_store.as_ref() {
+            Some(ts) => ts
+                .export_json(&trajectory_id)
+                .await
+                .map_err(|e| agent_core::CoreError::InvalidState(e.to_string())),
+            None => Ok(serde_json::json!(null)),
+        }
+    }
 }

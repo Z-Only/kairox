@@ -6,10 +6,10 @@ use crate::skills::render_active_skill_block;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SendMessageRequest,
-    TaskId,
+    TaskId, TrajectoryId,
 };
 use agent_models::{ModelClient, ModelRequest};
-use agent_store::EventStore;
+use agent_store::{EventStore, TrajectoryStore};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -208,6 +208,35 @@ where
     )
     .await?;
 
+    // ── 6b. Start trajectory recording ─────────────────────────────
+    let trajectory_id = if deps.trajectory_store.is_some() {
+        let id = TrajectoryId::new();
+        if let Some(ts) = deps.trajectory_store.as_ref() {
+            if let Err(e) = ts
+                .start_trajectory(&id, root_task_id.as_str(), request.session_id.as_str())
+                .await
+            {
+                tracing::warn!("failed to start trajectory: {e}");
+            } else {
+                let event = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::FullTrace,
+                    EventPayload::TrajectoryStarted {
+                        trajectory_id: id.to_string(),
+                        task_id: root_task_id.to_string(),
+                    },
+                );
+                let _ = append_and_broadcast(&**deps.store, deps.event_tx, &event).await;
+            }
+        }
+        Some(id)
+    } else {
+        None
+    };
+    let trajectory_step_counter = std::sync::atomic::AtomicU32::new(0);
+
     // ── 7. Agent loop ───────────────────────────────────────────────
     let mut current_request = model_request;
     let mut iterations = 0;
@@ -221,6 +250,16 @@ where
                 deps.task_graphs,
                 request,
                 &root_task_id,
+            )
+            .await;
+            complete_trajectory(
+                deps.trajectory_store,
+                deps.store,
+                deps.event_tx,
+                request,
+                &trajectory_id,
+                &trajectory_step_counter,
+                agent_core::TrajectoryOutcome::Cancelled,
             )
             .await;
             break;
@@ -246,6 +285,16 @@ where
                 request,
                 &root_task_id,
                 "max iterations exceeded",
+            )
+            .await;
+            complete_trajectory(
+                deps.trajectory_store,
+                deps.store,
+                deps.event_tx,
+                request,
+                &trajectory_id,
+                &trajectory_step_counter,
+                agent_core::TrajectoryOutcome::Failed,
             )
             .await;
             break;
@@ -274,6 +323,16 @@ where
                 &root_task_id,
             )
             .await;
+            complete_trajectory(
+                deps.trajectory_store,
+                deps.store,
+                deps.event_tx,
+                request,
+                &trajectory_id,
+                &trajectory_step_counter,
+                agent_core::TrajectoryOutcome::Cancelled,
+            )
+            .await;
             break;
         }
 
@@ -296,6 +355,16 @@ where
                 deps.task_graphs,
                 request,
                 &root_task_id,
+            )
+            .await;
+            complete_trajectory(
+                deps.trajectory_store,
+                deps.store,
+                deps.event_tx,
+                request,
+                &trajectory_id,
+                &trajectory_step_counter,
+                agent_core::TrajectoryOutcome::Success,
             )
             .await;
             run_lifecycle_hooks(
@@ -329,6 +398,9 @@ where
             deps.workspace_scoped_builtin_tools,
             deps.root_path.as_deref(),
             &cancel_token,
+            deps.trajectory_store,
+            &trajectory_id,
+            &trajectory_step_counter,
         )
         .await?;
 
@@ -475,6 +547,37 @@ async fn complete_root_task<S: EventStore + 'static>(
         },
     );
     let _ = append_and_broadcast(store, event_tx, &event).await;
+}
+
+async fn complete_trajectory<S: EventStore + 'static>(
+    trajectory_store: &Option<Arc<dyn TrajectoryStore>>,
+    store: &Arc<S>,
+    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
+    request: &SendMessageRequest,
+    trajectory_id: &Option<TrajectoryId>,
+    step_counter: &std::sync::atomic::AtomicU32,
+    outcome: agent_core::TrajectoryOutcome,
+) {
+    let (Some(ts), Some(tid)) = (trajectory_store.as_ref(), trajectory_id.as_ref()) else {
+        return;
+    };
+    if let Err(e) = ts.complete_trajectory(tid, outcome.clone()).await {
+        tracing::warn!("failed to complete trajectory: {e}");
+        return;
+    }
+    let step_count = step_counter.load(std::sync::atomic::Ordering::Relaxed);
+    let event = DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::TrajectoryCompleted {
+            trajectory_id: tid.to_string(),
+            step_count,
+            outcome,
+        },
+    );
+    let _ = append_and_broadcast(&**store, event_tx, &event).await;
 }
 
 #[cfg(test)]

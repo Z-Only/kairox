@@ -2,10 +2,10 @@ use crate::event_emitter::append_and_broadcast;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId,
-    WorkspaceId,
+    TrajectoryId, WorkspaceId,
 };
 use agent_models::ToolCall;
-use agent_store::EventStore;
+use agent_store::{EventStore, TrajectoryStore};
 use agent_tools::{
     workspace_scoped_builtin_tool, PermissionEngine, Tool, ToolError, ToolInvocation, ToolRegistry,
     ToolRisk, WorkspaceScopedBuiltinTools,
@@ -43,6 +43,9 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     workspace_scoped_builtin_tools: &Option<Arc<WorkspaceScopedBuiltinTools>>,
     root_path: Option<&std::path::Path>,
     turn_cancellation: &CancellationToken,
+    trajectory_store: &Option<Arc<dyn TrajectoryStore>>,
+    trajectory_id: &Option<TrajectoryId>,
+    trajectory_step_counter: &std::sync::atomic::AtomicU32,
 ) -> agent_core::Result<ToolLoopResult> {
     let mut tool_results: Vec<(String, String)> = Vec::new();
 
@@ -218,6 +221,48 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 ),
             };
             append_and_broadcast(&**store, event_tx, &completion_event).await?;
+
+            // Record trajectory step
+            if let (Some(ts), Some(tid)) = (trajectory_store.as_ref(), trajectory_id.as_ref()) {
+                let observation_preview: String = match &completion_event.payload {
+                    EventPayload::ToolInvocationCompleted { output_preview, .. } => {
+                        output_preview.clone()
+                    }
+                    EventPayload::ToolInvocationFailed { error, .. } => {
+                        format!("Error: {error}")
+                    }
+                    _ => String::new(),
+                };
+                let step = agent_core::TrajectoryStep {
+                    step_index: trajectory_step_counter
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                    action: tc.name.clone(),
+                    action_input: tc.arguments.clone(),
+                    observation: observation_preview.clone(),
+                    screenshot_id: None,
+                    timestamp: chrono::Utc::now(),
+                    duration_ms: tool_start.elapsed().as_millis() as u64,
+                };
+                if let Err(e) = ts.record_step(tid, &step).await {
+                    tracing::warn!("failed to record trajectory step: {e}");
+                } else {
+                    let event = DomainEvent::new(
+                        workspace_id.clone(),
+                        session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::TrajectoryStepRecorded {
+                            trajectory_id: tid.to_string(),
+                            step_index: step.step_index,
+                            action: step.action.clone(),
+                            observation_preview,
+                            screenshot_id: None,
+                            duration_ms: step.duration_ms,
+                        },
+                    );
+                    let _ = append_and_broadcast(&**store, event_tx, &event).await;
+                }
+            }
 
             crate::hooks::run_hooks_logged(
                 config,

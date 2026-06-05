@@ -273,6 +273,8 @@ pub async fn build_ui_runtime_from_store(
         .with_plugin_settings_roots(plugin_settings_roots)
         .with_skill_catalog(Some(options.data_dir.clone()))
         .with_builtin_tools(options.workspace_root.clone())
+        .await
+        .with_trajectory_store_from_pool()
         .await;
 
     if options.enable_marketplace {

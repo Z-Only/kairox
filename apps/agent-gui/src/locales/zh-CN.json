@@ -785,7 +785,19 @@
     "kindSelectAria": "追踪类型",
     "searchAria": "搜索追踪事件",
     "searchPlaceholder": "搜索追踪事件",
-    "densityLabel": "详细程度："
+    "densityLabel": "详细程度：",
+    "tabTrajectory": "轨迹"
+  },
+  "trajectory": {
+    "noSession": "无活跃会话",
+    "loading": "加载轨迹中…",
+    "empty": "暂无轨迹记录",
+    "stepCount": "{count} 步",
+    "export": "导出",
+    "loadingSteps": "加载步骤中…",
+    "noSteps": "暂无步骤记录",
+    "input": "输入",
+    "observation": "观察"
   },
   "permission": {
     "allow": "允许",

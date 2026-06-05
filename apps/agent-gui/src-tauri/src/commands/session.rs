@@ -597,6 +597,61 @@ pub async fn switch_model(
         .map_err(|e| e.to_string())
 }
 
+// ---------------------------------------------------------------------------
+// Trajectory commands
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_trajectories(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<Vec<TrajectoryMetaResponse>, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let metas = state
+        .runtime
+        .list_trajectories(sid)
+        .await
+        .map_err(|e| format!("Failed to list trajectories: {e}"))?;
+    Ok(metas
+        .into_iter()
+        .map(TrajectoryMetaResponse::from)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_trajectory_steps(
+    trajectory_id: String,
+    state: State<'_, GuiState>,
+) -> Result<Vec<TrajectoryStepResponse>, String> {
+    let tid = agent_core::TrajectoryId(trajectory_id);
+    let steps = state
+        .runtime
+        .get_trajectory_steps(tid)
+        .await
+        .map_err(|e| format!("Failed to get trajectory steps: {e}"))?;
+    Ok(steps
+        .into_iter()
+        .map(TrajectoryStepResponse::from)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn export_trajectory(
+    trajectory_id: String,
+    state: State<'_, GuiState>,
+) -> Result<String, String> {
+    let tid = agent_core::TrajectoryId(trajectory_id);
+    let json = state
+        .runtime
+        .export_trajectory(tid)
+        .await
+        .map_err(|e| format!("Failed to export trajectory: {e}"))?;
+    serde_json::to_string_pretty(&json).map_err(|e| format!("Failed to serialize: {e}"))
+}
+
 #[cfg(test)]
 mod compact_session_command_tests {
     use super::compact_session;

@@ -3,6 +3,7 @@ import { useI18n } from "vue-i18n";
 import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
+import TrajectoryViewer from "./TrajectoryViewer.vue";
 import { traceState } from "../composables/useTraceStore";
 import type { TraceEntryData } from "../types/trace";
 
@@ -10,7 +11,7 @@ type TraceStatusFilter = "all" | "active" | "failed" | "done";
 type TraceKindFilter = "all" | "tool" | "permission" | "memory";
 
 const { t } = useI18n();
-const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
+const rightPanelTab = ref<"trace" | "tasks" | "memory" | "trajectory">("trace");
 const selectedTraceFilter = ref<TraceStatusFilter>("all");
 const selectedTraceKindFilter = ref<TraceKindFilter>("all");
 const traceSearchQuery = ref("");
@@ -127,6 +128,15 @@ const visibleTraceEntries = computed(() =>
         >
           {{ t("trace.tabMemory") }}
         </KxButton>
+        <KxButton
+          size="sm"
+          :variant="rightPanelTab === 'trajectory' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'trajectory' }"
+          data-test="trace-tab-trajectory"
+          @click="rightPanelTab = 'trajectory'"
+        >
+          {{ t("trace.tabTrajectory") }}
+        </KxButton>
       </div>
     </header>
     <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
@@ -207,6 +217,7 @@ const visibleTraceEntries = computed(() =>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
+    <TrajectoryViewer v-if="rightPanelTab === 'trajectory'" />
   </section>
 </template>
 

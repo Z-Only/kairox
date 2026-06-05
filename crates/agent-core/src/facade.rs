@@ -156,6 +156,24 @@ pub trait AppFacade:
     async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>> {
         SessionFacade::get_agent_status(self, session_id).await
     }
+    async fn list_trajectories(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<Vec<crate::TrajectoryMeta>> {
+        SessionFacade::list_trajectories(self, session_id).await
+    }
+    async fn get_trajectory_steps(
+        &self,
+        trajectory_id: crate::TrajectoryId,
+    ) -> crate::Result<Vec<crate::TrajectoryStep>> {
+        SessionFacade::get_trajectory_steps(self, trajectory_id).await
+    }
+    async fn export_trajectory(
+        &self,
+        trajectory_id: crate::TrajectoryId,
+    ) -> crate::Result<serde_json::Value> {
+        SessionFacade::export_trajectory(self, trajectory_id).await
+    }
 
     // ── Skills ──────────────────────────────────────────────────────────
 

@@ -208,6 +208,32 @@ pub trait SessionFacade: Send + Sync {
         task_id: TaskId,
     ) -> crate::Result<()>;
     async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>>;
+
+    // ── Trajectories ───────────────────────────────────────────────
+
+    async fn list_trajectories(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<Vec<crate::TrajectoryMeta>> {
+        let _ = session_id;
+        Ok(vec![])
+    }
+
+    async fn get_trajectory_steps(
+        &self,
+        trajectory_id: crate::TrajectoryId,
+    ) -> crate::Result<Vec<crate::TrajectoryStep>> {
+        let _ = trajectory_id;
+        Ok(vec![])
+    }
+
+    async fn export_trajectory(
+        &self,
+        trajectory_id: crate::TrajectoryId,
+    ) -> crate::Result<serde_json::Value> {
+        let _ = trajectory_id;
+        Ok(serde_json::json!(null))
+    }
 }
 
 #[cfg(test)]
