@@ -114,13 +114,16 @@ export function useUpdater() {
     {
       flush: "sync",
       serializer: {
-        read: (v) => (v && v in INTERVAL_MS ? (v as UpdateCheckInterval) : "6h"),
+        read: (v) =>
+          typeof v === "string" && Object.prototype.hasOwnProperty.call(INTERVAL_MS, v)
+            ? (v as UpdateCheckInterval)
+            : "6h",
         write: (v) => v
       }
     }
   );
 
-  const checkIntervalMs = computed(() => INTERVAL_MS[checkInterval.value]);
+  const checkIntervalMs = computed(() => INTERVAL_MS[checkInterval.value] ?? INTERVAL_MS["6h"]);
 
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
