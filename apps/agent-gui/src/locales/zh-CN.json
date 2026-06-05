@@ -645,6 +645,8 @@
     "sortStatus": "状态",
     "sortTimeout": "超时",
     "add": "添加钩子",
+    "templates": "快捷模板",
+    "templatesHint": "点击可从模板预填新钩子。",
     "editorTitle": "钩子设置",
     "editorDescription": "正在编辑 {scope}钩子。",
     "enabled": "已启用",
