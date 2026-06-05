@@ -80,7 +80,10 @@ fn sse_config_with_all_fields() {
     assert!(!cfg.auto_restart);
     assert_eq!(cfg.max_restart_attempts, 5);
     let hdrs = cfg.headers.as_ref().expect("headers");
-    assert_eq!(hdrs.get("Authorization").map(|s| s.as_str()), Some("Bearer token"));
+    assert_eq!(
+        hdrs.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer token")
+    );
 }
 
 #[test]
