@@ -49,6 +49,7 @@ prefixed_id!(WorkspaceId, "wrk");
 prefixed_id!(SessionId, "ses");
 prefixed_id!(TaskId, "tsk");
 prefixed_id!(ProjectId, "prj");
+prefixed_id!(AutonomousTaskId, "atk");
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -110,6 +111,13 @@ impl specta::Type for TaskId {
 
 #[cfg(feature = "specta")]
 impl specta::Type for ProjectId {
+    fn definition(types: &mut specta::Types) -> DataType {
+        <String as specta::Type>::definition(types)
+    }
+}
+
+#[cfg(feature = "specta")]
+impl specta::Type for AutonomousTaskId {
     fn definition(types: &mut specta::Types) -> DataType {
         <String as specta::Type>::definition(types)
     }
