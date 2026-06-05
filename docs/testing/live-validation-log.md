@@ -21,6 +21,54 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 09:00 CST — GUI project draft restore settings
+
+- Commit: `353aefb8`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`,
+  `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, started the real GUI with pilot, created
+  an ordinary live Ali Mo session, registered a temp project, opened a project
+  draft, selected `Ali Mo · Claude Opus 4 6`, typed an unsent project draft,
+  restarted the full GUI process twice, and verified the restored draft kept its
+  project, branch, text, model, approval, and sandbox settings before first
+  send. This first reproduced a bug where the project draft text and branch
+  restored but the footer model reset to `Fake · Fake`; the fix persists pending
+  draft settings in `kairox.last-workbench-state` and routes pre-send model
+  selection through the session store so it is saved immediately.
+- Method: `HOME=/tmp/kairox-context-restore-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-context-restore-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+CARGO_TARGET_DIR=/Users/chanyu/AIProjects/kairox/target KAIROX_DEV_PORT=1440
+KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
+  supplied only as a local process env var. No Starpoint approval or AMFI
+  workaround was needed for this lane.
+- Evidence: Before the fix, a restored project draft under
+  `prj_233b4575b97d46bb8b8b7dd29e244d4f` kept the textarea content and `main`
+  branch but rendered `选择模型。当前模型：Fake · Fake`; localStorage contained
+  only `{"kind":"project-draft","projectId":"...","branch":"main"}`. After the
+  fix and a cold restart, selecting Ali Mo wrote
+  `profile:"ali-mo-claude"`, `reasoningEffort:null`, `approval:"on_request"`,
+  and the workspace-write `sandboxJson` into `kairox.last-workbench-state`.
+  A second full process restart restored the same project draft with the split
+  marker prompt ending in `CHAT_CONTEXT_RESTORE_PROJECT_` plus `OK_0605`, branch
+  `main`, and footer `Ali Mo · Claude Opus 4 6`. Sending the restored draft
+  materialized project session `ses_4453a8f534cb4d4c8c831d3802a4378f`;
+  `list_project_sessions` reported `profile=ali-mo-claude`,
+  `approval_policy=on_request`,
+  `sandbox_policy={"kind":"workspace_write","network_access":false,"writable_roots":[]}`,
+  `branch=main`, and `visibility=visible`. Page text contained
+  `CHAT_CONTEXT_RESTORE_PROJECT_OK_0605`, and `tauri-pilot logs --level error`
+  reported `No logs captured`. Exported trace had `event_count=12`, including
+  `ModelProfileSwitched` from `fake` to `ali-mo-claude`, `ContextAssembled` at
+  `1973 / 181616` tokens with `project_instruction=21`, four
+  `ModelTokenDelta` events, and `AssistantMessageCompleted` content
+  `CHAT_CONTEXT_RESTORE_PROJECT_OK_0605`.
+- Result: Fixed and passed for project draft restore. Pending ordinary/project
+  draft settings now survive process restart and the first send uses the
+  restored model, approval, and sandbox settings instead of falling back to the
+  default Fake profile.
+
 ### 2026-06-05 08:15 CST — GUI runtime instance registry (#817)
 
 - Commit: `ca1ca8b0`

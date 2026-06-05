@@ -145,10 +145,12 @@ type PendingSessionSettings = {
   sandboxJson: string;
 };
 
+type PersistedDraftSettings = Partial<PendingSessionSettings>;
+
 type PersistedWorkbenchState =
   | { kind: "session"; sessionId: string; projectId: string | null }
-  | { kind: "ordinary-draft" }
-  | { kind: "project-draft"; projectId: string; branch: string | null };
+  | ({ kind: "ordinary-draft" } & PersistedDraftSettings)
+  | ({ kind: "project-draft"; projectId: string; branch: string | null } & PersistedDraftSettings);
 
 type LoadProfileInfoOptions = {
   force?: boolean;
@@ -160,12 +162,15 @@ function readPersistedWorkbenchState(): PersistedWorkbenchState | null {
     const raw = globalThis.localStorage?.getItem(LAST_WORKBENCH_STATE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedWorkbenchState>;
-    if (parsed.kind === "ordinary-draft") return { kind: "ordinary-draft" };
+    if (parsed.kind === "ordinary-draft") {
+      return { kind: "ordinary-draft", ...readPersistedDraftSettings(parsed) };
+    }
     if (parsed.kind === "project-draft" && typeof parsed.projectId === "string") {
       return {
         kind: "project-draft",
         projectId: parsed.projectId,
-        branch: typeof parsed.branch === "string" && parsed.branch.trim() ? parsed.branch : null
+        branch: typeof parsed.branch === "string" && parsed.branch.trim() ? parsed.branch : null,
+        ...readPersistedDraftSettings(parsed)
       };
     }
     if (parsed.kind === "session" && typeof parsed.sessionId === "string") {
@@ -179,6 +184,27 @@ function readPersistedWorkbenchState(): PersistedWorkbenchState | null {
     // Best-effort restore only.
   }
   return null;
+}
+
+function readPersistedDraftSettings(
+  value: Partial<PersistedDraftSettings>
+): PersistedDraftSettings {
+  const settings: PersistedDraftSettings = {};
+  if (typeof value.profile === "string" && value.profile.trim()) {
+    settings.profile = value.profile;
+  }
+  if (typeof value.reasoningEffort === "string") {
+    settings.reasoningEffort = value.reasoningEffort;
+  } else if (value.reasoningEffort === null) {
+    settings.reasoningEffort = null;
+  }
+  if (typeof value.approval === "string" && value.approval.trim()) {
+    settings.approval = value.approval;
+  }
+  if (typeof value.sandboxJson === "string" && value.sandboxJson.trim()) {
+    settings.sandboxJson = value.sandboxJson;
+  }
+  return settings;
 }
 
 function writePersistedWorkbenchState(state: PersistedWorkbenchState): void {
@@ -276,6 +302,24 @@ export const useSessionStore = defineStore("session", () => {
       approval: approvalPolicy.value,
       sandboxJson: sandboxPolicy.value
     };
+  }
+
+  function applyPersistedDraftSettings(settings: PersistedDraftSettings): void {
+    if (
+      settings.profile &&
+      profileInfos.value.some((profile) => profile.alias === settings.profile)
+    ) {
+      currentProfile.value = settings.profile;
+    }
+    if ("reasoningEffort" in settings) {
+      currentReasoningEffort.value = settings.reasoningEffort ?? null;
+    }
+    if (settings.approval) {
+      approvalPolicy.value = settings.approval;
+    }
+    if (settings.sandboxJson) {
+      sandboxPolicy.value = settings.sandboxJson;
+    }
   }
 
   function updateSessionProfile(sessionId: string, profile: string): void {
@@ -524,6 +568,7 @@ export const useSessionStore = defineStore("session", () => {
     resetForPendingDraft({ kind: "ordinary" });
     await loadProfileInfo({ refreshConfig: true });
     selectAvailableDraftProfile();
+    rememberPendingDraft();
   }
 
   async function startProjectDraftSession(projectId: string): Promise<void> {
@@ -538,6 +583,7 @@ export const useSessionStore = defineStore("session", () => {
     }
     await projectStore.refreshProjectConfig(projectId);
     selectAvailableDraftProfile();
+    rememberPendingDraft();
     try {
       const status = await projectStore.getProjectGitStatus(projectId);
       setPendingProjectBranch(status.branch);
@@ -559,14 +605,16 @@ export const useSessionStore = defineStore("session", () => {
   function rememberPendingDraft(): void {
     const pending = pendingSessionDraft.value;
     if (!pending) return;
+    const settings = capturePendingSessionSettings();
     if (pending.kind === "ordinary") {
-      writePersistedWorkbenchState({ kind: "ordinary-draft" });
+      writePersistedWorkbenchState({ kind: "ordinary-draft", ...settings });
       return;
     }
     writePersistedWorkbenchState({
       kind: "project-draft",
       projectId: pending.projectId,
-      branch: pending.branch
+      branch: pending.branch,
+      ...settings
     });
   }
 
@@ -576,6 +624,8 @@ export const useSessionStore = defineStore("session", () => {
 
     if (persisted.kind === "ordinary-draft") {
       await startOrdinaryDraftSession();
+      applyPersistedDraftSettings(persisted);
+      rememberPendingDraft();
       return true;
     }
 
@@ -588,8 +638,11 @@ export const useSessionStore = defineStore("session", () => {
         return false;
       }
       await startProjectDraftSession(persisted.projectId);
+      applyPersistedDraftSettings(persisted);
       if (persisted.branch) {
         setPendingProjectBranch(persisted.branch);
+      } else {
+        rememberPendingDraft();
       }
       return true;
     }
@@ -787,6 +840,7 @@ export const useSessionStore = defineStore("session", () => {
   async function setApprovalPolicy(approval: string): Promise<void> {
     if (!currentSessionId.value) {
       approvalPolicy.value = approval;
+      rememberPendingDraft();
       return;
     }
     const ui = useUiStore();
@@ -801,6 +855,7 @@ export const useSessionStore = defineStore("session", () => {
   async function setSandboxPolicy(sandboxJson: string): Promise<void> {
     if (!currentSessionId.value) {
       sandboxPolicy.value = sandboxJson;
+      rememberPendingDraft();
       return;
     }
     const ui = useUiStore();
@@ -810,6 +865,13 @@ export const useSessionStore = defineStore("session", () => {
       console.error("Failed to set sandbox policy:", e);
       ui.pushNotification("error", `Failed to set sandbox policy: ${e}`);
     }
+  }
+
+  function setPendingModelSelection(profile: string, reasoningEffort: string | null): void {
+    if (currentSessionId.value) return;
+    currentProfile.value = profile;
+    currentReasoningEffort.value = reasoningEffort;
+    rememberPendingDraft();
   }
 
   async function recoverSessions(): Promise<boolean> {
@@ -885,6 +947,7 @@ export const useSessionStore = defineStore("session", () => {
     recoverSessions,
     setConnected,
     setApprovalPolicy,
-    setSandboxPolicy
+    setSandboxPolicy,
+    setPendingModelSelection
   };
 });
