@@ -63,6 +63,7 @@ beforeEach(() => {
   mockRelaunch.mockReset();
   mockDownloadAndInstall.mockReset();
   mockGetVersion.mockReset();
+  mockT.mockClear();
 });
 
 describe("checkForUpdate", () => {

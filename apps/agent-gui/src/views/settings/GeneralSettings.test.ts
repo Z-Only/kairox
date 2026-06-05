@@ -5,6 +5,14 @@ import generalSettingsSource from "./GeneralSettings.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { useUiStore } from "@/stores/ui";
+import {
+  updateAvailable,
+  updateInfo,
+  lastCheckTime,
+  lastCheckError,
+  checkingForUpdate,
+  downloadingUpdate
+} from "@/composables/useUpdater";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -13,6 +21,7 @@ vi.mock("@/generated/commands", () => ({
   }
 }));
 
+const mockDownloadAndInstall = vi.fn().mockResolvedValue(undefined);
 const mockCheck = vi.fn().mockResolvedValue(null);
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: (...args: unknown[]) => mockCheck(...args)
@@ -54,6 +63,12 @@ interface GuiSettingsFixture {
 describe("GeneralSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    updateAvailable.value = false;
+    updateInfo.value = null;
+    lastCheckTime.value = null;
+    lastCheckError.value = null;
+    checkingForUpdate.value = false;
+    downloadingUpdate.value = false;
     mockedCommands.getGuiSettings.mockResolvedValue(
       ok({
         devtools_enabled: false,
@@ -232,13 +247,16 @@ describe("GeneralSettings", () => {
   });
 
   it("triggers downloadAndInstallUpdate when download button is clicked", async () => {
+    mockCheck.mockResolvedValue({
+      version: "2.0.0",
+      body: null,
+      downloadAndInstall: mockDownloadAndInstall
+    });
     const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
     await flushPromises();
 
-    // Simulate that an update is available to show the download button
-    const { updateAvailable: ua, updateInfo: ui } = await import("@/composables/useUpdater");
-    ua.value = true;
-    ui.value = { version: "2.0.0" };
+    updateAvailable.value = true;
+    updateInfo.value = { version: "2.0.0" };
     await flushPromises();
 
     const downloadBtn = wrapper.find('[data-test="settings-download-update"]');
@@ -246,16 +264,15 @@ describe("GeneralSettings", () => {
     await downloadBtn.trigger("click");
     await flushPromises();
 
-    expect(mockCheck).toHaveBeenCalled();
+    expect(mockDownloadAndInstall).toHaveBeenCalled();
   });
 
   it("shows update available tag when update exists", async () => {
     const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
     await flushPromises();
 
-    const { updateAvailable: ua, updateInfo: ui } = await import("@/composables/useUpdater");
-    ua.value = true;
-    ui.value = { version: "2.0.0" };
+    updateAvailable.value = true;
+    updateInfo.value = { version: "2.0.0" };
     await flushPromises();
 
     expect(wrapper.find('[data-test="settings-update-available-tag"]').exists()).toBe(true);
@@ -265,9 +282,8 @@ describe("GeneralSettings", () => {
     const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
     await flushPromises();
 
-    const { lastCheckTime: lct, updateAvailable: ua } = await import("@/composables/useUpdater");
-    ua.value = false;
-    lct.value = Date.now();
+    updateAvailable.value = false;
+    lastCheckTime.value = Date.now();
     await flushPromises();
 
     expect(wrapper.find('[data-test="settings-up-to-date-tag"]').exists()).toBe(true);
@@ -277,8 +293,7 @@ describe("GeneralSettings", () => {
     const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
     await flushPromises();
 
-    const { lastCheckTime: lct } = await import("@/composables/useUpdater");
-    lct.value = Date.now();
+    lastCheckTime.value = Date.now();
     await flushPromises();
 
     expect(wrapper.find('[data-test="settings-update-actions"]').text()).toContain("Last checked");
@@ -288,8 +303,7 @@ describe("GeneralSettings", () => {
     const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
     await flushPromises();
 
-    const { lastCheckError: lce } = await import("@/composables/useUpdater");
-    lce.value = "Network error";
+    lastCheckError.value = "Network error";
     await flushPromises();
 
     expect(wrapper.find('[data-test="settings-update-error"]').exists()).toBe(true);
