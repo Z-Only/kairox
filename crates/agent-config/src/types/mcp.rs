@@ -84,3 +84,7 @@ impl McpServerConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "mcp_tests.rs"]
+mod tests;

@@ -84,3 +84,7 @@ impl HookConfigToml {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "hooks_tests.rs"]
+mod tests;
