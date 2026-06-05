@@ -700,3 +700,268 @@ fn compare_reports_detects_speed_regression() {
         .iter()
         .any(|r| r.scenario_id == "slow" && r.kind.starts_with("slower_by_")));
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Unit tests for EvalSummary::from_results and compare_reports
+// ──────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn summary_from_empty_results() {
+    let summary = EvalSummary::from_results(&[]);
+
+    assert_eq!(summary.total, 0);
+    assert_eq!(summary.passed, 0);
+    assert_eq!(summary.failed, 0);
+    assert_eq!(summary.success_rate, 0.0);
+    assert_eq!(summary.total_elapsed_ms, 0);
+    assert_eq!(summary.avg_elapsed_ms, 0.0);
+    assert_eq!(summary.total_tool_invocations, 0);
+    assert_eq!(summary.total_tool_failures, 0);
+    assert_eq!(summary.total_context_input_tokens, None);
+}
+
+#[test]
+fn summary_from_mixed_results() {
+    let results = vec![
+        EvalResult {
+            scenario_id: "a".into(),
+            passed: true,
+            elapsed_ms: 120,
+            tool_invocations: 3,
+            tool_failures: 0,
+            context_input_tokens: Some(100),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "b".into(),
+            passed: true,
+            elapsed_ms: 80,
+            tool_invocations: 1,
+            tool_failures: 0,
+            context_input_tokens: Some(200),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "c".into(),
+            passed: false,
+            elapsed_ms: 300,
+            tool_invocations: 2,
+            tool_failures: 1,
+            context_input_tokens: Some(150),
+            ..EvalResult::default()
+        },
+    ];
+
+    let summary = EvalSummary::from_results(&results);
+
+    assert_eq!(summary.total, 3);
+    assert_eq!(summary.passed, 2);
+    assert_eq!(summary.failed, 1);
+    assert!((summary.success_rate - 2.0 / 3.0).abs() < f64::EPSILON);
+    assert_eq!(summary.total_elapsed_ms, 500);
+    assert!((summary.avg_elapsed_ms - 500.0 / 3.0).abs() < f64::EPSILON);
+    assert_eq!(summary.total_tool_invocations, 6);
+    assert_eq!(summary.total_tool_failures, 1);
+    assert_eq!(summary.total_context_input_tokens, Some(450));
+}
+
+#[test]
+fn summary_aggregates_context_tokens() {
+    let results = vec![
+        EvalResult {
+            scenario_id: "with-tokens".into(),
+            passed: true,
+            elapsed_ms: 50,
+            context_input_tokens: Some(1000),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "no-tokens".into(),
+            passed: true,
+            elapsed_ms: 50,
+            context_input_tokens: None,
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "more-tokens".into(),
+            passed: true,
+            elapsed_ms: 50,
+            context_input_tokens: Some(2000),
+            ..EvalResult::default()
+        },
+    ];
+
+    let summary = EvalSummary::from_results(&results);
+
+    // Only Some values are summed; None is skipped but result is still Some
+    assert_eq!(summary.total_context_input_tokens, Some(3000));
+}
+
+#[test]
+fn compare_reports_detects_pass_to_fail_regression() {
+    let baseline = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "regressed".into(),
+        passed: true,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    let candidate = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "regressed".into(),
+        passed: false,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert!(comparison
+        .regressions
+        .iter()
+        .any(|r| r.scenario_id == "regressed" && r.kind == "passed_to_failed"));
+    assert!(comparison.improvements.is_empty());
+    assert!((comparison.pass_rate_delta - (-1.0)).abs() < f64::EPSILON);
+}
+
+#[test]
+fn compare_reports_detects_fail_to_pass_improvement() {
+    let baseline = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "improved".into(),
+        passed: false,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    let candidate = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "improved".into(),
+        passed: true,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert!(comparison
+        .improvements
+        .iter()
+        .any(|i| i.scenario_id == "improved" && i.kind == "failed_to_passed"));
+    assert!(comparison.regressions.is_empty());
+    assert!((comparison.pass_rate_delta - 1.0).abs() < f64::EPSILON);
+}
+
+#[test]
+fn compare_reports_detects_speed_regression_above_50_percent() {
+    let baseline = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "slow-scenario".into(),
+        passed: true,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    // 160ms is 60% slower than 100ms → triggers regression (>50%)
+    let candidate = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "slow-scenario".into(),
+        passed: true,
+        elapsed_ms: 160,
+        ..EvalResult::default()
+    }]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert!(comparison
+        .regressions
+        .iter()
+        .any(|r| r.scenario_id == "slow-scenario" && r.kind.starts_with("slower_by_")));
+}
+
+#[test]
+fn compare_reports_detects_speed_improvement_above_50_percent() {
+    let baseline = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "fast-scenario".into(),
+        passed: true,
+        elapsed_ms: 200,
+        ..EvalResult::default()
+    }]);
+
+    // 80ms is 60% faster than 200ms → triggers improvement (>50%)
+    let candidate = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "fast-scenario".into(),
+        passed: true,
+        elapsed_ms: 80,
+        ..EvalResult::default()
+    }]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert!(comparison
+        .improvements
+        .iter()
+        .any(|i| i.scenario_id == "fast-scenario" && i.kind.starts_with("faster_by_")));
+}
+
+#[test]
+fn compare_reports_token_delta() {
+    let baseline = EvalReport::from_results(vec![
+        EvalResult {
+            scenario_id: "a".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(500),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "b".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(300),
+            ..EvalResult::default()
+        },
+    ]);
+
+    let candidate = EvalReport::from_results(vec![
+        EvalResult {
+            scenario_id: "a".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(600),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "b".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(200),
+            ..EvalResult::default()
+        },
+    ]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    // Baseline total tokens: 500 + 300 = 800
+    // Candidate total tokens: 600 + 200 = 800
+    // Delta: 800 - 800 = 0
+    assert_eq!(comparison.total_token_delta, Some(0));
+
+    // Now test with an actual difference
+    let candidate2 = EvalReport::from_results(vec![
+        EvalResult {
+            scenario_id: "a".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(700),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "b".into(),
+            passed: true,
+            elapsed_ms: 100,
+            context_input_tokens: Some(400),
+            ..EvalResult::default()
+        },
+    ]);
+
+    let comparison2 = compare_reports(&baseline, &candidate2);
+
+    // Baseline total: 800, Candidate total: 1100, delta: +300
+    assert_eq!(comparison2.total_token_delta, Some(300));
+}
