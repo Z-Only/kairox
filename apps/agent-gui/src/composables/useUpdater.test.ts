@@ -13,11 +13,18 @@ vi.mock("@tauri-apps/plugin-process", () => ({
   relaunch: (...args: unknown[]) => mockRelaunch(...args)
 }));
 
+const mockGetVersion = vi.fn();
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: (...args: unknown[]) => mockGetVersion(...args)
+}));
+
 import {
   updateAvailable,
   updateInfo,
   checkingForUpdate,
   downloadingUpdate,
+  lastCheckTime,
+  lastCheckError,
   checkForUpdate,
   downloadAndInstallUpdate
 } from "./useUpdater";
@@ -30,9 +37,12 @@ beforeEach(() => {
   updateInfo.value = null;
   checkingForUpdate.value = false;
   downloadingUpdate.value = false;
+  lastCheckTime.value = null;
+  lastCheckError.value = null;
   mockCheck.mockReset();
   mockRelaunch.mockReset();
   mockDownloadAndInstall.mockReset();
+  mockGetVersion.mockReset();
 });
 
 describe("checkForUpdate", () => {
@@ -109,6 +119,61 @@ describe("checkForUpdate", () => {
     await checkForUpdate();
 
     expect(updateInfo.value).toEqual({ version: "1.5.0", body: undefined });
+  });
+
+  it("records lastCheckTime on success", async () => {
+    mockCheck.mockResolvedValue(null);
+
+    await checkForUpdate();
+
+    expect(lastCheckTime.value).toBeGreaterThan(0);
+  });
+
+  it("records lastCheckError on failure", async () => {
+    mockCheck.mockRejectedValue(new Error("Offline"));
+
+    await checkForUpdate();
+
+    expect(lastCheckError.value).toBe("Offline");
+  });
+
+  it("clears lastCheckError on successful check", async () => {
+    lastCheckError.value = "previous error";
+    mockCheck.mockResolvedValue(null);
+
+    await checkForUpdate();
+
+    expect(lastCheckError.value).toBeNull();
+  });
+
+  it("pushes up-to-date notification for non-silent check with no update", async () => {
+    mockCheck.mockResolvedValue(null);
+
+    await checkForUpdate(false);
+
+    const ui = useUiStore();
+    expect(ui.notifications).toHaveLength(1);
+    expect(ui.notifications[0].message).toContain("latest version");
+  });
+
+  it("does not push notification for silent check with no update", async () => {
+    mockCheck.mockResolvedValue(null);
+
+    await checkForUpdate(true);
+
+    const ui = useUiStore();
+    expect(ui.notifications).toHaveLength(0);
+  });
+
+  it("pushes error notification for non-silent check failure", async () => {
+    mockCheck.mockRejectedValue(new Error("DNS fail"));
+
+    await checkForUpdate(false);
+
+    const ui = useUiStore();
+    expect(ui.notifications).toHaveLength(1);
+    expect(ui.notifications[0].level).toBe("error");
+    expect(ui.notifications[0].message).toContain("DNS fail");
   });
 });
 
