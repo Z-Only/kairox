@@ -329,6 +329,10 @@ impl Tool for DapToolInstance {
     }
 }
 
+#[cfg(test)]
+#[path = "dap_provider_tests.rs"]
+mod tests;
+
 fn get_str(args: &serde_json::Value, key: &str) -> crate::Result<String> {
     args.get(key)
         .and_then(|v| v.as_str())
