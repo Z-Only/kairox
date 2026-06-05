@@ -9,7 +9,7 @@ use agent_core::{
 };
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
-use agent_store::{EventStore, ProjectMetaRepository};
+use agent_store::{EventStore, ProjectMetaRepository, TrajectoryStore};
 use agent_tools::{PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -39,6 +39,7 @@ where
     skill_settings_roots: crate::skill_settings::SkillSettingsRoots,
     active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
     workspace_scoped_builtin_tools: Option<Arc<WorkspaceScopedBuiltinTools>>,
+    trajectory_store: Option<Arc<dyn TrajectoryStore>>,
 }
 
 impl<S, M> LocalRuntimeTurnExecutor<S, M>
@@ -64,6 +65,7 @@ where
             skill_settings_roots: runtime.skill_settings_roots.clone(),
             active_skills: runtime.active_skills.clone(),
             workspace_scoped_builtin_tools: runtime.workspace_scoped_builtin_tools.clone(),
+            trajectory_store: runtime.trajectory_store.clone(),
         }
     }
 
@@ -273,6 +275,7 @@ where
                         skill_registry: &skill_registry,
                         active_skills: &self.active_skills,
                         workspace_scoped_builtin_tools: &self.workspace_scoped_builtin_tools,
+                        trajectory_store: &self.trajectory_store,
                         turn_cancellation: cancellation,
                         root_path,
                     },

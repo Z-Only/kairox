@@ -367,7 +367,17 @@ export const commands = {
   saveDraft: (request: SaveDraftRequest) =>
     typedError<null, string>(__TAURI_INVOKE("save_draft", { request })),
   getDraft: (sessionId: string) =>
-    typedError<string, string>(__TAURI_INVOKE("get_draft", { sessionId }))
+    typedError<string, string>(__TAURI_INVOKE("get_draft", { sessionId })),
+  listTrajectories: (sessionId: string) =>
+    typedError<TrajectoryMetaResponse[], string>(
+      __TAURI_INVOKE("list_trajectories", { sessionId })
+    ),
+  getTrajectorySteps: (trajectoryId: string) =>
+    typedError<TrajectoryStepResponse[], string>(
+      __TAURI_INVOKE("get_trajectory_steps", { trajectoryId })
+    ),
+  exportTrajectory: (trajectoryId: string) =>
+    typedError<string, string>(__TAURI_INVOKE("export_trajectory", { trajectoryId }))
 };
 
 /* Types */
@@ -12576,8 +12586,28 @@ export type TraceExport_Serialize = {
   events: DomainEvent_Serialize[];
 };
 
+export type TrajectoryMetaResponse = {
+  trajectory_id: string;
+  task_id: string;
+  session_id: string;
+  started_at: string;
+  completed_at: string | null;
+  step_count: number;
+  outcome: string;
+};
+
 /**  How a trajectory ended. */
 export type TrajectoryOutcome = "success" | "failed" | "cancelled" | "in_progress";
+
+export type TrajectoryStepResponse = {
+  step_index: number;
+  action: string;
+  action_input: string;
+  observation: string;
+  screenshot_id: string | null;
+  timestamp: string;
+  duration_ms: number;
+};
 
 export type WorkspaceFilesResponse = {
   paths: string[];

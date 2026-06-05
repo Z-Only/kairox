@@ -17,25 +17,25 @@
 
 Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCode, Aider, Cline, Goose, Continue).
 
-| Capability                                | Kairox status                                            | Industry best-in-class                                               |
-| ----------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
-| Agent loop + tool dispatch                | ✅ Event-sourced session actors                          | Claude Code, Codex CLI                                               |
-| Multi-agent orchestration                 | ✅ Planner/Worker/Reviewer + DAG executor                | Ahead of most; Devin-style long-running is next frontier             |
-| MCP integration                           | ✅ stdio/SSE/Streamable HTTP + marketplace               | Claude Code parity                                                   |
-| Tool safety (approval + sandbox)          | ✅ Orthogonal ApprovalPolicy × SandboxPolicy             | Ahead of most; Codex CLI has similar sandbox                         |
-| Prompt caching                            | ✅ Cache breakpoints + hit-rate tracking                 | Claude quickstarts best-practices shows optimal breakpoint placement |
-| Memory + context assembly                 | ✅ Multi-scope memory + tiktoken budgets + compaction    | Competitive; RAG retrieval is gap                                    |
-| Skills + plugins                          | ✅ Native skills + plugin manifests + marketplace        | Ahead of most OSS agents                                             |
-| Eval harness                              | ✅ JSONL scenarios + tag filters + expectations          | Competitive with SWE-bench style harnesses                           |
-| LSP / code intelligence                   | ✅ Native LSP + DAP                                      | OpenCode, Continue have similar                                      |
-| Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough               | Claude Code, Codex use provider-hosted tools                         |
-| Multimodal context management             | ✅ Image pruning strategies                              | Claude quickstarts has reference impl                                |
-| Browser / computer use                    | ✅ Browser tool + Computer use primitives                | Claude quickstarts, browser-use, Cline                               |
-| Trajectory recording                      | ⚠️ Core/store layer shipped; runtime capture/viewer next | SWE-Agent, Moatless                                                  |
-| Long-running autonomous mode              | ❌ Session-scoped only                                   | Claude quickstarts autonomous-coding, Codex background tasks         |
-| Embedded SDK mode                         | ❌ Not exposed                                           | Claude Agent SDK, Goose extensible-agent                             |
-| Streaming UX                              | ⚠️ Basic event forwarding                                | Claude Code, Codex CLI have rich streaming                           |
-| Git-aware workflows                       | ⚠️ Basic shell.exec                                      | Aider, Claude Code have deep git integration                         |
+| Capability                                | Kairox status                                         | Industry best-in-class                                               |
+| ----------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| Agent loop + tool dispatch                | ✅ Event-sourced session actors                       | Claude Code, Codex CLI                                               |
+| Multi-agent orchestration                 | ✅ Planner/Worker/Reviewer + DAG executor             | Ahead of most; Devin-style long-running is next frontier             |
+| MCP integration                           | ✅ stdio/SSE/Streamable HTTP + marketplace            | Claude Code parity                                                   |
+| Tool safety (approval + sandbox)          | ✅ Orthogonal ApprovalPolicy × SandboxPolicy          | Ahead of most; Codex CLI has similar sandbox                         |
+| Prompt caching                            | ✅ Cache breakpoints + hit-rate tracking              | Claude quickstarts best-practices shows optimal breakpoint placement |
+| Memory + context assembly                 | ✅ Multi-scope memory + tiktoken budgets + compaction | Competitive; RAG retrieval is gap                                    |
+| Skills + plugins                          | ✅ Native skills + plugin manifests + marketplace     | Ahead of most OSS agents                                             |
+| Eval harness                              | ✅ JSONL scenarios + tag filters + expectations       | Competitive with SWE-bench style harnesses                           |
+| LSP / code intelligence                   | ✅ Native LSP + DAP                                   | OpenCode, Continue have similar                                      |
+| Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough            | Claude Code, Codex use provider-hosted tools                         |
+| Multimodal context management             | ✅ Image pruning strategies                           | Claude quickstarts has reference impl                                |
+| Browser / computer use                    | ✅ Browser tool + Computer use primitives             | Claude quickstarts, browser-use, Cline                               |
+| Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                  | SWE-Agent, Moatless                                                  |
+| Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
+| Embedded SDK mode                         | ❌ Not exposed                                        | Claude Agent SDK, Goose extensible-agent                             |
+| Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
+| Git-aware workflows                       | ⚠️ Basic shell.exec                                   | Aider, Claude Code have deep git integration                         |
 
 ---
 
@@ -135,22 +135,20 @@ Allow the model to chain multiple predictable actions in a single turn:
 
 **Why**: 2-5x latency reduction on repetitive tasks. The best-practices reference shows significant cost savings.
 
-### 2.3 Trajectory recording
+### 2.3 Trajectory recording ✅
 
-**Crates**: `agent-store`, `agent-core`
+**Crates**: `agent-store`, `agent-core`, `agent-runtime`, `agent-gui`
 
-The trajectory data layer has shipped; runtime auto-capture and GUI inspection remain the next steps. Current code includes:
+Complete. The trajectory system now includes:
 
-- Each trajectory = ordered sequence of (action, observation, screenshot?, timestamp).
-- Trajectories are per-task, not per-session (a session may contain multiple task trajectories).
-- Export as JSON for replay, debugging, and eval.
+- **Data layer**: `TrajectoryStore` trait + `SqliteTrajectoryStore` with migration `0009_trajectories.sql`.
+- **Core types**: `TrajectoryId`, `TrajectoryStep`, `TrajectoryMeta`, `TrajectoryOutcome` in `agent-core`.
+- **Events**: `TrajectoryStarted`, `TrajectoryStepRecorded`, `TrajectoryCompleted` in `EventPayload`.
+- **Runtime auto-capture**: The agent loop automatically starts a trajectory per turn, records each tool invocation as a step, and completes the trajectory with success/failure/cancelled outcome.
+- **Facade API**: `list_trajectories`, `get_trajectory_steps`, `export_trajectory` on `SessionFacade`.
+- **GUI viewer**: Trajectory tab in the trace panel with expandable step-by-step inspection and JSON export.
 
-Remaining work:
-
-- Runtime integration that automatically emits and persists trajectory steps during agent execution.
-- GUI viewer for trajectory inspection.
-
-**Why**: Current event store captures domain events but lacks the step-by-step "what did the agent try" narrative. Essential for debugging agent behavior and feeding into eval.
+**Why**: Essential for debugging agent behavior and feeding into eval. Closes the gap with SWE-Agent and Moatless trajectory-based debugging.
 
 ### 2.4 Computer use (desktop interaction)
 
@@ -317,7 +315,7 @@ Key insights extracted from industry agents that inform this roadmap:
 | **Cline**                | VS Code extension with browser preview, terminal integration. Kairox GUI serves similar role; browser tool would close the gap.                 |
 | **Goose**                | Extensible agent with pluggable "toolkits." Similar to Kairox plugins/skills but less structured.                                               |
 | **Continue**             | IDE-embedded with autocomplete + chat + edit modes. Different UX paradigm; Kairox focuses on autonomous agent sessions.                         |
-| **SWE-Agent / Moatless** | Trajectory-based debugging and eval. Kairox has the trajectory storage layer; runtime capture and GUI inspection are the next gaps.             |
+| **SWE-Agent / Moatless** | Trajectory-based debugging and eval. Kairox now has full trajectory recording: runtime auto-capture + GUI inspection + JSON export.             |
 
 ---
 

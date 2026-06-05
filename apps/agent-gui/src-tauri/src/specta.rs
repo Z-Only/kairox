@@ -178,6 +178,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_workspace_files,
             save_draft,
             get_draft,
+            // Trajectory commands
+            list_trajectories,
+            get_trajectory_steps,
+            export_trajectory,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
@@ -278,4 +282,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         // Context-mgmt P3: projection types consumed by GUI
         .typ::<CompactionStatus>()
         .typ::<ProjectedModelLimits>()
+        // Trajectory types
+        .typ::<TrajectoryMetaResponse>()
+        .typ::<TrajectoryStepResponse>()
 }

@@ -72,6 +72,60 @@ pub struct BuildInfoResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct TrajectoryMetaResponse {
+    pub trajectory_id: String,
+    pub task_id: String,
+    pub session_id: String,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub step_count: u32,
+    pub outcome: String,
+}
+
+impl From<agent_core::TrajectoryMeta> for TrajectoryMetaResponse {
+    fn from(m: agent_core::TrajectoryMeta) -> Self {
+        Self {
+            trajectory_id: m.trajectory_id.to_string(),
+            task_id: m.task_id,
+            session_id: m.session_id,
+            started_at: m.started_at.to_rfc3339(),
+            completed_at: m.completed_at.map(|dt| dt.to_rfc3339()),
+            step_count: m.step_count,
+            outcome: serde_json::to_value(&m.outcome)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_else(|| "in_progress".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct TrajectoryStepResponse {
+    pub step_index: u32,
+    pub action: String,
+    pub action_input: String,
+    pub observation: String,
+    pub screenshot_id: Option<String>,
+    pub timestamp: String,
+    #[specta(type = u32)]
+    pub duration_ms: u64,
+}
+
+impl From<agent_core::TrajectoryStep> for TrajectoryStepResponse {
+    fn from(s: agent_core::TrajectoryStep) -> Self {
+        Self {
+            step_index: s.step_index,
+            action: s.action,
+            action_input: serde_json::to_string(&s.action_input).unwrap_or_default(),
+            observation: s.observation,
+            screenshot_id: s.screenshot_id,
+            timestamp: s.timestamp.to_rfc3339(),
+            duration_ms: s.duration_ms,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProjectInfoResponse {
     pub project_id: String,
     pub display_name: String,

@@ -312,6 +312,10 @@ pub fn run() {
             crate::commands::list_workspace_files,
             crate::commands::save_draft,
             crate::commands::get_draft,
+            // Trajectory commands
+            crate::commands::list_trajectories,
+            crate::commands::get_trajectory_steps,
+            crate::commands::export_trajectory,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build tauri application");

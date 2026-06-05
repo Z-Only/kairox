@@ -26,7 +26,7 @@ use agent_gui_tauri::commands::{
     McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
     ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
     SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
-    WorkspaceFilesResponse, WorkspaceInfoResponse,
+    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -192,6 +192,10 @@ fn main() {
             agent_gui_tauri::commands::list_workspace_files,
             agent_gui_tauri::commands::save_draft,
             agent_gui_tauri::commands::get_draft,
+            // Trajectory commands
+            agent_gui_tauri::commands::list_trajectories,
+            agent_gui_tauri::commands::get_trajectory_steps,
+            agent_gui_tauri::commands::export_trajectory,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
@@ -275,7 +279,10 @@ fn main() {
         // Draft persistence types
         .typ::<SaveDraftRequest>()
         .typ::<CheckMcpHealthResponse>()
-        .typ::<McpToolStatesResponse>();
+        .typ::<McpToolStatesResponse>()
+        // Trajectory types
+        .typ::<TrajectoryMetaResponse>()
+        .typ::<TrajectoryStepResponse>();
 
     match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),

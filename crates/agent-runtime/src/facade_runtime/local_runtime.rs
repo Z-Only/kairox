@@ -8,7 +8,7 @@ use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
 use agent_mcp::installer::Installer;
 use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
-use agent_store::EventStore;
+use agent_store::{EventStore, TrajectoryStore};
 use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -97,6 +97,7 @@ where
     pub(crate) ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
     pub(crate) monitor_registry: Option<Arc<MonitorRegistry>>,
     pub(crate) workspace_scoped_builtin_tools: Option<Arc<WorkspaceScopedBuiltinTools>>,
+    pub(crate) trajectory_store: Option<Arc<dyn TrajectoryStore>>,
     // Skill catalog
     pub(crate) skill_catalog: std::sync::OnceLock<Arc<AggregateSkillCatalogProvider>>,
     pub(crate) skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
@@ -154,6 +155,7 @@ where
             ollama_clients: HashMap::new(),
             monitor_registry: None,
             workspace_scoped_builtin_tools: None,
+            trajectory_store: None,
             skill_catalog: std::sync::OnceLock::new(),
             skill_sources_toml: None,
             skill_catalog_http: None,
@@ -178,6 +180,26 @@ where
 
     pub fn monitor_registry(&self) -> Option<&Arc<MonitorRegistry>> {
         self.monitor_registry.as_ref()
+    }
+
+    pub fn with_trajectory_store(mut self, store: Arc<dyn TrajectoryStore>) -> Self {
+        self.trajectory_store = Some(store);
+        self
+    }
+
+    pub async fn with_trajectory_store_from_pool(mut self) -> Self {
+        if let Some(pool) = self.store.sqlite_pool() {
+            let store = agent_store::SqliteTrajectoryStore::new(pool);
+            if let Err(e) = store.migrate().await {
+                tracing::warn!("trajectory store migration failed: {e}");
+            }
+            self.trajectory_store = Some(Arc::new(store));
+        }
+        self
+    }
+
+    pub fn trajectory_store(&self) -> Option<&Arc<dyn TrajectoryStore>> {
+        self.trajectory_store.as_ref()
     }
 
     /// Test-only accessor for the underlying event store. Gated so production

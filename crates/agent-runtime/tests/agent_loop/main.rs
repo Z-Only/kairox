@@ -17,6 +17,7 @@ mod hooks;
 mod subscriptions;
 mod text_turns;
 mod tool_calls;
+mod trajectory;
 
 /// Build a minimal `Config` whose only opinion is the supplied hook list.
 /// Tests that don't need hooks pass an empty `Vec`.

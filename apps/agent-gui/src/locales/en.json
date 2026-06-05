@@ -686,7 +686,19 @@
     "kindSelectAria": "Trace type",
     "searchAria": "Search trace events",
     "searchPlaceholder": "Search trace events",
-    "densityLabel": "Detail:"
+    "densityLabel": "Detail:",
+    "tabTrajectory": "Trajectory"
+  },
+  "trajectory": {
+    "noSession": "No active session",
+    "loading": "Loading trajectories…",
+    "empty": "No trajectories recorded",
+    "stepCount": "{count} steps",
+    "export": "Export",
+    "loadingSteps": "Loading steps…",
+    "noSteps": "No steps recorded",
+    "input": "Input",
+    "observation": "Observation"
   },
   "permission": {
     "allow": "Allow",
