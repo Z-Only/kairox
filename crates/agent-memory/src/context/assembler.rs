@@ -251,19 +251,21 @@ impl ContextAssembler {
         }
     }
 
-    fn count_tokens(&self, text: &str) -> u64 {
+    pub(crate) fn count_tokens(&self, text: &str) -> u64 {
         self.tokenizer.encode_with_special_tokens(text).len() as u64
     }
 }
 
-fn sanitize_context_text(text: &str) -> (String, Vec<agent_models::EmbeddedImageSummary>) {
+pub(super) fn sanitize_context_text(
+    text: &str,
+) -> (String, Vec<agent_models::EmbeddedImageSummary>) {
     match sanitize_markdown_data_uri_images(text) {
         Some(sanitized) => (sanitized.text, sanitized.images),
         None => (text.to_string(), Vec::new()),
     }
 }
 
-fn append_embedded_images(
+pub(super) fn append_embedded_images(
     images: &mut Vec<ImageEntry>,
     next_position: &mut usize,
     embedded_images: Vec<agent_models::EmbeddedImageSummary>,
