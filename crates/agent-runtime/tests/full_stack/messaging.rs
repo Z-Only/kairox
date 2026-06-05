@@ -276,6 +276,18 @@ async fn project_session_monitor_start_uses_project_worktree_root() {
         .expect("project monitor should be listed")
         .monitor_id
         .clone();
+
+    // Wait for stdout (`ready\n`) to be captured and persisted as MonitorEvent
+    // before stopping. Under instrumented code (coverage) the persistence lag
+    // can exceed the CWD-file poll window, causing a race.
+    for _ in 0..40 {
+        let trace = runtime.get_trace(session_id.clone()).await.unwrap();
+        if trace.iter().any(|e| e.event.event_type == "MonitorEvent") {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
     registry.stop(&monitor_id).await.unwrap();
 
     let trace = runtime.get_trace(session_id).await.unwrap();
