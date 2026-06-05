@@ -31,17 +31,8 @@ jobs:
         with:
           tool: git-cliff
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Install tooling deps
-        run: bun ci
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Generate release notes with git-cliff
         id: notes
@@ -99,16 +90,11 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
       - name: Install macOS cross-compilation target
         if: runner.os == 'macOS'
         run: rustup target add x86_64-apple-darwin
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
 
       - name: Build TUI
         run: cargo build -p agent-tui --release
@@ -167,35 +153,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Install Linux system deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Build and upload Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -395,36 +360,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Install Linux system deps for Tauri
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
