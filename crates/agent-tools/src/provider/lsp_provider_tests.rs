@@ -49,7 +49,10 @@ impl MockTransport {
 
 #[async_trait]
 impl Transport for MockTransport {
-    async fn send_request(&mut self, _request: JsonRpcRequest) -> agent_lsp::Result<JsonRpcResponse> {
+    async fn send_request(
+        &mut self,
+        _request: JsonRpcRequest,
+    ) -> agent_lsp::Result<JsonRpcResponse> {
         self.responses
             .lock()
             .unwrap()
@@ -57,7 +60,10 @@ impl Transport for MockTransport {
             .ok_or_else(|| agent_lsp::LspError::Transport("no response queued".into()))
     }
 
-    async fn send_notification(&mut self, _notification: JsonRpcNotification) -> agent_lsp::Result<()> {
+    async fn send_notification(
+        &mut self,
+        _notification: JsonRpcNotification,
+    ) -> agent_lsp::Result<()> {
         Ok(())
     }
 
@@ -154,7 +160,10 @@ async fn tool_definition_contains_operation_name() {
 #[tokio::test]
 async fn tool_risk_is_lsp_query() {
     let provider = make_provider(MockTransport::new());
-    let tool = provider.get_tool("lsp.test-lsp.goto_definition").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.goto_definition")
+        .await
+        .unwrap();
     let inv = invocation("lsp.test-lsp.goto_definition", json!({}));
     let risk = tool.risk(&inv);
     assert_eq!(risk.tool_id, "lsp.test-lsp.goto_definition");
@@ -177,7 +186,10 @@ async fn invoke_goto_definition_formats_locations() {
     }));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.goto_definition").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.goto_definition")
+        .await
+        .unwrap();
     let inv = invocation(
         "lsp.test-lsp.goto_definition",
         json!({"file": "file:///src/lib.rs", "line": 5, "character": 10}),
@@ -194,7 +206,10 @@ async fn invoke_goto_definition_empty() {
     mock.enqueue(json!([]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.goto_definition").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.goto_definition")
+        .await
+        .unwrap();
     let inv = invocation(
         "lsp.test-lsp.goto_definition",
         json!({"file": "f.rs", "line": 0, "character": 0}),
@@ -207,11 +222,17 @@ async fn invoke_goto_definition_empty() {
 async fn invoke_goto_definition_missing_param() {
     let mock = MockTransport::new();
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.goto_definition").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.goto_definition")
+        .await
+        .unwrap();
     let inv = invocation("lsp.test-lsp.goto_definition", json!({"file": "f.rs"}));
     let err = tool.invoke(inv).await.unwrap_err();
     let msg = err.to_string();
-    assert!(msg.contains("line"), "error should mention missing param: {msg}");
+    assert!(
+        msg.contains("line"),
+        "error should mention missing param: {msg}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +254,10 @@ async fn invoke_find_references_formats_locations() {
     ]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.find_references").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.find_references")
+        .await
+        .unwrap();
     let inv = invocation(
         "lsp.test-lsp.find_references",
         json!({"file": "f.rs", "line": 0, "character": 0}),
@@ -361,11 +385,11 @@ async fn invoke_document_symbols_formats_tree() {
     ]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.document_symbols").await.unwrap();
-    let inv = invocation(
-        "lsp.test-lsp.document_symbols",
-        json!({"file": "f.rs"}),
-    );
+    let tool = provider
+        .get_tool("lsp.test-lsp.document_symbols")
+        .await
+        .unwrap();
+    let inv = invocation("lsp.test-lsp.document_symbols", json!({"file": "f.rs"}));
     let output = tool.invoke(inv).await.unwrap();
     assert!(output.text.contains("MyStruct"));
     assert!(output.text.contains("new"));
@@ -379,7 +403,10 @@ async fn invoke_document_symbols_empty() {
     mock.enqueue(json!([]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.document_symbols").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.document_symbols")
+        .await
+        .unwrap();
     let inv = invocation("lsp.test-lsp.document_symbols", json!({"file": "f.rs"}));
     let output = tool.invoke(inv).await.unwrap();
     assert_eq!(output.text, "No symbols found");
@@ -404,11 +431,11 @@ async fn invoke_workspace_symbols_formats_results() {
     ]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.workspace_symbols").await.unwrap();
-    let inv = invocation(
-        "lsp.test-lsp.workspace_symbols",
-        json!({"query": "Config"}),
-    );
+    let tool = provider
+        .get_tool("lsp.test-lsp.workspace_symbols")
+        .await
+        .unwrap();
+    let inv = invocation("lsp.test-lsp.workspace_symbols", json!({"query": "Config"}));
     let output = tool.invoke(inv).await.unwrap();
     assert!(output.text.contains("Config"));
     assert!(output.text.contains("file:///config.rs"));
@@ -420,7 +447,10 @@ async fn invoke_workspace_symbols_empty() {
     mock.enqueue(json!([]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.workspace_symbols").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.workspace_symbols")
+        .await
+        .unwrap();
     let inv = invocation("lsp.test-lsp.workspace_symbols", json!({"query": "Foo"}));
     let output = tool.invoke(inv).await.unwrap();
     assert_eq!(output.text, "No symbols found");
@@ -449,7 +479,10 @@ async fn invoke_unknown_operation_returns_error() {
     // Manually construct an LspToolInstance via get_tool with a known-good op,
     // then test the fallback by checking that unknown IDs fail at get_tool.
     let provider = make_provider(MockTransport::new());
-    assert!(provider.get_tool("lsp.test-lsp.nonexistent").await.is_none());
+    assert!(provider
+        .get_tool("lsp.test-lsp.nonexistent")
+        .await
+        .is_none());
 }
 
 // ---------------------------------------------------------------------------
@@ -471,7 +504,10 @@ async fn goto_definition_multiple_locations() {
     ]));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("lsp.test-lsp.goto_definition").await.unwrap();
+    let tool = provider
+        .get_tool("lsp.test-lsp.goto_definition")
+        .await
+        .unwrap();
     let inv = invocation(
         "lsp.test-lsp.goto_definition",
         json!({"file": "f.rs", "line": 0, "character": 0}),

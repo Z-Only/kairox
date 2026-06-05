@@ -9,7 +9,7 @@ use agent_lsp::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 use agent_lsp::DapClient;
 
 use crate::permission::ToolEffect;
-use crate::registry::{Tool, ToolInvocation, ToolProvider};
+use crate::registry::{ToolInvocation, ToolProvider};
 
 use super::DapToolProvider;
 
@@ -41,7 +41,10 @@ impl MockTransport {
 
 #[async_trait]
 impl Transport for MockTransport {
-    async fn send_request(&mut self, _request: JsonRpcRequest) -> agent_lsp::Result<JsonRpcResponse> {
+    async fn send_request(
+        &mut self,
+        _request: JsonRpcRequest,
+    ) -> agent_lsp::Result<JsonRpcResponse> {
         self.responses
             .lock()
             .unwrap()
@@ -49,7 +52,10 @@ impl Transport for MockTransport {
             .ok_or_else(|| agent_lsp::LspError::Transport("no response queued".into()))
     }
 
-    async fn send_notification(&mut self, _notification: JsonRpcNotification) -> agent_lsp::Result<()> {
+    async fn send_notification(
+        &mut self,
+        _notification: JsonRpcNotification,
+    ) -> agent_lsp::Result<()> {
         Ok(())
     }
 
@@ -145,13 +151,19 @@ async fn get_tool_returns_some_for_valid_operation() {
     let provider = make_provider(MockTransport::new());
     assert!(provider.get_tool("debug.test-dbg.launch").await.is_some());
     assert!(provider.get_tool("debug.test-dbg.continue").await.is_some());
-    assert!(provider.get_tool("debug.test-dbg.disconnect").await.is_some());
+    assert!(provider
+        .get_tool("debug.test-dbg.disconnect")
+        .await
+        .is_some());
 }
 
 #[tokio::test]
 async fn get_tool_returns_none_for_unknown_operation() {
     let provider = make_provider(MockTransport::new());
-    assert!(provider.get_tool("debug.test-dbg.unknown_op").await.is_none());
+    assert!(provider
+        .get_tool("debug.test-dbg.unknown_op")
+        .await
+        .is_none());
 }
 
 #[tokio::test]
@@ -228,7 +240,10 @@ async fn invoke_set_breakpoints_formats_output() {
     })));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("debug.test-dbg.set_breakpoints").await.unwrap();
+    let tool = provider
+        .get_tool("debug.test-dbg.set_breakpoints")
+        .await
+        .unwrap();
     let inv = invocation(
         "debug.test-dbg.set_breakpoints",
         json!({"file": "/tmp/test.py", "lines": [10, 20]}),
@@ -323,7 +338,10 @@ async fn invoke_stacktrace_formats_frames() {
     })));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("debug.test-dbg.stacktrace").await.unwrap();
+    let tool = provider
+        .get_tool("debug.test-dbg.stacktrace")
+        .await
+        .unwrap();
     let inv = invocation("debug.test-dbg.stacktrace", json!({}));
     let output = tool.invoke(inv).await.unwrap();
     assert!(output.text.contains("#0 main"));
@@ -338,7 +356,10 @@ async fn invoke_stacktrace_empty() {
     mock.enqueue(dap_success(json!({"stackFrames": []})));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("debug.test-dbg.stacktrace").await.unwrap();
+    let tool = provider
+        .get_tool("debug.test-dbg.stacktrace")
+        .await
+        .unwrap();
     let inv = invocation("debug.test-dbg.stacktrace", json!({}));
     let output = tool.invoke(inv).await.unwrap();
     assert_eq!(output.text, "No stack frames");
@@ -354,7 +375,10 @@ async fn invoke_stacktrace_missing_source() {
     })));
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("debug.test-dbg.stacktrace").await.unwrap();
+    let tool = provider
+        .get_tool("debug.test-dbg.stacktrace")
+        .await
+        .unwrap();
     let inv = invocation("debug.test-dbg.stacktrace", json!({}));
     let output = tool.invoke(inv).await.unwrap();
     assert!(output.text.contains("??"));
@@ -442,7 +466,10 @@ async fn invoke_disconnect() {
     mock.enqueue(dap_success_no_body());
 
     let provider = make_provider(mock);
-    let tool = provider.get_tool("debug.test-dbg.disconnect").await.unwrap();
+    let tool = provider
+        .get_tool("debug.test-dbg.disconnect")
+        .await
+        .unwrap();
     let inv = invocation("debug.test-dbg.disconnect", json!({}));
     let output = tool.invoke(inv).await.unwrap();
     assert!(output.text.contains("disconnected"));
@@ -455,5 +482,8 @@ async fn invoke_disconnect() {
 #[tokio::test]
 async fn get_tool_rejects_nonexistent() {
     let provider = make_provider(MockTransport::new());
-    assert!(provider.get_tool("debug.test-dbg.nonexistent").await.is_none());
+    assert!(provider
+        .get_tool("debug.test-dbg.nonexistent")
+        .await
+        .is_none());
 }
