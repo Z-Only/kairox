@@ -21,6 +21,65 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 08:15 CST — GUI runtime instance registry (#817)
+
+- Commit: `ca1ca8b0`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`, `client_identity = "claude_code"`)
+- Scenario: In one isolated temp `HOME`, started GUI instance A on port `1438`
+  and GUI instance B on port `1439`, both with pilot enabled and sharing the same
+  Kairox data dir. Verified runtime instance JSON records while both were
+  running, confirmed B reported A through the startup `Other Kairox instances`
+  warning, sent a no-tool live Ali Mo turn from B, killed B to leave a stale
+  record, then started GUI instance C on port `1439` to verify startup pruning
+  removed stale B while still reporting running A.
+- Method: For A and B/C, ran `HOME=/tmp/kairox-instance-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-instance-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+CARGO_TARGET_DIR=/Users/chanyu/AIProjects/kairox/target KAIROX_DEV_PORT=<port>
+KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
+  supplied only as a local process env var. The shared target kept the second
+  build incremental; no Starpoint approval was needed.
+- Evidence: A printed pilot socket
+  `/tmp/kairox-instance-runtime-0605/tauri-pilot-dev.kairox.agent.dev1438.sock`,
+  `tauri-pilot ping` returned ok, and `windows` showed
+  `http://localhost:1438/#/workbench/ses_8338b0ea221041c2b9618c60f5a8ca98`.
+  A created exactly one JSON record under
+  `/tmp/kairox-instance-home-0605/.kairox/runtime/instances/`:
+  `kind=gui`, `pid=62496`, `database_filename=kairox-gui.sqlite`,
+  `data_dir=/tmp/kairox-instance-home-0605/.kairox`,
+  `workspace_root=/Users/chanyu/AIProjects/kairox/.worktrees/docs-live-instance-registry-0605/apps/agent-gui/src-tauri`,
+  and `executable=/Users/chanyu/AIProjects/kairox/target/debug/agent-gui-tauri`.
+  B printed pilot socket
+  `/tmp/kairox-instance-runtime-0605/tauri-pilot-dev.kairox.agent.dev1439.sock`
+  and startup warning
+  `Other Kairox instances: gui pid=62496 db=kairox-gui.sqlite workspace=.../apps/agent-gui/src-tauri`.
+  Both A and B pilot sockets pinged successfully at the same time; the shared
+  records dir contained exactly two records for PIDs `62496` and `66848`, both
+  with `kind=gui`, `database_filename=kairox-gui.sqlite`, and the same data dir
+  and workspace root. B switched from Fake to `Ali Mo · Claude Opus 4 6` through
+  the GUI and sent a no-tool prompt whose expected marker was split into
+  `INSTANCE_REGISTRY_FINAL_` and `OK_0605`. Page polling found
+  `INSTANCE_REGISTRY_FINAL_OK_0605`, and `tauri-pilot logs --level error`
+  reported `No logs captured`. Exported trace for
+  `ses_8338b0ea221041c2b9618c60f5a8ca98` had `event_count=11`, including
+  `ModelProfileSwitched` from `fake` to `ali-mo-claude`, `ContextAssembled` at
+  `1562 / 181616` tokens, three `ModelTokenDelta` events, and
+  `AssistantMessageCompleted` content `INSTANCE_REGISTRY_FINAL_OK_0605`; trace
+  summary showed `user_prompt_has_full_marker=false` and
+  `user_prompt_has_split_marker=true`. After B was killed, its stale record still
+  existed while only A's `agent-gui-tauri` process was running. Starting C on
+  port `1439` printed the same `Other Kairox instances` warning for A only,
+  proving startup `prune_stale()` removed B's dead-PID record. The records dir
+  then contained exactly two live records for PIDs `62496` and `74591`; both
+  matched running `agent-gui-tauri` processes. After shutdown, no
+  `agent-gui-tauri` process or `1438`/`1439` listener remained.
+- Result: Pass for GUI runtime instance tracking. The GUI registers local
+  instance metadata in the expected data-dir location, reports other running
+  instances on startup, keeps distinct pilot sockets for simultaneous dev ports,
+  prunes stale records on subsequent startup, and concurrent instance tracking
+  does not break live Ali Mo chat.
+
 ### 2026-06-05 08:02 CST — GUI environment automation builtin tools (#806)
 
 - Commit: `aa3d89c4`
