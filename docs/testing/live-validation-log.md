@@ -21,6 +21,61 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 08:02 CST — GUI environment automation builtin tools (#806)
+
+- Commit: `aa3d89c4`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`, `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, started the real GUI with pilot, switched
+  the workbench from Fake to `ali-mo-claude`, changed approval to Always and the
+  sandbox to Danger Full Access through the GUI, then sent one live composer turn
+  requiring exactly one `browser.batch` call followed by exactly one
+  `computer.use` call. The prompt split the expected marker into
+  `ENV_TOOLS_FINAL_` and `OK_0605` so the full `ENV_TOOLS_FINAL_OK_0605` string
+  did not exist before the model response.
+- Method: `HOME=/tmp/kairox-env-tools-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-env-tools-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+KAIROX_DEV_PORT=1437 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features
+pilot` compiled the app and printed the isolated pilot socket. On this machine,
+  `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
+  macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
+  continued by running `KAIROX_DEV_PORT=1437 KAIROX_DEV_STRICT_PORT=1 bun run
+  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+  `./target/debug/agent-gui-tauri` under the same temp environment. The temp
+  profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
+  supplied only as a local process env var.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/kairox-env-tools-runtime-0605/tauri-pilot-dev.kairox.agent.dev1437.sock`,
+  and `windows` showed
+  `http://localhost:1437/#/workbench/ses_0a67c5eac68943678b44dafe0003ec97`.
+  The GUI controls rendered `Ali Mo · Claude Opus 4 6`, `总是`, and
+  `完全访问（危险）`; IPC confirmed `get_session_approval_policy=always` and
+  `get_session_sandbox_policy={"kind":"danger_full_access"}`. The live model
+  requested `browser.batch` with actions `navigate about:blank`, `get_state`,
+  `get_text body`, and `close`; the GUI showed an approval card and clicking
+  `允许` completed the tool with preview `total=4`, `succeeded=4`, `failed=0`,
+  including `Navigated to about:blank` and `Browser state retrieved`. The live
+  model then requested `computer.use({"action":"get_screen_size"})`; clicking
+  `允许` completed the tool with preview `Screen size: 1920x1080` and
+  `screen_size={width:1920,height:1080}`. Page checks showed
+  `ENV_TOOLS_FINAL_OK_0605`, `permissionCount=0`, `cancelVisible=false`, and
+  `tauri-pilot logs --level error` reported `No logs captured`.
+  Exported trace for session `ses_0a67c5eac68943678b44dafe0003ec97` had
+  `event_count=28`, included `ModelProfileSwitched` from `fake` to
+  `ali-mo-claude`, `ContextAssembled` with `tool_definitions=1668` tokens, two
+  `ModelToolCallRequested` events for `browser.batch` and `computer.use`, two
+  matching `PermissionRequested`/`PermissionGranted` pairs, two
+  `ToolInvocationStarted`/`ToolInvocationCompleted` pairs, and
+  `AssistantMessageCompleted` content `ENV_TOOLS_FINAL_OK_0605`. Trace summary
+  showed `user_prompt_has_full_marker=false` and
+  `user_prompt_has_split_marker=true`.
+- Result: Pass for the live GUI/runtime registration, permission, execution, and
+  trace path for the #806 builtin environment automation tools. This validates
+  that Ali Mo can see and call `browser.batch` and `computer.use` and that Kairox
+  executes and records them correctly. It does not claim real external browser or
+  desktop control, because the current `PlaywrightManager` and `DesktopBackend`
+  implementations are explicitly simulated placeholders.
+
 ### 2026-06-05 07:50 CST — GUI devtools setting persistence (#812)
 
 - Commit: `efadf0af`
