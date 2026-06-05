@@ -145,6 +145,10 @@ fn safe_relative_path(segments: &[String]) -> agent_core::Result<PathBuf> {
     Ok(path)
 }
 
+#[cfg(test)]
+#[path = "discovery_tests.rs"]
+mod discovery_tests;
+
 pub(crate) fn skill_directory_name(package: &str) -> String {
     let tail = package
         .trim_end_matches('/')
