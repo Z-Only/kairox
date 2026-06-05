@@ -267,7 +267,7 @@ fn serialize_server_tool(st: &ServerTool) -> serde_json::Value {
     match st {
         ServerTool::CodeExecution => {
             serde_json::json!({
-                "type": "code_execution_20250522",
+                "type": "code_execution_20250825",
                 "name": "code_execution",
             })
         }

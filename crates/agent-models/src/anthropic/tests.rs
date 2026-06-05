@@ -1030,7 +1030,7 @@ fn builds_request_with_code_execution_server_tool() {
     let body = client.build_messages_request(&request);
     let tools = body["tools"].as_array().unwrap();
     assert_eq!(tools.len(), 1);
-    assert_eq!(tools[0]["type"], "code_execution_20250522");
+    assert_eq!(tools[0]["type"], "code_execution_20250825");
     assert_eq!(tools[0]["name"], "code_execution");
 }
 
@@ -1091,7 +1091,7 @@ fn builds_request_mixing_regular_and_server_tools() {
     assert_eq!(tools[0]["name"], "fs_read");
     assert!(tools[0]["input_schema"].is_object());
     // Then server tools
-    assert_eq!(tools[1]["type"], "code_execution_20250522");
+    assert_eq!(tools[1]["type"], "code_execution_20250825");
     assert_eq!(tools[2]["type"], "web_search_20250305");
 }
 

@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 const CLAUDE_CODE_CLIENT_IDENTITY: &str = "claude_code";
 const CLAUDE_CODE_BETA: &str = "claude-code-20250219";
+const CODE_EXECUTION_BETA: &str = "code-execution-2025-08-25";
 const CLAUDE_CODE_APP_NAME: &str = "claude-code";
 const CLAUDE_CODE_APP_VERSION: &str = "1.0.0";
 
@@ -186,8 +187,8 @@ fn profile_headers(def: &ProfileDef) -> Vec<(String, String)> {
         .as_deref()
         .is_some_and(is_claude_code_client_identity)
     {
+        append_anthropic_beta(&mut headers, CLAUDE_CODE_BETA);
         headers.extend([
-            ("anthropic-beta".to_string(), CLAUDE_CODE_BETA.to_string()),
             ("x-app-name".to_string(), CLAUDE_CODE_APP_NAME.to_string()),
             ("x-app-ver".to_string(), CLAUDE_CODE_APP_VERSION.to_string()),
             ("x-app".to_string(), CLAUDE_CODE_APP_NAME.to_string()),
@@ -195,9 +196,19 @@ fn profile_headers(def: &ProfileDef) -> Vec<(String, String)> {
         ]);
     }
 
+    if def.server_tool_code_execution.unwrap_or(false) {
+        append_anthropic_beta(&mut headers, CODE_EXECUTION_BETA);
+    }
+
     if let Some(custom_headers) = &def.headers {
         for (key, value) in custom_headers {
-            upsert_header(&mut headers, key.clone(), value.clone());
+            if key.eq_ignore_ascii_case("anthropic-beta") {
+                for beta in value.split(',') {
+                    append_anthropic_beta(&mut headers, beta);
+                }
+            } else {
+                upsert_header(&mut headers, key.clone(), value.clone());
+            }
         }
     }
 
@@ -217,6 +228,30 @@ fn upsert_header(headers: &mut Vec<(String, String)>, key: String, value: String
         *existing_value = value;
     } else {
         headers.push((key, value));
+    }
+}
+
+fn append_anthropic_beta(headers: &mut Vec<(String, String)>, beta: &str) {
+    let beta = beta.trim();
+    if beta.is_empty() {
+        return;
+    }
+    if let Some((_, existing_value)) = headers
+        .iter_mut()
+        .find(|(existing_key, _)| existing_key.eq_ignore_ascii_case("anthropic-beta"))
+    {
+        let already_present = existing_value
+            .split(',')
+            .map(str::trim)
+            .any(|existing| existing == beta);
+        if !already_present {
+            if !existing_value.trim().is_empty() {
+                existing_value.push(',');
+            }
+            existing_value.push_str(beta);
+        }
+    } else {
+        headers.push(("anthropic-beta".to_string(), beta.to_string()));
     }
 }
 

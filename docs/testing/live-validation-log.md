@@ -21,6 +21,59 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 09:58 CST — GUI provider `code_execution` server tool
+
+- Commit: `76b3ae2c`
+- Model: `ali-mo-code-tool` (`ali-mo` / `claude-opus-4-6`,
+  `client_identity = "claude_code"`) and `tokensflow-code-tool`
+  (`anthropic` / `anthropic/claude-opus-4.7`)
+- Scenario: In an isolated temp `HOME`, configured provider-side
+  `server_tool_code_execution = true`, started the real GUI with pilot, selected
+  the code-execution profile through the GUI model selector, and sent live
+  composer turns that asked the model to use provider `code_execution` to print
+  split marker strings. The prompts explicitly prohibited Kairox local tools so
+  any success would have to come from the provider server tool path.
+- Method: `HOME=/tmp/kairox-server-tool-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-server-tool-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+CARGO_TARGET_DIR=/Users/chanyu/AIProjects/kairox/target KAIROX_DEV_PORT=1442
+KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot` from
+  `apps/agent-gui`, with validation API keys supplied only through local process
+  env vars. The worktree updated Kairox to the current Anthropic tool type
+  `code_execution_20250825`, current beta header `code-execution-2025-08-25`,
+  and parser support for `bash_code_execution_tool_result` /
+  `text_editor_code_execution_tool_result`.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/tauri-pilot-dev.kairox.agent.dev1442.sock`, and `windows` showed
+  `http://localhost:1442/#/workbench`. Against Ali Mo, the legacy
+  `code_execution_20250522` shape without a code-execution beta was rejected as
+  `tools.18.custom.input_schema: Field required`; adding legacy beta
+  `code-execution-2025-05-22` was rejected as an unexpected
+  `anthropic-beta` value. After updating to `code_execution_20250825`, the
+  no-code-beta request was still treated as custom tool
+  (`tools.12.custom.input_schema: Field required`), while the current beta
+  `code-execution-2025-08-25` was also rejected as an unexpected
+  `anthropic-beta` value. The last Ali Mo session was
+  `ses_74fdc2a84eb641d3b0839e22f376e24c`, and the GUI rendered the provider
+  error without any Kairox permission prompt. A second attempt with
+  `tokensflow-code-tool` selected through the GUI created session
+  `ses_5c53ab7d33854204b1e79161c86f4977`; its exported trace had
+  `event_count=7`, `ContextAssembled` at `1676 / 181616` tokens with
+  `tool_definitions=1282`, and `AgentTaskFailed` with
+  `model returned an empty response; check model availability, quota, or plan`.
+  `tauri-pilot logs --level error` reported `No logs captured`, and
+  `tauri-pilot assert count '[data-test="permission-prompt"]' 0` passed.
+  Focused tests passed for the updated request/header/parser behavior:
+  `cargo test -p agent-config server_tool_code_execution_appends_current_beta_header -- --nocapture`,
+  `cargo test -p agent-models code_execution -- --nocapture`, and
+  `cargo test -p agent-models server_tool -- --nocapture`.
+- Result: Not passed with the available live providers. Kairox's local protocol
+  implementation was updated to the current Anthropic `code_execution_20250825`
+  contract and verified with focused tests, but live end-to-end provider-side
+  code execution still requires revalidation with a provider that accepts the
+  current code-execution beta/tool combination. Ali Mo should be treated as
+  unsupported for this server tool until its gateway support changes.
+
 ### 2026-06-05 09:20 CST — GUI monitor lifecycle tools (#841/#849/#855)
 
 - Commit: `9b22b564`
