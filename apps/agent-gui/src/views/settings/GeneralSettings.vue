@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
+import { useUpdater, type UpdateCheckInterval } from "@/composables/useUpdater";
 
 const themes = [
   { value: "auto", labelKey: "settings.themeAuto" },
@@ -13,6 +14,14 @@ const locales = [
   { value: "zh-CN", labelKey: "settings.localeZh" }
 ] as const satisfies ReadonlyArray<{ value: SupportedLocale; labelKey: string }>;
 
+const intervals = [
+  { value: "30m", labelKey: "settings.updateInterval30m" },
+  { value: "1h", labelKey: "settings.updateInterval1h" },
+  { value: "6h", labelKey: "settings.updateInterval6h" },
+  { value: "12h", labelKey: "settings.updateInterval12h" },
+  { value: "24h", labelKey: "settings.updateInterval24h" }
+] as const satisfies ReadonlyArray<{ value: UpdateCheckInterval; labelKey: string }>;
+
 const { t } = useI18n();
 const ui = useUiStore();
 const {
@@ -25,6 +34,26 @@ const {
 } = storeToRefs(ui);
 const isThemeSelectFocused = ref(false);
 
+const {
+  autoCheckEnabled,
+  autoDownloadEnabled,
+  checkInterval,
+  currentVersion,
+  lastCheckTime,
+  lastCheckError,
+  updateAvailable,
+  updateInfo,
+  checkingForUpdate,
+  downloadingUpdate,
+  checkForUpdate,
+  downloadAndInstallUpdate
+} = useUpdater();
+
+const formattedLastCheck = computed(() => {
+  if (!lastCheckTime.value) return null;
+  return new Date(lastCheckTime.value).toLocaleTimeString();
+});
+
 onMounted(() => {
   void ui.loadGuiSettings();
 });
@@ -36,6 +65,14 @@ async function onDevtoolsChange(event: Event): Promise<void> {
   } catch {
     // The store rolls back and exposes the backend error for the row.
   }
+}
+
+function onManualCheck(): void {
+  void checkForUpdate(false);
+}
+
+function onDownloadAndInstall(): void {
+  void downloadAndInstallUpdate();
 }
 </script>
 
@@ -71,6 +108,116 @@ async function onDevtoolsChange(event: Event): Promise<void> {
         </option>
       </KxSelect>
     </div>
+
+    <!-- Software Update -->
+    <section class="settings__section" aria-labelledby="settings-update-title">
+      <h2 id="settings-update-title" class="settings__section-title">
+        {{ t("settings.update") }}
+      </h2>
+
+      <div class="settings__row" data-test="settings-update-version">
+        <label>{{ t("settings.updateCurrentVersion") }}</label>
+        <div class="settings__control-stack">
+          <span class="settings__version-badge" data-test="settings-current-version">
+            v{{ currentVersion ?? "…" }}
+          </span>
+          <SettingsStatusTag
+            v-if="updateAvailable && updateInfo"
+            tone="success"
+            data-test="settings-update-available-tag"
+          >
+            {{ t("settings.updateAvailable", { version: updateInfo.version }) }}
+          </SettingsStatusTag>
+          <SettingsStatusTag
+            v-else-if="lastCheckTime && !checkingForUpdate && !lastCheckError"
+            tone="muted"
+            data-test="settings-up-to-date-tag"
+          >
+            {{ t("settings.updateUpToDate") }}
+          </SettingsStatusTag>
+        </div>
+      </div>
+
+      <div class="settings__row" data-test="settings-update-actions">
+        <label>
+          <template v-if="formattedLastCheck">
+            {{ t("settings.updateLastCheck", { time: formattedLastCheck }) }}
+          </template>
+        </label>
+        <div class="settings__control-stack">
+          <KxButton
+            v-if="updateAvailable"
+            variant="primary"
+            size="sm"
+            :disabled="downloadingUpdate"
+            data-test="settings-download-update"
+            @click="onDownloadAndInstall"
+          >
+            {{
+              downloadingUpdate
+                ? t("settings.updateDownloading")
+                : t("settings.updateDownloadAndInstall")
+            }}
+          </KxButton>
+          <KxButton
+            size="sm"
+            :disabled="checkingForUpdate"
+            data-test="settings-check-update"
+            @click="onManualCheck"
+          >
+            {{ checkingForUpdate ? t("settings.updateChecking") : t("settings.updateCheckNow") }}
+          </KxButton>
+          <small v-if="lastCheckError" class="settings__error" data-test="settings-update-error">
+            {{ t("settings.updateCheckFailed", { error: lastCheckError }) }}
+          </small>
+        </div>
+      </div>
+
+      <div class="settings__row" data-test="settings-update-auto-check">
+        <label for="settings-auto-check">{{ t("settings.updateAutoCheck") }}</label>
+        <label class="settings__switch">
+          <input
+            id="settings-auto-check"
+            v-model="autoCheckEnabled"
+            data-test="settings-auto-check"
+            type="checkbox"
+          />
+          <span class="settings__switch-track" aria-hidden="true">
+            <span class="settings__switch-thumb" />
+          </span>
+        </label>
+      </div>
+
+      <div v-if="autoCheckEnabled" class="settings__row" data-test="settings-update-interval">
+        <label for="settings-check-interval">{{ t("settings.updateCheckInterval") }}</label>
+        <KxSelect
+          id="settings-check-interval"
+          v-model="checkInterval"
+          class="settings__select settings__select--wide"
+          data-test="settings-check-interval"
+        >
+          <option v-for="opt in intervals" :key="opt.value" :value="opt.value">
+            {{ t(opt.labelKey) }}
+          </option>
+        </KxSelect>
+      </div>
+
+      <div class="settings__row" data-test="settings-update-auto-download">
+        <label for="settings-auto-download">{{ t("settings.updateAutoDownload") }}</label>
+        <label class="settings__switch">
+          <input
+            id="settings-auto-download"
+            v-model="autoDownloadEnabled"
+            data-test="settings-auto-download"
+            type="checkbox"
+          />
+          <span class="settings__switch-track" aria-hidden="true">
+            <span class="settings__switch-thumb" />
+          </span>
+        </label>
+      </div>
+    </section>
+
     <section class="settings__section" aria-labelledby="settings-advanced-title">
       <h2 id="settings-advanced-title" class="settings__section-title">
         {{ t("settings.advanced") }}
@@ -155,6 +302,11 @@ async function onDevtoolsChange(event: Event): Promise<void> {
   text-align: center;
 }
 
+.settings__select--wide {
+  flex: 0 1 200px;
+  max-width: 200px;
+}
+
 .settings__control-stack {
   display: flex;
   flex: 0 1 auto;
@@ -163,6 +315,18 @@ async function onDevtoolsChange(event: Event): Promise<void> {
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
+}
+
+.settings__version-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--app-radius-md, 6px);
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
+  color: var(--app-primary-color);
+  font-size: var(--app-text-sm, 0.875rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .settings__switch {
@@ -236,7 +400,8 @@ async function onDevtoolsChange(event: Event): Promise<void> {
     flex-direction: column;
   }
 
-  .settings__select {
+  .settings__select,
+  .settings__select--wide {
     max-width: none;
   }
 

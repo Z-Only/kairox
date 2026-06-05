@@ -97,12 +97,36 @@
     "build": "构建信息",
     "buildVersion": "版本",
     "buildCommit": "提交",
-    "buildBuiltAt": "构建时间"
+    "buildBuiltAt": "构建时间",
+    "update": "软件更新",
+    "updateCurrentVersion": "当前版本",
+    "updateAutoCheck": "自动检查更新",
+    "updateAutoDownload": "自动下载可用更新",
+    "updateCheckInterval": "检查周期",
+    "updateInterval30m": "每 30 分钟",
+    "updateInterval1h": "每小时",
+    "updateInterval6h": "每 6 小时",
+    "updateInterval12h": "每 12 小时",
+    "updateInterval24h": "每 24 小时",
+    "updateCheckNow": "立即检查",
+    "updateChecking": "检查中…",
+    "updateAvailable": "v{version} 可用",
+    "updateDownloadAndInstall": "下载并安装",
+    "updateDownloading": "下载中…",
+    "updateUpToDate": "已是最新版本",
+    "updateLastCheck": "上次检查：{time}",
+    "updateCheckFailed": "检查失败：{error}"
   },
   "notifications": {
     "sessionError": "会话错误",
     "copySuccess": "已复制到剪贴板",
-    "copyFailed": "复制失败"
+    "copyFailed": "复制失败",
+    "updateNewVersion": "Kairox {version} 可用，点击更新。",
+    "updateLatestVersion": "当前已是最新版本。",
+    "updateCheckError": "检查更新失败：{error}",
+    "updateNoUpdate": "没有可用更新。",
+    "updateInstalled": "更新已安装，正在重启…",
+    "updateFailed": "更新失败：{error}"
   },
   "status": {
     "ready": "就绪",

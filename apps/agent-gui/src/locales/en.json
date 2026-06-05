@@ -97,12 +97,36 @@
     "build": "Build",
     "buildVersion": "Version",
     "buildCommit": "Commit",
-    "buildBuiltAt": "Built at"
+    "buildBuiltAt": "Built at",
+    "update": "Software Update",
+    "updateCurrentVersion": "Current version",
+    "updateAutoCheck": "Check for updates automatically",
+    "updateAutoDownload": "Download updates automatically",
+    "updateCheckInterval": "Check interval",
+    "updateInterval30m": "Every 30 minutes",
+    "updateInterval1h": "Every hour",
+    "updateInterval6h": "Every 6 hours",
+    "updateInterval12h": "Every 12 hours",
+    "updateInterval24h": "Every 24 hours",
+    "updateCheckNow": "Check now",
+    "updateChecking": "Checking…",
+    "updateAvailable": "v{version} available",
+    "updateDownloadAndInstall": "Download & install",
+    "updateDownloading": "Downloading…",
+    "updateUpToDate": "Up to date",
+    "updateLastCheck": "Last checked: {time}",
+    "updateCheckFailed": "Check failed: {error}"
   },
   "notifications": {
     "sessionError": "Session error",
     "copySuccess": "Copied to clipboard",
-    "copyFailed": "Copy failed"
+    "copyFailed": "Copy failed",
+    "updateNewVersion": "Kairox {version} is available. Click to update.",
+    "updateLatestVersion": "You are using the latest version.",
+    "updateCheckError": "Update check failed: {error}",
+    "updateNoUpdate": "No update available.",
+    "updateInstalled": "Update installed. Relaunching…",
+    "updateFailed": "Update failed: {error}"
   },
   "status": {
     "ready": "Ready",
