@@ -496,3 +496,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::ActivateSkill { .. } => None,
     }
 }
+
+#[cfg(test)]
+#[path = "registry_tests.rs"]
+mod tests;
