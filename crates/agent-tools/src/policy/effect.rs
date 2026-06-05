@@ -68,3 +68,7 @@ impl PolicyRisk {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "effect_tests.rs"]
+mod tests;
