@@ -579,7 +579,7 @@ jobs:
         eval-smoke,
         live-model-tests,
         tauri-pilot-e2e,
-        tauri-pilot-live-e2e,
+        tauri-pilot-live-e2e
       ]
     runs-on: ubuntu-latest
     steps:
