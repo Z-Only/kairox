@@ -158,15 +158,22 @@ const visibleTraceEntries = computed(() =>
             {{ option.label }}
           </option>
         </KxSelect>
-        <KxInput
-          v-model="traceSearchQuery"
-          type="search"
-          size="compact"
-          :aria-label="t('trace.searchAria')"
-          :placeholder="t('trace.searchPlaceholder')"
-          class="trace-search-input"
-          data-test="trace-search-input"
-        />
+        <div class="trace-search-wrapper">
+          <svg class="trace-search-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path
+              d="M8.5 3a5.5 5.5 0 0 1 4.38 8.82l3.65 3.66-1.06 1.06-3.66-3.65A5.5 5.5 0 1 1 8.5 3Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
+            />
+          </svg>
+          <KxInput
+            v-model="traceSearchQuery"
+            type="search"
+            size="compact"
+            :aria-label="t('trace.searchAria')"
+            :placeholder="t('trace.searchPlaceholder')"
+            class="trace-search-input"
+            data-test="trace-search-input"
+          />
+        </div>
       </div>
       <div class="density-toolbar">
         <span class="density-label">{{ t("trace.densityLabel") }}</span>
@@ -249,8 +256,24 @@ const visibleTraceEntries = computed(() =>
 .trace-kind-select {
   flex: 0 1 140px;
 }
-.trace-search-input {
+.trace-search-wrapper {
+  position: relative;
   flex: 1 1 180px;
+  display: flex;
+  align-items: center;
+}
+.trace-search-icon {
+  position: absolute;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  fill: var(--app-text-color-3);
+  pointer-events: none;
+  z-index: 1;
+}
+.trace-search-input {
+  flex: 1;
+  padding-left: 26px;
 }
 .density-toolbar {
   display: flex;

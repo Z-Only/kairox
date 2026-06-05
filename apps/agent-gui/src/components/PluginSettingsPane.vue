@@ -97,6 +97,19 @@ function pluginTrustLabel(plugin: PluginSettingsView): string {
   );
 }
 
+function scopeLabel(scope: string): string {
+  switch (scope) {
+    case "Builtin":
+      return t("agents.scopeBuiltin");
+    case "Project":
+      return t("agents.scopeProject");
+    case "Local":
+      return t("agents.scopeLocal");
+    default:
+      return t("agents.scopeUser");
+  }
+}
+
 function pluginTrustTone(plugin: PluginSettingsView): "success" | "warning" | "muted" {
   const trust = plugin.security?.trust?.toLowerCase();
   if (trust === "trusted" || trust === "verified" || trust === "official") return "success";
@@ -287,7 +300,7 @@ watch(activeSubTab, (tab) => {
               :tags-label="t('plugins.tabInstalled')"
             >
               <template #tags>
-                <SettingsStatusTag>{{ plugin.scope }}</SettingsStatusTag>
+                <SettingsStatusTag>{{ scopeLabel(plugin.scope) }}</SettingsStatusTag>
                 <SettingsStatusTag :tone="plugin.enabled ? 'success' : 'warning'">
                   {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
                 </SettingsStatusTag>

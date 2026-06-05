@@ -224,7 +224,7 @@ describe("SkillSettingsPane", () => {
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').classes()).toContain(
       "settings-card-item"
     );
-    expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("project");
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("Project");
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("manual");
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain(
       "update available"

@@ -105,8 +105,21 @@ function serverToolCount(): number {
   return mcp.serverHealth[props.server.value.id]?.tools?.length ?? 0;
 }
 
+function sourceLabel(source: string): string {
+  switch (source.toLowerCase()) {
+    case "builtin":
+      return t("mcp.scopeBuiltin");
+    case "project":
+      return t("mcp.scopeProject");
+    case "local":
+      return t("mcp.scopeLocal");
+    default:
+      return t("mcp.scopeUser");
+  }
+}
+
 function formatToolCount(count: number): string {
-  return count === 1 ? "1 tool" : `${count} tools`;
+  return count === 1 ? t("mcp.toolOneLabel") : t("mcp.toolsCountLabel", { count });
 }
 
 const displayedDiagnosticSummary = computed(() => {
@@ -140,7 +153,7 @@ const displayedDiagnosticSummary = computed(() => {
     >
       <template #tags>
         <SettingsStatusTag :tone="sourceTone(server.source)">
-          {{ server.source }}
+          {{ sourceLabel(server.source) }}
         </SettingsStatusTag>
         <SettingsStatusTag v-if="server.overrides" tone="override">
           {{ t("mcp.overrides", { source: server.overrides }) }}

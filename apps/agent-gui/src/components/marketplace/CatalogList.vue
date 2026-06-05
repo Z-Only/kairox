@@ -98,13 +98,13 @@ onMounted(async () => {
         <KxSelect
           v-model="catalogSort"
           data-test="catalog-sort"
-          aria-label="Catalog sort"
+          :aria-label="t('marketplace.catalogSortAria')"
           class="filter-sort"
           size="compact"
         >
-          <option value="name">Name</option>
-          <option value="trust">Trust</option>
-          <option value="source">Source</option>
+          <option value="name">{{ t("marketplace.sortName") }}</option>
+          <option value="trust">{{ t("marketplace.sortTrust") }}</option>
+          <option value="source">{{ t("marketplace.sortSource") }}</option>
         </KxSelect>
         <KxToolbarAction data-test="catalog-refresh" @click="handleRefresh">
           {{ t("common.refresh") }}

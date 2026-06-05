@@ -78,10 +78,12 @@ const filteredServers = computed(() => {
   <div class="mcp-manager" data-test="mcp-manager">
     <div class="card mcp-manager-card">
       <div class="card-header">
-        <span class="card-title"><strong>MCP Servers</strong></span>
+        <span class="card-title"
+          ><strong>{{ t("mcp.managerTitle") }}</strong></span
+        >
         <KxIconButton
           class="mcp-close-btn"
-          label="Close MCP servers"
+          :label="t('mcp.managerClose')"
           data-test="mcp-close-btn"
           @click="emit('close')"
         >
@@ -93,17 +95,17 @@ const filteredServers = computed(() => {
         <select
           v-model="statusFilter"
           class="mcp-server-status-filter"
-          aria-label="MCP server status filter"
+          :aria-label="t('mcp.managerStatusFilter')"
           data-test="mcp-server-status-filter"
         >
           <option v-for="status in statusFilterOptions" :key="status" :value="status">
-            {{ status === "all" ? "All" : statusText(status) }}
+            {{ status === "all" ? t("mcp.managerFilterAll") : statusText(status) }}
           </option>
         </select>
       </div>
 
       <SettingsState v-if="mcp.servers.length === 0" tone="empty" data-test="mcp-empty-state">
-        No MCP servers configured
+        {{ t("mcp.managerNoServers") }}
       </SettingsState>
 
       <SettingsState
@@ -111,7 +113,7 @@ const filteredServers = computed(() => {
         tone="empty"
         data-test="mcp-filter-empty-state"
       >
-        No MCP servers match the selected status
+        {{ t("mcp.managerNoMatch") }}
       </SettingsState>
 
       <ul v-else class="list mcp-manager-list">
@@ -129,10 +131,10 @@ const filteredServers = computed(() => {
                 {{ statusEmoji(server.status) }} {{ statusText(server.status) }}
               </KxBadge>
               <KxBadge v-if="trustedSet.has(server.id)" class="mcp-trusted" tone="success">
-                ✅ Trusted
+                ✅ {{ t("mcp.trusted") }}
               </KxBadge>
               <KxBadge v-else-if="server.status === 'running'" class="mcp-untrusted" tone="warning">
-                ⚠️ Not trusted
+                ⚠️ {{ t("mcp.managerNotTrusted") }}
               </KxBadge>
             </div>
 
@@ -155,7 +157,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-start-btn"
                 @click="mcp.startServer(server.id)"
               >
-                Start
+                {{ t("mcp.start") }}
               </KxButton>
               <KxButton
                 v-if="server.status === 'running'"
@@ -163,7 +165,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-stop-btn"
                 @click="mcp.stopServer(server.id)"
               >
-                Stop
+                {{ t("mcp.stop") }}
               </KxButton>
               <KxButton
                 v-if="server.status === 'failed'"
@@ -171,7 +173,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-restart-btn"
                 @click="mcp.startServer(server.id)"
               >
-                Restart
+                {{ t("mcp.restart") }}
               </KxButton>
               <KxButton
                 v-if="server.status === 'running' && !trustedSet.has(server.id)"
@@ -179,7 +181,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-trust-btn"
                 @click="mcp.trustServer(server.id)"
               >
-                Trust
+                {{ t("mcp.trust") }}
               </KxButton>
               <KxButton
                 v-if="trustedSet.has(server.id)"
@@ -187,7 +189,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-revoke-btn"
                 @click="mcp.revokeTrust(server.id)"
               >
-                Revoke
+                {{ t("mcp.revoke") }}
               </KxButton>
               <KxButton
                 v-if="server.status === 'running'"
@@ -195,7 +197,7 @@ const filteredServers = computed(() => {
                 data-test="mcp-refresh-btn"
                 @click="mcp.refreshTools(server.id)"
               >
-                Refresh
+                {{ t("common.refresh") }}
               </KxButton>
             </div>
 
@@ -204,7 +206,7 @@ const filteredServers = computed(() => {
               class="text-muted mcp-server-meta"
               data-test="mcp-tool-count"
             >
-              {{ server.tool_count }} tools
+              {{ t("mcp.toolsCountLabel", { count: server.tool_count }) }}
             </span>
           </div>
         </li>
