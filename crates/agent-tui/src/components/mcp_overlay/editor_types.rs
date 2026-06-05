@@ -504,3 +504,7 @@ pub(super) fn trim_option(value: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
+
+#[cfg(test)]
+#[path = "editor_types_tests.rs"]
+mod tests;
