@@ -17,6 +17,7 @@ agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 chrono.workspace = true
+regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

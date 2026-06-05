@@ -75,6 +75,7 @@ dependencies = [
  "agent-store",
  "agent-tools",
  "chrono",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",

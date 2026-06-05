@@ -1,6 +1,7 @@
 use agent_eval::{
-    filter_scenarios_by_tags, load_scenarios, write_report_json, write_results_jsonl,
-    write_summary_json, EvalHarness, EvalReport, EvalRunOptions, EvalSummary, Result,
+    compare_reports, filter_scenarios_by_tags, load_scenarios, write_comparison_json,
+    write_report_json, write_results_jsonl, write_summary_json, EvalHarness, EvalReport,
+    EvalRunOptions, EvalSummary, Result,
 };
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::path::PathBuf;
@@ -19,6 +20,7 @@ async fn run() -> Result<()> {
     match command {
         CliCommand::Run(args) => run_scenarios(*args).await,
         CliCommand::List(args) => list_scenarios(args),
+        CliCommand::Compare(args) => compare_command(args),
     }
 }
 
@@ -95,6 +97,7 @@ fn list_scenarios(args: ListArgs) -> Result<()> {
 enum CliCommand {
     Run(Box<RunArgs>),
     List(ListArgs),
+    Compare(CompareArgs),
 }
 
 impl CliCommand {
@@ -104,6 +107,10 @@ impl CliCommand {
             Some("list") => {
                 iter.next();
                 ListArgs::parse(iter).map(Self::List)
+            }
+            Some("compare") => {
+                iter.next();
+                CompareArgs::parse(iter).map(Self::Compare)
             }
             _ => RunArgs::parse(iter).map(Box::new).map(Self::Run),
         }
@@ -348,6 +355,69 @@ fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
             agent_eval::EvalError::Policy(format!("invalid sandbox policy `{raw}`: {error}"))
         }),
     }
+}
+
+fn compare_command(args: CompareArgs) -> Result<()> {
+    let baseline_content = std::fs::read_to_string(&args.baseline)?;
+    let candidate_content = std::fs::read_to_string(&args.candidate)?;
+    let baseline: EvalReport = serde_json::from_str(&baseline_content)?;
+    let candidate: EvalReport = serde_json::from_str(&candidate_content)?;
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    if let Some(output) = args.output {
+        write_comparison_json(output, &comparison)?;
+    }
+
+    println!("{}", serde_json::to_string_pretty(&comparison)?);
+    if !comparison.regressions.is_empty() {
+        std::process::exit(3);
+    }
+    Ok(())
+}
+
+struct CompareArgs {
+    baseline: PathBuf,
+    candidate: PathBuf,
+    output: Option<PathBuf>,
+}
+
+impl CompareArgs {
+    fn parse(args: impl IntoIterator<Item = String>) -> Result<Self> {
+        let mut baseline = None;
+        let mut candidate = None;
+        let mut output = None;
+
+        let mut iter = args.into_iter();
+        while let Some(arg) = iter.next() {
+            match arg.as_str() {
+                "--baseline" => baseline = Some(next_path(&mut iter, "--baseline")?),
+                "--candidate" => candidate = Some(next_path(&mut iter, "--candidate")?),
+                "--output" => output = Some(next_path(&mut iter, "--output")?),
+                "--help" | "-h" => return Err(agent_eval::EvalError::Cli(compare_usage())),
+                other => {
+                    return Err(agent_eval::EvalError::Cli(format!(
+                        "unknown argument: {other}\n{}",
+                        compare_usage()
+                    )));
+                }
+            }
+        }
+
+        Ok(Self {
+            baseline: baseline.ok_or_else(|| {
+                agent_eval::EvalError::Cli(format!("missing --baseline\n{}", compare_usage()))
+            })?,
+            candidate: candidate.ok_or_else(|| {
+                agent_eval::EvalError::Cli(format!("missing --candidate\n{}", compare_usage()))
+            })?,
+            output,
+        })
+    }
+}
+
+fn compare_usage() -> String {
+    "usage: kairox-eval compare --baseline <report.json> --candidate <report.json> [--output <comparison.json>]".into()
 }
 
 fn usage() -> String {

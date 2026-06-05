@@ -9,6 +9,7 @@ use agent_config::Config;
 use agent_core::DomainEvent;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub type Result<T> = std::result::Result<T, EvalError>;
@@ -34,6 +35,11 @@ pub enum EvalError {
     Runtime(#[from] agent_core::CoreError),
     #[error("invalid policy: {0}")]
     Policy(String),
+    #[error("invalid regex `{pattern}`: {source}")]
+    Regex {
+        pattern: String,
+        source: regex::Error,
+    },
     #[error("{0}")]
     Cli(String),
 }
@@ -52,6 +58,10 @@ pub struct EvalScenario {
     pub tags: Vec<String>,
     #[serde(default)]
     pub expected: EvalExpectation,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub turns: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_instructions: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -59,9 +69,17 @@ pub struct EvalExpectation {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assistant_contains: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assistant_not_contains: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assistant_matches_regex: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub event_types: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub forbidden_event_types: Vec<String>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub min_events_of_type: HashMap<String, usize>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub max_events_of_type: HashMap<String, usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_tool_invocations: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -70,6 +88,12 @@ pub struct EvalExpectation {
     pub max_elapsed_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_context_input_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_turns: Option<usize>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trajectory_actions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_trajectory_steps: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,31 +106,17 @@ pub struct EvalRunOptions {
     pub include_trace: bool,
     pub enable_mcp: bool,
     pub enable_hooks: bool,
-    /// Override `config.context.auto_compact_threshold` for this run. Use
-    /// a small value (for example `0.001`) on the `fake` profile to force
-    /// a single-turn auto-compaction; leave `None` to keep the
-    /// project/default value (typically `0.85`).
+    /// Override `config.context.auto_compact_threshold` for this run.
     pub auto_compact_threshold: Option<f32>,
     /// When true, re-register the `fake` profile on the router with a
     /// `FakeModelClient` that emits a tool-call after its token stream.
-    /// Combine with `fake_tool_id` / `fake_tool_arguments` to control the
-    /// tool invoked. Defaults to `fs.list {"path":"."}` which is safe in
-    /// any temp workspace.
     pub fake_emit_tool_call: bool,
     pub fake_tool_id: Option<String>,
     pub fake_tool_arguments: Option<serde_json::Value>,
-    /// When set, after `send_message` returns, [`crate::EvalHarness::run_scenario`]
-    /// polls the persisted trace until every event listed in
-    /// `scenario.expected.event_types` is present or this many milliseconds
-    /// have elapsed. Needed for events emitted by detached background tasks
-    /// such as auto-compaction.
+    /// When set, polls the persisted trace until every event listed in
+    /// `scenario.expected.event_types` is present or timeout elapses.
     pub wait_timeout_ms: Option<u64>,
-    /// Seed this many synthetic `UserMessageAdded`/`AssistantMessageCompleted`
-    /// pairs directly into the event store before each `send_message`.
-    /// `compaction::pick_compaction_boundary` needs at least
-    /// `KEEP_LAST_PAIRS + 1` complete pairs (currently 4) to emit
-    /// `ContextCompactionStarted`/`Completed`; a single fake turn alone is
-    /// silently dropped. Use `4` to drive a deterministic compaction smoke.
+    /// Seed synthetic history pairs before each `send_message`.
     pub seed_synthetic_pairs: Option<usize>,
 }
 
@@ -158,6 +168,12 @@ pub struct EvalResult {
     pub context_window: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace: Option<Vec<DomainEvent>>,
+    #[serde(default)]
+    pub turns_count: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trajectory_actions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trajectory_step_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -225,4 +241,27 @@ impl EvalSummary {
             total_context_input_tokens,
         }
     }
+}
+
+// --- Regression comparison types ---
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvalComparison {
+    pub pass_rate_delta: f64,
+    pub avg_elapsed_delta_ms: f64,
+    pub total_token_delta: Option<i64>,
+    pub regressions: Vec<ScenarioRegression>,
+    pub improvements: Vec<ScenarioImprovement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScenarioRegression {
+    pub scenario_id: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScenarioImprovement {
+    pub scenario_id: String,
+    pub kind: String,
 }

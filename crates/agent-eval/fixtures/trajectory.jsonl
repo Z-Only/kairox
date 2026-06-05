@@ -1,0 +1,3 @@
+# kairox-eval trajectory fixture — tests trajectory action assertions.
+# Drive with: --fake-emit-tool-call --wait-timeout-ms 5000
+{"id":"trajectory-action-sequence","prompt":"List the workspace root","profile":"fake","expected":{"trajectory_actions":["fs.list"],"max_trajectory_steps":3}}

@@ -1,8 +1,9 @@
 use agent_config::Config;
 use agent_eval::{
-    filter_scenarios_by_tags, load_scenarios_from_str, EvalExpectation, EvalHarness, EvalResult,
-    EvalRunOptions, EvalScenario, EvalSummary,
+    compare_reports, filter_scenarios_by_tags, load_scenarios_from_str, EvalExpectation,
+    EvalHarness, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary,
 };
+use std::collections::HashMap;
 
 #[test]
 fn loads_jsonl_scenarios_and_skips_comments() {
@@ -22,6 +23,39 @@ fn loads_jsonl_scenarios_and_skips_comments() {
     assert_eq!(scenarios[1].expected.event_types, vec!["UserMessageAdded"]);
     assert_eq!(scenarios[1].expected.max_elapsed_ms, Some(250));
     assert_eq!(scenarios[1].expected.max_context_input_tokens, Some(2048));
+}
+
+#[test]
+fn loads_extended_expectation_fields_from_jsonl() {
+    let input = r#"{"id":"ext","prompt":"test","expected":{"assistant_not_contains":["error"],"assistant_matches_regex":["\\d+"],"min_events_of_type":{"ToolInvocationStarted":2},"max_events_of_type":{"ToolInvocationFailed":0},"max_turns":3,"trajectory_actions":["fs.read","fs.write"],"max_trajectory_steps":5}}"#;
+
+    let scenarios = load_scenarios_from_str(input).expect("should parse");
+    let expected = &scenarios[0].expected;
+
+    assert_eq!(expected.assistant_not_contains, vec!["error"]);
+    assert_eq!(expected.assistant_matches_regex, vec!["\\d+"]);
+    assert_eq!(
+        expected.min_events_of_type.get("ToolInvocationStarted"),
+        Some(&2)
+    );
+    assert_eq!(
+        expected.max_events_of_type.get("ToolInvocationFailed"),
+        Some(&0)
+    );
+    assert_eq!(expected.max_turns, Some(3));
+    assert_eq!(expected.trajectory_actions, vec!["fs.read", "fs.write"]);
+    assert_eq!(expected.max_trajectory_steps, Some(5));
+}
+
+#[test]
+fn loads_multi_turn_scenario_from_jsonl() {
+    let input = r#"{"id":"multi","prompt":"hello","turns":["follow up 1","follow up 2"],"system_instructions":"Be concise","expected":{"assistant_contains":["hello"]}}"#;
+
+    let scenarios = load_scenarios_from_str(input).expect("should parse");
+    let scenario = &scenarios[0];
+
+    assert_eq!(scenario.turns, vec!["follow up 1", "follow up 2"]);
+    assert_eq!(scenario.system_instructions.as_deref(), Some("Be concise"));
 }
 
 #[test]
@@ -104,6 +138,7 @@ async fn runs_fake_scenario_and_records_trace_metrics() {
     assert_eq!(result.tool_invocations, 0);
     assert_eq!(result.tool_failures, 0);
     assert!(result.trace.is_some());
+    assert_eq!(result.turns_count, 1);
 }
 
 #[tokio::test]
@@ -179,6 +214,170 @@ async fn scenario_fails_when_budget_expectations_are_exceeded() {
 }
 
 #[tokio::test]
+async fn scenario_fails_with_not_contains_expectation() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "not-contains".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_not_contains: vec!["Kairox".into()],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result
+        .failures
+        .iter()
+        .any(|f| f.contains("assistant response contains forbidden substring: Kairox")));
+}
+
+#[tokio::test]
+async fn scenario_passes_with_regex_match() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "regex-pass".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_matches_regex: vec!["hello.*Kairox".into()],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[tokio::test]
+async fn scenario_fails_with_regex_mismatch() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "regex-fail".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_matches_regex: vec!["^goodbye".into()],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result
+        .failures
+        .iter()
+        .any(|f| f.contains("assistant response does not match regex: ^goodbye")));
+}
+
+#[tokio::test]
+async fn scenario_checks_min_events_of_type() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let mut min_events = HashMap::new();
+    min_events.insert("AssistantMessageCompleted".into(), 2);
+
+    let scenario = EvalScenario {
+        id: "min-events".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            min_events_of_type: min_events,
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result.failures.iter().any(|f| f.contains(
+        "event type `AssistantMessageCompleted` count below minimum: expected at least 2, got 1"
+    )));
+}
+
+#[tokio::test]
+async fn scenario_checks_max_turns() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "max-turns-pass".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            max_turns: Some(1),
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[tokio::test]
 async fn fake_tool_call_scenario_emits_tool_lifecycle_events() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let mut harness = EvalHarness::new(EvalRunOptions {
@@ -229,6 +428,40 @@ async fn fake_tool_call_scenario_emits_tool_lifecycle_events() {
 }
 
 #[tokio::test]
+async fn fake_tool_call_checks_trajectory_actions() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        fake_emit_tool_call: true,
+        wait_timeout_ms: Some(5_000),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "trajectory-check".into(),
+        prompt: "List the workspace root".into(),
+        expected: EvalExpectation {
+            trajectory_actions: vec!["fs.list".into()],
+            max_trajectory_steps: Some(5),
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+    assert_eq!(result.trajectory_actions, vec!["fs.list"]);
+}
+
+#[tokio::test]
 async fn fake_compaction_scenario_triggers_auto_compaction_events() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let mut harness = EvalHarness::new(EvalRunOptions {
@@ -236,11 +469,6 @@ async fn fake_compaction_scenario_triggers_auto_compaction_events() {
         default_profile: Some("fake".into()),
         config: Some(Config::defaults()),
         include_trace: true,
-        // Push the threshold below the first-turn usage ratio so the
-        // turn-end auto-compaction fires. The runtime needs at least
-        // `KEEP_LAST_PAIRS + 1` pairs (4) in the event store to actually
-        // emit `ContextCompactionStarted`/`Completed`, so we also seed
-        // synthetic history.
         auto_compact_threshold: Some(0.001),
         seed_synthetic_pairs: Some(4),
         wait_timeout_ms: Some(5_000),
@@ -362,4 +590,113 @@ fn summary_counts_passes_failures_and_cost_drivers() {
     assert_eq!(summary.total_tool_invocations, 2);
     assert_eq!(summary.total_tool_failures, 1);
     assert_eq!(summary.total_context_input_tokens, Some(120));
+}
+
+#[test]
+fn compare_reports_detects_regression_and_improvement() {
+    let baseline = EvalReport {
+        summary: EvalSummary::from_results(&[
+            EvalResult {
+                scenario_id: "a".into(),
+                passed: true,
+                elapsed_ms: 100,
+                context_input_tokens: Some(50),
+                ..EvalResult::default()
+            },
+            EvalResult {
+                scenario_id: "b".into(),
+                passed: false,
+                elapsed_ms: 200,
+                context_input_tokens: Some(80),
+                ..EvalResult::default()
+            },
+        ]),
+        results: vec![
+            EvalResult {
+                scenario_id: "a".into(),
+                passed: true,
+                elapsed_ms: 100,
+                context_input_tokens: Some(50),
+                ..EvalResult::default()
+            },
+            EvalResult {
+                scenario_id: "b".into(),
+                passed: false,
+                elapsed_ms: 200,
+                context_input_tokens: Some(80),
+                ..EvalResult::default()
+            },
+        ],
+    };
+
+    let candidate = EvalReport {
+        summary: EvalSummary::from_results(&[
+            EvalResult {
+                scenario_id: "a".into(),
+                passed: false,
+                elapsed_ms: 100,
+                context_input_tokens: Some(50),
+                ..EvalResult::default()
+            },
+            EvalResult {
+                scenario_id: "b".into(),
+                passed: true,
+                elapsed_ms: 200,
+                context_input_tokens: Some(80),
+                ..EvalResult::default()
+            },
+        ]),
+        results: vec![
+            EvalResult {
+                scenario_id: "a".into(),
+                passed: false,
+                elapsed_ms: 100,
+                context_input_tokens: Some(50),
+                ..EvalResult::default()
+            },
+            EvalResult {
+                scenario_id: "b".into(),
+                passed: true,
+                elapsed_ms: 200,
+                context_input_tokens: Some(80),
+                ..EvalResult::default()
+            },
+        ],
+    };
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert_eq!(comparison.pass_rate_delta, 0.0);
+    assert!(comparison
+        .regressions
+        .iter()
+        .any(|r| r.scenario_id == "a" && r.kind == "passed_to_failed"));
+    assert!(comparison
+        .improvements
+        .iter()
+        .any(|i| i.scenario_id == "b" && i.kind == "failed_to_passed"));
+}
+
+#[test]
+fn compare_reports_detects_speed_regression() {
+    let baseline = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "slow".into(),
+        passed: true,
+        elapsed_ms: 100,
+        ..EvalResult::default()
+    }]);
+
+    let candidate = EvalReport::from_results(vec![EvalResult {
+        scenario_id: "slow".into(),
+        passed: true,
+        elapsed_ms: 200,
+        ..EvalResult::default()
+    }]);
+
+    let comparison = compare_reports(&baseline, &candidate);
+
+    assert!(comparison
+        .regressions
+        .iter()
+        .any(|r| r.scenario_id == "slow" && r.kind.starts_with("slower_by_")));
 }

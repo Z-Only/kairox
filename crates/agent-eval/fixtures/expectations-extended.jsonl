@@ -1,0 +1,7 @@
+# kairox-eval extended expectations fixture — exercises new assertion fields
+# against the deterministic fake profile.
+{"id":"not-contains-pass","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["hello from Kairox"],"assistant_not_contains":["error","failure","exception"]}}
+{"id":"regex-match","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_matches_regex":["hello.*Kairox","^hello"]}}
+{"id":"max-turns-single","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"max_turns":1}}
+{"id":"max-events-of-type","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"max_events_of_type":{"ToolInvocationFailed":0,"ToolInvocationStarted":0}}}
+{"id":"min-events-of-type","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"min_events_of_type":{"UserMessageAdded":1,"AssistantMessageCompleted":1}}}

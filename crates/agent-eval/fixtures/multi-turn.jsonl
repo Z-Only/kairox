@@ -1,0 +1,3 @@
+# kairox-eval multi-turn fixture — tests multi-turn conversation support.
+# Each scenario sends the initial prompt then all `turns` sequentially.
+{"id":"two-turn-basic","prompt":"Say hello from the configured fake model","profile":"fake","turns":["Say hello again"],"expected":{"assistant_contains":["hello from Kairox"],"min_events_of_type":{"AssistantMessageCompleted":2}}}
