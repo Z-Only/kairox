@@ -317,6 +317,10 @@ fn format_symbols_recursive(
 }
 
 #[allow(deprecated)]
+#[cfg(test)]
+#[path = "lsp_provider_tests.rs"]
+mod tests;
+
 fn format_workspace_symbols(symbols: &[lsp_types::SymbolInformation]) -> String {
     if symbols.is_empty() {
         return "No symbols found".to_string();
