@@ -266,9 +266,11 @@ eval-extended:
         --fake-emit-tool-call \
         --wait-timeout-ms 5000
 
-# Run live model eval scenarios (requires ali-mo-claude profile configured).
+# Run live model eval scenarios against a real model profile.
 # Not included in CI; run manually to measure real model quality.
-eval-live:
+# Override the profile via: just eval-live <profile>
+# Uses the config's default profile if none specified.
+eval-live profile="":
     #!/usr/bin/env bash
     set -euo pipefail
     cargo build --quiet -p agent-eval --bin kairox-eval
@@ -278,13 +280,17 @@ eval-live:
     trap 'rm -rf "$KAIROX_EVAL_WS"' EXIT
     echo "# Kairox Eval Workspace" > "$KAIROX_EVAL_WS/README.md"
     mkdir -p target/eval-live
+    PROFILE_ARG=""
+    if [ -n "{{profile}}" ]; then
+        PROFILE_ARG="--profile {{profile}}"
+    fi
     "$KAIROX_EVAL_BIN" \
         run \
         --scenarios crates/agent-eval/fixtures/live-smoke.jsonl \
         --output target/eval-live/results.jsonl \
         --report target/eval-live/report.json \
         --workspace "$KAIROX_EVAL_WS" \
-        --profile ali-mo-claude \
+        $PROFILE_ARG \
         --tag live \
         --enable-mcp
 

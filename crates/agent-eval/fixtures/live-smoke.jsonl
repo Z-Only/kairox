@@ -1,7 +1,7 @@
 # kairox-eval live model smoke fixture — requires a real model profile.
-# Drive with: --profile ali-mo-claude --tag live --enable-mcp
-# These scenarios test actual model quality; gated behind the `live` tag
-# so they don't run in CI by default.
+# Drive with: --profile <your-profile> --tag live --enable-mcp
+# Or use `just eval-live <profile>` (omit profile to use config default).
+# Gated behind the `live` tag so they don't run in CI by default.
 {"id":"live-greeting","prompt":"Respond with exactly: Hello, I am Kairox.","tags":["live"],"expected":{"assistant_contains":["Kairox"],"assistant_not_contains":["error"],"max_elapsed_ms":30000,"max_turns":1}}
 {"id":"live-instruction-follow","prompt":"List exactly 3 fruits, one per line, nothing else.","tags":["live"],"expected":{"assistant_matches_regex":["(?m)^\\w+\\n\\w+\\n\\w+$"],"max_turns":1,"max_elapsed_ms":30000}}
 {"id":"live-tool-use","prompt":"Read the file README.md in the current workspace and tell me its first line.","tags":["live","tools"],"expected":{"min_tool_invocations":1,"max_tool_failures":0,"max_elapsed_ms":60000}}
