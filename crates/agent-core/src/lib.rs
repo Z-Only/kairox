@@ -1,4 +1,5 @@
 pub mod account;
+pub mod autonomous;
 pub mod build_info;
 pub mod config_scope;
 pub mod context_types;
@@ -15,6 +16,10 @@ pub mod trajectory;
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
 pub use account::{AccountService, AccountState, LocalNoAccountService};
+pub use autonomous::{
+    AutonomousConfig, AutonomousTaskGoal, AutonomousTaskState, Checkpoint, SessionEndReason,
+    VerificationResult,
+};
 pub use config_scope::ConfigScope;
 pub use context_types::{ContextSource, ContextUsage};
 pub use effective::EffectiveItem;
@@ -32,7 +37,7 @@ pub use facade::{
     SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport,
     WorkspaceInfo,
 };
-pub use ids::{AgentId, ProjectId, SessionId, TaskId, WorkspaceId};
+pub use ids::{AgentId, AutonomousTaskId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};
 pub use projection::{
     CompactionStatus, ProjectedMessage, ProjectedModelLimits, ProjectedRole, SessionProjection,

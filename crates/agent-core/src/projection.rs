@@ -241,7 +241,13 @@ impl SessionProjection {
             | EventPayload::DapBreakpointHit { .. }
             | EventPayload::TrajectoryStarted { .. }
             | EventPayload::TrajectoryStepRecorded { .. }
-            | EventPayload::TrajectoryCompleted { .. } => {}
+            | EventPayload::TrajectoryCompleted { .. }
+            | EventPayload::AutonomousTaskCreated { .. }
+            | EventPayload::AutonomousTaskSessionStarted { .. }
+            | EventPayload::AutonomousTaskCheckpointed { .. }
+            | EventPayload::AutonomousTaskCompleted { .. }
+            | EventPayload::AutonomousTaskFailed { .. }
+            | EventPayload::AutonomousTaskCancelled { .. } => {}
         }
     }
 

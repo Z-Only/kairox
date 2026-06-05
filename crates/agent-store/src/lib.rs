@@ -1,7 +1,12 @@
+pub mod autonomous_store;
 pub mod event_store;
 pub mod project_meta;
 pub mod trajectory_store;
 
+pub use autonomous_store::{
+    AutonomousCheckpointRow, AutonomousTaskRow, AutonomousTaskStore, SessionChainRow,
+    SqliteAutonomousTaskStore,
+};
 pub use event_store::{EventStore, SessionRow, SqliteEventStore, WorkspaceRow};
 pub use project_meta::{
     ProjectMetaRepository, ProjectRow, ProjectSessionBindingRow, SessionVisibilityRow,

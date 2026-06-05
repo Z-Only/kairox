@@ -393,6 +393,39 @@ pub enum EventPayload {
         step_count: u32,
         outcome: crate::trajectory::TrajectoryOutcome,
     },
+    AutonomousTaskCreated {
+        autonomous_task_id: crate::AutonomousTaskId,
+        goal: String,
+        acceptance_criteria: Vec<String>,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        max_sessions: u32,
+    },
+    AutonomousTaskSessionStarted {
+        autonomous_task_id: crate::AutonomousTaskId,
+        session_id: SessionId,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        session_index: u32,
+    },
+    AutonomousTaskCheckpointed {
+        autonomous_task_id: crate::AutonomousTaskId,
+        session_id: SessionId,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        session_index: u32,
+        checkpoint_json: String,
+        end_reason: String,
+    },
+    AutonomousTaskCompleted {
+        autonomous_task_id: crate::AutonomousTaskId,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        total_sessions: u32,
+    },
+    AutonomousTaskFailed {
+        autonomous_task_id: crate::AutonomousTaskId,
+        reason: String,
+    },
+    AutonomousTaskCancelled {
+        autonomous_task_id: crate::AutonomousTaskId,
+    },
 }
 
 impl EventPayload {
@@ -470,6 +503,12 @@ impl EventPayload {
             Self::TrajectoryStarted { .. } => "TrajectoryStarted",
             Self::TrajectoryStepRecorded { .. } => "TrajectoryStepRecorded",
             Self::TrajectoryCompleted { .. } => "TrajectoryCompleted",
+            Self::AutonomousTaskCreated { .. } => "AutonomousTaskCreated",
+            Self::AutonomousTaskSessionStarted { .. } => "AutonomousTaskSessionStarted",
+            Self::AutonomousTaskCheckpointed { .. } => "AutonomousTaskCheckpointed",
+            Self::AutonomousTaskCompleted { .. } => "AutonomousTaskCompleted",
+            Self::AutonomousTaskFailed { .. } => "AutonomousTaskFailed",
+            Self::AutonomousTaskCancelled { .. } => "AutonomousTaskCancelled",
         }
     }
 }
