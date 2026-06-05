@@ -67,12 +67,15 @@ Both axes can be changed mid-session and surface in the GUI (`ChatApprovalSelect
 | `monitor.start`  | `MonitorStartTool`  | Starts a background monitor.                                  | Low    | Monitor process lifecycle.        |
 | `monitor.list`   | `MonitorListTool`   | Lists active background monitors.                             | Low    | Read-only monitor metadata.       |
 | `monitor.stop`   | `MonitorStopTool`   | Stops a running background monitor.                           | Low    | Monitor process lifecycle.        |
+| `browser.action` | `BrowserTool`       | Drives a Playwright-backed browser action.                    | Medium | Browser and network interaction.  |
+| `browser.batch`  | `BrowserBatchTool`  | Runs multiple browser actions in sequence.                    | Medium | Browser and network interaction.  |
+| `computer.use`   | `ComputerUseTool`   | Captures or controls the desktop via platform backends.       | High   | Desktop input / screen access.    |
 
 A tool's `PolicyEffect` (read-only / workspace write / network / destructive / unknown command) is the input the policy engine actually consults; `Risk` is the UI-facing hint shown in prompts and status bars.
 
 ### Why these and not more
 
-The built-in set is intentionally small. Anything fancier — git operations, HTTP calls, database queries, code formatting, project-specific commands — belongs in an MCP server. The runtime gives users primitives and a policy engine; MCP gives users packaged capabilities.
+The built-in set is intentionally small. Anything fancier — git operations, database queries, code formatting, project-specific commands, or higher-level workflow automation — belongs in an MCP server. The runtime gives users primitives and a policy engine; MCP gives users packaged capabilities.
 
 ## MCP tool adapter
 
@@ -83,7 +86,7 @@ External capabilities reach the runtime through `agent-mcp` and surface as `Tool
 ```mermaid
 flowchart LR
   model["Model"] --> registry["ToolRegistry"]
-  registry --> built["Built-in tool<br/>(e.g. shell, fs.read)"]
+  registry --> built["Built-in tool<br/>(e.g. shell, fs.read, browser.action)"]
   registry --> adapter["McpToolAdapter"]
   adapter --> client["McpClient"]
   client --> transport["Transport<br/>(stdio / SSE / Streamable HTTP)"]
@@ -113,13 +116,13 @@ flowchart TD
   approval -->|OnRequest| reasons{"Trigger fires?"}
   reasons -->|destructive_effect / network_request / unknown_command / untrusted_mcp_server| needs2["NeedsApproval{reason}"]
   reasons -->|none| allowed
-  denied --> failS["Append ToolFailed (sandbox)"]
+  denied --> failS["Append PermissionDenied"]
   needs --> prompt["Emit PermissionRequested"]
   needs2 --> prompt
   prompt --> user{"User decision"}
   user -->|approve| allowed
-  user -->|deny| failU["Append PermissionDenied + ToolFailed"]
-  allowed --> run["Run tool, append PermissionGranted + ToolCompleted"]
+  user -->|deny| failU["Append PermissionDenied"]
+  allowed --> run["Run tool, append PermissionGranted + ToolInvocationStarted + ToolInvocationCompleted"]
 ```
 
 </div>
@@ -128,7 +131,7 @@ A few invariants come out of the diagram:
 
 - **Sandbox is structural.** `DeniedBySandbox` cannot be overridden by approval. A user "approving" a write under `ReadOnly` does not unlock the write — they would have to switch the sandbox first.
 - **Approval is procedural.** `Never` does not widen the sandbox; it only silences prompts the sandbox already cleared.
-- **Every call lands on the event stream.** Sandbox denials emit `ToolFailed`; user approvals/denials emit `PermissionGranted` / `PermissionDenied`; the trace shows every decision regardless of policy.
+- **Every decision lands on the event stream.** Sandbox denials and user denials emit `PermissionDenied`; approved calls emit `PermissionGranted` and then `ToolInvocationStarted` plus `ToolInvocationCompleted` or `ToolInvocationFailed`.
 - **Approval reasons are typed.** `ApprovalReason` is one of `SandboxRejected`, `PolicyAlways`, `DestructiveEffect`, `UnknownCommand`, `NetworkRequest`, `UntrustedMcpServer` — UIs render the reason next to the tool name.
 - **Approved tools cannot become denied retroactively.** Once `PermissionGranted` is appended, the runtime invokes the tool.
 
@@ -145,8 +148,9 @@ For machine inspection, the event store is the source of truth. Filtering events
 
 When you write code that triggers tools — whether you are designing a skill, a plugin, or an MCP server — assume any tool may be rejected by the sandbox or denied by the user. The runtime guarantees:
 
-- A sandbox-rejected tool returns a `ToolFailed` with a structured reason.
-- A user-denied tool returns a `ToolFailed` with the denial reason.
+- A sandbox-rejected tool returns a `PermissionDenied` with a structured reason before invocation.
+- A user-denied tool returns a `PermissionDenied` with the denial reason before invocation.
+- An invoked tool that errors returns `ToolInvocationFailed`.
 - The model sees the failure and can re-plan.
 - The user can change either axis mid-session and try again without restarting.
 

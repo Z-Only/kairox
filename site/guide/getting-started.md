@@ -91,6 +91,8 @@ This starts the Vite dev server and the native Tauri window together with hot re
 <ThemeScreenshot
   light="/screenshots/workbench.png"
   dark="/screenshots/workbench-dark.png"
+  zhLight="/screenshots/zh/workbench.png"
+  zhDark="/screenshots/zh/workbench-dark.png"
   alt="Kairox desktop GUI after opening a project session"
   caption="The GUI opens into the workbench, where project sessions, chat, trace events, task state, and context usage stay visible together."
 />

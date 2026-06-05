@@ -91,18 +91,18 @@ flowchart TB
 
 ### 领域层
 
-| Crate             | 角色                                                                                                                                                                                        | 关键类型                                                                                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **agent-runtime** | 编排 agent loop、session-actor 执行运行时、context budgets、turn-end 无竞态 compaction、模型切换、可配置的 agent 设置、multi-agent 策略、MCP 生命周期、permissions。                        | `LocalRuntime<S, M>`、`SessionActor`、`SessionExecutionRuntime`、`PlannerAgent`、`WorkerAgent`、`ReviewerAgent`、`AgentStrategy`、`DagExecutor`、`TaskGraph`、`McpServerManager`。 |
-| **agent-models**  | 模型提供方抽象(OpenAI 兼容、Anthropic、Ollama、Fake),并带有 metadata 与 context-window 注册表。                                                                                             | `ModelClient` trait、`ModelRequest`、`ModelRouter`、`ModelProfile`、`ModelRegistry`。                                                                                              |
-| **agent-tools**   | 工具注册表、正交的 Approval × Sandbox 策略引擎、内置工具(`shell.exec`、`fs.read`、`fs.write`、`fs.list`、`patch.apply`、`search.ripgrep`、`monitor.start/list/stop`),以及 MCP-tool 适配器。 | `ToolRegistry`、`PolicyEngine`、`ApprovalPolicy`、`SandboxPolicy`、`PolicyDecision`、`PolicyRisk`、`Tool` trait、`ToolRisk`、`McpToolAdapter`、`MonitorRegistry`。                 |
-| **agent-mcp**     | MCP(Model Context Protocol)客户端、stdio + SSE + Streamable HTTP 传输、server 生命周期、discovery 缓存、marketplace 目录(内置 + 远端来源)。                                                 | `McpClient`、`Transport` trait、`StdioTransport`、`SseTransport`、`StreamableHttpTransport`、`ServerLifecycle`、`McpServerDef`、`CatalogEntry`。                                   |
-| **agent-lsp**     | LSP 和 DAP 客户端实现、JSON-RPC transport、server 生命周期管理，用于代码智能与调试器集成。                                                                                                  | `LspClient`、`DapClient`、`LspServerDef`、`DapServerDef`、`LspServerLifecycle`、`DapServerLifecycle`、`ServerStatus`。                                                             |
-| **agent-skills**  | 原生 skills 系统 —— 可复用的 prompt / tool / workflow 能力、frontmatter 解析、注册表、GUI 设置。                                                                                            | `SkillRegistry`、`SkillDef`、`SkillFrontmatter`、`SkillScope`、`SkillSettings`。                                                                                                   |
-| **agent-plugins** | 描述插件提供的 skills、tools、hooks、MCP server 的 manifest 与 inventory。                                                                                                                  | `PluginManifest`,以及若干 inventory 辅助方法。                                                                                                                                     |
-| **agent-memory**  | 用户、workspace、session 三种作用域下的持久化记忆,基于 `tiktoken` budget 的 context 装配,以及 prompt compaction。                                                                           | `MemoryStore` trait、`SqliteMemoryStore`、`ContextAssembler`、`MemoryMarker`、`ContextCompactor`。                                                                                 |
-| **agent-store**   | append-only 的 SQLite event store,以及用于 workspace 和 session 追踪的 metadata 表。                                                                                                        | `EventStore` trait、`SqliteEventStore`、`SessionMeta`。                                                                                                                            |
-| **agent-config**  | TOML 配置加载、model profile 发现、从 env 中解析 API key、`.kairox/` 项目发现、skills 配置、instructions 配置。                                                                             | `ProfileDef`、`load_from_str`、`build_router`。                                                                                                                                    |
+| Crate             | 角色                                                                                                                                                                                                                                           | 关键类型                                                                                                                                                                                             |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **agent-runtime** | 编排 agent loop、session-actor 执行运行时、context budgets、turn-end 无竞态 compaction、模型切换、可配置的 agent 设置、multi-agent 策略、MCP 生命周期、permissions。                                                                           | `LocalRuntime<S, M>`、`SessionActor`、`SessionExecutionRuntime`、`PlannerAgent`、`WorkerAgent`、`ReviewerAgent`、`AgentStrategy`、`DagExecutor`、`TaskGraph`、`McpServerManager`。                   |
+| **agent-models**  | 模型提供方抽象(OpenAI 兼容、Anthropic、Ollama、Fake),并带有 metadata 与 context-window 注册表。                                                                                                                                                | `ModelClient` trait、`ModelRequest`、`ModelRouter`、`ModelProfile`、`ModelRegistry`。                                                                                                                |
+| **agent-tools**   | 工具注册表、正交的 Approval × Sandbox 策略引擎、内置工具(`shell.exec`、`fs.read`、`fs.write`、`fs.list`、`patch.apply`、`search.ripgrep`、`monitor.start/list/stop`、`browser.action`、`browser.batch`、`computer.use`),以及 MCP-tool 适配器。 | `ToolRegistry`、`PolicyEngine`、`ApprovalPolicy`、`SandboxPolicy`、`PolicyDecision`、`PolicyRisk`、`Tool` trait、`ToolRisk`、`McpToolAdapter`、`MonitorRegistry`、`BrowserTool`、`ComputerUseTool`。 |
+| **agent-mcp**     | MCP(Model Context Protocol)客户端、stdio + SSE + Streamable HTTP 传输、server 生命周期、discovery 缓存、marketplace 目录(内置 + 远端来源)。                                                                                                    | `McpClient`、`Transport` trait、`StdioTransport`、`SseTransport`、`StreamableHttpTransport`、`ServerLifecycle`、`McpServerDef`、`CatalogEntry`。                                                     |
+| **agent-lsp**     | LSP 和 DAP 客户端实现、JSON-RPC transport、server 生命周期管理，用于代码智能与调试器集成。                                                                                                                                                     | `LspClient`、`DapClient`、`LspServerDef`、`DapServerDef`、`LspServerLifecycle`、`DapServerLifecycle`、`ServerStatus`。                                                                               |
+| **agent-skills**  | 原生 skills 系统 —— 可复用的 prompt / tool / workflow 能力、frontmatter 解析、注册表、GUI 设置。                                                                                                                                               | `SkillRegistry`、`SkillDef`、`SkillFrontmatter`、`SkillScope`、`SkillSettings`。                                                                                                                     |
+| **agent-plugins** | 描述插件提供的 skills、tools、hooks、MCP server 的 manifest 与 inventory。                                                                                                                                                                     | `PluginManifest`,以及若干 inventory 辅助方法。                                                                                                                                                       |
+| **agent-memory**  | 用户、workspace、session 三种作用域下的持久化记忆,基于 `tiktoken` budget 的 context 装配、multimodal image pruning,以及 prompt compaction。                                                                                                    | `MemoryStore` trait、`SqliteMemoryStore`、`ContextAssembler`、`MemoryMarker`、`ContextCompactor`、`ImagePruningStrategy`。                                                                           |
+| **agent-store**   | append-only 的 SQLite event store,用于 workspace/session 追踪的 metadata 表,以及 trajectory 持久化。                                                                                                                                           | `EventStore` trait、`SqliteEventStore`、`SessionMeta`、`TrajectoryStore`、`SqliteTrajectoryStore`。                                                                                                  |
+| **agent-config**  | TOML 配置加载、model profile 发现、从 env 中解析 API key、`.kairox/` 项目发现、skills 配置、instructions 配置。                                                                                                                                | `ProfileDef`、`load_from_str`、`build_router`。                                                                                                                                                      |
 
 `agent-runtime` 是唯一一个会扇出到所有其他领域 crate 的领域 crate。其余 crate 都保持狭窄:`agent-memory` 不感知 `agent-tools`,`agent-models` 不感知 `agent-mcp`。当一个 runtime 功能同时需要两者时,由 runtime 来组合它们;它从不让某个领域 crate 反过来 import 另一个领域 crate。
 
@@ -133,17 +133,17 @@ sequenceDiagram
 
   U->>F: send_message(session, prompt)
   F->>R: enqueue turn
-  R->>S: append UserMessage
+  R->>S: append UserMessageAdded
   R->>M: stream completion
   M-->>R: text deltas + tool calls
-  R->>S: append AssistantDelta(s)
+  R->>S: append ModelTokenDelta(s)
   R->>T: maybe(approve tool)
   T-->>U: PermissionRequested event
   U-->>T: PermissionDecision
   T->>S: append Permission* events
   T-->>R: tool result
-  R->>S: append ToolCompleted
-  R->>S: append Completed
+  R->>S: append ToolInvocationCompleted
+  R->>S: append AssistantMessageCompleted
   S-->>U: replay / subscribe stream
 ```
 

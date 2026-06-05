@@ -55,13 +55,14 @@ sequenceDiagram
 
   U->>F: send_message(session_id, prompt)
   F->>SA: enqueue Turn{prompt}
-  SA->>ES: append UserMessage
+  SA->>ES: append UserMessageAdded
   SA->>CA: build prompt context (memory + history)
   CA-->>SA: messages within budget
   SA->>MC: stream(messages, tools)
-  MC-->>SA: AssistantDelta(text)
-  SA->>ES: append AssistantDelta
+  MC-->>SA: text delta
+  SA->>ES: append ModelTokenDelta
   MC-->>SA: ToolCall{name, args}
+  SA->>ES: append ModelToolCallRequested
   SA->>PE: decide(PolicyRisk)
   PE-->>U: PermissionRequested event (NeedsApproval)
   U-->>PE: PermissionDecision
@@ -69,36 +70,36 @@ sequenceDiagram
   PE-->>SA: Allowed | DeniedBySandbox | Denied
   SA->>T: invoke(args)
   T-->>SA: ToolResult
-  SA->>ES: append ToolCompleted
+  SA->>ES: append ToolInvocationCompleted
   SA->>MC: continue with tool result
-  MC-->>SA: AssistantDelta(text)
-  SA->>ES: append AssistantDelta
+  MC-->>SA: text delta
+  SA->>ES: append ModelTokenDelta
   MC-->>SA: stream end
-  SA->>ES: append Completed
+  SA->>ES: append AssistantMessageCompleted
 ```
 
 </div>
 
 Five things are worth pointing out:
 
-1. **The session is an actor.** Turns enqueue against the session, so a second user message arriving mid-turn waits for the current turn's terminal `Completed` event. Model switches and compaction enqueue against the same actor — they cannot interleave halfway through a tool call.
+1. **The session is an actor.** Turns enqueue against the session, so a second user message arriving mid-turn waits for the current turn's terminal `AssistantMessageCompleted` or cancellation event. Model switches and compaction enqueue against the same actor — they cannot interleave halfway through a tool call.
 2. **The context assembler is consulted every turn.** It rebuilds the message list from recent history and relevant memory, respecting the active model's context window. Nothing is "kept in memory between turns"; everything is rebuilt from events.
 3. **Permission is a request/response on the event bus.** When `PolicyEngine::decide(PolicyRisk)` returns `NeedsApproval`, the runtime emits `PermissionRequested`, waits for `PermissionDecision`, then emits the terminal `PermissionGranted` / `PermissionDenied`. UIs subscribe to the request and post the decision back through the facade.
 4. **Tool results are model input.** The runtime feeds tool results back into the model in the same stream, so the assistant's next deltas may reflect the tool's output without a new user prompt.
-5. **`Completed` is the terminal signal.** The UI uses it to clear the "thinking" indicator and the test suite uses it to assert the turn ended. There is no other "I'm done" channel.
+5. **`AssistantMessageCompleted` is the successful terminal signal.** The UI uses it to clear the "thinking" indicator and the test suite uses it to assert the turn ended. Cancelled turns emit `SessionCancelled` / `TaskCancelled` depending on scope.
 
 ## Session lifecycle
 
 A session is the unit of conversation. It owns a model profile, an agent strategy, an `ApprovalPolicy` × `SandboxPolicy` pair, and a stream of events. Sessions live as long as their event stream — there is no in-memory session struct that has to be hydrated.
 
-| State            | Triggered by                                                                            | What changes                                                                                            |
-| ---------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `Created`        | `AppFacade::create_session(workspace, profile, agent, approval_policy, sandbox_policy)` | `SessionId` minted, `SessionCreated` appended, metadata row inserted, subscriber stream opened.         |
-| `Active`         | First `send_message`                                                                    | Session actor accepts turns; events stream to subscribers.                                              |
-| `SwitchingModel` | `AppFacade::switch_model(session, profile)`                                             | Switch enqueued behind the active turn; `ModelSwitched` event appended once the previous turn finishes. |
-| `Compacting`     | Manual compaction request or auto-compaction at turn end                                | `CompactionStarted` → context summarized → `CompactionCompleted`; budget guard prevents reentry.        |
-| `Idle`           | After `Completed`, no enqueued work                                                     | Subscriber stream stays open; UI keeps the chat scrolled to the last message.                           |
-| `Archived`       | `AppFacade::archive_session(session)`                                                   | Metadata flag set; events remain on disk; the session disappears from the active list in both UIs.      |
+| State            | Triggered by                                                                            | What changes                                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Created`        | `AppFacade::create_session(workspace, profile, agent, approval_policy, sandbox_policy)` | `SessionId` minted, `SessionInitialized` appended, metadata row inserted, subscriber stream opened.          |
+| `Active`         | First `send_message`                                                                    | Session actor accepts turns; events stream to subscribers.                                                   |
+| `SwitchingModel` | `AppFacade::switch_model(session, profile)`                                             | Switch enqueued behind the active turn; `ModelProfileSwitched` event appended once it lands.                 |
+| `Compacting`     | Manual compaction request or auto-compaction at turn end                                | `ContextCompactionStarted` → summary appended → `ContextCompactionCompleted`; budget guard prevents reentry. |
+| `Idle`           | After `AssistantMessageCompleted`, no enqueued work                                     | Subscriber stream stays open; UI keeps the chat scrolled to the last message.                                |
+| `Archived`       | `AppFacade::archive_session(session)`                                                   | Metadata flag set; events remain on disk; the session disappears from the active list in both UIs.           |
 
 A session is never deleted by default. Archiving hides it. Removing events is a destructive operation that the runtime does not expose by design — the trace is the audit log, and tampering with it is not a casual action.
 
@@ -106,18 +107,15 @@ A session is never deleted by default. Archiving hides it. Removing events is a 
 
 `EventPayload` is a single enum that names every observable thing the runtime can do. The table below groups the variants by topic; the actual list lives in `crates/agent-core/src/events.rs` and is regenerated into TypeScript by `just gen-types`.
 
-| Group           | Variant                                                                      | Emitted by                                      |
-| --------------- | ---------------------------------------------------------------------------- | ----------------------------------------------- |
-| Session         | `SessionCreated`, `SessionArchived`                                          | `session` module                                |
-| Conversation    | `UserMessage`, `AssistantDelta`, `Completed`                                 | `agent_loop`                                    |
-| Tools           | `ToolCall`, `ToolCompleted`, `ToolFailed`                                    | `agent_loop` + `permission`                     |
-| Permissions     | `PermissionRequested`, `PermissionGranted`, `PermissionDenied`               | `permission`                                    |
-| Memory          | `MemoryProposed`, `MemoryApproved`, `MemoryRejected`, `MemoryCommitted`      | `memory_handler`                                |
-| Model switching | `ModelSwitchRequested`, `ModelSwitched`                                      | `session` (queued behind active turn)           |
-| Compaction      | `CompactionStarted`, `CompactionCompleted`, `CompactionFailed`               | `agent_loop` (auto) + `facade_runtime` (manual) |
-| Task graph      | `TaskCreated`, `TaskStateChanged`, `TaskCompleted`, `TaskFailed`             | `dag_executor` + `task_graph`                   |
-| MCP             | `McpServerStarting`, `McpServerReady`, `McpServerStopped`, `McpServerFailed` | `mcp_manager`                                   |
-| Build           | `BuildInfoEmitted`                                                           | facade startup                                  |
+| Group                         | Variants                                                                                                                                                                                   | Emitted by                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| Workspace / session           | `WorkspaceOpened`, `SessionInitialized`, `SessionCancelled`                                                                                                                                | `session` module + facade                           |
+| Conversation / model          | `UserMessageAdded`, `ModelRequestStarted`, `ModelTokenDelta`, `ModelToolCallRequested`, `AssistantMessageCompleted`, `ModelProfileSwitched`                                                | `agent_loop` + session actor                        |
+| Tools / permissions           | `PermissionRequested`, `PermissionGranted`, `PermissionDenied`, `ToolInvocationStarted`, `ToolInvocationCompleted`, `ToolInvocationFailed`, `FilePatch*`                                   | `agent_loop` + `permission`                         |
+| Memory / context              | `ContextAssembled`, `MemoryProposed`, `MemoryAccepted`, `MemoryRejected`, `ContextCompaction*`, `CompactionSummary`                                                                        | `memory_handler` + compaction runtime               |
+| Task graph / agents           | `AgentTaskCreated`, `AgentTaskStarted`, `AgentTaskCompleted`, `AgentTaskFailed`, `TaskDecomposed`, `TaskBlocked`, `TaskRetried`, `TaskCancelled`, `Agent*`                                 | `dag_executor` + `task_graph`                       |
+| Skills / MCP / catalog        | `SkillDiscovered`, `SkillActivated`, `SkillDeactivated`, `SkillSuggested`, `McpServer*`, `McpToolCall*`, `McpTrust*`, `Catalog*`                                                           | skill registry, `mcp_manager`, catalog runtime      |
+| Monitors / LSP / DAP / traces | `MonitorStarted`, `MonitorEvent`, `MonitorStopped`, `MonitorFailed`, `LspServer*`, `DapSession*`, `DapBreakpointHit`, `TrajectoryStarted`, `TrajectoryStepRecorded`, `TrajectoryCompleted` | tool registry, debug integrations, trajectory store |
 
 Every variant is exhaustively matched in the GUI's TypeScript consumers — adding a variant to `EventPayload` without updating the TS handlers is a compile error after `just gen-types` runs. That is the contract that keeps the UIs honest as the runtime grows.
 
@@ -130,14 +128,14 @@ Not every workload is a single back-and-forth. The runtime supports task DAGs fo
 ```mermaid
 flowchart LR
   root["Root task<br/>(user goal)"] --> plan["Planner output<br/>(N child tasks)"]
-  plan --> a["Task A"] --> done["Completed"]
+  plan --> a["Task A"] --> done["Completed state"]
   plan --> b["Task B"] --> done
   plan --> c["Task C"] --> done
 ```
 
 </div>
 
-The executor emits a `TaskStateChanged` event for every transition (`Pending → Running → Completed | Failed`), and a `TaskGraphSnapshot` projection that the UI renders in the task panel. Concurrency is bounded by the active strategy — see below.
+The executor emits task events for every transition (`AgentTaskStarted`, `AgentTaskCompleted`, `AgentTaskFailed`, `TaskBlocked`, `TaskRetried`, or `TaskCancelled`), and a `TaskGraphSnapshot` projection that the UI renders in the task panel. Concurrency is bounded by the active strategy — see below.
 
 ## Multi-agent strategies
 
@@ -155,10 +153,10 @@ Strategies compose. A workspace can be configured to default to Planner-then-Wor
 Switching models mid-session is supported and serialized. The flow:
 
 1. UI calls `AppFacade::switch_model(session, new_profile)`.
-2. Session actor enqueues a `ModelSwitchRequested`.
+2. Session actor enqueues the profile switch behind any active turn.
 3. The active turn (if any) finishes — including any auto-compaction the turn triggers.
 4. The actor evaluates the new profile's context window. If the current conversation exceeds the new budget, the runtime triggers compaction _before_ the switch lands.
-5. `ModelSwitched` is appended; subsequent turns use the new client.
+5. `ModelProfileSwitched` is appended; subsequent turns use the new client.
 
 The guard exists because the previous design allowed a switch to land into a partially compacted state, and the next user turn would fail with a budget-overflow at the new provider. The refactor in [#531](https://github.com/Z-Only/kairox/pull/531) moved switches into the actor; the refactor in [#533](https://github.com/Z-Only/kairox/pull/533) made auto-compaction race-free at turn end. The two together mean that a user can switch from a 200k-window model to an 8k-window model without dropping a turn.
 
@@ -177,7 +175,7 @@ Servers are _managed_ by the runtime but _defined_ by `agent-config`. Adding an 
 
 ## Permissions in the loop
 
-The policy engine is consulted on every tool call. `PolicyEngine::decide(PolicyRisk)` returns one of three variants: `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`. `NeedsApproval` causes the runtime to emit a `PermissionRequested` event and wait for a `PermissionDecision`. The wait is bounded by the session actor's queue, so a user who walks away with an unanswered prompt blocks new turns but does not corrupt state. `DeniedBySandbox` is structural and cannot be widened by user approval — the runtime appends `ToolFailed` directly.
+The policy engine is consulted on every tool call. `PolicyEngine::decide(PolicyRisk)` returns one of three variants: `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`. `NeedsApproval` causes the runtime to emit a `PermissionRequested` event and wait for a `PermissionDecision`. The wait is bounded by the session actor's queue, so a user who walks away with an unanswered prompt blocks new turns but does not corrupt state. `DeniedBySandbox` is structural and cannot be widened by user approval — the runtime appends `ToolInvocationFailed` directly.
 
 See [Permissions & Tools](./permissions-and-tools) for the orthogonal `ApprovalPolicy` × `SandboxPolicy` model and the built-in tools' risk classifications.
 

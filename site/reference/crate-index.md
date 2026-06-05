@@ -68,34 +68,34 @@ flowchart TD
 
 ### `agent-core`
 
-| What           | Detail                                                                               |
-| -------------- | ------------------------------------------------------------------------------------ |
-| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)  |
-| Purpose        | Domain types, events, the `AppFacade` trait, and build-info plumbing.                |
-| Key types      | `AppFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo` |
-| Depended on by | Every other crate. This is the foundation.                                           |
+| What           | Detail                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)                                    |
+| Purpose        | Domain types, events, the `AppFacade` trait, build-info plumbing, and trajectory DTOs.                                 |
+| Key types      | `AppFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo`, `TrajectoryId`, `TrajectoryStep` |
+| Depended on by | Every other crate. This is the foundation.                                                                             |
 
 `agent-core` is intentionally small. It does not know how to persist events, how to call a model, or how to run a tool — it only defines the contracts. The `AppFacade` trait in particular is the single seam between UIs and the runtime, and the `EventPayload` enum is the single seam between the runtime and anything that wants to observe what is happening.
 
 ### `agent-store`
 
-| What           | Detail                                                                                |
-| -------------- | ------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-store`](https://github.com/Z-Only/kairox/tree/main/crates/agent-store) |
-| Purpose        | SQLite-backed event store and metadata tables. Single source of truth for sessions.   |
-| Key types      | `EventStore` (trait), `SqliteEventStore`, `SessionMetadata`                           |
-| Depended on by | `agent-runtime`, `agent-tui`, `agent-gui-tauri`                                       |
+| What           | Detail                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| Repo path      | [`crates/agent-store`](https://github.com/Z-Only/kairox/tree/main/crates/agent-store)                        |
+| Purpose        | SQLite-backed event store, metadata tables, and trajectory persistence. Single source of truth for sessions. |
+| Key types      | `EventStore` (trait), `SqliteEventStore`, `SessionMeta`, `TrajectoryStore`, `SqliteTrajectoryStore`          |
+| Depended on by | `agent-runtime`, `agent-tui`, `agent-gui-tauri`                                                              |
 
-Event sourcing lives here. The event stream is append-only; nothing in `agent-store` mutates an event after it is appended. Replays for projections (like the GUI's task panel) read events back; archive flips a metadata flag.
+Event sourcing lives here. The event stream is append-only; nothing in `agent-store` mutates an event after it is appended. Replays for projections (like the GUI's task panel) read events back; archive flips a metadata flag. The same crate also stores task-scoped trajectory steps and can export them as JSON for replay, debugging, and eval.
 
 ### `agent-memory`
 
-| What           | Detail                                                                                             |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-memory`](https://github.com/Z-Only/kairox/tree/main/crates/agent-memory)            |
-| Purpose        | Memory store, `<memory>` marker extraction, context assembly under a token budget, and compaction. |
-| Key types      | `MemoryStore` (trait), `SqliteMemoryStore`, `ContextAssembler`, `ContextCompactor`                 |
-| Depended on by | `agent-runtime`                                                                                    |
+| What           | Detail                                                                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-memory`](https://github.com/Z-Only/kairox/tree/main/crates/agent-memory)                           |
+| Purpose        | Memory store, `<memory>` marker extraction, context assembly under a token budget, image pruning, and compaction. |
+| Key types      | `MemoryStore` (trait), `SqliteMemoryStore`, `ContextAssembler`, `ContextCompactor`, `ImagePruningStrategy`        |
+| Depended on by | `agent-runtime`                                                                                                   |
 
 The `extract_memory_markers` function in this crate is where the `<memory scope="...">` protocol meets the runtime. The context assembler uses `tiktoken-rs` for token accounting; the compactor turns the oldest tier of history into a single summary message when the budget is tight. See [Memory & Context](../concepts/memory-and-context).
 
@@ -108,18 +108,18 @@ The `extract_memory_markers` function in this crate is where the `<memory scope=
 | Key types      | `ModelClient`, `ModelRouter`, `ModelRegistry`, `ProfileDef`                                 |
 | Depended on by | `agent-runtime`                                                                             |
 
-One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRegistry` holds curated context-window and capability metadata; the router picks the right client for a session's active profile and forwards stream chunks back as `AssistantDelta` events.
+One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRegistry` holds curated context-window and capability metadata; the router picks the right client for a session's active profile and forwards stream chunks back through `ModelTokenDelta` and `AssistantMessageCompleted` events.
 
 ### `agent-tools`
 
-| What           | Detail                                                                                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                                                                               |
-| Purpose        | The `Tool` trait, the `ToolRegistry`, the orthogonal Approval × Sandbox `PolicyEngine`, and the built-in tools.                                                                     |
-| Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool` |
-| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`), `agent-lsp` (via `LspToolProvider` / `DapToolProvider`)                                                                        |
+| What           | Detail                                                                                                                                                                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                                                                                                                                     |
+| Purpose        | The `Tool` trait, the `ToolRegistry`, the orthogonal Approval × Sandbox `PolicyEngine`, and the built-in tools.                                                                                                                           |
+| Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool`, `BrowserTool`, `BrowserBatchTool`, `ComputerUseTool` |
+| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`), `agent-lsp` (via `LspToolProvider` / `DapToolProvider`)                                                                                                                              |
 
-Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, and `monitor.stop`. Dynamic tool providers register additional tools at runtime: `McpToolAdapter` for MCP servers, `LspToolProvider` for LSP servers, and `DapToolProvider` for DAP servers. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
+Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, `monitor.stop`, `browser.action`, `browser.batch`, and `computer.use`. Dynamic tool providers register additional tools at runtime: `McpToolAdapter` for MCP servers, `LspToolProvider` for LSP servers, and `DapToolProvider` for DAP servers. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
 
 ### `agent-mcp`
 

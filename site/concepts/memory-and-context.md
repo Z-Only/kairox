@@ -18,8 +18,8 @@ The LLM does not write to memory by calling a tool. It writes to memory by emitt
 
 | Scope       | When to use                                                                                      | Lifetime                                    | Approval                                                                                  |
 | ----------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `session`   | Within-conversation facts the agent wants to recall later in the same session.                   | Discarded when the session is archived.     | Auto-accepted. Emits `MemoryProposed` + `MemoryCommitted`.                                |
-| `user`      | Personal preferences, working style, persistent ergonomic choices.                               | Persists across all sessions for this user. | Prompts the UI. Emits `MemoryProposed` and waits for `MemoryApproved` / `MemoryRejected`. |
+| `session`   | Within-conversation facts the agent wants to recall later in the same session.                   | Discarded when the session is archived.     | Auto-accepted. Emits `MemoryProposed` + `MemoryAccepted`.                                 |
+| `user`      | Personal preferences, working style, persistent ergonomic choices.                               | Persists across all sessions for this user. | Prompts the UI. Emits `MemoryProposed` and waits for `MemoryAccepted` / `MemoryRejected`. |
 | `workspace` | Project conventions, repo-specific facts, decisions that bind future sessions in this workspace. | Persists for the workspace.                 | Prompts the UI. Emits `MemoryProposed` and waits for approval.                            |
 
 ### Markup
@@ -47,22 +47,22 @@ sequenceDiagram
   participant MS as MemoryStore
   participant U as UI
 
-  M-->>L: AssistantDelta(text with <memory>…</memory>)
+  M-->>L: text delta with <memory>…</memory>
   L->>X: extract markers
   X-->>L: cleaned text + markers
-  L-->>U: AssistantDelta(cleaned text)
+  L-->>U: ModelTokenDelta(cleaned text)
   loop per marker
     alt scope=session
       L->>MS: commit immediately
-      L-->>U: MemoryProposed + MemoryCommitted
+      L-->>U: MemoryProposed + MemoryAccepted
     else scope=user|workspace
       L-->>U: MemoryProposed
-      U-->>L: MemoryApproved | MemoryRejected
+      U-->>L: accept | reject
       alt approved
         L->>MS: commit
-        L-->>U: MemoryCommitted
+        L-->>U: MemoryAccepted
       else rejected
-        L-->>U: (no commit)
+        L-->>U: MemoryRejected
       end
     end
   end
@@ -99,7 +99,7 @@ Every turn rebuilds the prompt from scratch. `ContextAssembler` is the component
 
 1. **System prompt.** The agent's strategy-specific system prompt, plus any active instructions configuration.
 2. **Memories.** All `user` and `workspace` memories for the current workspace, plus the active session's `session` memories. Filtered by relevance heuristics (key match, recency) when the budget is tight.
-3. **History.** Recent messages from the event stream — `UserMessage`, the cleaned `AssistantDelta`s concatenated into one assistant message per turn, and `ToolCompleted` payloads.
+3. **History.** Recent messages from the event stream — `UserMessageAdded`, the cleaned `ModelTokenDelta`s finalized by `AssistantMessageCompleted`, and `ToolInvocationCompleted` payloads.
 4. **The new user prompt.** Always included verbatim.
 
 ### Token accounting
@@ -140,22 +140,24 @@ The UI can request compaction explicitly: TUI keyboard shortcut, GUI menu item, 
 
 ### Events
 
-| Event                 | When                                                      |
-| --------------------- | --------------------------------------------------------- |
-| `CompactionStarted`   | Session actor begins compaction (auto or manual).         |
-| `CompactionCompleted` | Summary appended, history pruned from the active context. |
-| `CompactionFailed`    | Summarization errored (model failure, budget edge case).  |
+| Event                        | When                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `ContextCompactionStarted`   | Session actor begins compaction (auto or manual).                                    |
+| `CompactionSummary`          | Summary appended with provenance for the replaced range.                             |
+| `ContextCompactionCompleted` | Active context now uses the summary.                                                 |
+| `ContextCompactionFailed`    | Summarization errored (model failure, budget edge case).                             |
+| `ContextCompactionSkipped`   | A turn-end trigger was suppressed because compaction was already active or disabled. |
 
 A failed compaction does not block the session, but the next turn is still subject to the budget guard — the runtime will refuse to send if the assembled prompt overflows.
 
 ### Busy-state guard
 
-Compaction cannot run while a turn is in flight. The session actor enforces this by enqueueing compaction requests behind the current turn. Likewise, `ModelSwitchRequested` enqueues behind compaction so that a switch to a smaller-window model never lands mid-summary. The combination prevents the family of bugs where "the model is now in two states at once."
+Compaction cannot run while a turn is in flight. The session actor enforces this by enqueueing compaction requests behind the current turn. Likewise, profile switches enqueue behind compaction so that a switch to a smaller-window model never lands mid-summary. The combination prevents the family of bugs where "the model is now in two states at once."
 
 ## How the UI surfaces memory
 
-- **TUI** renders proposed memories inline in the chat stream with `a` to approve, `r` to reject. The trace panel logs `MemoryCommitted` events with the scope and key.
-- **GUI** uses chat-stream stream items (`ChatPermissionItem.vue` for permissions; the memory equivalent is the proposed-memory card) and a dedicated `MemoryBrowser.vue` view for inspecting and editing existing memories at any time. Editing a memory emits a `MemoryCommitted` overriding the previous body for that key.
+- **TUI** renders proposed memories inline in the chat stream with `a` to approve, `r` to reject. The trace panel logs `MemoryAccepted` events with the scope and key.
+- **GUI** uses chat-stream stream items (`ChatPermissionItem.vue` for permissions; the memory equivalent is the proposed-memory card) and a dedicated `MemoryBrowser.vue` view for inspecting and editing existing memories at any time. Accepted edits replace the previous body for that key in `MemoryStore`.
 
 Both surfaces talk to the same `MemoryStore` via the facade. There is no UI-only memory cache; if you edit a memory in the GUI while the TUI is open against the same workspace, the TUI's next turn picks up the new value.
 

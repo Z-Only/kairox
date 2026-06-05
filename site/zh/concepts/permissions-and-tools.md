@@ -67,12 +67,15 @@ outline: [2, 3]
 | `monitor.start`  | `MonitorStartTool`  | 启动一个后台 monitor。                                 | Low    | Monitor 进程生命周期。  |
 | `monitor.list`   | `MonitorListTool`   | 列出活跃的后台 monitor。                               | Low    | 只读 monitor metadata。 |
 | `monitor.stop`   | `MonitorStopTool`   | 停止一个正在运行的后台 monitor。                       | Low    | Monitor 进程生命周期。  |
+| `browser.action` | `BrowserTool`       | 驱动一个 Playwright-backed browser action。            | Medium | 浏览器与网络交互。      |
+| `browser.batch`  | `BrowserBatchTool`  | 顺序执行多个 browser action。                          | Medium | 浏览器与网络交互。      |
+| `computer.use`   | `ComputerUseTool`   | 通过平台 backend 截图或控制桌面。                      | High   | 桌面输入 / 屏幕访问。   |
 
 policy engine 真正读取的是 tool 的 `PolicyEffect`(只读 / workspace 写 / 网络 / 破坏性 / 未知命令);`Risk` 则是 UI 用来在 prompt 和状态栏里展示的提示。
 
 ### 为什么是这些,而不是更多
 
-内置工具集是被刻意做小的。任何更复杂的能力 —— git 操作、HTTP 调用、数据库查询、代码格式化、项目专属命令 —— 都应该交给一个 MCP server。runtime 给用户的是 primitive 加上一套 policy engine;MCP 给用户的是打好包的能力。
+内置工具集是被刻意做小的。任何更复杂的能力 —— git 操作、数据库查询、代码格式化、项目专属命令,或更高层的 workflow 自动化 —— 都应该交给一个 MCP server。runtime 给用户的是 primitive 加上一套 policy engine;MCP 给用户的是打好包的能力。
 
 ## MCP tool 适配器
 
@@ -83,7 +86,7 @@ policy engine 真正读取的是 tool 的 `PolicyEffect`(只读 / workspace 写 
 ```mermaid
 flowchart LR
   model["Model"] --> registry["ToolRegistry"]
-  registry --> built["Built-in tool<br/>(e.g. shell, fs.read)"]
+  registry --> built["Built-in tool<br/>(e.g. shell, fs.read, browser.action)"]
   registry --> adapter["McpToolAdapter"]
   adapter --> client["McpClient"]
   client --> transport["Transport<br/>(stdio / SSE / Streamable HTTP)"]
@@ -113,13 +116,13 @@ flowchart TD
   approval -->|OnRequest| reasons{"Trigger fires?"}
   reasons -->|destructive_effect / network_request / unknown_command / untrusted_mcp_server| needs2["NeedsApproval{reason}"]
   reasons -->|none| allowed
-  denied --> failS["Append ToolFailed (sandbox)"]
+  denied --> failS["Append PermissionDenied"]
   needs --> prompt["Emit PermissionRequested"]
   needs2 --> prompt
   prompt --> user{"User decision"}
   user -->|approve| allowed
-  user -->|deny| failU["Append PermissionDenied + ToolFailed"]
-  allowed --> run["Run tool, append PermissionGranted + ToolCompleted"]
+  user -->|deny| failU["Append PermissionDenied"]
+  allowed --> run["Run tool, append PermissionGranted + ToolInvocationStarted + ToolInvocationCompleted"]
 ```
 
 </div>
@@ -128,7 +131,7 @@ flowchart TD
 
 - **Sandbox 是结构性的。** `DeniedBySandbox` 不能被批准覆盖。用户在 `ReadOnly` 下"批准"一个写操作,并不会解锁该写操作 —— 必须先切换 sandbox。
 - **Approval 是流程性的。** `Never` 不会放宽 sandbox;它只是把 sandbox 已经放行的调用静音。
-- **每一次调用都会落到事件流上。** sandbox 拒绝会 append `ToolFailed`;用户批准/拒绝会 append `PermissionGranted` / `PermissionDenied`;无论策略如何,trace 中都能看到每一次决策。
+- **每一次 decision 都会落到事件流上。** sandbox 拒绝和用户拒绝会 append `PermissionDenied`;被批准的调用会先 append `PermissionGranted`,再 append `ToolInvocationStarted` 与 `ToolInvocationCompleted` 或 `ToolInvocationFailed`。
 - **批准原因是带类型的。** `ApprovalReason` 是 `SandboxRejected`、`PolicyAlways`、`DestructiveEffect`、`UnknownCommand`、`NetworkRequest`、`UntrustedMcpServer` 之一 —— UI 会把该原因渲染在 tool 名旁。
 - **批准过的 tool 不会被回溯性地撤销。** 一旦 `PermissionGranted` 被 append,runtime 就会去调用 tool。
 
@@ -145,8 +148,9 @@ flowchart TD
 
 当你写的代码会触发 tool 时 —— 不管你设计的是 skill、plugin 还是 MCP server —— 都要假设任何 tool 都可能被 sandbox 拒绝或被用户拒绝。runtime 保证:
 
-- 被 sandbox 拒掉的 tool 会返回一条带结构化原因的 `ToolFailed`。
-- 被用户拒掉的 tool 会返回一条带拒绝原因的 `ToolFailed`。
+- 被 sandbox 拒掉的 tool 会在调用前返回一条带结构化原因的 `PermissionDenied`。
+- 被用户拒掉的 tool 会在调用前返回一条带拒绝原因的 `PermissionDenied`。
+- 已经被调用但执行出错的 tool 会返回 `ToolInvocationFailed`。
 - 模型能看到这次失败,可以重新规划。
 - 用户可以在 session 进行中改变任一轴,然后再试一次,而不必重启。
 

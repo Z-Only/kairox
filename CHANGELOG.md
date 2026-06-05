@@ -4,6 +4,99 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0] - 2026-06-05
+
+### 🚀 Features
+
+- **tools**: add environment automation tools (#806)
+- **store**: add trajectory recording (#805)
+- **config**: add Claude Code client identity (#809)
+- **gui**: add devtools setting (#812)
+- **gui**: add dynamic dev ports (#816)
+- **runtime**: track local instances (#817)
+- **runtime**: add builtin skill creator (#832)
+
+### 🐛 Bug Fixes
+
+- **runtime**: wire profile server tools (#801)
+- **site**: respect browser locale and theme screenshots (#803)
+- **gui**: restore chat context state (#804)
+- **models**: probe chat readiness (#808)
+- **gui**: repair chat trace and settings (#810)
+- **runtime,gui**: harden live model replay (#811)
+- **gui**: wait for project instructions root (#815)
+- **gui**: isolate pilot runner sockets (#818)
+- **gui**: widen assistant message bubbles (#819)
+- **runtime**: mark cancelled turns as cancelled (#820)
+- **gui**: preserve cancellation history (#822)
+- restore shell permission flow (#821)
+- **runtime**: include project instructions in prompts (#823)
+- **runtime**: account memory context source (#824)
+- **gui**: autosize chat composer input (#825)
+- **gui**: flush textarea change before send (#826)
+- **runtime**: use current model for compaction (#830)
+- **tools**: honor trusted MCP tools (#831)
+- **ci**: use merge API for dependabot rebase (#833)
+- **ci**: close and reopen PRs after merge to trigger CI (#834)
+- **ci**: remove close/reopen from dependabot rebase workflow (#835)
+- **gui**: show completed compactions (#840)
+- **tools**: stop monitor process groups (#841)
+- **gui**: show worktree label (#842)
+- **skills**: use project roots for active skills (#843)
+- **gui**: restore project session deep links (#844)
+- **gui**: label generic worktree sessions (#845)
+- **models**: send image attachments as multimodal (#846)
+- **context**: count image attachments as images (#847)
+- **gui**: hide tool shortcuts on memory prompts (#848)
+- **runtime**: scope monitor starts to root (#849)
+- **runtime**: persist monitor events (#855)
+- **gui**: persist draft session settings (#874)
+- **models**: update code execution server tool (#876)
+
+### 📚 Documentation
+
+- **site**: add localized theme screenshots (#802)
+- mark Phase 2 (environment interaction) as complete in roadmap (#807)
+- **docs**: fill site gaps found by knowledge graph analysis (#813)
+- **testing**: add live validation log (#850)
+- **testing**: record memory validation (#851)
+- **testing**: record image validation (#852)
+- **testing**: record worktree validation (#853)
+- **testing**: record project skill validation (#854)
+- **testing**: record compaction validation (#856)
+- **testing**: record deeplink validation (#857)
+- **testing**: record memory context validation (#858)
+- **testing**: record project instruction validation (#859)
+- **testing**: record settings instruction check (#860)
+- **testing**: record user instruction check (#861)
+- **testing**: record model connectivity check (#862)
+- **testing**: record sandbox denial check (#863)
+- **testing**: record cancellation check (#864)
+- **testing**: record approval denial check (#865)
+- **testing**: record trusted MCP check (#866)
+- **testing**: record builtin skill creator check (#867)
+- **testing**: record composer flush check (#868)
+- **testing**: record composer autosize check (#869)
+- **testing**: record generic worktree label check (#870)
+- **testing**: record devtools setting check (#871)
+- **testing**: record environment tools check (#872)
+- **testing**: record instance registry check (#873)
+- **testing**: log monitor lifecycle validation (#875)
+- **testing**: record builtin read shell validation (#877)
+
+### 🧪 Testing
+
+- **runtime**: relax permission pending timeout (#838)
+
+### 📦 Dependencies
+
+- **deps**: bump the bun-minor-patch group with 15 updates (#827)
+- **deps**: bump rand 0.8→0.9 and tiktoken-rs 0.11→0.12 (#837)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: bump tauri-pilot CLI v0.5.1 → v0.7.0 and widen webview timeout (#839)
+
 ## [0.36.0] - 2026-06-01
 
 ### 🚀 Features
