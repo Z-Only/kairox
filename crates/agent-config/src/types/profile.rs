@@ -99,3 +99,7 @@ pub enum ConfigSource {
     LocalFile,
     Defaults,
 }
+
+#[cfg(test)]
+#[path = "profile_tests.rs"]
+mod tests;
