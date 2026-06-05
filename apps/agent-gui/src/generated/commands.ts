@@ -616,15 +616,18 @@ export type EventPayload = EventPayload_Serialize | EventPayload_Deserialize;
 
 export type EventPayload_Deserialize =
   | ({ type: "WorkspaceOpened"; path: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -635,6 +638,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -643,11 +647,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -674,6 +680,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -690,20 +698,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SessionInitialized"; model_profile: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -714,6 +726,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -722,11 +735,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -753,6 +768,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -769,6 +786,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -779,15 +797,18 @@ export type EventPayload_Deserialize =
       content: string;
       display_content?: string | null;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -796,6 +817,7 @@ export type EventPayload_Deserialize =
       diff?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -804,11 +826,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       missing?: never;
@@ -835,6 +859,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -851,6 +877,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -862,15 +889,18 @@ export type EventPayload_Deserialize =
       role: AgentRole;
       dependencies: string[];
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -880,6 +910,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -888,11 +919,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -919,6 +952,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -933,20 +968,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskStarted"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -957,6 +996,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -965,11 +1005,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -997,6 +1039,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1012,20 +1056,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ContextAssembled"; usage: ContextUsage } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1036,6 +1084,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1044,11 +1093,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1076,6 +1127,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1092,6 +1145,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
     })
@@ -1101,13 +1155,16 @@ export type EventPayload_Deserialize =
       before_tokens: number;
       candidate_event_count: number;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       blocking_task_id?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1118,6 +1175,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1126,11 +1184,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1157,6 +1217,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1173,6 +1235,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -1183,14 +1246,17 @@ export type EventPayload_Deserialize =
       after_tokens: number;
       fallback_used: boolean;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1201,6 +1267,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1208,11 +1275,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1240,6 +1309,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1255,20 +1326,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ContextCompactionFailed"; error: string; fallback_used: boolean } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1279,17 +1354,20 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1317,6 +1395,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1333,6 +1413,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -1342,15 +1423,18 @@ export type EventPayload_Deserialize =
    *  that callers/UIs may want to surface; below-threshold is silent.
    */
   | ({ type: "ContextCompactionSkipped"; reason: CompactionSkipReason; ratio: number | null } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1361,6 +1445,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1369,11 +1454,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1399,6 +1486,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1415,6 +1504,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -1429,13 +1519,16 @@ export type EventPayload_Deserialize =
       after_tokens: number;
       summarised_by_profile: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -1445,6 +1538,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1453,11 +1547,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1483,6 +1579,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1497,6 +1595,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -1527,15 +1626,18 @@ export type EventPayload_Deserialize =
        */
       limit_source: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       delta?: never;
@@ -1544,6 +1646,7 @@ export type EventPayload_Deserialize =
       diff?: never;
       display_content?: never;
       duration_ms?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1551,10 +1654,12 @@ export type EventPayload_Deserialize =
       fallback_used?: never;
       file?: never;
       finding_id?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1580,6 +1685,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1595,20 +1702,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelRequestStarted"; model_profile: string; model_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1619,6 +1730,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1627,11 +1739,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1657,6 +1771,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1673,20 +1789,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelTokenDelta"; delta: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1696,6 +1816,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1704,11 +1825,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1736,6 +1859,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1752,20 +1877,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelToolCallRequested"; tool_call_id: string; tool_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1776,6 +1905,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1784,11 +1914,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1816,6 +1948,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1830,20 +1964,24 @@ export type EventPayload_Deserialize =
       to_profile?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionRequested"; request_id: string; tool_id: string; preview: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1854,6 +1992,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1862,11 +2001,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1892,6 +2033,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1907,20 +2050,24 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionGranted"; request_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -1931,6 +2078,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -1939,11 +2087,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -1970,6 +2120,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -1986,20 +2138,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionDenied"; request_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2010,6 +2166,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2018,11 +2175,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2048,6 +2207,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2064,20 +2225,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ToolInvocationStarted"; invocation_id: string; tool_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2088,6 +2253,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2096,10 +2262,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2127,6 +2295,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2142,6 +2312,7 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -2155,15 +2326,18 @@ export type EventPayload_Deserialize =
       duration_ms: number;
       truncated: boolean;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2173,6 +2347,7 @@ export type EventPayload_Deserialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2180,10 +2355,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2210,6 +2387,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2225,19 +2404,23 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       usage?: never;
     })
   | ({ type: "ToolInvocationFailed"; invocation_id: string; tool_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2248,6 +2431,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -2255,10 +2439,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2286,6 +2472,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2301,20 +2489,24 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "FilePatchProposed"; patch_id: string; diff: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2324,6 +2516,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2332,11 +2525,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2363,6 +2558,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2379,20 +2576,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "FilePatchApplied"; patch_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2403,6 +2604,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2411,11 +2613,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2442,6 +2646,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2458,6 +2664,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -2469,15 +2676,18 @@ export type EventPayload_Deserialize =
       key: string | null;
       content: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -2487,6 +2697,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2495,10 +2706,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -2524,6 +2737,8 @@ export type EventPayload_Deserialize =
       role?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2540,6 +2755,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -2551,15 +2767,18 @@ export type EventPayload_Deserialize =
       key: string | null;
       content: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -2569,6 +2788,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2577,10 +2797,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -2606,6 +2828,8 @@ export type EventPayload_Deserialize =
       role?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2622,20 +2846,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MemoryRejected"; memory_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2646,6 +2874,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2654,11 +2883,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -2684,6 +2915,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2700,20 +2933,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ReviewerFindingAdded"; finding_id: string; severity: string; message: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2724,6 +2961,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2731,11 +2969,13 @@ export type EventPayload_Deserialize =
       fallback_used?: never;
       file?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message_id?: never;
       missing?: never;
@@ -2762,6 +3002,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       skill_id?: never;
       source?: never;
       step_count?: never;
@@ -2777,20 +3019,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AssistantMessageCompleted"; message_id: string; content: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -2800,6 +3046,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2808,11 +3055,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       missing?: never;
@@ -2839,6 +3088,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2855,20 +3106,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskCompleted"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2879,6 +3134,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -2887,11 +3143,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2919,6 +3177,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -2934,20 +3194,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskFailed"; task_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -2958,6 +3222,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -2965,11 +3230,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -2997,6 +3264,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3012,20 +3281,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskDecomposed"; parent_task_id: string; sub_task_ids: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3036,6 +3309,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3044,11 +3318,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3075,6 +3351,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3090,19 +3368,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskBlocked"; task_id: string; blocking_task_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3113,6 +3395,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3121,11 +3404,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3152,6 +3437,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3167,19 +3454,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentSpawned"; agent_id: string; role: string; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3190,6 +3481,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3198,11 +3490,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3229,6 +3523,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3244,19 +3540,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentIdle"; agent_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3267,6 +3567,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3275,11 +3576,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3307,6 +3610,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3323,19 +3628,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskRetried"; task_id: string; attempt: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3346,6 +3655,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3354,11 +3664,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3386,6 +3698,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3401,20 +3715,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskCancelled"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3425,6 +3743,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3433,11 +3752,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3465,6 +3786,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3480,20 +3803,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SessionCancelled"; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3504,6 +3831,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3512,11 +3840,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3543,6 +3873,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3559,20 +3891,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillDiscovered"; skill_id: string; name: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3583,6 +3919,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3591,11 +3928,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3622,6 +3961,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -3636,20 +3977,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillValidationFailed"; path: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3660,6 +4005,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -3667,11 +4013,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3698,6 +4046,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -3714,6 +4064,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -3725,14 +4076,17 @@ export type EventPayload_Deserialize =
       source: string;
       activation_mode: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3743,6 +4097,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3751,11 +4106,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3782,6 +4139,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -3796,20 +4155,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillDeactivated"; skill_id: string; name: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3820,6 +4183,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3828,11 +4192,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3859,6 +4225,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -3873,20 +4241,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillSuggested"; skill_id: string; name: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3897,6 +4269,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3905,11 +4278,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -3935,6 +4310,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       source?: never;
       step_count?: never;
@@ -3950,20 +4327,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerStarting"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -3974,6 +4355,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -3982,11 +4364,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4013,6 +4397,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4029,20 +4415,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerReady"; server_id: string; tool_count: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4053,6 +4443,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4061,11 +4452,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4092,6 +4485,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4107,20 +4502,24 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4131,6 +4530,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4139,11 +4539,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4170,6 +4572,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4186,20 +4590,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerFailed"; server_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4210,6 +4618,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -4217,11 +4626,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4248,6 +4659,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4264,20 +4677,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpToolCallStarted"; server_id: string; tool_name: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4288,6 +4705,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4296,11 +4714,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4327,6 +4747,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4342,20 +4764,24 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_id?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpToolCallCompleted"; server_id: string; tool_name: string; duration_ms: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4365,6 +4791,7 @@ export type EventPayload_Deserialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4373,11 +4800,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4404,6 +4833,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4419,20 +4850,24 @@ export type EventPayload_Deserialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_id?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpTrustGranted"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4443,6 +4878,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4451,11 +4887,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4482,6 +4920,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4498,20 +4938,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpTrustRevoked"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4522,6 +4966,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4530,11 +4975,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4561,6 +5008,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4577,20 +5026,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogRefreshed"; source: string; entry_count: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4601,6 +5054,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       error?: never;
       exit_code?: never;
@@ -4608,11 +5062,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4640,6 +5096,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -4655,19 +5113,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryInstalling"; catalog_id: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4678,6 +5140,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4686,11 +5149,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4718,6 +5183,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -4733,19 +5200,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryInstalled"; catalog_id: string; source: string; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4756,6 +5227,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4764,11 +5236,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4795,6 +5269,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -4810,20 +5286,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryUninstalled"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4834,6 +5314,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4842,11 +5323,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4873,6 +5356,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4889,19 +5374,23 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogRuntimeMissing"; catalog_id: string; missing: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4912,6 +5401,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4920,11 +5410,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -4951,6 +5443,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -4967,20 +5461,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogSourceAdded"; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -4991,6 +5489,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -4999,11 +5498,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5031,6 +5532,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -5046,20 +5549,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogSourceFailed"; source: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5070,6 +5577,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -5077,11 +5585,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5109,6 +5619,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -5124,6 +5636,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -5134,15 +5647,18 @@ export type EventPayload_Deserialize =
    *  across all providers that have responded so far.
    */
   | ({ type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5153,6 +5669,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entry_count?: never;
       error?: never;
       exit_code?: never;
@@ -5160,11 +5677,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5192,6 +5711,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -5207,6 +5728,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -5219,15 +5741,18 @@ export type EventPayload_Deserialize =
       persistent: boolean;
       timeout_ms: number;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       content?: never;
       context_window?: never;
       delta?: never;
@@ -5236,6 +5761,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5244,11 +5770,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5274,6 +5802,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5289,20 +5819,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorEvent"; monitor_id: string; line: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5313,6 +5847,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5321,10 +5856,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5351,6 +5888,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5367,20 +5906,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorStopped"; monitor_id: string; reason: MonitorStopReason } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5391,6 +5934,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5399,11 +5943,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5429,6 +5975,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5445,20 +5993,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorFailed"; monitor_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5469,6 +6021,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -5476,11 +6029,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5507,6 +6062,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5523,20 +6080,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerStarting"; server_id: string; languages: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5547,6 +6108,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5555,10 +6117,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5585,6 +6149,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5601,20 +6167,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerReady"; server_id: string; languages: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5625,6 +6195,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5633,10 +6204,12 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5663,6 +6236,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5679,20 +6254,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5703,6 +6282,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5711,11 +6291,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5742,6 +6324,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5758,20 +6342,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerFailed"; server_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5782,6 +6370,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -5789,11 +6378,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5820,6 +6411,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5836,20 +6429,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapSessionStarted"; server_id: string; program: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5860,6 +6457,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5868,11 +6466,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5898,6 +6498,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5914,20 +6516,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapSessionStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -5938,6 +6544,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -5946,11 +6553,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -5977,6 +6586,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -5993,20 +6604,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapBreakpointHit"; server_id: string; file: string; line: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6017,6 +6632,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6024,10 +6640,12 @@ export type EventPayload_Deserialize =
       fallback_used?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6054,6 +6672,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6070,20 +6690,24 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TrajectoryStarted"; trajectory_id: string; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6094,6 +6718,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6102,11 +6727,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6134,6 +6761,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6149,6 +6778,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       truncated?: never;
       usage?: never;
     })
@@ -6161,14 +6791,17 @@ export type EventPayload_Deserialize =
       screenshot_id: string | null;
       duration_ms: number;
     } & {
+      acceptance_criteria?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6178,6 +6811,7 @@ export type EventPayload_Deserialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6186,11 +6820,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6216,6 +6852,8 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6231,6 +6869,7 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       truncated?: never;
       usage?: never;
     })
@@ -6240,15 +6879,18 @@ export type EventPayload_Deserialize =
       step_count: number;
       outcome: TrajectoryOutcome;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6259,6 +6901,7 @@ export type EventPayload_Deserialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6267,11 +6910,13 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6298,6 +6943,8 @@ export type EventPayload_Deserialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6313,12 +6960,17 @@ export type EventPayload_Deserialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       truncated?: never;
       usage?: never;
-    });
-
-export type EventPayload_Serialize =
-  | ({ type: "WorkspaceOpened"; path: string } & {
+    })
+  | ({
+      type: "AutonomousTaskCreated";
+      autonomous_task_id: string;
+      goal: string;
+      acceptance_criteria: string[];
+      max_sessions: number;
+    } & {
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
@@ -6328,6 +6980,7 @@ export type EventPayload_Serialize =
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6338,6 +6991,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6365,6 +7019,7 @@ export type EventPayload_Serialize =
       output_preview?: never;
       parent_task_id?: never;
       patch_id?: never;
+      path?: never;
       persistent?: never;
       preview?: never;
       program?: never;
@@ -6377,6 +7032,278 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({
+      type: "AutonomousTaskSessionStarted";
+      autonomous_task_id: string;
+      session_id: string;
+      session_index: number;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({
+      type: "AutonomousTaskCheckpointed";
+      autonomous_task_id: string;
+      session_id: string;
+      session_index: number;
+      checkpoint_json: string;
+      end_reason: string;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "AutonomousTaskCompleted"; autonomous_task_id: string; total_sessions: number } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6397,7 +7324,8 @@ export type EventPayload_Serialize =
       truncated?: never;
       usage?: never;
     })
-  | ({ type: "SessionInitialized"; model_profile: string } & {
+  | ({ type: "AutonomousTaskFailed"; autonomous_task_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
@@ -6407,6 +7335,7 @@ export type EventPayload_Serialize =
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6417,6 +7346,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6425,11 +7355,279 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "AutonomousTaskCancelled"; autonomous_task_id: string } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    });
+
+export type EventPayload_Serialize =
+  | ({ type: "WorkspaceOpened"; path: string } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "SessionInitialized"; model_profile: string } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6456,6 +7654,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6472,6 +7672,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -6482,15 +7683,18 @@ export type EventPayload_Serialize =
       content: string;
       display_content?: string | null;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -6499,6 +7703,7 @@ export type EventPayload_Serialize =
       diff?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6507,11 +7712,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       missing?: never;
@@ -6538,6 +7745,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6554,6 +7763,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -6565,15 +7775,18 @@ export type EventPayload_Serialize =
       role: AgentRole;
       dependencies: string[];
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6583,6 +7796,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6591,11 +7805,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6622,6 +7838,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6636,20 +7854,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskStarted"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6660,6 +7882,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6668,11 +7891,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6700,6 +7925,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6715,20 +7942,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ContextAssembled"; usage: ContextUsage } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6739,6 +7970,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6747,11 +7979,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6779,6 +8013,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6795,6 +8031,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
     })
@@ -6804,13 +8041,16 @@ export type EventPayload_Serialize =
       before_tokens: number;
       candidate_event_count: number;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       blocking_task_id?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6821,6 +8061,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6829,11 +8070,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6860,6 +8103,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6876,6 +8121,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -6886,14 +8132,17 @@ export type EventPayload_Serialize =
       after_tokens: number;
       fallback_used: boolean;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6904,6 +8153,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -6911,11 +8161,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -6943,6 +8195,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -6958,20 +8212,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ContextCompactionFailed"; error: string; fallback_used: boolean } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -6982,17 +8240,20 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7020,6 +8281,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7036,6 +8299,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -7045,15 +8309,18 @@ export type EventPayload_Serialize =
    *  that callers/UIs may want to surface; below-threshold is silent.
    */
   | ({ type: "ContextCompactionSkipped"; reason: CompactionSkipReason; ratio: number | null } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7064,6 +8331,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7072,11 +8340,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7102,6 +8372,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7118,6 +8390,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -7132,13 +8405,16 @@ export type EventPayload_Serialize =
       after_tokens: number;
       summarised_by_profile: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -7148,6 +8424,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7156,11 +8433,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7186,6 +8465,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7200,6 +8481,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -7230,15 +8512,18 @@ export type EventPayload_Serialize =
        */
       limit_source: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       delta?: never;
@@ -7247,6 +8532,7 @@ export type EventPayload_Serialize =
       diff?: never;
       display_content?: never;
       duration_ms?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7254,10 +8540,12 @@ export type EventPayload_Serialize =
       fallback_used?: never;
       file?: never;
       finding_id?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7283,6 +8571,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7298,20 +8588,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelRequestStarted"; model_profile: string; model_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7322,6 +8616,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7330,11 +8625,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7360,6 +8657,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7376,20 +8675,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelTokenDelta"; delta: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7399,6 +8702,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7407,11 +8711,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7439,6 +8745,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7455,20 +8763,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ModelToolCallRequested"; tool_call_id: string; tool_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7479,6 +8791,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7487,11 +8800,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7519,6 +8834,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7533,20 +8850,24 @@ export type EventPayload_Serialize =
       to_profile?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionRequested"; request_id: string; tool_id: string; preview: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7557,6 +8878,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7565,11 +8887,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7595,6 +8919,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7610,20 +8936,24 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionGranted"; request_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7634,6 +8964,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7642,11 +8973,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7673,6 +9006,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7689,20 +9024,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "PermissionDenied"; request_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7713,6 +9052,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7721,11 +9061,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7751,6 +9093,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7767,20 +9111,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ToolInvocationStarted"; invocation_id: string; tool_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7791,6 +9139,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7799,10 +9148,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7830,6 +9181,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7845,6 +9198,7 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -7858,15 +9212,18 @@ export type EventPayload_Serialize =
       duration_ms: number;
       truncated: boolean;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7876,6 +9233,7 @@ export type EventPayload_Serialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -7883,10 +9241,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7913,6 +9273,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -7928,19 +9290,23 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       usage?: never;
     })
   | ({ type: "ToolInvocationFailed"; invocation_id: string; tool_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -7951,6 +9317,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -7958,10 +9325,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7989,6 +9358,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8004,20 +9375,24 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "FilePatchProposed"; patch_id: string; diff: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8027,6 +9402,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8035,11 +9411,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8066,6 +9444,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8082,20 +9462,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "FilePatchApplied"; patch_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8106,6 +9490,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8114,11 +9499,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8145,6 +9532,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8161,6 +9550,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -8172,15 +9562,18 @@ export type EventPayload_Serialize =
       key: string | null;
       content: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -8190,6 +9583,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8198,10 +9592,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -8227,6 +9623,8 @@ export type EventPayload_Serialize =
       role?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8243,6 +9641,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -8254,15 +9653,18 @@ export type EventPayload_Serialize =
       key: string | null;
       content: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -8272,6 +9674,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8280,10 +9683,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -8309,6 +9714,8 @@ export type EventPayload_Serialize =
       role?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8325,20 +9732,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MemoryRejected"; memory_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8349,6 +9760,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8357,11 +9769,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       message?: never;
       message_id?: never;
       missing?: never;
@@ -8387,6 +9801,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8403,20 +9819,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "ReviewerFindingAdded"; finding_id: string; severity: string; message: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8427,6 +9847,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8434,11 +9855,13 @@ export type EventPayload_Serialize =
       fallback_used?: never;
       file?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message_id?: never;
       missing?: never;
@@ -8465,6 +9888,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       skill_id?: never;
       source?: never;
       step_count?: never;
@@ -8480,20 +9905,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AssistantMessageCompleted"; message_id: string; content: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       context_window?: never;
       delta?: never;
@@ -8503,6 +9932,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8511,11 +9941,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       missing?: never;
@@ -8542,6 +9974,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8558,20 +9992,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskCompleted"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8582,6 +10020,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8590,11 +10029,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8622,6 +10063,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8637,20 +10080,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentTaskFailed"; task_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8661,6 +10108,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -8668,11 +10116,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8700,6 +10150,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8715,20 +10167,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskDecomposed"; parent_task_id: string; sub_task_ids: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8739,6 +10195,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8747,11 +10204,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8778,6 +10237,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8793,19 +10254,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskBlocked"; task_id: string; blocking_task_id: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8816,6 +10281,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8824,11 +10290,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8855,6 +10323,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8870,19 +10340,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentSpawned"; agent_id: string; role: string; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8893,6 +10367,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8901,11 +10376,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -8932,6 +10409,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -8947,19 +10426,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "AgentIdle"; agent_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -8970,6 +10453,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -8978,11 +10462,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9010,6 +10496,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9026,19 +10514,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskRetried"; task_id: string; attempt: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9049,6 +10541,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9057,11 +10550,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9089,6 +10584,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9104,20 +10601,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TaskCancelled"; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9128,6 +10629,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9136,11 +10638,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9168,6 +10672,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9183,20 +10689,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SessionCancelled"; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9207,6 +10717,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9215,11 +10726,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9246,6 +10759,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9262,20 +10777,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillDiscovered"; skill_id: string; name: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9286,6 +10805,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9294,11 +10814,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9325,6 +10847,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -9339,20 +10863,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillValidationFailed"; path: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9363,6 +10891,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -9370,11 +10899,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9401,6 +10932,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9417,6 +10950,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -9428,14 +10962,17 @@ export type EventPayload_Serialize =
       source: string;
       activation_mode: string;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9446,6 +10983,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9454,11 +10992,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9485,6 +11025,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -9499,20 +11041,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillDeactivated"; skill_id: string; name: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9523,6 +11069,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9531,11 +11078,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9562,6 +11111,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       step_count?: never;
       step_index?: never;
@@ -9576,20 +11127,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "SkillSuggested"; skill_id: string; name: string; reason: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9600,6 +11155,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9608,11 +11164,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9638,6 +11196,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       source?: never;
       step_count?: never;
@@ -9653,20 +11213,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerStarting"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9677,6 +11241,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9685,11 +11250,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9716,6 +11283,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9732,20 +11301,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerReady"; server_id: string; tool_count: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9756,6 +11329,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9764,11 +11338,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9795,6 +11371,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9810,20 +11388,24 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9834,6 +11416,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9842,11 +11425,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9873,6 +11458,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9889,20 +11476,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpServerFailed"; server_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9913,6 +11504,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -9920,11 +11512,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -9951,6 +11545,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -9967,20 +11563,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpToolCallStarted"; server_id: string; tool_name: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -9991,6 +11591,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -9999,11 +11600,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10030,6 +11633,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10045,20 +11650,24 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_id?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpToolCallCompleted"; server_id: string; tool_name: string; duration_ms: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10068,6 +11677,7 @@ export type EventPayload_Serialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10076,11 +11686,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10107,6 +11719,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10122,20 +11736,24 @@ export type EventPayload_Serialize =
       tool_call_id?: never;
       tool_count?: never;
       tool_id?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpTrustGranted"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10146,6 +11764,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10154,11 +11773,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10185,6 +11806,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10201,20 +11824,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "McpTrustRevoked"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10225,6 +11852,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10233,11 +11861,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10264,6 +11894,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10280,20 +11912,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogRefreshed"; source: string; entry_count: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10304,6 +11940,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       error?: never;
       exit_code?: never;
@@ -10311,11 +11948,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10343,6 +11982,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10358,19 +11999,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryInstalling"; catalog_id: string; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10381,6 +12026,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10389,11 +12035,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10421,6 +12069,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10436,19 +12086,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryInstalled"; catalog_id: string; source: string; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10459,6 +12113,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10467,11 +12122,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10498,6 +12155,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10513,20 +12172,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogEntryUninstalled"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10537,6 +12200,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10545,11 +12209,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10576,6 +12242,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10592,19 +12260,23 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogRuntimeMissing"; catalog_id: string; missing: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10615,6 +12287,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10623,11 +12296,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10654,6 +12329,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10670,20 +12347,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogSourceAdded"; source: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10694,6 +12375,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10702,11 +12384,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10734,6 +12418,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10749,20 +12435,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "CatalogSourceFailed"; source: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10773,6 +12463,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -10780,11 +12471,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10812,6 +12505,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10827,6 +12522,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -10837,15 +12533,18 @@ export type EventPayload_Serialize =
    *  across all providers that have responded so far.
    */
   | ({ type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -10856,6 +12555,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entry_count?: never;
       error?: never;
       exit_code?: never;
@@ -10863,11 +12563,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10895,6 +12597,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       step_count?: never;
@@ -10910,6 +12614,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
@@ -10922,15 +12627,18 @@ export type EventPayload_Serialize =
       persistent: boolean;
       timeout_ms: number;
     } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       content?: never;
       context_window?: never;
       delta?: never;
@@ -10939,6 +12647,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -10947,11 +12656,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -10977,6 +12688,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -10992,20 +12705,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorEvent"; monitor_id: string; line: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11016,6 +12733,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11024,10 +12742,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11054,6 +12774,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11070,20 +12792,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorStopped"; monitor_id: string; reason: MonitorStopReason } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11094,6 +12820,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11102,11 +12829,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11132,6 +12861,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11148,20 +12879,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "MonitorFailed"; monitor_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11172,6 +12907,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -11179,11 +12915,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11210,6 +12948,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11226,20 +12966,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerStarting"; server_id: string; languages: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11250,6 +12994,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11258,10 +13003,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11288,6 +13035,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11304,20 +13053,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerReady"; server_id: string; languages: string[] } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11328,6 +13081,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11336,10 +13090,12 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11366,6 +13122,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11382,20 +13140,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11406,6 +13168,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11414,11 +13177,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11445,6 +13210,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11461,20 +13228,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "LspServerFailed"; server_id: string; error: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11485,6 +13256,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       exit_code?: never;
@@ -11492,11 +13264,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11523,6 +13297,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11539,20 +13315,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapSessionStarted"; server_id: string; program: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11563,6 +13343,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11571,11 +13352,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11601,6 +13384,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11617,20 +13402,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapSessionStopped"; server_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11641,6 +13430,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11649,11 +13439,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11680,6 +13472,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11696,20 +13490,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "DapBreakpointHit"; server_id: string; file: string; line: number } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11720,6 +13518,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11727,10 +13526,12 @@ export type EventPayload_Serialize =
       fallback_used?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11757,6 +13558,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11773,20 +13576,24 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       trajectory_id?: never;
       truncated?: never;
       usage?: never;
     })
   | ({ type: "TrajectoryStarted"; trajectory_id: string; task_id: string } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11797,6 +13604,7 @@ export type EventPayload_Serialize =
       display_content?: never;
       duration_ms?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11805,11 +13613,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11837,6 +13647,8 @@ export type EventPayload_Serialize =
       scope?: never;
       screenshot_id?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11852,6 +13664,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       truncated?: never;
       usage?: never;
     })
@@ -11864,14 +13677,17 @@ export type EventPayload_Serialize =
       screenshot_id: string | null;
       duration_ms: number;
     } & {
+      acceptance_criteria?: never;
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
       attempt?: never;
+      autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
+      checkpoint_json?: never;
       command?: never;
       content?: never;
       context_window?: never;
@@ -11881,6 +13697,7 @@ export type EventPayload_Serialize =
       diff?: never;
       display_content?: never;
       effective_at?: never;
+      end_reason?: never;
       entries?: never;
       entry_count?: never;
       error?: never;
@@ -11889,11 +13706,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11919,6 +13738,8 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       server_id?: never;
+      session_id?: never;
+      session_index?: never;
       severity?: never;
       skill_id?: never;
       source?: never;
@@ -11934,6 +13755,7 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
       truncated?: never;
       usage?: never;
     })
@@ -11943,6 +13765,282 @@ export type EventPayload_Serialize =
       step_count: number;
       outcome: TrajectoryOutcome;
     } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({
+      type: "AutonomousTaskCreated";
+      autonomous_task_id: string;
+      goal: string;
+      acceptance_criteria: string[];
+      max_sessions: number;
+    } & {
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({
+      type: "AutonomousTaskSessionStarted";
+      autonomous_task_id: string;
+      session_id: string;
+      session_index: number;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({
+      type: "AutonomousTaskCheckpointed";
+      autonomous_task_id: string;
+      session_id: string;
+      session_index: number;
+      checkpoint_json: string;
+      end_reason: string;
+    } & {
+      acceptance_criteria?: never;
       action?: never;
       activation_mode?: never;
       after_tokens?: never;
@@ -11970,11 +14068,13 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      goal?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -11984,6 +14084,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      outcome?: never;
       output_limit?: never;
       output_preview?: never;
       parent_task_id?: never;
@@ -12004,6 +14105,7 @@ export type EventPayload_Serialize =
       severity?: never;
       skill_id?: never;
       source?: never;
+      step_count?: never;
       step_index?: never;
       sub_task_ids?: never;
       summarised_by_profile?: never;
@@ -12016,6 +14118,270 @@ export type EventPayload_Serialize =
       tool_count?: never;
       tool_id?: never;
       tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "AutonomousTaskCompleted"; autonomous_task_id: string; total_sessions: number } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "AutonomousTaskFailed"; autonomous_task_id: string; reason: string } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+    })
+  | ({ type: "AutonomousTaskCancelled"; autonomous_task_id: string } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
       truncated?: never;
       usage?: never;
     });
