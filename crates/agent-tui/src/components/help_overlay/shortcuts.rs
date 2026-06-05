@@ -426,3 +426,7 @@ pub fn context_shortcuts(focus: FocusTarget) -> &'static [Shortcut] {
         ],
     }
 }
+
+#[cfg(test)]
+#[path = "shortcuts_tests.rs"]
+mod tests;
