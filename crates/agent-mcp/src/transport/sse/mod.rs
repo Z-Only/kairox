@@ -9,6 +9,10 @@ mod parser;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+#[path = "parser_tests.rs"]
+mod parser_tests;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
