@@ -166,3 +166,7 @@ impl DapServerLifecycle {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "lifecycle_tests.rs"]
+mod tests;
