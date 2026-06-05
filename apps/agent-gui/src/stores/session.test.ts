@@ -316,7 +316,11 @@ describe("project session metadata", () => {
     expect(session.projection.messages).toEqual([]);
     expect(traceState.entries).toEqual([]);
     expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
-      kind: "ordinary-draft"
+      kind: "ordinary-draft",
+      profile: "fast",
+      reasoningEffort: null,
+      approval: "on_request",
+      sandboxJson: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
     });
   });
 
@@ -368,7 +372,11 @@ describe("project session metadata", () => {
     expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
       kind: "project-draft",
       projectId: "project-1",
-      branch: "feat/chat"
+      branch: "feat/chat",
+      profile: "fast",
+      reasoningEffort: null,
+      approval: "on_request",
+      sandboxJson: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
     });
   });
 
@@ -462,6 +470,119 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
     expect(session.currentSessionInfo?.branch).toBe("feat/ui");
     expect(session.composerDraftKey).toBe("new-session:project:project-1");
+  });
+
+  it("recovers persisted project draft settings before first send", async () => {
+    const sandboxJson = '{"kind":"danger_full_access"}';
+    localStorage.setItem(
+      "kairox.last-workbench-state",
+      JSON.stringify({
+        kind: "project-draft",
+        projectId: "project-1",
+        branch: "main",
+        profile: "ali-mo-claude",
+        reasoningEffort: null,
+        approval: "always",
+        sandboxJson
+      })
+    );
+    const session = useSessionStore();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "list_workspaces") {
+        return Promise.resolve([{ workspace_id: "ws1", path: "/tmp" }]);
+      }
+      if (command === "restore_workspace") return Promise.resolve(null);
+      if (command === "list_sessions") return Promise.resolve([]);
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "fake",
+            provider: "fake",
+            model_id: "fake",
+            local: true,
+            has_api_key: true
+          },
+          {
+            alias: "ali-mo-claude",
+            provider: "ali-mo",
+            model_id: "claude-opus-4-6",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      if (command === "create_project_draft_session") {
+        return Promise.resolve("draft-1");
+      }
+      if (command === "switch_session") {
+        return Promise.resolve({
+          messages: [],
+          task_titles: [],
+          task_graph: { tasks: [] },
+          token_stream: "",
+          cancelled: false,
+          last_context_usage: null,
+          model_limits: null,
+          compaction: { type: "Idle" }
+        });
+      }
+      if (command === "get_trace") return Promise.resolve([]);
+      if (command === "switch_model") return Promise.resolve(null);
+      if (command === "set_session_approval_policy") {
+        return Promise.resolve((args as { approval: string }).approval);
+      }
+      if (command === "set_session_sandbox_policy") {
+        return Promise.resolve((args as { sandboxJson: string }).sandboxJson);
+      }
+      return Promise.resolve(null);
+    });
+
+    const recovered = await session.recoverSessions();
+
+    expect(recovered).toBe(true);
+    expect(session.currentSessionId).toBeNull();
+    expect(session.currentProfile).toBe("ali-mo-claude");
+    expect(session.currentReasoningEffort).toBeNull();
+    expect(session.approvalPolicy).toBe("always");
+    expect(session.sandboxPolicy).toBe(sandboxJson);
+    expect(session.currentSessionInfo?.profile).toBe("ali-mo-claude");
+    expect(session.currentSessionInfo?.approval_policy).toBe("always");
+    expect(session.currentSessionInfo?.sandbox_policy).toBe(sandboxJson);
+
+    await session.ensureSessionForSend();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "ali-mo-claude"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson
+    });
   });
 
   it("uses the recovered project profile list instead of the hardcoded default on first send", async () => {

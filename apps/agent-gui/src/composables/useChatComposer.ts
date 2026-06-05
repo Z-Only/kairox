@@ -31,6 +31,7 @@ export interface ChatComposerSession {
   isStreaming: boolean;
   compacting?: boolean;
   reportSendError?: (message: string) => void;
+  setPendingModelSelection?: (profile: string, reasoningEffort: string | null) => void;
   ensureSessionForSend?: () => Promise<void>;
   refreshCurrentSessionMetadata?: (firstMessageContent?: string) => Promise<void>;
   updateSessionProfile?: (sessionId: string, profile: string) => void;
@@ -479,8 +480,12 @@ export function useChatComposer(options: UseChatComposerOptions) {
       return;
     }
     if (!session.currentSessionId) {
-      session.currentProfile = alias;
-      session.currentReasoningEffort = reasoningEffort ?? null;
+      if (session.setPendingModelSelection) {
+        session.setPendingModelSelection(alias, reasoningEffort ?? null);
+      } else {
+        session.currentProfile = alias;
+        session.currentReasoningEffort = reasoningEffort ?? null;
+      }
       modelPopoverOpen.value = false;
       return;
     }

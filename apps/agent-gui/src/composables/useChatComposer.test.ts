@@ -636,6 +636,19 @@ describe("useChatComposer", () => {
     expect(modelPopoverOpen.value).toBe(false);
   });
 
+  it("persists pending session model selection through the session store when available", async () => {
+    const setPendingModelSelection = vi.fn();
+    const session = createSession({ currentSessionId: null, setPendingModelSelection });
+    const modelPopoverOpen = { value: true };
+    const { composer, invokeFn } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen, "xhigh");
+
+    expect(invokeFn).not.toHaveBeenCalledWith("switch_model", expect.anything());
+    expect(setPendingModelSelection).toHaveBeenCalledWith("smart", "xhigh");
+    expect(modelPopoverOpen.value).toBe(false);
+  });
+
   it("allows changing reasoning effort without changing the model alias", async () => {
     const session = createSession({ currentProfile: "smart", currentReasoningEffort: "low" });
     const modelPopoverOpen = { value: true };
