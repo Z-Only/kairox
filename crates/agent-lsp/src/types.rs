@@ -129,3 +129,7 @@ pub mod dap {
         pub variables_reference: Option<i64>,
     }
 }
+
+#[cfg(test)]
+#[path = "types_tests.rs"]
+mod tests;
