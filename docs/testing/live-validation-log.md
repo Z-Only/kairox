@@ -21,6 +21,56 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-05 09:20 CST — GUI monitor lifecycle tools (#841/#849/#855)
+
+- Commit: `9b22b564`
+- Model: `ali-mo-claude` (`ali-mo` / `claude-opus-4-6`,
+  `client_identity = "claude_code"`)
+- Scenario: In an isolated temp `HOME`, registered a temp project at
+  `/tmp/kairox-monitor-project-0605`, opened a project draft in the real GUI,
+  selected `Ali Mo · Claude Opus 4 6`, and sent one live model turn that had to
+  call `monitor.start`, `monitor.list`, and `monitor.stop` in order. The monitor
+  command wrote `pwd` to `monitor-cwd.txt`, emitted `MONITOR_LIVE_LINE_0605`,
+  and slept long enough for the model to list and stop it. The final response
+  marker was split into `MONITOR_LIFECYCLE_FINAL_` and `OK_0605` so the full
+  `MONITOR_LIFECYCLE_FINAL_OK_0605` string did not exist before the model
+  response.
+- Method: `HOME=/tmp/kairox-monitor-home-0605
+XDG_RUNTIME_DIR=/tmp/kairox-monitor-runtime-0605
+CARGO_HOME=/Users/chanyu/.cargo RUSTUP_HOME=/Users/chanyu/.rustup
+CARGO_TARGET_DIR=/Users/chanyu/AIProjects/kairox/target KAIROX_DEV_PORT=1441
+KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
+  profile used `provider = "ali-mo"` and `api_key_env =
+  "KAIROX_VALIDATION_ALI_MO_KEY"` with the value supplied only as a local
+  process env var. No Starpoint approval or AMFI workaround was needed.
+- Evidence: `tauri-pilot ping` returned ok through
+  `/tmp/tauri-pilot-dev.kairox.agent.dev1441.sock`. The GUI project session
+  materialized as `ses_b6ea2bd5a5054e61aaa0b305f43e1f33` and kept the footer at
+  `Ali Mo · Claude Opus 4 6`, `按需`, and `工作区写入`. The chat stream showed
+  completed entries for `Tool call: monitor.start`, `monitor.start`, monitor
+  item `live monitor cwd 0605`, `Tool call: monitor.list`, `monitor.list`,
+  `Tool call: monitor.stop`, and `monitor.stop`; page text contained
+  `MONITOR_LIFECYCLE_FINAL_OK_0605`. IPC `list_monitors` returned `[]` after the
+  turn. `/tmp/kairox-monitor-project-0605/monitor-cwd.txt` contained
+  `/private/tmp/kairox-monitor-project-0605`, while neither the GUI app root nor
+  the validation worktree root had `monitor-cwd.txt`, confirming
+  `monitor.start` ran in the project root rather than the GUI cwd. Exported
+  trace had `event_count=35`, with model tool requests and matching started /
+  completed events for `monitor.start`, `monitor.list`, and `monitor.stop`.
+  Tool outputs were `Monitor started: mon_1`,
+  `- mon_1 (live monitor cwd 0605): persistent=false, timeout=120000ms`, and
+  `Monitor stopped: mon_1`. The trace also contained `MonitorStarted` for
+  `mon_1`, `MonitorEvent` line `MONITOR_LIVE_LINE_0605`, `MonitorStopped` with
+  `UserStopped`, `ContextAssembled` at `2266 / 181616` tokens, and
+  `AssistantMessageCompleted` content `MONITOR_LIFECYCLE_FINAL_OK_0605`.
+  Failure events were absent, and `tauri-pilot logs --level error` reported
+  `No logs captured`. After shutdown, no `agent-gui-tauri` process or `1441`
+  listener remained.
+- Result: Pass for the live GUI/runtime monitor lifecycle. Ali Mo can discover
+  and call the monitor tools in sequence, the shared registry lists and stops
+  the live monitor, monitor stdout and stop events are persisted into trace, and
+  project-session monitor commands are scoped to the project root.
+
 ### 2026-06-05 09:00 CST — GUI project draft restore settings
 
 - Commit: `353aefb8`
