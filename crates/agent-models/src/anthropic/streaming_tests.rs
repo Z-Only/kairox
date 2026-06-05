@@ -184,6 +184,40 @@ fn parses_code_execution_tool_result_content_block() {
 }
 
 #[test]
+fn parses_bash_code_execution_tool_result_content_block() {
+    let data = r#"{"type":"content_block_start","index":2,"content_block":{"type":"bash_code_execution_tool_result","tool_use_id":"srvtoolu_03","content":{"type":"bash_code_execution_result","stdout":"SERVER_TOOL_CODE_RESULT_OK2_0605\n","stderr":"","return_code":0}}}"#;
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        AnthropicRawEvent::Event(ModelEvent::TokenDelta(t)) => {
+            assert!(
+                t.contains("SERVER_TOOL_CODE_RESULT_OK2_0605"),
+                "expected stdout in delta: {t}"
+            );
+        }
+        other => panic!("expected TokenDelta for bash_code_execution_tool_result, got: {other:?}"),
+    }
+}
+
+#[test]
+fn parses_text_editor_code_execution_tool_result_content_block() {
+    let data = r#"{"type":"content_block_start","index":2,"content_block":{"type":"text_editor_code_execution_tool_result","tool_use_id":"srvtoolu_04","content":{"type":"text_editor_code_execution_result","content":"created file","return_code":0}}}"#;
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        AnthropicRawEvent::Event(ModelEvent::TokenDelta(t)) => {
+            assert!(
+                t.contains("created file"),
+                "expected editor content in delta: {t}"
+            );
+        }
+        other => {
+            panic!("expected TokenDelta for text_editor_code_execution_tool_result, got: {other:?}")
+        }
+    }
+}
+
+#[test]
 fn parse_json_response_handles_server_tool_use_and_results() {
     let data = r#"{
         "id": "msg_02",
@@ -250,6 +284,37 @@ fn parse_json_response_handles_code_execution_result() {
     assert!(events
         .iter()
         .any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("2"))));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::Completed { .. })));
+}
+
+#[test]
+fn parse_json_response_handles_current_code_execution_result() {
+    let data = r#"{
+        "id": "msg_04",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+            {"type": "server_tool_use", "id": "srvtoolu_03", "name": "bash_code_execution", "input": {"command": "python - <<'PY'\nprint('SERVER_TOOL_CODE_RESULT_OK2_0605')\nPY"}},
+            {"type": "bash_code_execution_tool_result", "tool_use_id": "srvtoolu_03", "content": {
+                "type": "bash_code_execution_result",
+                "stdout": "SERVER_TOOL_CODE_RESULT_OK2_0605\n",
+                "stderr": "",
+                "return_code": 0
+            }}
+        ],
+        "model": "claude-opus-4-6",
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 50, "output_tokens": 30}
+    }"#;
+    let events = parse_anthropic_json_response(data).unwrap();
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("bash_code_execution"))));
+    assert!(events.iter().any(
+        |e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("SERVER_TOOL_CODE_RESULT_OK2_0605"))
+    ));
     assert!(events
         .iter()
         .any(|e| matches!(e, ModelEvent::Completed { .. })));

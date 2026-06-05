@@ -196,6 +196,24 @@ fn claude_code_client_identity_adds_default_headers_with_user_override() {
 }
 
 #[test]
+fn server_tool_code_execution_appends_current_beta_header() {
+    let mut def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+    def.client_identity = Some("claude_code".into());
+    def.server_tool_code_execution = Some(true);
+    def.headers = Some(std::collections::HashMap::from([(
+        "anthropic-beta".to_string(),
+        "files-api-2025-04-14".to_string(),
+    )]));
+
+    let headers = profile_headers(&def);
+
+    assert_eq!(
+        header_value(&headers, "anthropic-beta"),
+        Some("claude-code-20250219,code-execution-2025-08-25,files-api-2025-04-14")
+    );
+}
+
+#[test]
 fn capability_overrides_from_profile_def() {
     let def = ProfileDef {
         provider: "deepseek".into(),

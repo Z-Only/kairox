@@ -72,6 +72,12 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                         events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(text)));
                     }
                 }
+                "bash_code_execution_tool_result" | "text_editor_code_execution_tool_result" => {
+                    let text = format_current_code_execution_result(&value["content_block"]);
+                    if !text.is_empty() {
+                        events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(text)));
+                    }
+                }
                 _ => {}
             }
         }
@@ -212,6 +218,12 @@ pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent
                         events.push(ModelEvent::TokenDelta(text));
                     }
                 }
+                "bash_code_execution_tool_result" | "text_editor_code_execution_tool_result" => {
+                    let text = format_current_code_execution_result(block);
+                    if !text.is_empty() {
+                        events.push(ModelEvent::TokenDelta(text));
+                    }
+                }
                 _ => {}
             }
         }
@@ -327,6 +339,63 @@ fn format_code_execution_result(block: &serde_json::Value) -> String {
         return String::new();
     }
     format!("\n[code execution result]\n{}\n", parts.join("\n"))
+}
+
+/// Format current `code_execution_20250825` result blocks as human-readable text.
+fn format_current_code_execution_result(block: &serde_json::Value) -> String {
+    let mut parts = Vec::new();
+    let Some(content) = block.get("content") else {
+        return String::new();
+    };
+
+    collect_current_code_execution_parts(content, &mut parts);
+
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!("\n[code execution result]\n{}\n", parts.join("\n"))
+}
+
+fn collect_current_code_execution_parts(value: &serde_json::Value, parts: &mut Vec<String>) {
+    if let Some(array) = value.as_array() {
+        for item in array {
+            collect_current_code_execution_parts(item, parts);
+        }
+        return;
+    }
+
+    let Some(object) = value.as_object() else {
+        return;
+    };
+
+    if let Some(stdout) = object.get("stdout").and_then(|value| value.as_str()) {
+        if !stdout.is_empty() {
+            parts.push(format!("[stdout] {stdout}"));
+        }
+    }
+    if let Some(stderr) = object.get("stderr").and_then(|value| value.as_str()) {
+        if !stderr.is_empty() {
+            parts.push(format!("[stderr] {stderr}"));
+        }
+    }
+    if let Some(return_code) = object.get("return_code").and_then(|value| value.as_i64()) {
+        parts.push(format!("[return_code] {return_code}"));
+    }
+    if let Some(content) = object.get("content").and_then(|value| value.as_str()) {
+        if !content.is_empty() {
+            parts.push(format!("[content] {content}"));
+        }
+    }
+    if let Some(lines) = object.get("lines").and_then(|value| value.as_array()) {
+        let text = lines
+            .iter()
+            .filter_map(|line| line.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !text.is_empty() {
+            parts.push(format!("[diff]\n{text}"));
+        }
+    }
 }
 
 pub(super) fn stream_anthropic_response(
