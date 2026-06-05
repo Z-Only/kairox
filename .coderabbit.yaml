@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.yaml
+
+language: en-US
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_instructions:
+    - path: "crates/agent-core/**"
+      instructions: >
+        Domain types, events, and facade. Changes here ripple across every
+        downstream crate. Verify trait-object safety, enum variant
+        exhaustiveness, and that no reverse dependency is introduced.
+    - path: "crates/agent-runtime/**"
+      instructions: >
+        Agent loop, session-actor, and DAG execution. Watch for context-budget
+        drift, race conditions in turn-end compaction, and model-switching
+        correctness. Runtime tests should use FakeModelClient.
+    - path: "crates/agent-tools/**"
+      instructions: >
+        Tool registry and the orthogonal ApprovalPolicy × SandboxPolicy engine.
+        Legacy PermissionMode has been removed — flag any re-introduction.
+        Verify built-in tool definitions match their doc comments.
+    - path: "crates/agent-models/**"
+      instructions: >
+        LLM adapters, model metadata, retry resilience, and server-side tools.
+        Check that context-window limits, model-registry entries, and retry
+        configs stay consistent with agent-runtime budget logic.
+    - path: "crates/agent-memory/**"
+      instructions: >
+        Memory, context assembly, compaction, and multimodal context.
+        Watch for silent token-budget violations and image-pruning regressions.
+    - path: "crates/agent-store/**"
+      instructions: >
+        SQLite event store, metadata, and trajectory persistence.
+        Verify migrations are additive and backward-compatible.
+        Persistence tests should use in-memory SQLite.
+    - path: "crates/agent-mcp/**"
+      instructions: >
+        MCP client, transports (stdio/SSE/Streamable HTTP), lifecycle and
+        health checks. Watch for transport-selection regressions and
+        marketplace catalog consistency.
+    - path: "crates/agent-config/**"
+      instructions: >
+        TOML config, profile discovery, .kairox/ discovery, instructions,
+        skills/MCP config. Check that profile resolution and router builder
+        stay backward-compatible.
+    - path: "crates/agent-skills/**"
+      instructions: >
+        Native skills system. Verify skill discovery, frontmatter parsing,
+        and that skill definitions follow SkillDef conventions.
+    - path: "crates/agent-plugins/**"
+      instructions: >
+        Plugin manifest and inventory parsing. Ensure plugin-provided skills,
+        tools, hooks, and MCP servers are correctly surfaced.
+    - path: "crates/agent-lsp/**"
+      instructions: >
+        LSP/DAP client, transports, and server lifecycle. Check that
+        language-server configurations stay stable across restarts.
+    - path: "crates/agent-eval/**"
+      instructions: >
+        Headless evaluation harness. Verify scenario expectations, tag
+        filters, and report generation stay deterministic.
+    - path: "crates/agent-tui/**"
+      instructions: >
+        Terminal UI (ratatui) and CLI flags. Check for rendering regressions
+        and that flag parsing is backward-compatible.
+    - path: "apps/agent-gui/src-tauri/**"
+      instructions: >
+        Tauri backend commands. New commands must be registered in BOTH
+        generate_handler! (lib.rs) AND collect_commands! (src/specta.rs).
+        After changes, run `just gen-types` to regenerate TS bindings.
+    - path: "apps/agent-gui/src/generated/**"
+      instructions: >
+        Auto-generated TypeScript bindings from Specta/Tauri. These files
+        must NOT be edited manually — only regenerated via `just gen-types`.
+    - path: "apps/agent-gui/src/components/**"
+      instructions: >
+        Vue 3 components. Keep `data-test` selectors stable unless the test
+        contract intentionally changes. Colocated Vitest specs should exist
+        for non-trivial components.
+    - path: "apps/agent-gui/src/stores/**"
+      instructions: >
+        Pinia stores. Watch for store coupling and ensure actions that touch
+        Tauri IPC use the generated command types.
+    - path: "apps/agent-gui/src/locales/**"
+      instructions: >
+        i18n translation files. Both en.json and zh-CN.json must stay in sync.
+        New keys must appear in both files.
+    - path: "apps/agent-gui/e2e/**"
+      instructions: >
+        Playwright E2E specs. Must use installTauriMock(page) and keep mock
+        handlers in e2e/fixtures/tauri-mock/ in sync with real IPC commands.
+    - path: "apps/agent-gui/e2e-pilot/**"
+      instructions: >
+        Real Tauri desktop E2E scenarios (TOML format). Use stable data-test
+        selectors. Scenarios require tauri-pilot-cli to execute.
+    - path: ".github/workflows/**"
+      instructions: >
+        CI/CD workflows. Check concurrency groups, permission scopes, and
+        ensure new jobs use the reusable composite actions under
+        .github/actions/ where applicable.
+    - path: "site/**"
+      instructions: >
+        VitePress documentation site. Changes here must pass
+        `bun run site:build` before merge.
+
+  path_filters:
+    - "!**/*.lock"
+    - "!**/bun.lock"
+    - "!**/Cargo.lock"
+    - "!apps/agent-gui/src/generated/**"
+    - "!apps/agent-gui/src/auto-imports.d.ts"
+    - "!**/node_modules/**"
+    - "!**/target/**"
+    - "!**/.DS_Store"
+
+chat:
+  auto_reply: true
