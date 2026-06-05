@@ -41,6 +41,7 @@ const props = withDefaults(
 .settings-card-list {
   display: grid;
   gap: 12px;
+  align-content: start;
   align-items: start;
   min-height: 0;
 }

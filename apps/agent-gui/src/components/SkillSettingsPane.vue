@@ -86,6 +86,19 @@ function sourceTone(source: string): SourceTone {
   }
 }
 
+function scopeLabel(scope: string): string {
+  switch (scope) {
+    case "Builtin":
+      return t("agents.scopeBuiltin");
+    case "Project":
+      return t("agents.scopeProject");
+    case "Local":
+      return t("agents.scopeLocal");
+    default:
+      return t("agents.scopeUser");
+  }
+}
+
 function installedSkillSortValue(
   skill: EffectiveSkillView,
   sortMode: Exclude<InstalledSkillSortMode, "original">
@@ -329,7 +342,7 @@ async function installFromGithub(): Promise<void> {
                   <SettingsStatusTag v-if="skill.disabledBy" tone="disabled-by">
                     {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
                   </SettingsStatusTag>
-                  <SettingsStatusTag>{{ skill.value.scope }}</SettingsStatusTag>
+                  <SettingsStatusTag>{{ scopeLabel(skill.value.scope) }}</SettingsStatusTag>
                   <SettingsStatusTag :tone="skill.enabled ? 'success' : 'warning'">
                     {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
                   </SettingsStatusTag>

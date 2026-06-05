@@ -22,6 +22,7 @@ const projectStore = useProjectStore();
 const source = ref<"user" | "project">("user");
 const selectedProjectId = ref<string>("");
 
+const hasProjects = computed(() => projectStore.activeProjects.length > 0);
 const missingProjects = computed(() => projectStore.activeProjects.filter((p) => !p.pathExists));
 
 const projectOptions = computed(() =>
@@ -49,6 +50,7 @@ function selectAvailableProject(): string | undefined {
 }
 
 function onSourceChange(newSource: "user" | "project"): void {
+  if (newSource === "project" && !hasProjects.value) return;
   source.value = newSource;
   if (newSource === "user") {
     selectedProjectId.value = "";
@@ -66,8 +68,10 @@ function onProjectChange(): void {
 watch(
   () => [props.initialSource, props.initialProjectId] as const,
   ([initialSource, initialProjectId]) => {
-    source.value = initialSource;
-    selectedProjectId.value = initialSource === "project" ? (initialProjectId ?? "") : "";
+    const effectiveSource =
+      initialSource === "project" && !hasProjects.value ? "user" : initialSource;
+    source.value = effectiveSource;
+    selectedProjectId.value = effectiveSource === "project" ? (initialProjectId ?? "") : "";
   },
   { immediate: true }
 );
@@ -76,6 +80,10 @@ watch(
   () => projectStore.activeProjects.map((project) => project.projectId),
   () => {
     if (source.value !== "project") return;
+    if (projectStore.activeProjects.length === 0) {
+      onSourceChange("user");
+      return;
+    }
     emit("source-change", "project", selectAvailableProject());
   }
 );
@@ -106,6 +114,7 @@ onMounted(() => {
         </button>
         <button
           :class="['segmented__btn', { active: source === 'project' }]"
+          :disabled="!hasProjects"
           data-test="source-btn-project"
           @click="onSourceChange('project')"
         >
@@ -168,8 +177,12 @@ onMounted(() => {
   background: var(--app-primary-color);
   color: var(--app-primary-contrast-color);
 }
-.segmented__btn:hover:not(.active) {
+.segmented__btn:hover:not(.active):not(:disabled) {
   background: var(--app-hover-color);
+}
+.segmented__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .config-source-banner {
   display: flex;

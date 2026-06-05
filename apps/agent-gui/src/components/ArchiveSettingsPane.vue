@@ -19,13 +19,13 @@ const error = ref<string | null>(null);
 const busySessionId = ref<string | null>(null);
 const archiveSearchQuery = ref("");
 const archiveSortMode = ref<ArchiveSortMode>("original");
-const archiveSortOptions: { value: ArchiveSortMode; label: string }[] = [
-  { value: "original", label: "Original order" },
-  { value: "recent", label: "Recently archived" },
-  { value: "title", label: "Title" },
-  { value: "project", label: "Project" },
-  { value: "branch", label: "Branch" }
-];
+const archiveSortOptions = computed<{ value: ArchiveSortMode; label: string }[]>(() => [
+  { value: "original", label: t("settings.archiveSortOriginal") },
+  { value: "recent", label: t("settings.archiveSortRecent") },
+  { value: "title", label: t("settings.archiveSortTitle") },
+  { value: "project", label: t("settings.archiveSortProject") },
+  { value: "branch", label: t("settings.archiveSortBranch") }
+]);
 
 const projectMap = computed(() => {
   const map = new Map<string, string>();
@@ -145,7 +145,7 @@ const displayedArchivedSessions = computed(() => {
 });
 
 function setArchiveSortMode(value: string): void {
-  if (archiveSortOptions.some((option) => option.value === value)) {
+  if (archiveSortOptions.value.some((option) => option.value === value)) {
     archiveSortMode.value = value as ArchiveSortMode;
   }
 }

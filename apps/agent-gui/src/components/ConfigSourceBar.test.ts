@@ -41,7 +41,7 @@ beforeEach(() => {
 });
 
 describe("ConfigSourceBar", () => {
-  it("emits the selected project when projects load after Project is selected", async () => {
+  it("disables project button until projects load, then allows switching", async () => {
     let resolveProjects!: (projects: ProjectResponse[]) => void;
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_projects") {
@@ -54,12 +54,14 @@ describe("ConfigSourceBar", () => {
 
     const { wrapper } = mountWithPlugins(ConfigSourceBar, { reusePinia: true });
 
-    await wrapper.get("[data-test='source-btn-project']").trigger("click");
-    expect(wrapper.emitted("source-change")?.at(-1)).toEqual(["project", undefined]);
+    const projectBtn = wrapper.get("[data-test='source-btn-project']");
+    expect(projectBtn.attributes("disabled")).toBeDefined();
 
     resolveProjects([projectResponse()]);
     await flushPromises();
 
+    expect(projectBtn.attributes("disabled")).toBeUndefined();
+    await projectBtn.trigger("click");
     expect(wrapper.emitted("source-change")?.at(-1)).toEqual(["project", "project-1"]);
     expect(wrapper.get<HTMLSelectElement>("select").element.value).toBe("project-1");
   });
