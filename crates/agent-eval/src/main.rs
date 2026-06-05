@@ -370,6 +370,9 @@ fn compare_command(args: CompareArgs) -> Result<()> {
     }
 
     println!("{}", serde_json::to_string_pretty(&comparison)?);
+    if !comparison.regressions.is_empty() {
+        std::process::exit(3);
+    }
     Ok(())
 }
 
