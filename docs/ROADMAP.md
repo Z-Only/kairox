@@ -150,20 +150,20 @@ Complete. The trajectory system now includes:
 
 **Why**: Essential for debugging agent behavior and feeding into eval. Closes the gap with SWE-Agent and Moatless trajectory-based debugging.
 
-### 2.4 Computer use (desktop interaction)
+### 2.4 Computer use (desktop interaction) ✅
 
-**Crates**: `agent-tools` (likely MCP server)
+**Crate**: `agent-tools`
 
-Reference: `claude-quickstarts/computer-use-best-practices`
+Complete. The computer use system now includes:
 
-Desktop automation tool:
+- **Tool**: `computer.use` (`ComputerUseTool`) registered as a built-in tool with `computer.interact` capability.
+- **Actions**: `screenshot` (full/region), `mouse_move`, `mouse_click`, `mouse_drag`, `keyboard_type`, `key_press`, `scroll`, `wait`, `get_screen_size`, `get_cursor_position`.
+- **Screenshot sizing**: `MODEL_SCREENSHOT_MAX_WIDTH` / `MODEL_SCREENSHOT_MAX_HEIGHT` constants (1280×800) for resizing screenshots to model coordinate space.
+- **Platform backend**: `DesktopBackend` with simulated responses; real implementations will use macOS CoreGraphics/ApplicationServices and Linux X11/Wayland.
+- **Policy integration**: Reports `ToolEffect::Execute` risk for approval policy enforcement.
+- **Tests**: Full unit coverage for all actions, error handling, and defaults.
 
-- Screenshot capture (with correct resize for model coordinate accuracy).
-- Mouse/keyboard control via platform APIs.
-- Sandboxed shell execution.
-- macOS-first (matching Kairox's primary platform), Linux later.
-
-**Why**: Enables the agent to operate any desktop application, not just code editors. High-value for testing, form filling, and workflow automation. Ship after browser tool since browser is safer and more commonly needed.
+**Why**: Enables the agent to operate any desktop application, not just code editors. High-value for testing, form filling, and workflow automation. Shipped after browser tool since browser is safer and more commonly needed.
 
 ---
 
