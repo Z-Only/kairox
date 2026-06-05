@@ -124,25 +124,11 @@ jobs:
 
       - name: Setup Rust
         if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
-      - name: Cache cargo
+      - name: Install Tauri deps
         if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Install Linux system deps for Tauri crates
-        if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Initialize CodeQL
         if: steps.should-run.outputs.value == 'true'
@@ -156,3 +142,13 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+
+  codeql-success:
+    name: CodeQL
+    if: ${{ always() }}
+    needs: [changes, analyze]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CodeQL status
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1

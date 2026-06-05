@@ -156,22 +156,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
-
-      - name: Install repo tooling deps
-        run: bun ci
+          skip-cache: "true"
 
       - name: Check formatting
         run: bun run format:check
@@ -189,26 +181,12 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
         with:
           components: clippy
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
-
-      - name: Install Linux system deps for Tauri crates
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Run clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -222,17 +200,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Run Oxlint
         run: bun run lint:oxlint
@@ -250,23 +219,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - name: Install repo tooling deps
-        run: bun ci
 
       - name: Install Playwright browsers
         working-directory: apps/agent-gui
@@ -294,37 +254,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
+          toolchain: nightly
           components: llvm-tools-preview
+          cache-shared-key: rust-coverage
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-coverage
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
 
-      - name: Install Linux system deps for Tauri crates
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -353,18 +294,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Run web coverage gate
         run: bun run coverage:web
@@ -386,37 +317,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: ./.github/actions/setup-rust
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
-
-      - name: Install Linux system deps for Tauri crates
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Install just
         uses: taiki-e/install-action@just
@@ -437,13 +345,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
+        uses: ./.github/actions/setup-rust
 
       - name: Build TUI
         run: cargo build -p agent-tui
@@ -462,17 +364,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Build GUI web
         working-directory: apps/agent-gui
@@ -489,13 +382,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
+        uses: ./.github/actions/setup-rust
 
       - name: Install just
         uses: taiki-e/install-action@just
@@ -531,13 +418,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
+        uses: ./.github/actions/setup-rust
 
       - name: Run live model integration test
         env:
@@ -558,35 +439,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
       - name: Remove Homebrew rustup (macOS GH runner workaround)
         if: matrix.os == 'macos-latest'
         run: |
-          # Homebrew-installed rustup has self-update disabled and can
-          # cause `cargo` to resolve to `rustup-init` on Apple Silicon.
           if command -v brew &>/dev/null && brew list --formula rustup &>/dev/null 2>&1; then
             brew uninstall --ignore-dependencies rustup rustup-init 2>/dev/null || true
           fi
-          # Also clean up any broken cargo symlinks
           rm -f /usr/local/bin/cargo /usr/local/bin/rustc /usr/local/bin/rustup 2>/dev/null || true
           rm -f /opt/homebrew/bin/cargo /opt/homebrew/bin/rustc /opt/homebrew/bin/rustup 2>/dev/null || true
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          cache-on-failure: true
-          shared-key: rust-ci-pilot-${{ matrix.os }}-v2
+          cache-shared-key: rust-ci-pilot-${{ matrix.os }}-v2
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
@@ -595,21 +463,10 @@ jobs:
           path: ~/.cargo/bin/tauri-pilot
           key: tauri-pilot-${{ matrix.os }}-v0.7.0
 
-      - name: Install Linux system deps for Tauri and xvfb
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            xvfb
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
+        with:
+          extra-packages: xvfb
 
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
@@ -617,9 +474,6 @@ jobs:
 
       - name: Run pilot E2E scenarios (Linux, with xvfb)
         if: matrix.os == 'ubuntu-latest'
-        # The job-level `timeout-minutes: 30` already caps runtime. We avoid
-        # GNU `timeout(1)` here because it is not available on macOS runners
-        # by default, and we want both platforms on the same code path.
         run: xvfb-run -a scripts/run-pilot-tests.sh
 
       - name: Run pilot E2E scenarios (macOS)
@@ -661,24 +515,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
+      - name: Setup Bun + Node.js
+        uses: ./.github/actions/setup-bun-node
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          cache-on-failure: true
-          shared-key: rust-ci-pilot-live-ubuntu-v2
+          cache-shared-key: rust-ci-pilot-live-ubuntu-v2
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
@@ -687,20 +530,10 @@ jobs:
           path: ~/.cargo/bin/tauri-pilot
           key: tauri-pilot-ubuntu-latest-v0.7.0
 
-      - name: Install Linux system deps for Tauri and xvfb
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            xvfb
-
-      - name: Install repo tooling deps
-        run: bun ci
+      - name: Install Tauri deps
+        uses: ./.github/actions/install-tauri-deps
+        with:
+          extra-packages: xvfb
 
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
@@ -746,7 +579,7 @@ jobs:
         eval-smoke,
         live-model-tests,
         tauri-pilot-e2e,
-        tauri-pilot-live-e2e
+        tauri-pilot-live-e2e,
       ]
     runs-on: ubuntu-latest
     steps:
