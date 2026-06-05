@@ -231,6 +231,63 @@ eval-smoke:
         --seed-synthetic-pairs 4 \
         --wait-timeout-ms 5000
 
+# Run the extended kairox-eval fixtures (expectations-extended + multi-turn
+# + trajectory). Same fake-profile setup as eval-smoke; no network needed.
+eval-extended:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --quiet -p agent-eval --bin kairox-eval
+    KAIROX_EVAL_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
+    KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
+    KAIROX_EVAL_HOME="$(mktemp -d)"
+    KAIROX_EVAL_WS="$(mktemp -d)"
+    trap 'rm -rf "$KAIROX_EVAL_HOME" "$KAIROX_EVAL_WS"' EXIT
+    mkdir -p target/eval-extended/expectations
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/expectations-extended.jsonl \
+        --output target/eval-extended/expectations/results.jsonl \
+        --summary target/eval-extended/expectations/summary.json \
+        --workspace "$KAIROX_EVAL_WS"
+    mkdir -p target/eval-extended/multi-turn
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/multi-turn.jsonl \
+        --output target/eval-extended/multi-turn/results.jsonl \
+        --summary target/eval-extended/multi-turn/summary.json \
+        --workspace "$KAIROX_EVAL_WS"
+    mkdir -p target/eval-extended/trajectory
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/trajectory.jsonl \
+        --output target/eval-extended/trajectory/results.jsonl \
+        --summary target/eval-extended/trajectory/summary.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --fake-emit-tool-call \
+        --wait-timeout-ms 5000
+
+# Run live model eval scenarios (requires ali-mo-claude profile configured).
+# Not included in CI; run manually to measure real model quality.
+eval-live:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --quiet -p agent-eval --bin kairox-eval
+    KAIROX_EVAL_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
+    KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
+    KAIROX_EVAL_WS="$(mktemp -d)"
+    trap 'rm -rf "$KAIROX_EVAL_WS"' EXIT
+    echo "# Kairox Eval Workspace" > "$KAIROX_EVAL_WS/README.md"
+    mkdir -p target/eval-live
+    "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/live-smoke.jsonl \
+        --output target/eval-live/results.jsonl \
+        --report target/eval-live/report.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --profile ali-mo-claude \
+        --tag live \
+        --enable-mcp
+
 # Run the tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/.
 # Requires the tauri-pilot CLI on PATH; install via:
 #     cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli

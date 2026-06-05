@@ -9,6 +9,7 @@ use agent_memory::SqliteMemoryStore;
 use agent_models::{FakeModelClient, ModelRouter};
 use agent_runtime::LocalRuntime;
 use agent_store::{EventStore, SqliteEventStore};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -16,8 +17,8 @@ use std::time::{Duration, Instant};
 mod types;
 
 pub use types::{
-    EvalError, EvalExpectation, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary,
-    Result,
+    EvalComparison, EvalError, EvalExpectation, EvalReport, EvalResult, EvalRunOptions,
+    EvalScenario, EvalSummary, Result, ScenarioImprovement, ScenarioRegression,
 };
 
 pub struct EvalHarness {
@@ -120,6 +121,8 @@ impl EvalHarness {
         }
 
         let started = Instant::now();
+
+        // First turn
         let send_result = self
             .runtime
             .send_message(SendMessageRequest {
@@ -130,6 +133,36 @@ impl EvalHarness {
                 attachments: Vec::new(),
             })
             .await;
+
+        // Additional turns (with retry for session-busy during compaction)
+        let mut multi_turn_errors: Vec<String> = Vec::new();
+        for turn_prompt in &scenario.turns {
+            let mut attempts = 0;
+            loop {
+                match self
+                    .runtime
+                    .send_message(SendMessageRequest {
+                        workspace_id: self.workspace_id.clone(),
+                        session_id: session_id.clone(),
+                        content: turn_prompt.clone(),
+                        display_content: None,
+                        attachments: Vec::new(),
+                    })
+                    .await
+                {
+                    Ok(()) => break,
+                    Err(e) if attempts < 10 && e.to_string().contains("busy") => {
+                        attempts += 1;
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                    Err(e) => {
+                        multi_turn_errors.push(format!("multi-turn error: {e}"));
+                        break;
+                    }
+                }
+            }
+        }
+
         let elapsed_ms = started.elapsed().as_millis().max(1) as u64;
 
         let projection = self
@@ -181,10 +214,24 @@ impl EvalHarness {
             .as_ref()
             .map(|usage| usage.context_window);
 
+        let turns_count = count_events(&trace_events, |payload| {
+            matches!(payload, EventPayload::AssistantMessageCompleted { .. })
+        });
+
+        // Extract trajectory actions from tool invocation events
+        let trajectory_actions: Vec<String> = trace_events
+            .iter()
+            .filter_map(|event| match &event.payload {
+                EventPayload::ToolInvocationStarted { tool_id, .. } => Some(tool_id.clone()),
+                _ => None,
+            })
+            .collect();
+
         let mut failures = Vec::new();
         if let Err(error) = send_result {
             failures.push(format!("runtime error: {error}"));
         }
+        failures.extend(multi_turn_errors);
         evaluate_expectations(
             &scenario.expected,
             ExpectationObservation {
@@ -194,9 +241,11 @@ impl EvalHarness {
                 tool_failures,
                 elapsed_ms,
                 context_input_tokens,
+                turns_count,
+                trajectory_actions: &trajectory_actions,
             },
             &mut failures,
-        );
+        )?;
         let error = failures
             .iter()
             .find_map(|failure| failure.strip_prefix("runtime error: ").map(str::to_string));
@@ -215,6 +264,9 @@ impl EvalHarness {
             context_input_tokens,
             context_window,
             trace: self.options.include_trace.then_some(trace_events),
+            turns_count,
+            trajectory_actions,
+            trajectory_step_count: Some(tool_invocations as u32),
         })
     }
 
@@ -238,17 +290,30 @@ impl EvalHarness {
         for scenario in scenarios {
             match self.run_scenario(scenario).await {
                 Ok(result) => results.push(result),
-                Err(error) => results.push(EvalResult {
-                    scenario_id: scenario.id.clone(),
-                    profile: scenario
-                        .profile
-                        .clone()
-                        .unwrap_or_else(|| self.default_profile.clone()),
-                    passed: false,
-                    failures: vec![error.to_string()],
-                    error: Some(error.to_string()),
-                    ..EvalResult::default()
-                }),
+                Err(error) => {
+                    let err_str = error.to_string();
+                    results.push(EvalResult {
+                        scenario_id: scenario.id.clone(),
+                        profile: scenario
+                            .profile
+                            .clone()
+                            .unwrap_or_else(|| self.default_profile.clone()),
+                        passed: false,
+                        failures: vec![err_str.clone()],
+                        error: Some(err_str),
+                        elapsed_ms: 0,
+                        assistant_response: None,
+                        event_types: Vec::new(),
+                        tool_invocations: 0,
+                        tool_failures: 0,
+                        context_input_tokens: None,
+                        context_window: None,
+                        trace: None,
+                        turns_count: 0,
+                        trajectory_actions: Vec::new(),
+                        trajectory_step_count: None,
+                    });
+                }
             };
             let failed = results.last().is_some_and(|result| !result.passed);
             if fail_fast && failed {
@@ -331,6 +396,96 @@ pub fn write_report_json(path: impl AsRef<Path>, report: &EvalReport) -> Result<
     Ok(())
 }
 
+pub fn write_comparison_json(path: impl AsRef<Path>, comparison: &EvalComparison) -> Result<()> {
+    ensure_parent_dir(path.as_ref())?;
+    std::fs::write(path, serde_json::to_string_pretty(comparison)?)?;
+    Ok(())
+}
+
+pub fn compare_reports(baseline: &EvalReport, candidate: &EvalReport) -> EvalComparison {
+    let pass_rate_delta = candidate.summary.success_rate - baseline.summary.success_rate;
+    let avg_elapsed_delta_ms = candidate.summary.avg_elapsed_ms - baseline.summary.avg_elapsed_ms;
+    let total_token_delta = match (
+        candidate.summary.total_context_input_tokens,
+        baseline.summary.total_context_input_tokens,
+    ) {
+        (Some(c), Some(b)) => Some(c as i64 - b as i64),
+        _ => None,
+    };
+
+    let baseline_map: HashMap<&str, &EvalResult> = baseline
+        .results
+        .iter()
+        .map(|r| (r.scenario_id.as_str(), r))
+        .collect();
+    let candidate_map: HashMap<&str, &EvalResult> = candidate
+        .results
+        .iter()
+        .map(|r| (r.scenario_id.as_str(), r))
+        .collect();
+
+    let mut regressions = Vec::new();
+    let mut improvements = Vec::new();
+
+    for (id, cand) in &candidate_map {
+        if let Some(base) = baseline_map.get(id) {
+            if base.passed && !cand.passed {
+                regressions.push(ScenarioRegression {
+                    scenario_id: id.to_string(),
+                    kind: "passed_to_failed".into(),
+                });
+            } else if !base.passed && cand.passed {
+                improvements.push(ScenarioImprovement {
+                    scenario_id: id.to_string(),
+                    kind: "failed_to_passed".into(),
+                });
+            }
+
+            if base.elapsed_ms > 0 && cand.elapsed_ms > base.elapsed_ms {
+                let pct =
+                    ((cand.elapsed_ms - base.elapsed_ms) as f64 / base.elapsed_ms as f64) * 100.0;
+                if pct > 50.0 {
+                    regressions.push(ScenarioRegression {
+                        scenario_id: id.to_string(),
+                        kind: format!("slower_by_{:.0}%", pct),
+                    });
+                }
+            } else if base.elapsed_ms > 0 && cand.elapsed_ms < base.elapsed_ms {
+                let pct =
+                    ((base.elapsed_ms - cand.elapsed_ms) as f64 / base.elapsed_ms as f64) * 100.0;
+                if pct > 50.0 {
+                    improvements.push(ScenarioImprovement {
+                        scenario_id: id.to_string(),
+                        kind: format!("faster_by_{:.0}%", pct),
+                    });
+                }
+            }
+
+            if let (Some(c_tok), Some(b_tok)) =
+                (cand.context_input_tokens, base.context_input_tokens)
+            {
+                if b_tok > 0 && c_tok > b_tok {
+                    let pct = ((c_tok - b_tok) as f64 / b_tok as f64) * 100.0;
+                    if pct > 50.0 {
+                        regressions.push(ScenarioRegression {
+                            scenario_id: id.to_string(),
+                            kind: format!("more_tokens_{:.0}%", pct),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    EvalComparison {
+        pass_rate_delta,
+        avg_elapsed_delta_ms,
+        total_token_delta,
+        regressions,
+        improvements,
+    }
+}
+
 fn ensure_parent_dir(path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
@@ -344,12 +499,38 @@ fn evaluate_expectations(
     expected: &EvalExpectation,
     observed: ExpectationObservation<'_>,
     failures: &mut Vec<String>,
-) {
+) -> Result<()> {
     for needle in &expected.assistant_contains {
         match observed.assistant_response {
             Some(response) if response.contains(needle) => {}
             Some(_) => failures.push(format!("assistant response missing substring: {needle}")),
             None => failures.push(format!("assistant response missing substring: {needle}")),
+        }
+    }
+
+    for needle in &expected.assistant_not_contains {
+        if let Some(response) = observed.assistant_response {
+            if response.contains(needle) {
+                failures.push(format!(
+                    "assistant response contains forbidden substring: {needle}"
+                ));
+            }
+        }
+    }
+
+    for pattern in &expected.assistant_matches_regex {
+        let re = regex::Regex::new(pattern).map_err(|source| EvalError::Regex {
+            pattern: pattern.clone(),
+            source,
+        })?;
+        match observed.assistant_response {
+            Some(response) if re.is_match(response) => {}
+            Some(_) => failures.push(format!(
+                "assistant response does not match regex: {pattern}"
+            )),
+            None => failures.push(format!(
+                "assistant response does not match regex: {pattern}"
+            )),
         }
     }
 
@@ -362,6 +543,32 @@ fn evaluate_expectations(
     for event_type in &expected.forbidden_event_types {
         if observed.event_types.iter().any(|seen| seen == event_type) {
             failures.push(format!("forbidden event type present: {event_type}"));
+        }
+    }
+
+    for (event_type, minimum) in &expected.min_events_of_type {
+        let count = observed
+            .event_types
+            .iter()
+            .filter(|seen| *seen == event_type)
+            .count();
+        if count < *minimum {
+            failures.push(format!(
+                "event type `{event_type}` count below minimum: expected at least {minimum}, got {count}"
+            ));
+        }
+    }
+
+    for (event_type, maximum) in &expected.max_events_of_type {
+        let count = observed
+            .event_types
+            .iter()
+            .filter(|seen| *seen == event_type)
+            .count();
+        if count > *maximum {
+            failures.push(format!(
+                "event type `{event_type}` count above maximum: expected at most {maximum}, got {count}"
+            ));
         }
     }
 
@@ -401,6 +608,41 @@ fn evaluate_expectations(
             None => failures.push("context input tokens unavailable".into()),
         }
     }
+
+    if let Some(max_turns) = expected.max_turns {
+        if observed.turns_count > max_turns {
+            failures.push(format!(
+                "turns above maximum: expected at most {max_turns}, got {}",
+                observed.turns_count
+            ));
+        }
+    }
+
+    if !expected.trajectory_actions.is_empty() {
+        for (i, expected_action) in expected.trajectory_actions.iter().enumerate() {
+            match observed.trajectory_actions.get(i) {
+                Some(actual) if actual == expected_action => {}
+                Some(actual) => failures.push(format!(
+                    "trajectory action at step {i}: expected `{expected_action}`, got `{actual}`"
+                )),
+                None => failures.push(format!(
+                    "trajectory action at step {i}: expected `{expected_action}`, but only {} steps recorded",
+                    observed.trajectory_actions.len()
+                )),
+            }
+        }
+    }
+
+    if let Some(max_steps) = expected.max_trajectory_steps {
+        let actual = observed.trajectory_actions.len() as u32;
+        if actual > max_steps {
+            failures.push(format!(
+                "trajectory steps above maximum: expected at most {max_steps}, got {actual}"
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 struct ExpectationObservation<'a> {
@@ -410,6 +652,8 @@ struct ExpectationObservation<'a> {
     tool_failures: usize,
     elapsed_ms: u64,
     context_input_tokens: Option<u64>,
+    turns_count: usize,
+    trajectory_actions: &'a [String],
 }
 
 fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> bool) -> usize {
@@ -423,11 +667,6 @@ fn trace_event(entry: TraceEntry) -> DomainEvent {
     entry.event
 }
 
-/// Re-register the `fake` profile on `router` with a [`FakeModelClient`]
-/// that also emits a tool-call after its token stream. The default tool
-/// is `fs.list {"path":"."}` which is always callable in a temp
-/// workspace; callers can override via `options.fake_tool_id` and
-/// `options.fake_tool_arguments`.
 fn install_fake_tool_call(router: &mut ModelRouter, options: &EvalRunOptions) -> Result<()> {
     let profile = router.get_profile("fake").ok_or_else(|| {
         EvalError::Cli(
@@ -449,13 +688,6 @@ fn install_fake_tool_call(router: &mut ModelRouter, options: &EvalRunOptions) ->
     Ok(())
 }
 
-/// Append `pairs` synthetic `UserMessageAdded`/`AssistantMessageCompleted`
-/// turns directly into the event store. Used to give the auto-compaction
-/// scheduler enough history (`>= KEEP_LAST_PAIRS + 1` pairs) so that
-/// `compact_session` actually emits `ContextCompactionStarted` and
-/// `ContextCompactionCompleted` on the first real turn. Timestamps are
-/// monotonic and live in the recent past so the boundary picker keeps
-/// them in the compaction candidate window.
 async fn seed_synthetic_history_pairs(
     store: &SqliteEventStore,
     workspace_id: &WorkspaceId,
@@ -494,11 +726,6 @@ async fn seed_synthetic_history_pairs(
     Ok(())
 }
 
-/// Poll [`AppFacade::get_trace`] up to `timeout` waiting for every event
-/// type in `expected_types` to appear at least once. Returns the most
-/// recently observed trace. Used by [`EvalHarness::run_scenario`] to
-/// surface events emitted by detached background tasks (e.g.
-/// auto-compaction) that fire after `send_message` has returned.
 async fn wait_for_expected_event_types(
     runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
     session_id: agent_core::SessionId,
