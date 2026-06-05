@@ -23,7 +23,7 @@ spot entries that need revalidation after related code changes.
 
 ### 2026-06-05 09:58 CST — GUI provider `code_execution` server tool
 
-- Commit: `28481d4e`
+- Commit: `76b3ae2c`
 - Model: `ali-mo-code-tool` (`ali-mo` / `claude-opus-4-6`,
   `client_identity = "claude_code"`) and `tokensflow-code-tool`
   (`anthropic` / `anthropic/claude-opus-4.7`)
