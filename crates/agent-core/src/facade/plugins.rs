@@ -157,3 +157,7 @@ pub trait PluginsFacade: Send + Sync {
         ))
     }
 }
+
+#[cfg(test)]
+#[path = "plugins_tests.rs"]
+mod tests;
