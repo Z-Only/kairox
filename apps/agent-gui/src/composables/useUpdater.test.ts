@@ -18,6 +18,27 @@ vi.mock("@tauri-apps/api/app", () => ({
   getVersion: (...args: unknown[]) => mockGetVersion(...args)
 }));
 
+const mockT = vi.fn((key: string, ...args: unknown[]) => {
+  const params =
+    args.length > 0 && typeof args[0] === "object" && args[0] !== null
+      ? (args[0] as Record<string, unknown>)
+      : undefined;
+  if (params) {
+    return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), key);
+  }
+  return key;
+});
+
+vi.mock("@/locales", () => ({
+  i18n: {
+    global: {
+      get t() {
+        return mockT;
+      }
+    }
+  }
+}));
+
 import {
   updateAvailable,
   updateInfo,
@@ -32,7 +53,6 @@ import { useUiStore } from "@/stores/ui";
 
 beforeEach(() => {
   setActivePinia(createPinia());
-  // Reset reactive state between tests
   updateAvailable.value = false;
   updateInfo.value = null;
   checkingForUpdate.value = false;
@@ -71,7 +91,7 @@ describe("checkForUpdate", () => {
     const ui = useUiStore();
     expect(ui.notifications).toHaveLength(1);
     expect(ui.notifications[0].level).toBe("info");
-    expect(ui.notifications[0].message).toContain("3.1.0");
+    expect(mockT).toHaveBeenCalledWith("notifications.updateNewVersion", { version: "3.1.0" });
   });
 
   it("does nothing when no update is available (check returns null)", async () => {
@@ -153,7 +173,7 @@ describe("checkForUpdate", () => {
 
     const ui = useUiStore();
     expect(ui.notifications).toHaveLength(1);
-    expect(ui.notifications[0].message).toContain("latest version");
+    expect(ui.notifications[0].message).toContain("updateLatestVersion");
   });
 
   it("does not push notification for silent check with no update", async () => {
@@ -173,7 +193,7 @@ describe("checkForUpdate", () => {
     const ui = useUiStore();
     expect(ui.notifications).toHaveLength(1);
     expect(ui.notifications[0].level).toBe("error");
-    expect(ui.notifications[0].message).toContain("DNS fail");
+    expect(mockT).toHaveBeenCalledWith("notifications.updateCheckError", { error: "DNS fail" });
   });
 });
 
@@ -205,7 +225,7 @@ describe("downloadAndInstallUpdate", () => {
     await downloadAndInstallUpdate();
 
     const ui = useUiStore();
-    const installNotice = ui.notifications.find((n) => n.message.includes("Relaunching"));
+    const installNotice = ui.notifications.find((n) => n.message.includes("updateInstalled"));
     expect(installNotice).toBeDefined();
   });
 
@@ -216,7 +236,7 @@ describe("downloadAndInstallUpdate", () => {
 
     const ui = useUiStore();
     expect(ui.notifications).toHaveLength(1);
-    expect(ui.notifications[0].message).toContain("No update available");
+    expect(ui.notifications[0].message).toContain("updateNoUpdate");
     expect(mockRelaunch).not.toHaveBeenCalled();
   });
 
@@ -233,7 +253,7 @@ describe("downloadAndInstallUpdate", () => {
     const ui = useUiStore();
     const errorNotice = ui.notifications.find((n) => n.level === "error");
     expect(errorNotice).toBeDefined();
-    expect(errorNotice!.message).toContain("Disk full");
+    expect(mockT).toHaveBeenCalledWith("notifications.updateFailed", { error: "Disk full" });
     expect(mockRelaunch).not.toHaveBeenCalled();
   });
 

@@ -120,7 +120,13 @@
   "notifications": {
     "sessionError": "会话错误",
     "copySuccess": "已复制到剪贴板",
-    "copyFailed": "复制失败"
+    "copyFailed": "复制失败",
+    "updateNewVersion": "Kairox {version} 可用，点击更新。",
+    "updateLatestVersion": "当前已是最新版本。",
+    "updateCheckError": "检查更新失败：{error}",
+    "updateNoUpdate": "没有可用更新。",
+    "updateInstalled": "更新已安装，正在重启…",
+    "updateFailed": "更新失败：{error}"
   },
   "status": {
     "ready": "就绪",

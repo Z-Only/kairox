@@ -120,7 +120,13 @@
   "notifications": {
     "sessionError": "Session error",
     "copySuccess": "Copied to clipboard",
-    "copyFailed": "Copy failed"
+    "copyFailed": "Copy failed",
+    "updateNewVersion": "Kairox {version} is available. Click to update.",
+    "updateLatestVersion": "You are using the latest version.",
+    "updateCheckError": "Update check failed: {error}",
+    "updateNoUpdate": "No update available.",
+    "updateInstalled": "Update installed. Relaunching…",
+    "updateFailed": "Update failed: {error}"
   },
   "status": {
     "ready": "Ready",

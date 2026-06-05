@@ -13,6 +13,27 @@ vi.mock("@/generated/commands", () => ({
   }
 }));
 
+const mockCheck = vi.fn().mockResolvedValue(null);
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: (...args: unknown[]) => mockCheck(...args)
+}));
+
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn()
+}));
+
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn().mockResolvedValue("0.37.0")
+}));
+
+vi.mock("@/locales", () => ({
+  i18n: {
+    global: {
+      t: (key: string) => key
+    }
+  }
+}));
+
 import { commands } from "@/generated/commands";
 
 const mockedCommands = vi.mocked(
@@ -144,6 +165,134 @@ describe("GeneralSettings", () => {
       true
     );
     expect(wrapper.text()).toContain("Restart required");
+  });
+
+  it("renders the software update section with version badge", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-current-version"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-current-version"]').text()).toContain("0.37.0");
+  });
+
+  it("renders auto-check toggle defaulting to checked", async () => {
+    localStorage.clear();
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const autoCheck = wrapper.find<HTMLInputElement>('[data-test="settings-auto-check"]');
+    expect(autoCheck.exists()).toBe(true);
+    expect(autoCheck.element.checked).toBe(true);
+  });
+
+  it("shows check interval selector when auto-check is enabled", async () => {
+    localStorage.clear();
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-check-interval"]').exists()).toBe(true);
+  });
+
+  it("hides check interval selector when auto-check is disabled", async () => {
+    localStorage.clear();
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    await wrapper.find('[data-test="settings-auto-check"]').setValue(false);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-check-interval"]').exists()).toBe(false);
+  });
+
+  it("renders auto-download toggle defaulting to unchecked", async () => {
+    localStorage.clear();
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const autoDownload = wrapper.find<HTMLInputElement>('[data-test="settings-auto-download"]');
+    expect(autoDownload.exists()).toBe(true);
+    expect(autoDownload.element.checked).toBe(false);
+  });
+
+  it("renders the check now button", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-check-update"]').exists()).toBe(true);
+  });
+
+  it("triggers checkForUpdate when check now button is clicked", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    await wrapper.find('[data-test="settings-check-update"]').trigger("click");
+    await flushPromises();
+
+    expect(mockCheck).toHaveBeenCalled();
+  });
+
+  it("triggers downloadAndInstallUpdate when download button is clicked", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    // Simulate that an update is available to show the download button
+    const { updateAvailable: ua, updateInfo: ui } = await import("@/composables/useUpdater");
+    ua.value = true;
+    ui.value = { version: "2.0.0" };
+    await flushPromises();
+
+    const downloadBtn = wrapper.find('[data-test="settings-download-update"]');
+    expect(downloadBtn.exists()).toBe(true);
+    await downloadBtn.trigger("click");
+    await flushPromises();
+
+    expect(mockCheck).toHaveBeenCalled();
+  });
+
+  it("shows update available tag when update exists", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const { updateAvailable: ua, updateInfo: ui } = await import("@/composables/useUpdater");
+    ua.value = true;
+    ui.value = { version: "2.0.0" };
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-update-available-tag"]').exists()).toBe(true);
+  });
+
+  it("shows up-to-date tag after a successful check with no update", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const { lastCheckTime: lct, updateAvailable: ua } = await import("@/composables/useUpdater");
+    ua.value = false;
+    lct.value = Date.now();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-up-to-date-tag"]').exists()).toBe(true);
+  });
+
+  it("shows last check time when available", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const { lastCheckTime: lct } = await import("@/composables/useUpdater");
+    lct.value = Date.now();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-update-actions"]').text()).toContain("Last checked");
+  });
+
+  it("shows error message when last check failed", async () => {
+    const { wrapper } = mountWithPlugins(GeneralSettings, { reusePinia: false });
+    await flushPromises();
+
+    const { lastCheckError: lce } = await import("@/composables/useUpdater");
+    lce.value = "Network error";
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="settings-update-error"]').exists()).toBe(true);
   });
 });
 
