@@ -15,6 +15,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 mod types;
+#[cfg(test)]
+#[path = "types_tests.rs"]
+mod types_tests;
 
 pub use types::{
     EvalComparison, EvalError, EvalExpectation, EvalReport, EvalResult, EvalRunOptions,
