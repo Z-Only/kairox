@@ -9,7 +9,7 @@ use agent_lsp::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 use agent_lsp::LspClient;
 
 use crate::permission::ToolEffect;
-use crate::registry::{Tool, ToolInvocation, ToolProvider};
+use crate::registry::{ToolInvocation, ToolProvider};
 
 use super::LspToolProvider;
 
