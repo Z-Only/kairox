@@ -30,7 +30,7 @@ sequenceDiagram
   UI->>Runtime: AppFacade::send_message
   Runtime->>Runtime: build context (memory + history)
   Runtime->>Model: stream prompt
-  Model-->>Runtime: AssistantDelta (text + tool_call)
+  Model-->>Runtime: text delta + tool call
   Runtime->>Engine: decide(PolicyRisk)
   Engine-->>UI: PermissionRequested (NeedsApproval)
   User->>UI: approve / deny
@@ -38,8 +38,8 @@ sequenceDiagram
   Runtime->>Tool: invoke tool
   Tool-->>Runtime: result
   Runtime->>Model: stream tool result
-  Model-->>Runtime: AssistantDelta (text)
-  Runtime->>UI: TurnCompleted event
+  Model-->>Runtime: text delta
+  Runtime->>UI: AssistantMessageCompleted event
   UI-->>User: render final message
 ```
 
@@ -70,8 +70,8 @@ Type a short message — try `What files are in this directory?` — and press <
 You will see, in order:
 
 1. Your message appear in the chat pane.
-2. A `TurnStarted` row in the trace pane.
-3. An `AssistantDelta` row as the model starts streaming. Text accumulates in the chat pane character by character.
+2. `UserMessageAdded` and `ContextAssembled` rows in the trace pane.
+3. `ModelTokenDelta` rows as the model starts streaming. Text accumulates in the chat pane character by character.
 4. If the model decides to call a tool (likely `shell.exec` for that prompt), a permission prompt overlay appears.
 
 ### Handle the permission prompt
@@ -84,7 +84,7 @@ The overlay shows the tool name (`shell.exec`), the exact arguments (`ls .`), an
 
 For this walkthrough, press <kbd>Y</kbd>.
 
-A `PermissionGranted` event lands in the trace; the tool runs; a `ToolCompleted` event lands with the output; the model resumes streaming a final answer; the turn ends with `TurnCompleted`.
+A `PermissionGranted` event lands in the trace; the tool runs; `ToolInvocationStarted` and `ToolInvocationCompleted` events land with the result; the model resumes streaming a final answer; the turn ends with `AssistantMessageCompleted`.
 
 You have just seen the entire flow that [Permissions & Tools](../concepts/permissions-and-tools) describes.
 
@@ -94,7 +94,7 @@ Press <kbd>Alt+P</kbd> and switch to a different profile (e.g., from a fast mode
 
 ### Watch context fill
 
-Each turn appends to the context. The status-bar meter shows usage as a fraction of the active profile's `context_window`. When usage crosses the `auto_compact_threshold` (default 0.85), the runtime triggers an automatic compaction: the oldest tier of history collapses into a summary message. You will see a `ContextCompacted` event in the trace and the meter drops back down.
+Each turn appends to the context. The status-bar meter shows usage as a fraction of the active profile's `context_window`. When usage crosses the `auto_compact_threshold` (default 0.85), the runtime triggers an automatic compaction: the oldest tier of history collapses into a summary message. You will see `ContextCompactionStarted`, `CompactionSummary`, and `ContextCompactionCompleted` events in the trace and the meter drops back down.
 
 To trigger compaction manually, use the command palette (<kbd>Ctrl+P</kbd>) and run "Compact context". See [Memory & Context](../concepts/memory-and-context) for the full pipeline.
 
@@ -115,6 +115,8 @@ The desktop window opens. The screenshot below shows the default workbench layou
 <ThemeScreenshot
   light="/screenshots/workbench.png"
   dark="/screenshots/workbench-dark.png"
+  zhLight="/screenshots/zh/workbench.png"
+  zhDark="/screenshots/zh/workbench-dark.png"
   alt="Kairox desktop workbench"
   caption="The desktop workbench: project sessions, chat, trace, and task graph in one window."
 />
@@ -134,6 +136,8 @@ Click the settings icon (top right). Settings is organized by concern:
 <ThemeScreenshot
   light="/screenshots/settings.png"
   dark="/screenshots/settings-dark.png"
+  zhLight="/screenshots/zh/settings.png"
+  zhDark="/screenshots/zh/settings-dark.png"
   alt="Kairox settings view"
   caption="Settings surfaces every configurable piece — models, agents, MCP, skills, plugins, hooks, instructions."
 />
@@ -152,7 +156,7 @@ When the model requests a tool, the GUI renders the permission prompt _inline_ i
 
 ### Observe the trace
 
-The trace timeline on the right side updates in real time. Every event has a row; you can search the trace (`/`), filter by event type, and click a row to see its payload. The same `PermissionGranted` / `ToolCompleted` / `AssistantDelta` rows you saw in the TUI appear here, with richer presentation.
+The trace timeline on the right side updates in real time. Every event has a row; you can search the trace (`/`), filter by event type, and click a row to see its payload. The same `PermissionGranted` / `ToolInvocationCompleted` / `ModelTokenDelta` rows you saw in the TUI appear here, with richer presentation.
 
 ### Switch model mid-session
 
@@ -160,7 +164,7 @@ Use the profile dropdown in the session header to pick a different profile. The 
 
 ### Trigger compaction
 
-Open the command palette (<kbd>Ctrl/Cmd+P</kbd>), search for "compact context", and run it. A `ContextCompacted` event appears in the trace; the context meter resets; the chat history is unchanged but the oldest messages have been replaced internally with a summary.
+Open the command palette (<kbd>Ctrl/Cmd+P</kbd>), search for "compact context", and run it. The trace records `ContextCompactionStarted`, `CompactionSummary`, and `ContextCompactionCompleted`; the context meter resets; the chat history is unchanged but the oldest messages have been replaced internally with a summary.
 
 ### Persistent state
 
@@ -173,6 +177,8 @@ The marketplace view (top-level navigation) lists curated MCP servers — git, G
 <ThemeScreenshot
   light="/screenshots/mcp.png"
   dark="/screenshots/mcp-dark.png"
+  zhLight="/screenshots/zh/mcp.png"
+  zhDark="/screenshots/zh/mcp-dark.png"
   alt="Kairox MCP marketplace in settings"
   caption="The MCP settings page lets you switch between installed servers and the curated marketplace."
 />

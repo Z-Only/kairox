@@ -18,9 +18,9 @@ A monitor is a read-level tool: creating one does not require user confirmation,
 - Streaming CI check results as they land.
 - Any "tell me when X happens" pattern that does not need to block the conversation.
 
-## Creating a monitor
+## Starting a monitor
 
-The `monitor_create` tool starts a background process and immediately returns its `MonitorId`. No user approval prompt fires — the tool's risk classification is read-level.
+The `monitor.start` tool starts a background process and immediately returns its `MonitorId`. No user approval prompt fires — the tool's risk classification is read-level.
 
 ### Parameters
 
@@ -33,13 +33,13 @@ The `monitor_create` tool starts a background process and immediately returns it
 
 ### Example
 
-```
-monitor_create(
-  command: "tail -f /var/log/app.log | grep --line-buffered ERROR",
-  description: "errors in app.log",
-  timeout_ms: 600000,
-  persistent: false
-)
+```json
+{
+  "command": "tail -f /var/log/app.log | grep --line-buffered ERROR",
+  "description": "errors in app.log",
+  "timeout_ms": 600000,
+  "persistent": false
+}
 ```
 
 The monitor starts immediately. The returned `MonitorId` is used to reference it later.
@@ -51,9 +51,9 @@ Every monitor runs in one of two modes:
 | Mode           | Lifetime                                                 | Use it for                                                       |
 | -------------- | -------------------------------------------------------- | ---------------------------------------------------------------- |
 | **Timeout**    | Killed after `timeout_ms` (default 300s, max 3600s).     | Bounded observations — "watch this for the next 10 minutes."     |
-| **Persistent** | Runs until `monitor_stop` is called or the session ends. | Indefinite observations — log tails, file watchers, PR monitors. |
+| **Persistent** | Runs until `monitor.stop` is called or the session ends. | Indefinite observations — log tails, file watchers, PR monitors. |
 
-When a timeout fires, the monitor transitions to `Completed` status and a final status-change event is emitted. Persistent monitors transition to `Stopped` when explicitly stopped or when the runtime tears down the session.
+When a timeout fires, the runtime emits `MonitorStopped { reason: Timeout }`. A process that exits normally emits `MonitorStopped { reason: ExitCode { code } }`; a user stop emits `MonitorStopped { reason: UserStopped }`.
 
 ## How events are delivered
 
@@ -64,7 +64,7 @@ The data flow from a monitor's stdout to the user's chat stream:
 ```mermaid
 flowchart LR
   proc["Background process<br/>(stdout)"] --> registry["MonitorRegistry"]
-  registry --> event["DomainEvent::MonitorOutput"]
+  registry --> event["EventPayload::MonitorEvent"]
   event --> session["SessionActor"]
   session --> stream["Chat stream"]
   stream --> ui["TUI / GUI"]
@@ -73,34 +73,37 @@ flowchart LR
 </div>
 
 1. **Stdout line emitted.** The spawned process writes a line to stdout.
-2. **Registry captures it.** `MonitorRegistry` reads from the process handle and wraps the line in a `DomainEvent::MonitorOutput` carrying the `MonitorId`, timestamp, and content.
-3. **Batching.** Lines arriving within 200ms of each other are batched into a single event delivery, so a burst of output groups naturally.
+2. **Registry captures it.** `MonitorRegistry` reads from the process handle and wraps the line in `EventPayload::MonitorEvent { monitor_id, line }`.
+3. **Start / stop events surround output.** `MonitorStarted` records the description, persistence flag, and timeout; `MonitorStopped` records the stop reason; startup/read errors emit `MonitorFailed`.
 4. **Session receives the event.** The event enters the session's event stream like any other domain event.
 5. **UI renders it.** The TUI renders monitors via the `ChatStreamItem::Monitor` variant in `fold_stream`. The GUI renders via the `ChatMonitorItem.vue` component. Both show monitor output as expandable items in the conversation flow.
 
-Status transitions (`Running` -> `Completed` / `Failed` / `Stopped`) are delivered as `DomainEvent::MonitorStatusChanged` events and update the monitor's metadata.
+Each monitor event flows through the same `DomainEvent` envelope as model output and tool invocations, so replay and trace export include monitor lifecycle events.
 
 ## Listing and stopping monitors
 
 Two companion tools manage the monitor lifecycle after creation:
 
-### `monitor_list`
+### `monitor.list`
 
-Returns all monitors for the current session — both active and completed. Each entry includes the `MonitorMetadata`: id, description, command, status, timing information, and mode.
+Returns all active monitors for the current session registry. Each entry includes the monitor id, description, persistence flag, and timeout.
 
-### `monitor_stop`
+### `monitor.stop`
 
-Stops a running monitor by its `MonitorId`. The background process is killed, the status transitions to `Stopped`, and a final `MonitorStatusChanged` event is emitted. Stopping an already-finished monitor is a no-op.
+Stops a running monitor by its `MonitorId`. The background process is killed and a final `MonitorStopped { reason: UserStopped }` event is emitted. Stopping an already-finished monitor returns a not-found tool error.
 
 ## Domain types
 
-The core types live in `agent-core`:
+The monitor event types live in `agent-core`; the registry-owned runtime info lives in `agent-tools`.
 
-| Type              | Role                                                                                               |
-| ----------------- | -------------------------------------------------------------------------------------------------- |
-| `MonitorId`       | Unique identifier for a monitor instance.                                                          |
-| `MonitorStatus`   | Enum: `Running`, `Completed`, `Failed`, `Stopped`.                                                 |
-| `MonitorMetadata` | Full descriptor: id, description, command, persistent, timeout_ms, status, started_at, stopped_at. |
+| Type                | Role                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `MonitorStarted`    | Event payload emitted when `monitor.start` registers a process.                                     |
+| `MonitorEvent`      | Event payload for one stdout line.                                                                  |
+| `MonitorStopped`    | Event payload for a stopped monitor, with the reason recorded as `MonitorStopReason`.               |
+| `MonitorFailed`     | Event payload for spawn/read failures.                                                              |
+| `MonitorStopReason` | Enum: `ExitCode`, `Timeout`, `UserStopped`, `SessionEnded`.                                         |
+| `MonitorInfo`       | `agent-tools` descriptor returned by `monitor.list`: id, description, command, persistent, timeout. |
 
 ## Architecture notes
 
@@ -108,6 +111,6 @@ For contributors working on the monitor subsystem:
 
 - **`MonitorRegistry`** lives in the `agent-tools` crate. It owns the spawned process handles, reads stdout asynchronously, and emits domain events through the runtime's event channel.
 - **Session cleanup.** The runtime wires registry cleanup on session end — all running monitors are stopped and their processes killed when a session actor drops.
-- **Event routing.** `DomainEvent::MonitorOutput` and `DomainEvent::MonitorStatusChanged` flow through the same event pipeline as tool results and model outputs. No special plumbing is needed for new consumers.
+- **Event routing.** `MonitorStarted`, `MonitorEvent`, `MonitorStopped`, and `MonitorFailed` flow through the same event pipeline as tool results and model outputs. No special plumbing is needed for new consumers.
 - **UI rendering.** The TUI uses `ChatStreamItem::Monitor` in its stream folding logic. The GUI uses `ChatMonitorItem.vue` as a dedicated component in the chat stream renderer.
 - **Policy.** Monitor creation is classified as read-level risk. It does not trigger `ApprovalPolicy` prompts under any approval mode because it only observes — it does not mutate the filesystem or network on behalf of the user.

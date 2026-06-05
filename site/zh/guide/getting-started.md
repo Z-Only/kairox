@@ -91,6 +91,8 @@ just tauri-dev
 <ThemeScreenshot
   light="/screenshots/workbench.png"
   dark="/screenshots/workbench-dark.png"
+  zhLight="/screenshots/zh/workbench.png"
+  zhDark="/screenshots/zh/workbench-dark.png"
   alt="打开项目 session 后的 Kairox 桌面 GUI"
   caption="GUI 默认进入 workbench,项目 session、聊天、trace event、任务状态和上下文用量会一起显示。"
 />

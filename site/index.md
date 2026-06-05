@@ -22,7 +22,7 @@ features:
   - title: TUI and desktop GUI on one core
     details: Use the ratatui TUI for fast keyboard workflows or the Tauri + Vue desktop app for persistent sessions, trace timelines, and settings — both speak to the same Rust runtime.
   - title: Permission-aware tools and MCP
-    details: An orthogonal Approval × Sandbox policy engine gates every tool call — `ApprovalPolicy` decides when you are asked, `SandboxPolicy` decides what is structurally allowed. Built-in shell / filesystem / search tools and a curated MCP marketplace make capabilities composable and auditable.
+    details: An orthogonal Approval × Sandbox policy engine gates every tool call — `ApprovalPolicy` decides when you are asked, `SandboxPolicy` decides what is structurally allowed. Built-in shell / filesystem / search / browser / computer-use tools and a curated MCP marketplace make capabilities composable and auditable.
   - title: Extensible by design
     details: Native skills, plugins, model routing, hooks, and per-workspace configuration are first-class. Bring your own model and your own tools.
 ---
@@ -37,12 +37,16 @@ import { withBase } from "vitepress";
   <ThemeScreenshot
     light="/screenshots/workbench.png"
     dark="/screenshots/workbench-dark.png"
+    zhLight="/screenshots/zh/workbench.png"
+    zhDark="/screenshots/zh/workbench-dark.png"
     alt="Kairox desktop workbench with a project session, chat, trace, and task panels"
     caption="Desktop workbench with a project-scoped session, chat, trace, and task context in one view."
   />
   <ThemeScreenshot
     light="/screenshots/settings.png"
     dark="/screenshots/settings-dark.png"
+    zhLight="/screenshots/zh/settings.png"
+    zhDark="/screenshots/zh/settings-dark.png"
     alt="Kairox settings screen showing model and agent configuration"
     caption="Settings surfaces for models, agents, MCP, skills, plugins, hooks, and project instructions."
   />

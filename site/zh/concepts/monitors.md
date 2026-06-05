@@ -18,9 +18,9 @@ outline: [2, 3]
 - 流式获取 CI 检查结果。
 - 任何"当 X 发生时告诉我"的模式。
 
-## 创建监控器
+## 启动监控器
 
-`monitor_create` 工具启动后台进程并立即返回 `MonitorId`。不会触发用户审批提示 — 该工具的风险分类为读级别。
+`monitor.start` 工具启动后台进程并立即返回 `MonitorId`。不会触发用户审批提示 — 该工具的风险分类为读级别。
 
 ### 参数
 
@@ -33,13 +33,13 @@ outline: [2, 3]
 
 ### 示例
 
-```
-monitor_create(
-  command: "tail -f /var/log/app.log | grep --line-buffered ERROR",
-  description: "app.log 中的错误",
-  timeout_ms: 600000,
-  persistent: false
-)
+```json
+{
+  "command": "tail -f /var/log/app.log | grep --line-buffered ERROR",
+  "description": "app.log 中的错误",
+  "timeout_ms": 600000,
+  "persistent": false
+}
 ```
 
 ## 超时模式与持久模式
@@ -47,34 +47,39 @@ monitor_create(
 | 模式     | 生命周期                                          | 适用于                                      |
 | -------- | ------------------------------------------------- | ------------------------------------------- |
 | **超时** | 在 `timeout_ms` 后终止（默认 300s，最大 3600s）。 | 有界观察 — "在接下来的 10 分钟内监视这个"。 |
-| **持久** | 运行直到调用 `monitor_stop` 或会话结束。          | 无限期观察 — 日志尾随、文件监视、PR 监控。  |
+| **持久** | 运行直到调用 `monitor.stop` 或会话结束。          | 无限期观察 — 日志尾随、文件监视、PR 监控。  |
+
+超时会发出 `MonitorStopped { reason: Timeout }`。进程正常退出会发出 `MonitorStopped { reason: ExitCode { code } }`;用户主动停止会发出 `MonitorStopped { reason: UserStopped }`。
 
 ## 事件传递
 
 数据从监控器的 stdout 到用户聊天流的流程：
 
 1. **stdout 行发出。** 后台进程写入一行 stdout。
-2. **注册表捕获。** `MonitorRegistry` 从进程句柄读取，将行包装为 `DomainEvent::MonitorOutput`。
-3. **批处理。** 200ms 内到达的行被批处理为单次事件传递。
+2. **注册表捕获。** `MonitorRegistry` 从进程句柄读取,将行包装为 `EventPayload::MonitorEvent { monitor_id, line }`。
+3. **开始/停止事件包住输出。** `MonitorStarted` 记录 description、persistent 与 timeout;`MonitorStopped` 记录停止原因;启动或读取失败会发出 `MonitorFailed`。
 4. **会话接收事件。** 事件像任何其他领域事件一样进入会话的事件流。
 5. **UI 渲染。** TUI 通过 `ChatStreamItem::Monitor` 渲染，GUI 通过 `ChatMonitorItem.vue` 组件渲染。
 
 ## 列出和停止监控器
 
-### `monitor_list`
+### `monitor.list`
 
-返回当前会话的所有监控器 — 活跃的和已完成的。
+返回当前 session registry 里的所有活跃监控器。每一项包含 monitor id、description、persistent 标记和 timeout。
 
-### `monitor_stop`
+### `monitor.stop`
 
-通过 `MonitorId` 停止运行中的监控器。后台进程被终止，状态转为 `Stopped`。
+通过 `MonitorId` 停止运行中的监控器。后台进程会被终止,并发出最终的 `MonitorStopped { reason: UserStopped }`。停止一个已经结束的 monitor 会返回 not-found tool error。
 
 ## 领域类型
 
-核心类型在 `agent-core` 中：
+monitor event 类型位于 `agent-core`;registry 持有的运行时信息位于 `agent-tools`。
 
-| 类型              | 角色                                                   |
-| ----------------- | ------------------------------------------------------ |
-| `MonitorId`       | 监控器实例的唯一标识符。                               |
-| `MonitorStatus`   | 枚举：`Running`、`Completed`、`Failed`、`Stopped`。    |
-| `MonitorMetadata` | 完整描述符：id、描述、命令、持久、超时、状态、时间戳。 |
+| 类型                | 角色                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `MonitorStarted`    | `monitor.start` 注册进程时发出的 event payload。                                               |
+| `MonitorEvent`      | 单行 stdout 对应的 event payload。                                                             |
+| `MonitorStopped`    | monitor 停止时发出的 event payload,停止原因记录在 `MonitorStopReason` 中。                     |
+| `MonitorFailed`     | spawn 或读取失败对应的 event payload。                                                         |
+| `MonitorStopReason` | 枚举:`ExitCode`、`Timeout`、`UserStopped`、`SessionEnded`。                                    |
+| `MonitorInfo`       | `agent-tools` 中由 `monitor.list` 返回的描述符:id、description、command、persistent、timeout。 |

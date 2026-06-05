@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.36.x)
+## What ships today (v0.37.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -20,6 +20,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 - Shared Rust workspace with the `AppFacade` trait as the single seam between UIs and the runtime.
 - Event-sourced state with `SqliteEventStore`; sessions persist across restarts.
+- Trajectory DTOs and `SqliteTrajectoryStore` for task-scoped action/observation records with JSON export.
 - Monitor domain events for long-running background work, with lifecycle cleanup when a session ends.
 - Agent loop with per-model context windows, budget-driven prompt assembly, manual and automatic compaction, and busy-state guards.
 - Mid-session model switching with profile preservation; reasoning effort selection where supported.
@@ -28,7 +29,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 ### Tools, permissions, MCP, LSP/DAP
 
-- Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, plus monitor registry tools (`monitor.start`, `monitor.list`, `monitor.stop`).
+- Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, browser tools (`browser.action`, `browser.batch`), desktop interaction (`computer.use`), plus monitor registry tools (`monitor.start`, `monitor.list`, `monitor.stop`).
 - Native **LSP and DAP integration** (`agent-lsp` crate): LSP client for code intelligence (go-to-definition, references, completions, diagnostics) and DAP client for debugger integration; server lifecycle management and dynamic tool registration via `LspToolProvider` / `DapToolProvider`.
 - Orthogonal Approval × Sandbox policy engine: `ApprovalPolicy` (`Never` / `OnRequest` / `Always`) gates _when_ the user is asked; `SandboxPolicy` (`ReadOnly` / `WorkspaceWrite` / `DangerFullAccess`) gates _what_ the runtime structurally allows. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0 (PRs #517, #520).
 - MCP client with stdio, SSE, and Streamable HTTP transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`), and server diagnostic summaries.
@@ -74,6 +75,7 @@ For the full shipped list with PR links, scroll the **Near term** section of [`R
 - Broader non-interactive and batch-run workflows built on `kairox-eval`.
 - User-extensible slash commands, output styles, and statusline customization in TUI and GUI.
 - Observability and replay tooling beyond structured trace export: event replay over `EventStore` and redacted diagnostics bundles.
+- Runtime trajectory auto-capture and a GUI trajectory viewer on top of the shipped trajectory store.
 - Continued runtime modularization beyond `SessionActor`.
 
 ## Long-term direction
