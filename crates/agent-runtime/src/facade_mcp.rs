@@ -361,3 +361,7 @@ where
         LocalRuntime::set_catalog_source_enabled(self, id, enabled).await
     }
 }
+
+#[cfg(test)]
+#[path = "facade_mcp_tests.rs"]
+mod tests;
