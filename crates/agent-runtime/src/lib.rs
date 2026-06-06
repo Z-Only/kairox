@@ -9,6 +9,7 @@ pub mod dag_executor;
 pub mod event_emitter;
 pub mod execution_runtime;
 pub(crate) mod facade_agents;
+pub(crate) mod facade_autonomous;
 pub(crate) mod facade_bootstrap;
 pub(crate) mod facade_marketplace;
 pub(crate) mod facade_mcp;

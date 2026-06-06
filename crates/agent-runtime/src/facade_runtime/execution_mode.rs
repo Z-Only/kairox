@@ -5,4 +5,6 @@ pub enum ExecutionMode {
     SingleStep,
     /// DAG-driven: Planner decomposes, Workers execute in parallel, Reviewer evaluates.
     DagExecution,
+    /// Autonomous: long-running multi-session task with checkpointing and auto-continuation.
+    Autonomous,
 }

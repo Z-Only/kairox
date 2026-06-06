@@ -6,7 +6,7 @@ use agent_config::{CatalogSourceConfig, Config};
 use agent_core::{AppFacade, DomainEvent, SessionId, StartSessionRequest, WorkspaceInfo};
 use agent_memory::{MemoryStore, SqliteMemoryStore};
 use agent_models::ModelRouter;
-use agent_store::SqliteEventStore;
+use agent_store::{SqliteAutonomousTaskStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use futures::StreamExt;
 use tokio::task::JoinHandle;
@@ -261,6 +261,17 @@ pub async fn build_ui_runtime_from_store(
     let ollama_clients = agent_config::build_ollama_clients(&options.config);
     let mcp_server_defs = options.config.mcp_server_defs();
     let config_arc = Arc::new(options.config.clone());
+
+    // Snapshot pool before `store` is consumed by `LocalRuntime::new`.
+    let pool = store.pool().clone();
+    let autonomous_store = {
+        let s = Arc::new(SqliteAutonomousTaskStore::new(pool));
+        if let Err(e) = s.migrate().await {
+            tracing::warn!("autonomous store migration failed: {e}");
+        }
+        s
+    };
+
     let mut runtime = LocalRuntime::new(store, router)
         .with_approval_and_sandbox(options.approval_policy, options.sandbox_policy)
         .with_context_limit(100_000)
@@ -275,7 +286,8 @@ pub async fn build_ui_runtime_from_store(
         .with_builtin_tools(options.workspace_root.clone())
         .await
         .with_trajectory_store_from_pool()
-        .await;
+        .await
+        .with_autonomous_store(autonomous_store);
 
     if options.enable_marketplace {
         runtime =
