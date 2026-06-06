@@ -308,3 +308,7 @@ where
         }
     }
 }
+
+#[cfg(test)]
+#[path = "facade_session_ops_tests.rs"]
+mod tests;
