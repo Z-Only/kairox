@@ -4,16 +4,16 @@
 
 use crate::commands::*;
 use agent_core::facade::{
-    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
-    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
-    HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
-    InstallPluginRequest, InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView,
-    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView, PluginCatalogEntry,
-    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget,
-    PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
+    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, AutonomousTaskView, CheckpointView,
+    EffectiveAgentView, EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView,
+    HookSettingsInput, HookSettingsView, HookTemplateView, HooksSettingsView,
+    InstallGithubSkillRequest, InstallPluginRequest, InstallRemoteSkillRequest,
+    InstructionsUpdateInput, InstructionsView, McpServerSettingsInput, McpServerSettingsTransport,
+    McpServerSettingsView, PluginCatalogEntry, PluginComponentInventoryView, PluginDetailView,
+    PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput,
+    ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
+    SkillFieldMappingView, SkillInstallSource, SkillInstallTarget, SkillSettingsDetail,
+    SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
 };
 use agent_core::{
     ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
@@ -182,6 +182,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_trajectories,
             get_trajectory_steps,
             export_trajectory,
+            // Autonomous task commands
+            list_autonomous_tasks,
+            get_autonomous_task,
+            get_autonomous_checkpoints,
+            pause_autonomous_task,
+            resume_autonomous_task,
+            cancel_autonomous_task,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
@@ -285,4 +292,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         // Trajectory types
         .typ::<TrajectoryMetaResponse>()
         .typ::<TrajectoryStepResponse>()
+        // Autonomous task types
+        .typ::<AutonomousTaskView>()
+        .typ::<CheckpointView>()
 }
