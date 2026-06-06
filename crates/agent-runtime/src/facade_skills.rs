@@ -563,3 +563,7 @@ where
         LocalRuntime::open_skills_dir(self).await
     }
 }
+
+#[cfg(test)]
+#[path = "facade_skills_tests.rs"]
+mod tests;
