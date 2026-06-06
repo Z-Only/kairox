@@ -134,6 +134,9 @@ impl AgentsFacade for NoopFacade {}
 #[async_trait]
 impl PluginsFacade for NoopFacade {}
 
+#[async_trait]
+impl AutonomousFacade for NoopFacade {}
+
 impl AppFacade for NoopFacade {}
 
 #[test]

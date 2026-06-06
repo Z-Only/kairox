@@ -70,7 +70,9 @@ where
     }
 
     fn execution_mode(&self, request: &SendMessageRequest) -> ExecutionMode {
-        if request.content.starts_with("/plan ") && self.dag_executor.is_some() {
+        if request.content.starts_with("/auto ") {
+            ExecutionMode::Autonomous
+        } else if request.content.starts_with("/plan ") && self.dag_executor.is_some() {
             ExecutionMode::DagExecution
         } else {
             ExecutionMode::SingleStep
@@ -84,6 +86,50 @@ where
             _ => return None,
         };
         Some(PathBuf::from(binding.worktree_path))
+    }
+
+    async fn execute_single_step(
+        &self,
+        request: SendMessageRequest,
+        cancellation: CancellationToken,
+    ) -> agent_core::Result<()> {
+        let root_path = self.root_path_for_session(&request.session_id).await;
+        let skill_registry = crate::skills::discover_skill_registry_for_settings_roots(
+            root_path
+                .as_deref()
+                .map(|root_path| {
+                    crate::skills::skill_settings_roots_for_project_root(
+                        self.skill_settings_roots.clone(),
+                        root_path,
+                    )
+                })
+                .unwrap_or_else(|| self.skill_settings_roots.clone()),
+            self.skill_registry.clone(),
+        )
+        .await?;
+        let config = self.config.snapshot();
+        crate::agent_loop::run_agent_loop(
+            crate::agent_loop::AgentLoopDeps {
+                store: &self.store,
+                model: &self.model,
+                event_tx: &self.event_tx,
+                tool_registry: &self.tool_registry,
+                permission_engine: &self.permission_engine,
+                pending_permissions: &self.pending_permissions,
+                memory_store: &self.memory_store,
+                task_graphs: &self.task_graphs,
+                config: &config,
+                session_states: &self.session_states,
+                skill_registry: &skill_registry,
+                active_skills: &self.active_skills,
+                workspace_scoped_builtin_tools: &self.workspace_scoped_builtin_tools,
+                trajectory_store: &self.trajectory_store,
+                turn_cancellation: cancellation,
+                root_path,
+            },
+            &request,
+        )
+        .await
     }
 
     /// Decide whether to enqueue an auto-compaction after a turn ends.
@@ -244,44 +290,18 @@ where
                     Err(e) => Err(e),
                 }
             }
+            ExecutionMode::Autonomous => {
+                let mut auto_request = request.clone();
+                auto_request.content = request
+                    .content
+                    .strip_prefix("/auto ")
+                    .unwrap_or(&request.content)
+                    .to_string();
+                self.execute_single_step(auto_request, cancellation).await
+            }
             ExecutionMode::SingleStep => {
-                let root_path = self.root_path_for_session(&request.session_id).await;
-                let skill_registry = crate::skills::discover_skill_registry_for_settings_roots(
-                    root_path
-                        .as_deref()
-                        .map(|root_path| {
-                            crate::skills::skill_settings_roots_for_project_root(
-                                self.skill_settings_roots.clone(),
-                                root_path,
-                            )
-                        })
-                        .unwrap_or_else(|| self.skill_settings_roots.clone()),
-                    self.skill_registry.clone(),
-                )
-                .await?;
-                let config = self.config.snapshot();
-                crate::agent_loop::run_agent_loop(
-                    crate::agent_loop::AgentLoopDeps {
-                        store: &self.store,
-                        model: &self.model,
-                        event_tx: &self.event_tx,
-                        tool_registry: &self.tool_registry,
-                        permission_engine: &self.permission_engine,
-                        pending_permissions: &self.pending_permissions,
-                        memory_store: &self.memory_store,
-                        task_graphs: &self.task_graphs,
-                        config: &config,
-                        session_states: &self.session_states,
-                        skill_registry: &skill_registry,
-                        active_skills: &self.active_skills,
-                        workspace_scoped_builtin_tools: &self.workspace_scoped_builtin_tools,
-                        trajectory_store: &self.trajectory_store,
-                        turn_cancellation: cancellation,
-                        root_path,
-                    },
-                    &request,
-                )
-                .await
+                self.execute_single_step(request.clone(), cancellation)
+                    .await
             }
         };
 

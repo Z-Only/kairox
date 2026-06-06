@@ -5,7 +5,7 @@
 
 #![allow(dead_code)]
 
-use agent_core::AppFacade;
+use agent_core::{AppFacade, AutonomousFacade};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -753,3 +753,6 @@ impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {
 }
 
 impl AppFacade for TuiMcpFakeFacade {}
+
+#[async_trait::async_trait]
+impl AutonomousFacade for TuiMcpFakeFacade {}

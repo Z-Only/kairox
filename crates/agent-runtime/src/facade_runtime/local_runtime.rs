@@ -103,6 +103,9 @@ where
     pub(crate) skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
     pub(crate) skill_catalog_http: Option<SharedHttpClient>,
     pub(crate) skill_catalog_cache_dir: Option<PathBuf>,
+    pub(crate) autonomous_store: Option<Arc<dyn agent_store::AutonomousTaskStore>>,
+    pub(crate) autonomous_controller:
+        Option<Arc<crate::autonomous::controller::AutonomousController<S>>>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -160,6 +163,8 @@ where
             skill_sources_toml: None,
             skill_catalog_http: None,
             skill_catalog_cache_dir: None,
+            autonomous_store: None,
+            autonomous_controller: None,
         }
     }
 
@@ -195,6 +200,25 @@ where
             }
             self.trajectory_store = Some(Arc::new(store));
         }
+        self
+    }
+
+    /// Wire autonomous task infrastructure.
+    ///
+    /// Sets the autonomous task store and creates an [`AutonomousController`]
+    /// backed by it. Without this call, all `AutonomousFacade` operations
+    /// return empty results.
+    pub fn with_autonomous_store(
+        mut self,
+        autonomous_store: Arc<dyn agent_store::AutonomousTaskStore>,
+    ) -> Self {
+        let controller = crate::autonomous::controller::AutonomousController::new(
+            self.store.clone(),
+            autonomous_store.clone(),
+            self.event_tx.clone(),
+        );
+        self.autonomous_store = Some(autonomous_store);
+        self.autonomous_controller = Some(Arc::new(controller));
         self
     }
 

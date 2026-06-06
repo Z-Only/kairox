@@ -5,6 +5,7 @@
 //! session lifecycle, messaging, permissions, and event streaming.
 
 mod agents;
+mod autonomous;
 mod catalog;
 mod mcp;
 mod plugins;
@@ -15,6 +16,7 @@ mod skill_dtos;
 mod skills;
 
 pub use agents::AgentsFacade;
+pub use autonomous::{AutonomousFacade, AutonomousTaskView, CheckpointView};
 pub use catalog::{
     AddCatalogSourceRequest, CatalogQuery, CatalogSourceView, InstallOutcomeView, InstallRequest,
     InstalledEntry, ServerEntry,
@@ -66,7 +68,13 @@ use crate::{ProjectId, SessionId, TaskId, WorkspaceId};
 /// the sub-traits and write `impl AppFacade for T {}`.
 #[async_trait::async_trait]
 pub trait AppFacade:
-    SessionFacade + SkillsFacade + McpFacade + ProjectFacade + AgentsFacade + PluginsFacade
+    SessionFacade
+    + SkillsFacade
+    + McpFacade
+    + ProjectFacade
+    + AgentsFacade
+    + PluginsFacade
+    + AutonomousFacade
 {
     // ── Session ─────────────────────────────────────────────────────────
 
@@ -495,6 +503,41 @@ pub trait AppFacade:
         project_id: ProjectId,
     ) -> crate::Result<ProjectInstructionSummary> {
         ProjectFacade::get_project_instruction_summary(self, project_id).await
+    }
+
+    // ── Autonomous ─────────────────────────────────────────────────────
+
+    async fn list_autonomous_tasks(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> crate::Result<Vec<AutonomousTaskView>> {
+        AutonomousFacade::list_autonomous_tasks(self, workspace_id).await
+    }
+    async fn get_autonomous_task(
+        &self,
+        task_id: crate::AutonomousTaskId,
+    ) -> crate::Result<Option<AutonomousTaskView>> {
+        AutonomousFacade::get_autonomous_task(self, task_id).await
+    }
+    async fn get_autonomous_checkpoints(
+        &self,
+        task_id: crate::AutonomousTaskId,
+    ) -> crate::Result<Vec<CheckpointView>> {
+        AutonomousFacade::get_autonomous_checkpoints(self, task_id).await
+    }
+    async fn pause_autonomous_task(&self, task_id: crate::AutonomousTaskId) -> crate::Result<()> {
+        AutonomousFacade::pause_autonomous_task(self, task_id).await
+    }
+    async fn resume_autonomous_task(&self, task_id: crate::AutonomousTaskId) -> crate::Result<()> {
+        AutonomousFacade::resume_autonomous_task(self, task_id).await
+    }
+    async fn cancel_autonomous_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: crate::AutonomousTaskId,
+    ) -> crate::Result<()> {
+        AutonomousFacade::cancel_autonomous_task(self, workspace_id, session_id, task_id).await
     }
 }
 
