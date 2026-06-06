@@ -293,3 +293,7 @@ fn spawn_ollama_context_probe_for(
         });
     }
 }
+
+#[cfg(test)]
+#[path = "facade_models_tests.rs"]
+mod facade_models_tests;
