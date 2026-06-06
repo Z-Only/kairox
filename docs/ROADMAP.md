@@ -33,7 +33,7 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | Browser / computer use                    | ✅ Browser tool + Computer use primitives             | Claude quickstarts, browser-use, Cline                               |
 | Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                  | SWE-Agent, Moatless                                                  |
 | Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
-| Embedded SDK mode                         | ❌ Not exposed                                        | Claude Agent SDK, Goose extensible-agent                             |
+| Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming         | Claude Agent SDK, Goose extensible-agent                             |
 | Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
 | Git-aware workflows                       | ⚠️ Basic shell.exec                                   | Aider, Claude Code have deep git integration                         |
 
@@ -171,39 +171,38 @@ Complete. The computer use system now includes:
 
 From session-scoped to task-scoped execution that survives context limits.
 
-### 3.1 Long-running autonomous mode
+### 3.1 Long-running autonomous mode ✅
 
-**Crates**: `agent-runtime`, `agent-core`
+**Crates**: `agent-runtime`, `agent-core`, `agent-store`, `agent-gui`
 
-Reference: `claude-quickstarts/autonomous-coding` dual-agent pattern
+Complete. The autonomous mode system now includes:
 
-Implement multi-session task execution:
+- **Core types**: `AutonomousTaskState`, `AutonomousTaskGoal`, `AutonomousConfig`, `AutonomousTaskId`, `VerificationResult`, `SessionEndReason`, `Checkpoint` in `agent-core`.
+- **Data layer**: `AutonomousTaskStore` trait + `SqliteAutonomousTaskStore` with migration `0010_autonomous_tasks.sql`. Supports task rows, checkpoint rows, and session chain tracking.
+- **Controller**: `AutonomousController` in `agent-runtime` orchestrates the full lifecycle — task creation, session-end handling, auto-continue with fresh sessions, checkpoint persistence, and verification.
+- **Orientation**: `OrientationPromptBuilder` generates fresh-context orientation prompts for continuation sessions (read progress, check git, verify previous work).
+- **Checkpointing**: `CheckpointWriter` persists structured progress between sessions with git checkpoint support.
+- **Events**: `AutonomousTaskCreated`, `AutonomousTaskSessionStarted`, `AutonomousTaskSessionEnded`, `AutonomousTaskCompleted`, `AutonomousTaskCheckpointed`, `AutonomousTaskVerificationRan` in `EventPayload`.
+- **Facade**: `AutonomousFacade` trait with `start_autonomous_task`, `pause_autonomous_task`, `resume_autonomous_task`, `cancel_autonomous_task`, `list_autonomous_tasks`, `get_autonomous_task` — implemented by `LocalRuntime`.
+- **GUI integration**: Tauri commands, Pinia store, `AutonomousSettingsPane.vue` for configuration, generated TypeScript bindings.
+- **Tests**: Full coverage for controller lifecycle, orientation prompt building, checkpoint writing, facade operations, and store persistence.
 
-- **Task persistence**: A task (feature list, bug fix, project build) spans multiple sessions.
-- **Progress tracking**: JSON-based progress file (like `feature_list.json`) or structured task graph checkpoints.
-- **Fresh context per session**: Each session starts with orientation (read progress, check git, verify previous work).
-- **Auto-continue**: After a session ends (context limit), automatically start a new session with continuation prompt.
-- **Verification before progress**: Always re-verify existing passing tests before adding new work (regression guard).
-- Git commit between sessions as checkpoint mechanism.
+**Why**: This is the defining capability gap between "copilot" and "autonomous agent." The claude-quickstarts autonomous-coding demo proves the pattern works with a simple harness; Kairox's richer infrastructure (event store, multi-agent, DAG) does it better.
 
-Design decisions:
+### 3.2 Kairox SDK (embedded runtime) ✅
 
-- Kairox already has `SessionActor` + event store. Extend with `AutonomousTask` entity that spans sessions.
-- Reuse `TaskGraph` / `DagExecutor` for structuring the work within each session.
-- The `agent-eval` harness can validate autonomous runs.
+**Crate**: `agent-sdk`
 
-**Why**: This is the defining capability gap between "copilot" and "autonomous agent." The claude-quickstarts autonomous-coding demo proves the pattern works with a simple harness; Kairox's richer infrastructure (event store, multi-agent, DAG) can do it better.
+Complete. The SDK exposes the Kairox runtime as an embeddable, programmatic API:
 
-### 3.2 Kairox SDK (embedded runtime)
-
-**Crates**: new `agent-sdk` crate
-
-Expose Kairox's runtime as an embeddable SDK:
-
-- Programmatic session creation and message injection.
-- Hook system for pre/post tool execution (like Claude Agent SDK's `HookMatcher`).
-- Streaming response handling.
-- Security settings API (sandbox, permissions, allowed tools).
+- **Builder API**: `KairoxSdk::builder()` with fluent configuration — workspace path, data/home dir, database filename, default profile, approval/sandbox policies, MCP/LSP/marketplace toggles.
+- **Session management**: `create_session()`, `create_session_with_profile()`, `list_sessions()` — programmatic session lifecycle without a UI.
+- **Message streaming**: `session.send_message()` returns a `MessageStream` implementing `futures::Stream<Item = StreamEvent>`. `StreamEvent` variants: `Text`, `ToolCall`, `ToolResult`, `TurnCompleted`, `Error`, `Other`.
+- **Collected responses**: `stream.collect_all()` gathers the full assistant text and event log in one call.
+- **Hook system**: `SdkHook` trait with `before_tool` / `after_tool` callbacks. `before_tool` returns `HookAction::Continue` or `HookAction::Reject(reason)` to gate tool execution.
+- **Security settings API**: `SdkApprovalPolicy` (Never/OnRequest/Always) and `SdkSandboxPolicy` (ReadOnly/WorkspaceWrite/FullAccess) map to the runtime's orthogonal policy engine.
+- **Facade access**: `sdk.facade()` exposes the full `AppFacade` for advanced use cases.
+- **Tests**: 15 unit tests + 3 doc tests covering builder validation, session creation, policy conversion, stream event mapping, hook registration, and error variants.
 
 Use cases:
 
@@ -211,7 +210,7 @@ Use cases:
 - CI/CD integration (run agent tasks as pipeline steps).
 - Custom UIs beyond TUI/GUI.
 
-**Why**: Claude Agent SDK (`claude_code_sdk`) enables the autonomous-coding demo by wrapping Claude Code as a programmable runtime. Kairox should offer the same. Codex CLI's `--quiet` mode and API-driven execution serve a similar purpose.
+**Why**: Claude Agent SDK (`claude_code_sdk`) enables the autonomous-coding demo by wrapping Claude Code as a programmable runtime. Kairox now offers the same. Codex CLI's `--quiet` mode and API-driven execution serve a similar purpose.
 
 ### 3.3 Agent self-reflection / advisor
 

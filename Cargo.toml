@@ -13,7 +13,8 @@ members = [
   "crates/agent-mcp",
   "crates/agent-skills",
   "crates/agent-plugins",
-  "crates/agent-lsp"
+  "crates/agent-lsp",
+  "crates/agent-sdk"
 ]
 resolver = "2"
 
