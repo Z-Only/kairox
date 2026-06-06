@@ -452,3 +452,7 @@ fn copy_dir_recursive_sync(source: &PathBuf, destination: &PathBuf) -> agent_cor
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "facade_plugins_tests.rs"]
+mod tests;
