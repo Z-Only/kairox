@@ -466,3 +466,7 @@ fn actor_stopped() -> CoreError {
 fn actor_cancelled(reason: &str) -> CoreError {
     CoreError::InvalidState(format!("session execution cancelled: {reason}"))
 }
+
+#[cfg(test)]
+#[path = "session_actor_tests.rs"]
+mod tests;
