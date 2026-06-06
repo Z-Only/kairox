@@ -137,3 +137,7 @@ fn checkpoint_row_to_view(row: agent_store::AutonomousCheckpointRow) -> Option<C
         created_at: row.created_at,
     })
 }
+
+#[cfg(test)]
+#[path = "facade_autonomous_tests.rs"]
+mod facade_autonomous_tests;
