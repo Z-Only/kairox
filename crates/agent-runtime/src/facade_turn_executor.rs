@@ -366,3 +366,7 @@ where
         }
     }
 }
+
+#[cfg(test)]
+#[path = "facade_turn_executor_tests.rs"]
+mod tests;
