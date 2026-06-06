@@ -102,6 +102,7 @@ describe("routes", () => {
     { path: "/settings/models", name: "settings-models" },
     { path: "/settings/instructions", name: "settings-instructions" },
     { path: "/settings/hooks", name: "settings-hooks" },
+    { path: "/settings/autonomous", name: "settings-autonomous" },
     { path: "/settings/archive", name: "settings-archive" }
   ] as const;
 
