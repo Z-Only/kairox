@@ -6,16 +6,16 @@
 
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
-    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
-    HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
-    InstallPluginRequest, InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView,
-    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView, PluginCatalogEntry,
-    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget,
-    PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
+    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, AutonomousTaskView, CheckpointView,
+    EffectiveAgentView, EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView,
+    HookSettingsInput, HookSettingsView, HookTemplateView, HooksSettingsView,
+    InstallGithubSkillRequest, InstallPluginRequest, InstallRemoteSkillRequest,
+    InstructionsUpdateInput, InstructionsView, McpServerSettingsInput, McpServerSettingsTransport,
+    McpServerSettingsView, PluginCatalogEntry, PluginComponentInventoryView, PluginDetailView,
+    PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput,
+    ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
+    SkillFieldMappingView, SkillInstallSource, SkillInstallTarget, SkillSettingsDetail,
+    SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
 };
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
@@ -196,6 +196,13 @@ fn main() {
             agent_gui_tauri::commands::list_trajectories,
             agent_gui_tauri::commands::get_trajectory_steps,
             agent_gui_tauri::commands::export_trajectory,
+            // Autonomous task commands
+            agent_gui_tauri::commands::list_autonomous_tasks,
+            agent_gui_tauri::commands::get_autonomous_task,
+            agent_gui_tauri::commands::get_autonomous_checkpoints,
+            agent_gui_tauri::commands::pause_autonomous_task,
+            agent_gui_tauri::commands::resume_autonomous_task,
+            agent_gui_tauri::commands::cancel_autonomous_task,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
@@ -282,7 +289,10 @@ fn main() {
         .typ::<McpToolStatesResponse>()
         // Trajectory types
         .typ::<TrajectoryMetaResponse>()
-        .typ::<TrajectoryStepResponse>();
+        .typ::<TrajectoryStepResponse>()
+        // Autonomous task types
+        .typ::<AutonomousTaskView>()
+        .typ::<CheckpointView>();
 
     match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),

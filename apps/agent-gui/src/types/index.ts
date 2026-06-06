@@ -150,7 +150,9 @@ export type {
   McpToolDefResponse,
   McpResourceDefResponse,
   McpPromptDefResponse,
-  McpContentBlockResponse
+  McpContentBlockResponse,
+  AutonomousTaskView,
+  CheckpointView
 } from "../generated/commands";
 
 // ===== Session metadata (matches Rust SessionMeta but used independently) =====

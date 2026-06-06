@@ -377,7 +377,32 @@ export const commands = {
       __TAURI_INVOKE("get_trajectory_steps", { trajectoryId })
     ),
   exportTrajectory: (trajectoryId: string) =>
-    typedError<string, string>(__TAURI_INVOKE("export_trajectory", { trajectoryId }))
+    typedError<string, string>(__TAURI_INVOKE("export_trajectory", { trajectoryId })),
+  listAutonomousTasks: () =>
+    typedError<AutonomousTaskView[], string>(__TAURI_INVOKE("list_autonomous_tasks")),
+  getAutonomousTask: (taskId: string) =>
+    typedError<
+      {
+        autonomous_task_id: string;
+        workspace_id: string;
+        goal: string;
+        state: string;
+        current_session_id: string | null;
+        session_count: number;
+        max_sessions: number;
+        created_at: string;
+        updated_at: string;
+      } | null,
+      string
+    >(__TAURI_INVOKE("get_autonomous_task", { taskId })),
+  getAutonomousCheckpoints: (taskId: string) =>
+    typedError<CheckpointView[], string>(__TAURI_INVOKE("get_autonomous_checkpoints", { taskId })),
+  pauseAutonomousTask: (taskId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("pause_autonomous_task", { taskId })),
+  resumeAutonomousTask: (taskId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("resume_autonomous_task", { taskId })),
+  cancelAutonomousTask: (taskId: string, sessionId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("cancel_autonomous_task", { taskId, sessionId }))
 };
 
 /* Types */
@@ -448,6 +473,18 @@ export type AttachmentInfo = {
   mime_type: string;
 };
 
+export type AutonomousTaskView = {
+  autonomous_task_id: string;
+  workspace_id: string;
+  goal: string;
+  state: string;
+  current_session_id: string | null;
+  session_count: number;
+  max_sessions: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BuildInfoResponse = {
   version: string;
   git_hash: string;
@@ -480,6 +517,17 @@ export type CheckMcpHealthResponse = {
   tools: McpToolDefResponse[];
   healthy: boolean;
   error: string | null;
+};
+
+export type CheckpointView = {
+  checkpoint_id: string;
+  session_id: string;
+  session_index: number;
+  completed_items: string[];
+  remaining_items: string[];
+  git_sha: string | null;
+  end_reason: string;
+  created_at: string;
 };
 
 /**

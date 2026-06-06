@@ -314,6 +314,7 @@ pub enum McpContentBlockResponse {
     },
 }
 
+mod autonomous;
 mod chat;
 mod draft;
 mod marketplace;
@@ -324,6 +325,7 @@ mod session;
 mod settings;
 mod skills;
 
+pub use autonomous::*;
 pub use chat::*;
 pub use draft::*;
 pub use marketplace::*;

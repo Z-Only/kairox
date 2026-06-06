@@ -316,6 +316,13 @@ pub fn run() {
             crate::commands::list_trajectories,
             crate::commands::get_trajectory_steps,
             crate::commands::export_trajectory,
+            // Autonomous task commands
+            crate::commands::list_autonomous_tasks,
+            crate::commands::get_autonomous_task,
+            crate::commands::get_autonomous_checkpoints,
+            crate::commands::pause_autonomous_task,
+            crate::commands::resume_autonomous_task,
+            crate::commands::cancel_autonomous_task,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build tauri application");
