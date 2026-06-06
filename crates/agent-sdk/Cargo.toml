@@ -1,0 +1,31 @@
+[package]
+name = "agent-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Embeddable SDK for the Kairox agent runtime"
+
+[dependencies]
+agent-core = { path = "../agent-core" }
+agent-config = { path = "../agent-config" }
+agent-memory = { path = "../agent-memory" }
+agent-models = { path = "../agent-models" }
+agent-runtime = { path = "../agent-runtime" }
+agent-store = { path = "../agent-store" }
+agent-tools = { path = "../agent-tools" }
+agent-mcp = { path = "../agent-mcp" }
+agent-skills = { path = "../agent-skills" }
+agent-plugins = { path = "../agent-plugins" }
+agent-lsp = { path = "../agent-lsp" }
+
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
