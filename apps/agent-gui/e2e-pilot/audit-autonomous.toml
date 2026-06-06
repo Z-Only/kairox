@@ -1,0 +1,56 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit autonomous task settings"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "open autonomous settings tab"
+action = "click"
+target = "[data-test='settings-tab-autonomous']"
+
+[[step]]
+name = "wait for autonomous pane"
+action = "wait"
+selector = "[data-test='autonomous-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "autonomous pane visible"
+action = "assert-visible"
+target = "[data-test='autonomous-pane']"
+
+[[step]]
+name = "wait for empty state after loading"
+action = "wait"
+selector = "[data-test='autonomous-empty']"
+timeout_ms = 15000
+
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
