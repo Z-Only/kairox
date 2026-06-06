@@ -78,6 +78,7 @@ async function mountAt(
         ModelSettingsPane: true,
         InstructionsSettingsPane: true,
         HooksSettingsPane: true,
+        AutonomousSettingsPane: true,
         ArchiveSettingsPane: true
       }
     }
@@ -96,6 +97,7 @@ const ALL_TABS = [
   "models",
   "instructions",
   "hooks",
+  "autonomous",
   "archive"
 ] as const;
 

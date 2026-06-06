@@ -21,6 +21,7 @@ const activeTab = computed(() => {
       "plugins",
       "agents",
       "models",
+      "autonomous",
       "archive"
     ].includes(tab)
     ? tab
@@ -129,6 +130,15 @@ onMounted(syncSourceFromCurrentConversation);
         @click="navigateToTab('hooks')"
       >
         {{ t("settings.hooks") }}
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        :aria-selected="activeTab === 'autonomous'"
+        data-test="settings-tab-autonomous"
+        @click="navigateToTab('autonomous')"
+      >
+        {{ t("settings.autonomous") }}
       </button>
       <button
         class="tab-btn"
