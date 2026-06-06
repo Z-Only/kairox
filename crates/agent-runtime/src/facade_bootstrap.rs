@@ -583,3 +583,7 @@ fn memory_event_ids(
         .unwrap_or(fallback_session_id);
     (workspace_id, session_id)
 }
+
+#[cfg(test)]
+#[path = "facade_bootstrap_tests.rs"]
+mod tests;
