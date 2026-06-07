@@ -189,3 +189,7 @@ pub async fn store_memory_markers<S: EventStore>(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "memory_handler_tests.rs"]
+mod memory_handler_tests;
