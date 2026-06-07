@@ -130,3 +130,7 @@ where
         LocalRuntime::open_user_agents_dir(self).await
     }
 }
+
+#[cfg(test)]
+#[path = "facade_agents_tests.rs"]
+mod facade_agents_tests;
