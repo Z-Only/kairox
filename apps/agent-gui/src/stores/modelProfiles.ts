@@ -31,6 +31,7 @@ export function formatError(caughtError: unknown): string {
 export const useModelProfilesStore = defineStore("modelProfiles", () => {
   const profiles = ref<ProfileSettingsView[]>([]);
   const loading = ref(false);
+  const refreshing = ref(false);
   const error = ref<string | null>(null);
   const busyAlias = ref<string | null>(null);
 
@@ -38,7 +39,12 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
     sourceFilter?: string | null,
     projectRoot?: string | null
   ): Promise<void> {
-    loading.value = true;
+    const isInitialLoad = profiles.value.length === 0;
+    if (isInitialLoad) {
+      loading.value = true;
+    } else {
+      refreshing.value = true;
+    }
     error.value = null;
     try {
       profiles.value = await unwrapCommandResult(
@@ -48,6 +54,19 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
       error.value = formatError(caughtError);
     } finally {
       loading.value = false;
+      refreshing.value = false;
+    }
+  }
+
+  async function refreshRuntime(projectRoot?: string | null): Promise<void> {
+    try {
+      if (projectRoot) {
+        await commands.refreshConfigForProject(projectRoot);
+      } else {
+        await commands.refreshConfig();
+      }
+    } catch {
+      // best-effort: runtime refresh failure should not block list display
     }
   }
 
@@ -127,9 +146,11 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
   return {
     profiles,
     loading,
+    refreshing,
     error,
     busyAlias,
     loadProfiles,
+    refreshRuntime,
     upsertProfile,
     setProfileEnabled,
     removeProfile,
