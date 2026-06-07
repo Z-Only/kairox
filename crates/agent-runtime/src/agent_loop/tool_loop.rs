@@ -360,3 +360,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
 
     Ok(ToolLoopResult { tool_results })
 }
+
+#[cfg(test)]
+#[path = "tool_loop_tests.rs"]
+mod tests;
