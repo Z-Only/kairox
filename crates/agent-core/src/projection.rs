@@ -242,6 +242,8 @@ impl SessionProjection {
             | EventPayload::TrajectoryStarted { .. }
             | EventPayload::TrajectoryStepRecorded { .. }
             | EventPayload::TrajectoryCompleted { .. }
+            | EventPayload::AdvisorReviewStarted { .. }
+            | EventPayload::AdvisorReviewCompleted { .. }
             | EventPayload::AutonomousTaskCreated { .. }
             | EventPayload::AutonomousTaskSessionStarted { .. }
             | EventPayload::AutonomousTaskCheckpointed { .. }

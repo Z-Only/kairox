@@ -324,6 +324,7 @@ pub(super) fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
         hooks: vec![],
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     })
 }
 
@@ -370,6 +371,7 @@ pub(super) fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Co
         hooks: vec![],
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     })
 }
 

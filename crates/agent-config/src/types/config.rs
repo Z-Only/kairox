@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::context::{ContextPolicy, FeatureFlags};
+use super::context::{AdvisorConfig, ContextPolicy, FeatureFlags};
 use super::hooks::{HookConfig, HookEvent};
 use super::lsp::{DapServerConfig, LspServerConfig};
 use super::mcp::McpServerConfig;
@@ -29,6 +29,8 @@ pub struct Config {
     pub lsp_servers: Vec<(String, LspServerConfig)>,
     /// DAP server configurations from `[dap_servers.<id>]` tables.
     pub dap_servers: Vec<(String, DapServerConfig)>,
+    /// Advisor (self-reflection) configuration from `[advisor]`.
+    pub advisor: AdvisorConfig,
 }
 
 /// Errors that can occur during config loading.
@@ -181,6 +183,11 @@ impl Config {
             hooks: merged_hooks,
             lsp_servers: merged_lsp,
             dap_servers: merged_dap,
+            advisor: if overlay.advisor.is_default() {
+                base.advisor
+            } else {
+                overlay.advisor
+            },
         })
     }
 
@@ -284,6 +291,7 @@ impl Config {
             hooks: Vec::new(),
             lsp_servers: Vec::new(),
             dap_servers: Vec::new(),
+            advisor: AdvisorConfig::default(),
         }
     }
 

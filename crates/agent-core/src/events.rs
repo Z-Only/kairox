@@ -393,6 +393,20 @@ pub enum EventPayload {
         step_count: u32,
         outcome: crate::trajectory::TrajectoryOutcome,
     },
+    AdvisorReviewStarted {
+        review_id: String,
+        advisor_profile: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        tool_call_count: usize,
+        mode: crate::advisor::AdvisorMode,
+    },
+    AdvisorReviewCompleted {
+        review_id: String,
+        verdict: crate::advisor::AdvisorVerdict,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        concern_count: usize,
+        summary: String,
+    },
     AutonomousTaskCreated {
         autonomous_task_id: crate::AutonomousTaskId,
         goal: String,
@@ -503,6 +517,8 @@ impl EventPayload {
             Self::TrajectoryStarted { .. } => "TrajectoryStarted",
             Self::TrajectoryStepRecorded { .. } => "TrajectoryStepRecorded",
             Self::TrajectoryCompleted { .. } => "TrajectoryCompleted",
+            Self::AdvisorReviewStarted { .. } => "AdvisorReviewStarted",
+            Self::AdvisorReviewCompleted { .. } => "AdvisorReviewCompleted",
             Self::AutonomousTaskCreated { .. } => "AutonomousTaskCreated",
             Self::AutonomousTaskSessionStarted { .. } => "AutonomousTaskSessionStarted",
             Self::AutonomousTaskCheckpointed { .. } => "AutonomousTaskCheckpointed",

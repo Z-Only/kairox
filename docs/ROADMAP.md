@@ -32,6 +32,7 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | Multimodal context management             | ✅ Image pruning strategies                           | Claude quickstarts has reference impl                                |
 | Browser / computer use                    | ✅ Browser tool + Computer use primitives             | Claude quickstarts, browser-use, Cline                               |
 | Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                  | SWE-Agent, Moatless                                                  |
+| Agent self-reflection / advisor           | ✅ Inline advisor review before tool execution        | Anthropic BetaAdvisorTool (beta)                                     |
 | Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
 | Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming         | Claude Agent SDK, Goose extensible-agent                             |
 | Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
@@ -212,19 +213,22 @@ Use cases:
 
 **Why**: Claude Agent SDK (`claude_code_sdk`) enables the autonomous-coding demo by wrapping Claude Code as a programmable runtime. Kairox now offers the same. Codex CLI's `--quiet` mode and API-driven execution serve a similar purpose.
 
-### 3.3 Agent self-reflection / advisor
+### 3.3 Agent self-reflection / advisor ✅
 
-**Crates**: `agent-runtime`, `agent-models`
+**Crates**: `agent-core`, `agent-config`, `agent-runtime`
 
-Reference: Anthropic's `BetaAdvisorTool` (beta API)
+Complete. The advisor (self-reflection) system now includes:
 
-Add a reflection mechanism where a secondary model reviews the primary agent's plan before execution:
+- **Core types**: `AdvisorMode` (`Off` / `Lightweight` / `Full`), `AdvisorVerdict` (`Approve` / `ApproveWithWarnings` / `Reject`), `AdvisorConcern`, `AdvisorReview` in `agent-core`.
+- **Configuration**: `AdvisorConfig` in `agent-config` with `[advisor]` TOML section — mode, profile alias (use a cheaper model like Haiku), and max concerns cap.
+- **Risk heuristics**: `should_review()` + `is_high_risk_tool_call()` in `agent-runtime` — Lightweight mode only triggers on destructive shell commands, sensitive file writes, and computer-use actions.
+- **Review flow**: `review_tool_calls()` sends the planned tool calls + agent reasoning to the advisor model, parses the structured JSON response, and returns an `AdvisorReview`.
+- **Agent loop integration**: Advisor review runs inline in the agent loop between model response and tool execution. On `Reject` verdict, tool execution is blocked and the rejection is surfaced as an assistant message. On `Approve` / `ApproveWithWarnings`, execution proceeds normally.
+- **Events**: `AdvisorReviewStarted` and `AdvisorReviewCompleted` in `EventPayload` for trace visibility.
+- **Graceful degradation**: Advisor failures (model errors, unparseable responses) default to `Approve` — the advisor never blocks the main agent loop due to its own issues.
+- **Tests**: 21 unit tests covering mode gating, risk heuristics, response parsing, FakeModelClient integration, and concern truncation.
 
-- Can use a cheaper/faster model as advisor (e.g., Haiku reviewing Sonnet's plan).
-- Integrates with the existing `ReviewerAgent` role.
-- Configurable: off / lightweight / full review.
-
-**Why**: The computer-use best-practices demo includes advisor as a beta feature. As agents take more autonomous actions, a built-in "second opinion" reduces costly mistakes.
+**Why**: As agents take more autonomous actions, a built-in "second opinion" reduces costly mistakes. The advisor can use a cheaper/faster model (e.g., Haiku reviewing Sonnet's plan) to keep latency and cost low while catching destructive operations.
 
 ---
 
