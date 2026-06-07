@@ -16,9 +16,10 @@ use agent_core::facade::{
     SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
 };
 use agent_core::{
-    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
-    ContextUsage, DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits,
-    SkillDetail, SkillView, TaskGraphSnapshot, TaskSnapshot, TaskState,
+    ActiveSkillView, AdvisorConcern, AdvisorMode, AdvisorReview, AdvisorVerdict, AgentRole,
+    CompactionReason, CompactionStatus, ConfigScope, ContextSource, ContextUsage, DomainEvent,
+    EventPayload, PrivacyClassification, ProjectedModelLimits, SkillDetail, SkillView,
+    TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -295,4 +296,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         // Autonomous task types
         .typ::<AutonomousTaskView>()
         .typ::<CheckpointView>()
+        // Advisor (self-reflection) types
+        .typ::<AdvisorMode>()
+        .typ::<AdvisorVerdict>()
+        .typ::<AdvisorConcern>()
+        .typ::<AdvisorReview>()
 }
