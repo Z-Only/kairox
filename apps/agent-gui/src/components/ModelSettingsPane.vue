@@ -19,7 +19,7 @@ const { t } = useI18n();
 const { notify } = useNotifications();
 const store = useModelProfilesStore();
 const projectStore = useProjectStore();
-const { profiles, loading, error, busyAlias } = storeToRefs(store);
+const { profiles, loading, refreshing, error, busyAlias } = storeToRefs(store);
 
 const addDialogOpen = ref(false);
 const editDialogOpen = ref(false);
@@ -67,6 +67,7 @@ const projectRoot = computed(() => {
 });
 
 function loadProfilesForCurrentScope(): void {
+  void store.refreshRuntime(projectRoot.value);
   void store.loadProfiles(configSource?.value, projectRoot.value);
 }
 
@@ -319,11 +320,11 @@ function toggleProfile(profile: ProfileSettingsView): void {
         {{ t("models.openConfigFile") }}
       </KxToolbarAction>
       <KxToolbarAction
-        :disabled="loading"
+        :disabled="loading || refreshing"
         data-test="model-refresh"
         @click="loadProfilesForCurrentScope()"
       >
-        {{ loading ? t("common.loading") : t("common.refresh") }}
+        {{ refreshing ? t("common.loading") : t("common.refresh") }}
       </KxToolbarAction>
       <KxToolbarAction variant="primary" data-test="model-add-profile" @click="openAddDialog()">
         {{ t("models.addProfile") }}
