@@ -74,6 +74,12 @@
 - ✅ Improve search tool output with configurable context lines (#738)
 - ✅ Surface plugin permission hints, compatibility metadata, and trust metadata in marketplace flows (#718, #722, #723, #737)
 - ✅ Allow agent role overrides to include reasoning effort for capable models (#729)
+- ✅ Add autonomous task types, events, persistence, and checkpoint-driven task management (#907, #908, #909, #911, #912)
+- ✅ Add agent self-reflection / advisor with configurable review modes (#928)
+- ✅ Add trajectory recording with runtime auto-capture and GUI viewer (#901)
+- ✅ Add embeddable `agent-sdk` crate for programmatic runtime API (#925)
+- ✅ Add software update settings to GUI general settings (#882)
+- ✅ Enrich eval harness with regex matching, multi-turn scenarios, trajectory capture, and regression comparison (#881)
 
 ## Mid term
 

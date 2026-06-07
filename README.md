@@ -29,6 +29,7 @@ graph TD
     TUI["TUI (ratatui)"]
     GUI["GUI (Tauri + Vue)"]
     EVAL["agent-eval (kairox-eval)"]
+    SDK["agent-sdk"]
     CORE["agent-core"]
     RUNTIME["agent-runtime"]
     MODELS["agent-models"]
@@ -45,6 +46,7 @@ graph TD
     TUI --> CORE
     GUI --> CORE
     EVAL --> CORE
+    SDK --> CORE
     CORE --> RUNTIME
     RUNTIME --> MODELS
     RUNTIME --> TOOLS
@@ -77,6 +79,10 @@ graph TD
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, permission prompts, command palette, queue controls, and settings/marketplace overlays
 - **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, inline chat-stream permission/tool/compaction flow, per-session permission mode selection, model/agent/plugin/hook/instructions/skills settings, resizable workbench sidebars, and MCP marketplace UI
+- **Autonomous tasks** — checkpoint-driven autonomous task management with orientation, pause/resume/cancel, and GUI settings panel
+- **Advisor self-reflection** — configurable advisor layer that reviews tool calls before execution for safety and correctness
+- **Trajectory recording** — automatic session trajectory capture with runtime recording and GUI trajectory viewer
+- **Embeddable SDK** — `agent-sdk` crate exposing the Kairox runtime as a programmatic API for external harnesses, CI/CD pipelines, and custom UIs
 - **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI with aggregation `ci-success` job, branch-focused Rust/Vue coverage gates, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests
