@@ -70,6 +70,7 @@ async fn run_hooks_sends_event_payload_to_command_stdin() {
         }],
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     };
     let context = HookRunContext {
         event: agent_config::HookEvent::Stop,
@@ -108,6 +109,7 @@ async fn run_hooks_skips_when_feature_flag_disabled() {
         }],
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     };
     let context = HookRunContext {
         event: agent_config::HookEvent::Stop,

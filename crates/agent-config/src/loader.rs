@@ -40,6 +40,8 @@ struct ConfigToml {
     lsp_servers: toml::value::Table,
     #[serde(default)]
     dap_servers: toml::value::Table,
+    #[serde(default)]
+    advisor: Option<crate::AdvisorConfig>,
 }
 
 /// Parse a TOML string into a Config.
@@ -60,6 +62,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         hooks: parse_hooks(&config_toml.hooks, path_for_errors)?,
         lsp_servers: lsp::parse_lsp_servers(&config_toml.lsp_servers, path_for_errors)?,
         dap_servers: lsp::parse_dap_servers(&config_toml.dap_servers, path_for_errors)?,
+        advisor: config_toml.advisor.unwrap_or_default(),
     })
 }
 

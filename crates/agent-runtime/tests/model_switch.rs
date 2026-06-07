@@ -98,6 +98,7 @@ fn two_profile_config() -> Arc<Config> {
         hooks: vec![],
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     })
 }
 

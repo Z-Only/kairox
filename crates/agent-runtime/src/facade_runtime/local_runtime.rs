@@ -154,6 +154,7 @@ where
                 hooks: vec![],
                 lsp_servers: vec![],
                 dap_servers: vec![],
+                advisor: agent_config::AdvisorConfig::default(),
             })),
             ollama_clients: HashMap::new(),
             monitor_registry: None,

@@ -1,3 +1,4 @@
+pub mod advisor;
 pub mod agent_loop;
 pub mod agent_settings;
 pub mod agents;

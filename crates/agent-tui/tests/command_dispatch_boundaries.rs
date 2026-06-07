@@ -53,6 +53,7 @@ fn dispatch_test_config() -> Arc<Config> {
         hooks: Vec::new(),
         lsp_servers: Vec::new(),
         dap_servers: Vec::new(),
+        advisor: agent_config::AdvisorConfig::default(),
     })
 }
 

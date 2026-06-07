@@ -4,6 +4,55 @@ pub(crate) fn default_hooks_enabled() -> bool {
     true
 }
 
+/// Advisor (self-reflection) configuration. Loaded from the optional
+/// `[advisor]` table in `kairox.toml`.
+///
+/// Example:
+/// ```toml
+/// [advisor]
+/// mode = "lightweight"           # "off" | "lightweight" | "full"
+/// profile = "haiku"              # model profile alias for the advisor
+/// max_concerns = 5               # cap on reported concerns per review
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvisorConfig {
+    /// How aggressively the advisor reviews tool calls.
+    #[serde(default)]
+    pub mode: agent_core::AdvisorMode,
+    /// Model profile alias to use for advisor reviews. Falls back to the
+    /// session's currently active profile when unset. Use a cheaper/faster
+    /// model (e.g. Haiku) to keep latency and cost low.
+    #[serde(default)]
+    pub profile: Option<String>,
+    /// Maximum number of concerns the advisor should report per review.
+    #[serde(default = "default_max_concerns")]
+    pub max_concerns: usize,
+}
+
+fn default_max_concerns() -> usize {
+    5
+}
+
+impl Default for AdvisorConfig {
+    fn default() -> Self {
+        Self {
+            mode: agent_core::AdvisorMode::Off,
+            profile: None,
+            max_concerns: default_max_concerns(),
+        }
+    }
+}
+
+impl AdvisorConfig {
+    /// Returns `true` when every field matches the default values, meaning the
+    /// `[advisor]` table was likely omitted rather than explicitly set.
+    pub fn is_default(&self) -> bool {
+        self.mode == agent_core::AdvisorMode::Off
+            && self.profile.is_none()
+            && self.max_concerns == default_max_concerns()
+    }
+}
+
 /// Feature flags loaded from the optional top-level `[features]` table.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FeatureFlags {

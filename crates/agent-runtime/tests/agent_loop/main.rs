@@ -33,6 +33,7 @@ pub(crate) fn hook_test_config(hooks: Vec<agent_config::HookConfig>) -> Arc<agen
         hooks,
         lsp_servers: vec![],
         dap_servers: vec![],
+        advisor: agent_config::AdvisorConfig::default(),
     })
 }
 

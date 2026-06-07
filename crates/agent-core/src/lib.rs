@@ -1,4 +1,5 @@
 pub mod account;
+pub mod advisor;
 pub mod autonomous;
 pub mod build_info;
 pub mod config_scope;
@@ -16,6 +17,7 @@ pub mod trajectory;
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
 pub use account::{AccountService, AccountState, LocalNoAccountService};
+pub use advisor::{AdvisorConcern, AdvisorMode, AdvisorReview, AdvisorVerdict};
 pub use autonomous::{
     AutonomousConfig, AutonomousTaskGoal, AutonomousTaskState, Checkpoint, SessionEndReason,
     VerificationResult,

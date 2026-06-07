@@ -382,6 +382,97 @@ where
             break;
         }
 
+        // ── Advisor review (optional) ───────────────────────────────
+        let advisor_config = &deps.config.advisor;
+        if crate::advisor::should_review(advisor_config.mode, &tool_calls) {
+            let advisor_profile = advisor_config
+                .profile
+                .clone()
+                .unwrap_or_else(|| current_request.model_profile.clone());
+
+            let review_id = format!("adv_{}", uuid::Uuid::new_v4().simple());
+
+            // Emit AdvisorReviewStarted
+            let started_event = DomainEvent::new(
+                request.workspace_id.clone(),
+                request.session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::AdvisorReviewStarted {
+                    review_id: review_id.clone(),
+                    advisor_profile: advisor_profile.clone(),
+                    tool_call_count: tool_calls.len(),
+                    mode: advisor_config.mode,
+                },
+            );
+            let _ = append_and_broadcast(&**deps.store, deps.event_tx, &started_event).await;
+
+            if let Some(review) = crate::advisor::review_tool_calls(
+                &**deps.model,
+                &advisor_profile,
+                &tool_calls,
+                &assistant_text,
+                advisor_config.max_concerns,
+            )
+            .await
+            {
+                // Emit AdvisorReviewCompleted
+                let completed_event = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::FullTrace,
+                    EventPayload::AdvisorReviewCompleted {
+                        review_id: review_id.clone(),
+                        verdict: review.verdict.clone(),
+                        concern_count: review.concerns.len(),
+                        summary: review.summary.clone(),
+                    },
+                );
+                let _ = append_and_broadcast(&**deps.store, deps.event_tx, &completed_event).await;
+
+                // If the advisor rejects, emit a message and skip tool execution
+                if review.verdict == agent_core::AdvisorVerdict::Reject {
+                    let rejection_msg = format!(
+                        "[Advisor blocked tool execution]\n\n**Verdict**: Rejected\n**Summary**: {}\n\n**Concerns**:\n{}",
+                        review.summary,
+                        review.concerns.iter().map(|c| format!("- [{}] {}: {}", c.severity, c.tool_name, c.message)).collect::<Vec<_>>().join("\n")
+                    );
+                    let event = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::AssistantMessageCompleted {
+                            message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
+                            content: rejection_msg,
+                        },
+                    );
+                    append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+
+                    complete_root_task(
+                        &**deps.store,
+                        deps.event_tx,
+                        deps.task_graphs,
+                        request,
+                        &root_task_id,
+                    )
+                    .await;
+                    complete_trajectory(
+                        deps.trajectory_store,
+                        deps.store,
+                        deps.event_tx,
+                        request,
+                        &trajectory_id,
+                        &trajectory_step_counter,
+                        agent_core::TrajectoryOutcome::Failed,
+                    )
+                    .await;
+                    break;
+                }
+            }
+        }
+
         // Execute tool calls
         let tool_loop_result = super::execute_tool_calls(
             &tool_calls,
