@@ -528,7 +528,7 @@ describe("ModelSettingsPane", () => {
     await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
     await flushPromises();
 
-    expect(mockNotify).toHaveBeenCalledWith("success", "Model my-model is ready to chat.");
+    expect(mockNotify).toHaveBeenCalledWith("success", "my-model is ready to chat.");
   });
 
   it("shows quota and plan failures from profile chat probes", async () => {
@@ -551,7 +551,7 @@ describe("ModelSettingsPane", () => {
 
     expect(mockNotify).toHaveBeenCalledWith(
       "error",
-      "Model my-model endpoint is reachable, but chat is blocked by quota or plan limits."
+      "my-model is blocked by quota or plan limits."
     );
   });
 

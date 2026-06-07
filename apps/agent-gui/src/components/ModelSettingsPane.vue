@@ -237,11 +237,31 @@ function buildProfileInput(alias: string, enabled: boolean) {
   };
 }
 
-function connectivityMessage(
-  result: { message?: string | null; error?: string | null },
-  fallback: string
+const CONNECTIVITY_STATUS_KEYS: Record<string, string> = {
+  chat_ready: "models.testStatus_chat_ready",
+  endpoint_reachable: "models.testStatus_endpoint_reachable",
+  auth_failed: "models.testStatus_auth_failed",
+  quota_or_plan_blocked: "models.testStatus_quota_or_plan_blocked",
+  rate_limited: "models.testStatus_rate_limited",
+  permission_denied: "models.testStatus_permission_denied",
+  model_unavailable: "models.testStatus_model_unavailable",
+  server_error: "models.testStatus_server_error",
+  empty_response: "models.testStatus_empty_response",
+  request_failed: "models.testStatus_request_failed",
+  network_error: "models.testStatus_network_error",
+  invalid_config: "models.testStatus_invalid_config"
+};
+
+function localizeConnectivityResult(
+  result: { ok: boolean; status: string; error?: string | null; message?: string | null },
+  alias: string
 ): string {
-  return result.message || result.error || fallback;
+  const i18nKey = CONNECTIVITY_STATUS_KEYS[result.status];
+  const detail = result.error || result.message || "";
+  if (i18nKey) {
+    return t(i18nKey, { alias, detail });
+  }
+  return result.message || result.error || t("models.testFailed", { alias });
 }
 
 async function saveNewProfile(): Promise<void> {
@@ -262,15 +282,12 @@ async function testProfileConnectivity(profile: ProfileSettingsView): Promise<vo
   try {
     const result = await store.testModelConnectivity(profile.alias, projectRoot.value);
     if (result.status === "ok" && result.data.ok === true) {
-      notify(
-        "success",
-        connectivityMessage(result.data, t("models.testSuccess", { alias: profile.alias }))
-      );
+      notify("success", localizeConnectivityResult(result.data, profile.alias));
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
-          : connectivityMessage(result.data, t("models.testFailed", { alias: profile.alias }));
+          : localizeConnectivityResult(result.data, profile.alias);
       notify("error", msg);
     }
   } catch (caughtError) {
@@ -287,12 +304,12 @@ async function testFormConnectivity(): Promise<void> {
   try {
     const result = await store.testUrlConnectivity(url);
     if (result.status === "ok" && result.data.ok === true) {
-      notify("success", connectivityMessage(result.data, t("models.testSuccess", { alias: url })));
+      notify("success", localizeConnectivityResult(result.data, url));
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
-          : connectivityMessage(result.data, t("models.testFailed", { alias: url }));
+          : localizeConnectivityResult(result.data, url);
       notify("error", msg);
     }
   } catch (caughtError) {

@@ -28,10 +28,7 @@ impl OpenAiCompatibleClient {
         request: ModelRequest,
     ) -> Result<BoxStream<'static, Result<ModelEvent>>> {
         let body = self.build_chat_request(&request)?;
-        let url = format!(
-            "{}/chat/completions",
-            self.config.base_url.trim_end_matches('/')
-        );
+        let url = build_chat_completions_url(&self.config.base_url);
 
         let mut builder = self.http.post(&url).json(&body);
         if let Some(api_key) = self.config.api_key() {
@@ -73,3 +70,20 @@ impl crate::ModelClient for OpenAiCompatibleClient {
         self.send_streaming(request).await
     }
 }
+
+/// Build the chat completions URL from a base URL.
+///
+/// If `base_url` already ends with `/chat/completions` (with or without
+/// trailing slash), return it as-is instead of appending a duplicate suffix.
+fn build_chat_completions_url(base_url: &str) -> String {
+    let trimmed = base_url.trim_end_matches('/');
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}/chat/completions")
+    }
+}
+
+#[cfg(test)]
+#[path = "client_tests.rs"]
+mod tests;
