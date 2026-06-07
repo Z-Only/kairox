@@ -133,3 +133,7 @@ pub(crate) async fn cancel_task<S: EventStore>(
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "recovery_tests.rs"]
+mod tests;

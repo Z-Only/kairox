@@ -20,3 +20,7 @@ impl Default for DagConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "config_tests.rs"]
+mod tests;
