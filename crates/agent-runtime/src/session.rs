@@ -390,3 +390,7 @@ pub async fn get_task_graph(
         None => Ok(TaskGraphSnapshot::default()),
     }
 }
+
+#[cfg(test)]
+#[path = "session_tests.rs"]
+mod session_tests;
