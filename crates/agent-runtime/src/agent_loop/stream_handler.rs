@@ -222,3 +222,7 @@ async fn emit_model_request_failure<S: EventStore + 'static>(
     );
     let _ = append_and_broadcast(store, event_tx, &root_fail).await;
 }
+
+#[cfg(test)]
+#[path = "stream_handler_tests.rs"]
+mod tests;
