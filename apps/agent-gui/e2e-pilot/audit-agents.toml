@@ -167,12 +167,16 @@ script = """
   const text = row?.textContent ?? "";
   for (const expected of [
     "Project",
-    "Disabled",
+    ["Disabled", "已禁用"],
     "Project-scoped pilot audit agent.",
     "fast",
     "fs.read, shell",
   ]) {
-    if (!text.includes(expected)) {
+    if (Array.isArray(expected)) {
+      if (!expected.some(function (e) { return text.includes(e); })) {
+        throw new Error("project pilot agent row missing " + expected.join("/") + ": " + text);
+      }
+    } else if (!text.includes(expected)) {
       throw new Error(`project pilot agent row missing ${expected}: ${text}`);
     }
   }

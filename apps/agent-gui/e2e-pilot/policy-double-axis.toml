@@ -26,7 +26,7 @@ script = """
   const trigger = document.querySelector("[data-test='chat-approval-trigger']");
   if (!trigger) throw new Error("approval trigger missing");
   const text = (trigger.textContent || "").trim();
-  const valid = ["Never", "On Request", "Always"];
+  const valid = ["Never", "On Request", "Always", "从不", "按需", "总是"];
   if (!valid.some(function (v) { return text.indexOf(v) !== -1; })) {
     throw new Error("approval trigger has unexpected label: " + text);
   }
@@ -42,7 +42,7 @@ script = """
   const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
   if (!trigger) throw new Error("sandbox trigger missing");
   const text = (trigger.textContent || "").trim();
-  const valid = ["Read Only", "Workspace Write", "Danger Full Access"];
+  const valid = ["Read Only", "Workspace Write", "Danger Full Access", "只读", "工作区写入", "完全访问（危险）"];
   if (!valid.some(function (v) { return text.indexOf(v) !== -1; })) {
     throw new Error("sandbox trigger has unexpected label: " + text);
   }
@@ -68,10 +68,10 @@ script = """
   for (let i = 0; i < 100; i++) {
     const t = document.querySelector("[data-test='chat-approval-trigger']");
     const text = t ? (t.textContent || "").trim() : "";
-    if (text.indexOf("On Request") !== -1) return text;
+    if (text.indexOf("On Request") !== -1 || text.indexOf("按需") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
-  throw new Error("approval did not normalize to On Request");
+  throw new Error("approval did not normalize to On Request / 按需");
 })()
 """
 
@@ -93,10 +93,10 @@ script = """
   for (let i = 0; i < 100; i++) {
     const t = document.querySelector("[data-test='chat-sandbox-trigger']");
     const text = t ? (t.textContent || "").trim() : "";
-    if (text.indexOf("Workspace Write") !== -1) return text;
+    if (text.indexOf("Workspace Write") !== -1 || text.indexOf("工作区写入") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
-  throw new Error("sandbox did not normalize to Workspace Write");
+  throw new Error("sandbox did not normalize to Workspace Write / 工作区写入");
 })()
 """
 
@@ -133,11 +133,11 @@ script = """
   for (let i = 0; i < 100; i++) {
     const trigger = document.querySelector("[data-test='chat-approval-trigger']");
     const text = trigger ? (trigger.textContent || "").trim() : "";
-    if (text.indexOf("Always") !== -1) return text;
+    if (text.indexOf("Always") !== -1 || text.indexOf("总是") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
   const trigger = document.querySelector("[data-test='chat-approval-trigger']");
-  throw new Error("approval trigger did not update to Always: " + (trigger ? trigger.textContent : ""));
+  throw new Error("approval trigger did not update to Always / 总是: " + (trigger ? trigger.textContent : ""));
 })()
 """
 
@@ -187,11 +187,11 @@ script = """
   for (let i = 0; i < 100; i++) {
     const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
     const text = trigger ? (trigger.textContent || "").trim() : "";
-    if (text.indexOf("Read Only") !== -1) return text;
+    if (text.indexOf("Read Only") !== -1 || text.indexOf("只读") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
   const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
-  throw new Error("sandbox trigger did not update to Read Only: " + (trigger ? trigger.textContent : ""));
+  throw new Error("sandbox trigger did not update to Read Only / 只读: " + (trigger ? trigger.textContent : ""));
 })()
 """
 
@@ -215,7 +215,7 @@ script = """
 (() => {
   const trigger = document.querySelector("[data-test='chat-approval-trigger']");
   const text = trigger ? (trigger.textContent || "").trim() : "";
-  if (text.indexOf("Always") === -1) {
+  if (text.indexOf("Always") === -1 && text.indexOf("总是") === -1) {
     throw new Error("approval axis polluted by sandbox switch: " + text);
   }
   return "approval still Always";
@@ -240,10 +240,10 @@ script = """
   for (let i = 0; i < 100; i++) {
     const t = document.querySelector("[data-test='chat-approval-trigger']");
     const text = t ? (t.textContent || "").trim() : "";
-    if (text.indexOf("On Request") !== -1) return text;
+    if (text.indexOf("On Request") !== -1 || text.indexOf("按需") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
-  throw new Error("approval did not return to On Request");
+  throw new Error("approval did not return to On Request / 按需");
 })()
 """
 
@@ -265,9 +265,9 @@ script = """
   for (let i = 0; i < 100; i++) {
     const t = document.querySelector("[data-test='chat-sandbox-trigger']");
     const text = t ? (t.textContent || "").trim() : "";
-    if (text.indexOf("Workspace Write") !== -1) return text;
+    if (text.indexOf("Workspace Write") !== -1 || text.indexOf("工作区写入") !== -1) return text;
     await new Promise(function (r) { setTimeout(r, 100); });
   }
-  throw new Error("sandbox did not return to Workspace Write");
+  throw new Error("sandbox did not return to Workspace Write / 工作区写入");
 })()
 """
