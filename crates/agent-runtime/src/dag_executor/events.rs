@@ -172,3 +172,7 @@ impl<S: EventStore> EventEmitter<S> {
         append_and_broadcast(&*self.store, &self.event_tx, &event).await
     }
 }
+
+#[cfg(test)]
+#[path = "events_tests.rs"]
+mod tests;
