@@ -22,6 +22,20 @@ fn make_invocation(args: serde_json::Value) -> ToolInvocation {
     }
 }
 
+/// Check whether Node.js + Playwright are available for integration tests.
+fn playwright_available() -> bool {
+    std::process::Command::new("node")
+        .arg("-e")
+        .arg("try { require('playwright'); } catch { process.exit(1); }")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+// --- Unit tests (no Node.js required) ---
+
 #[test]
 fn definition_has_correct_tool_id() {
     let tool = make_tool();
@@ -43,59 +57,8 @@ fn risk_returns_browser_interact() {
 }
 
 #[tokio::test]
-async fn invoke_multiple_actions_succeeds() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "actions": [
-            {"action": "navigate", "url": "https://example.com"},
-            {"action": "click", "selector": "#button"},
-            {"action": "type", "selector": "#input", "text": "hello"}
-        ]
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(!output.truncated);
-    assert!(output.text.contains("\"succeeded\": 3"));
-    assert!(output.text.contains("\"failed\": 0"));
-    assert!(output.text.contains("\"total\": 3"));
-}
-
-#[tokio::test]
-async fn invoke_stop_on_error_true_stops_at_first_failure() {
-    let tool = make_tool();
-    // Close the browser first, then try an action that would fail
-    // Since PlaywrightManager simulates success for all actions, we test
-    // that stop_on_error=true works by verifying the structure.
-    let invocation = make_invocation(serde_json::json!({
-        "actions": [
-            {"action": "navigate", "url": "https://example.com"},
-            {"action": "click", "selector": "#button"}
-        ],
-        "stop_on_error": true
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    // All succeed with simulated backend
-    assert!(output.text.contains("\"succeeded\": 2"));
-    assert!(output.text.contains("\"total\": 2"));
-}
-
-#[tokio::test]
-async fn invoke_stop_on_error_false_continues_past_failure() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "actions": [
-            {"action": "navigate", "url": "https://example.com"},
-            {"action": "click", "selector": "#button"},
-            {"action": "get_state"}
-        ],
-        "stop_on_error": false
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("\"total\": 3"));
-    assert!(output.text.contains("\"succeeded\": 3"));
-}
-
-#[tokio::test]
 async fn invoke_empty_actions_array() {
+    // Empty array doesn't trigger the bridge, so works without Playwright
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "actions": []
@@ -130,4 +93,55 @@ async fn invoke_missing_actions_returns_error() {
     assert!(err
         .to_string()
         .contains("Missing or invalid 'actions' array"));
+}
+
+// --- Integration tests (require Node.js + Playwright) ---
+
+#[tokio::test]
+async fn invoke_multiple_actions_real() {
+    if !playwright_available() {
+        eprintln!("Skipping: Playwright not available");
+        return;
+    }
+    let manager = Arc::new(PlaywrightManager::new(std::env::temp_dir()));
+    let tool = BrowserBatchTool::new(manager.clone());
+    let invocation = make_invocation(serde_json::json!({
+        "actions": [
+            {"action": "navigate", "url": "https://example.com"},
+            {"action": "get_state"},
+            {"action": "screenshot"}
+        ]
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(!output.truncated);
+    assert!(output.text.contains("\"succeeded\": 3"));
+    assert!(output.text.contains("\"failed\": 0"));
+    assert!(output.text.contains("\"total\": 3"));
+
+    manager.shutdown().await;
+}
+
+#[tokio::test]
+async fn invoke_batch_stop_on_error_with_bad_selector() {
+    if !playwright_available() {
+        eprintln!("Skipping: Playwright not available");
+        return;
+    }
+    let manager = Arc::new(PlaywrightManager::new(std::env::temp_dir()));
+    let tool = BrowserBatchTool::new(manager.clone());
+    // Navigate, then click a nonexistent selector (will fail with timeout)
+    let invocation = make_invocation(serde_json::json!({
+        "actions": [
+            {"action": "navigate", "url": "https://example.com"},
+            {"action": "click", "selector": "#definitely-does-not-exist-xyz"},
+            {"action": "get_state"}
+        ],
+        "stop_on_error": true
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    // First action succeeds, second fails, third is skipped
+    assert!(output.text.contains("\"succeeded\": 1"));
+    assert!(output.text.contains("\"total\": 2")); // stopped at index 1
+
+    manager.shutdown().await;
 }
