@@ -12,6 +12,7 @@ use std::sync::Arc;
 use agent_tools::{Tool, ToolDefinition, ToolInvocation, ToolOutput};
 use async_trait::async_trait;
 
+mod advisor;
 mod errors;
 mod hooks;
 mod subscriptions;
