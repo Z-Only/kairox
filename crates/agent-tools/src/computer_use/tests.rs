@@ -27,6 +27,12 @@ fn display_available() -> bool {
         .unwrap_or(false)
 }
 
+/// Check whether an input controller (enigo) can be initialized.
+/// On headless CI this will fail (no display server).
+fn input_controller_available() -> bool {
+    enigo::Enigo::new(&enigo::Settings::default()).is_ok()
+}
+
 // --- Unit tests (no display required) ---
 
 #[test]
@@ -77,99 +83,85 @@ fn definition_schema_has_all_action_variants() {
     }
 }
 
-#[tokio::test]
-async fn invoke_mouse_move_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "mouse_move",
-        "x": 500,
-        "y": 300
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Mouse moved to (500, 300)"));
-    assert!(output.text.contains("simulated"));
-    assert!(output.text.contains("\"success\": true"));
+// --- Key combination parser unit tests ---
+
+#[test]
+fn parse_key_combination_single_char() {
+    use super::platform::parse_key_combination;
+    let (mods, key) = parse_key_combination("a").unwrap();
+    assert!(mods.is_empty());
+    assert_eq!(key, enigo::Key::Unicode('a'));
 }
 
-#[tokio::test]
-async fn invoke_mouse_click_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "mouse_click",
-        "x": 100,
-        "y": 200,
-        "button": "right",
-        "click_count": 2
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("right click (2) at (100, 200)"));
-    assert!(output.text.contains("simulated"));
+#[test]
+fn parse_key_combination_modifier_plus_char() {
+    use super::platform::parse_key_combination;
+    let (mods, key) = parse_key_combination("cmd+c").unwrap();
+    assert_eq!(mods.len(), 1);
+    assert_eq!(mods[0], enigo::Key::Meta);
+    assert_eq!(key, enigo::Key::Unicode('c'));
 }
 
-#[tokio::test]
-async fn invoke_mouse_click_defaults_to_current_position() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "mouse_click"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("left click (1) at current position"));
+#[test]
+fn parse_key_combination_multi_modifier() {
+    use super::platform::parse_key_combination;
+    let (mods, key) = parse_key_combination("ctrl+shift+a").unwrap();
+    assert_eq!(mods.len(), 2);
+    assert_eq!(mods[0], enigo::Key::Control);
+    assert_eq!(mods[1], enigo::Key::Shift);
+    assert_eq!(key, enigo::Key::Unicode('a'));
 }
 
-#[tokio::test]
-async fn invoke_mouse_drag_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "mouse_drag",
-        "from_x": 10,
-        "from_y": 20,
-        "to_x": 300,
-        "to_y": 400
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Dragged from (10, 20) to (300, 400)"));
-    assert!(output.text.contains("simulated"));
+#[test]
+fn parse_key_combination_special_keys() {
+    use super::platform::parse_key_combination;
+    let (mods, key) = parse_key_combination("enter").unwrap();
+    assert!(mods.is_empty());
+    assert_eq!(key, enigo::Key::Return);
+
+    let (mods2, key2) = parse_key_combination("ctrl+tab").unwrap();
+    assert_eq!(mods2.len(), 1);
+    assert_eq!(key2, enigo::Key::Tab);
 }
 
-#[tokio::test]
-async fn invoke_keyboard_type_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "keyboard_type",
-        "text": "hello world"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Typed 11 characters"));
-    assert!(output.text.contains("simulated"));
-    assert!(output.text.contains("\"success\": true"));
+#[test]
+fn parse_key_combination_unknown_key_error() {
+    use super::platform::parse_key_combination;
+    let result = parse_key_combination("cmd+nonexistent");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("Unknown key"));
 }
 
-#[tokio::test]
-async fn invoke_key_press_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "key_press",
-        "keys": "cmd+c"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Pressed keys: cmd+c"));
-    assert!(output.text.contains("simulated"));
+#[test]
+fn parse_key_combination_empty_error() {
+    use super::platform::parse_key_combination;
+    let result = parse_key_combination("");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("Empty key combination"));
 }
 
-#[tokio::test]
-async fn invoke_scroll_at_coordinates_simulated() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "scroll",
-        "x": 50,
-        "y": 75,
-        "direction": "down",
-        "amount": 480
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Scrolled down by 480 at (50, 75)"));
-    assert!(output.text.contains("simulated"));
+// --- Mouse button parser tests ---
+
+#[test]
+fn parse_mouse_button_left() {
+    use super::platform::parse_mouse_button;
+    assert_eq!(parse_mouse_button(None), enigo::Button::Left);
+    assert_eq!(parse_mouse_button(Some("left")), enigo::Button::Left);
 }
+
+#[test]
+fn parse_mouse_button_right() {
+    use super::platform::parse_mouse_button;
+    assert_eq!(parse_mouse_button(Some("right")), enigo::Button::Right);
+}
+
+#[test]
+fn parse_mouse_button_middle() {
+    use super::platform::parse_mouse_button;
+    assert_eq!(parse_mouse_button(Some("middle")), enigo::Button::Middle);
+}
+
+// --- Wait and invalid action tests ---
 
 #[tokio::test]
 async fn invoke_wait_caps_duration() {
@@ -211,7 +203,6 @@ async fn invoke_screenshot_real() {
     assert!(output.text.contains("Full screen screenshot captured"));
     assert!(output.text.contains("\"success\": true"));
 
-    // Verify the screenshot is real base64 PNG data, not a placeholder
     let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
     let screenshot = result["screenshot"].as_str().unwrap_or("");
     assert!(
@@ -261,7 +252,6 @@ async fn invoke_get_screen_size_real() {
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("\"success\": true"));
 
-    // Real screen size should be reasonable (not the old hardcoded 1920x1080)
     let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
     let width = result["screen_size"]["width"].as_u64().unwrap_or(0);
     let height = result["screen_size"]["height"].as_u64().unwrap_or(0);
@@ -269,17 +259,111 @@ async fn invoke_get_screen_size_real() {
     assert!(height > 0, "Screen height should be positive");
 }
 
+// --- Input control integration tests (require input controller) ---
+
 #[tokio::test]
-async fn invoke_get_cursor_position() {
+async fn invoke_mouse_move_real() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "mouse_move",
+        "x": 500,
+        "y": 300
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Mouse moved to (500, 300)"));
+    assert!(!output.text.contains("simulated"));
+}
+
+#[tokio::test]
+async fn invoke_mouse_click_real() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "mouse_click",
+        "x": 100,
+        "y": 200,
+        "button": "left",
+        "click_count": 1
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("left click (1) at (100, 200)"));
+    assert!(!output.text.contains("simulated"));
+}
+
+#[tokio::test]
+async fn invoke_get_cursor_position_real() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "get_cursor_position"
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("\"success\": true"));
-    // Currently simulated, so just verify structure
     let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
     assert!(result["cursor_position"].is_object());
+    assert!(result["cursor_position"]["x"].is_number());
+    assert!(result["cursor_position"]["y"].is_number());
+}
+
+#[tokio::test]
+async fn invoke_scroll_real() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "scroll",
+        "direction": "down",
+        "amount": 3
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Scrolled down by 3"));
+    assert!(!output.text.contains("simulated"));
+}
+
+#[tokio::test]
+async fn invoke_keyboard_type_real() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "keyboard_type",
+        "text": ""
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Typed 0 characters"));
+    assert!(!output.text.contains("simulated"));
+}
+
+#[tokio::test]
+async fn invoke_scroll_invalid_direction_error() {
+    if !input_controller_available() {
+        eprintln!("Skipping: no input controller available");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "scroll",
+        "direction": "diagonal",
+        "amount": 5
+    }));
+    let result = tool.invoke(invocation).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Invalid scroll direction"));
 }
 
 #[test]
