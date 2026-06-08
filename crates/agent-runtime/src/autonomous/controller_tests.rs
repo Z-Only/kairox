@@ -1,6 +1,8 @@
 use agent_core::autonomous::{AutonomousConfig, AutonomousTaskGoal};
-use agent_core::{SessionId, WorkspaceId};
-use agent_store::{SqliteAutonomousTaskStore, SqliteEventStore};
+use agent_core::{
+    AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId, WorkspaceId,
+};
+use agent_store::{EventStore, SqliteAutonomousTaskStore, SqliteEventStore};
 use std::sync::Arc;
 
 use super::*;
@@ -136,4 +138,299 @@ async fn register_continuation_session_increments_count() {
         .await
         .unwrap();
     assert_eq!(chain.len(), 2);
+}
+
+// ── on_session_ended branches ───────────────────────────────────────
+
+/// Helper: emit a domain event into the store for the given session.
+async fn emit_event(
+    store: &SqliteEventStore,
+    workspace_id: &WorkspaceId,
+    session_id: &SessionId,
+    payload: EventPayload,
+) {
+    let event = DomainEvent::new(
+        workspace_id.clone(),
+        session_id.clone(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        payload,
+    );
+    store.append(&event).await.unwrap();
+}
+
+/// Helper: start a task and seed the session with a SessionInitialized event
+/// so load_session returns a non-empty vec.
+async fn start_task_with_session(
+    controller: &AutonomousController<SqliteEventStore>,
+    store: &SqliteEventStore,
+    workspace_id: &WorkspaceId,
+    session_id: &SessionId,
+    config: AutonomousConfig,
+) -> AutonomousTaskId {
+    emit_event(
+        store,
+        workspace_id,
+        session_id,
+        EventPayload::SessionInitialized {
+            model_profile: "test".into(),
+        },
+    )
+    .await;
+
+    controller
+        .start_autonomous_task(workspace_id, session_id, sample_goal(), config)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn on_session_ended_task_completed_returns_none_and_marks_completed() {
+    let (controller, store, auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    let task_id = start_task_with_session(
+        &controller,
+        &store,
+        &workspace_id,
+        &session_id,
+        Default::default(),
+    )
+    .await;
+
+    // Seed a TaskCompleted event so detect_end_reason returns TaskCompleted
+    let root_task = TaskId::new();
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::AgentTaskCompleted { task_id: root_task },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    assert!(result.is_none(), "TaskCompleted should return None");
+
+    let row = auto_store
+        .get_autonomous_task(task_id.as_str())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "completed");
+}
+
+#[tokio::test]
+async fn on_session_ended_task_failed_returns_none_and_marks_failed() {
+    let (controller, store, auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    let task_id = start_task_with_session(
+        &controller,
+        &store,
+        &workspace_id,
+        &session_id,
+        Default::default(),
+    )
+    .await;
+
+    let root_task = TaskId::new();
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::AgentTaskFailed {
+            task_id: root_task,
+            error: "compilation error".into(),
+        },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    assert!(result.is_none(), "TaskFailed should return None");
+
+    let row = auto_store
+        .get_autonomous_task(task_id.as_str())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "failed");
+}
+
+#[tokio::test]
+async fn on_session_ended_user_paused_returns_none_and_marks_paused() {
+    let (controller, store, auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    let task_id = start_task_with_session(
+        &controller,
+        &store,
+        &workspace_id,
+        &session_id,
+        Default::default(),
+    )
+    .await;
+
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::SessionCancelled {
+            reason: "user paused".into(),
+        },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    assert!(result.is_none(), "UserPaused should return None");
+
+    let row = auto_store
+        .get_autonomous_task(task_id.as_str())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "paused");
+}
+
+#[tokio::test]
+async fn on_session_ended_max_iterations_without_auto_continue_pauses() {
+    let (controller, store, auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    let config = AutonomousConfig {
+        auto_continue: false,
+        max_sessions: 5,
+        verification_required: false,
+        git_checkpoint: false,
+    };
+    let task_id =
+        start_task_with_session(&controller, &store, &workspace_id, &session_id, config).await;
+
+    let root_task = TaskId::new();
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::AgentTaskFailed {
+            task_id: root_task,
+            error: "max iterations exceeded".into(),
+        },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    assert!(
+        result.is_none(),
+        "MaxIterations without auto_continue should return None (pause)"
+    );
+
+    let row = auto_store
+        .get_autonomous_task(task_id.as_str())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "paused");
+}
+
+#[tokio::test]
+async fn on_session_ended_max_iterations_with_auto_continue_returns_continuation() {
+    let (controller, store, _auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    let config = AutonomousConfig {
+        auto_continue: true,
+        max_sessions: 5,
+        verification_required: false,
+        git_checkpoint: false,
+    };
+    let task_id =
+        start_task_with_session(&controller, &store, &workspace_id, &session_id, config).await;
+
+    let root_task = TaskId::new();
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::AgentTaskFailed {
+            task_id: root_task,
+            error: "max iterations exceeded".into(),
+        },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    let action = result.expect("should return ContinuationAction");
+    assert_eq!(action.session_index, 1);
+    assert!(!action.orientation_prompt.is_empty());
+    assert_eq!(action.goal.description, "Build feature");
+}
+
+#[tokio::test]
+async fn on_session_ended_max_sessions_reached_fails() {
+    let (controller, store, auto_store) = setup().await;
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    // max_sessions = 1 means we're already at the limit after the first session
+    let config = AutonomousConfig {
+        auto_continue: true,
+        max_sessions: 1,
+        verification_required: false,
+        git_checkpoint: false,
+    };
+    let task_id =
+        start_task_with_session(&controller, &store, &workspace_id, &session_id, config).await;
+
+    let root_task = TaskId::new();
+    emit_event(
+        &store,
+        &workspace_id,
+        &session_id,
+        EventPayload::AgentTaskFailed {
+            task_id: root_task,
+            error: "max iterations exceeded".into(),
+        },
+    )
+    .await;
+
+    let result = controller
+        .on_session_ended(&workspace_id, &session_id, &task_id)
+        .await
+        .unwrap();
+
+    assert!(
+        result.is_none(),
+        "should return None when max_sessions reached"
+    );
+
+    let row = auto_store
+        .get_autonomous_task(task_id.as_str())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "failed");
 }

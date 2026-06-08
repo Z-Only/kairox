@@ -60,3 +60,59 @@ fn falls_back_to_fake_when_no_initialization_event() {
     let events: Vec<DomainEvent> = vec![];
     assert_eq!(latest_model_profile_for(&events), "fake");
 }
+
+// ── latest_model_reasoning_effort_for ───────────────────────────────
+
+use super::latest_model_reasoning_effort_for;
+
+fn switch_event_with_effort(from: &str, to: &str, effort: Option<&str>) -> DomainEvent {
+    DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        EventPayload::ModelProfileSwitched {
+            from_profile: from.into(),
+            to_profile: to.into(),
+            reasoning_effort: effort.map(String::from),
+            effective_at: chrono::Utc::now(),
+            context_window: 0,
+            output_limit: 0,
+            limit_source: "fallback".into(),
+        },
+    )
+}
+
+#[test]
+fn reasoning_effort_returns_none_when_no_switch_events() {
+    let events = vec![init_event("fast")];
+    assert_eq!(latest_model_reasoning_effort_for(&events), None);
+}
+
+#[test]
+fn reasoning_effort_returns_none_when_switch_has_no_effort() {
+    let events = vec![
+        init_event("fast"),
+        switch_event_with_effort("fast", "opus", None),
+    ];
+    assert_eq!(latest_model_reasoning_effort_for(&events), None);
+}
+
+#[test]
+fn reasoning_effort_returns_latest_effort_value() {
+    let events = vec![
+        init_event("fast"),
+        switch_event_with_effort("fast", "opus", Some("medium")),
+        switch_event_with_effort("opus", "sonnet", Some("high")),
+    ];
+    assert_eq!(
+        latest_model_reasoning_effort_for(&events),
+        Some("high".to_string())
+    );
+}
+
+#[test]
+fn reasoning_effort_returns_empty_events() {
+    let events: Vec<DomainEvent> = vec![];
+    assert_eq!(latest_model_reasoning_effort_for(&events), None);
+}
