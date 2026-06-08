@@ -65,73 +65,76 @@ const roleClass: Record<ProjectedRole, string> = {
     ></div>
     <!-- eslint-enable vue/no-v-html -->
     <template v-else>
-      <div class="user-message-actions">
-        <button class="action-btn" :title="copiedRecently ? 'Copied!' : 'Copy'" @click="handleCopy">
-          <!-- checkmark icon -->
-          <svg
-            v-if="copiedRecently"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      <div class="user-message-wrapper">
+        <div class="user-message-actions">
+          <button
+            class="action-btn"
+            :title="copiedRecently ? 'Copied!' : 'Copy'"
+            @click="handleCopy"
           >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <!-- copy icon -->
-          <svg
-            v-else
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-        </button>
-        <button class="action-btn" title="Edit" @click="handleEdit">
-          <!-- pencil / edit icon -->
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
-          </svg>
-        </button>
+            <svg
+              v-if="copiedRecently"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <svg
+              v-else
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+          <button class="action-btn" title="Edit" @click="handleEdit">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
+          </button>
+        </div>
+        <span class="message-content">{{ props.content }}</span>
       </div>
-      <span class="message-content">{{ props.content }}</span>
     </template>
   </div>
 </template>
 
 <style scoped>
 /* ── User message action buttons ── */
-.message-user {
-  position: relative;
+.user-message-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(760px, 100%);
 }
 
 .user-message-actions {
-  position: absolute;
-  left: -36px;
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 4px;
   opacity: 0;
   transition: opacity 0.15s ease;

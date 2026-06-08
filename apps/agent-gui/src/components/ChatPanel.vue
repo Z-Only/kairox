@@ -29,20 +29,20 @@ function handleMessageEdit(content: string) {
 }
 
 // === Sticky pinned user message ==========================================
-// When the most recent user message scrolls above the visible area,
-// show it as a compact sticky header so the user always knows what
-// prompt is being answered.
+// When a user message scrolls above the visible area and no later user
+// message is yet visible, pin that message as a compact sticky header so
+// the user always knows what prompt is being answered.
 const pinnedUserMessage = ref<string | null>(null);
 let userMessageObserver: IntersectionObserver | null = null;
 const userMessageElements = new Map<string, HTMLElement>();
+const visibleUserMessageIds = ref<Set<string>>(new Set());
 
-const lastUserMessage = computed<ChatMessageStreamItem | null>(() => {
-  for (let i = chatStream.value.length - 1; i >= 0; i--) {
-    const item = chatStream.value[i];
-    if (item.kind === "message" && item.role === "user") return item;
-  }
-  return null;
-});
+/** All user messages in stream order. */
+const allUserMessages = computed<ChatMessageStreamItem[]>(() =>
+  chatStream.value.filter(
+    (item): item is ChatMessageStreamItem => item.kind === "message" && item.role === "user"
+  )
+);
 
 function bindUserMessageRef(id: string, el: Element | ComponentPublicInstance | null) {
   let domEl: HTMLElement | null = null;
@@ -65,21 +65,57 @@ function bindUserMessageRef(id: string, el: Element | ComponentPublicInstance | 
   }
 }
 
+/** Recompute which user message should be pinned based on visibility. */
+function recomputePinnedMessage() {
+  const messages = allUserMessages.value;
+  const visible = visibleUserMessageIds.value;
+  if (messages.length === 0) {
+    pinnedUserMessage.value = null;
+    return;
+  }
+  // Walk messages from last to first. Find the latest user message that
+  // has scrolled out of the viewport (not visible) and has no later
+  // visible user message following it.
+  // If any user message is currently visible, pin nothing — the user can
+  // already see the prompt context.
+  // If no user message is visible, pin the last one that was sent (the
+  // most recent prompt the model is responding to).
+  let lastInvisibleBeforeVisible: ChatMessageStreamItem | null = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (visible.has(msg.id)) {
+      // A visible user message exists — if there's an invisible one
+      // right before it (above it, scrolled out of top), pin that one.
+      // Otherwise pin nothing.
+      pinnedUserMessage.value = lastInvisibleBeforeVisible?.content ?? null;
+      return;
+    }
+    lastInvisibleBeforeVisible = msg;
+  }
+  // No user message is visible at all — pin the last one (most recent).
+  pinnedUserMessage.value = messages[messages.length - 1]?.content ?? null;
+}
+
 function setupUserMessageObserver() {
   if (typeof IntersectionObserver === "undefined") return;
   userMessageObserver = new IntersectionObserver(
     (entries) => {
+      const next = new Set(visibleUserMessageIds.value);
       for (const entry of entries) {
-        const lastMsg = lastUserMessage.value;
-        if (!lastMsg) {
-          pinnedUserMessage.value = null;
-          continue;
+        // Find the message id for this observed element
+        let matchedId: string | null = null;
+        for (const [id, el] of userMessageElements) {
+          if (el === entry.target) {
+            matchedId = id;
+            break;
+          }
         }
-        const targetEl = userMessageElements.get(lastMsg.id);
-        if (entry.target === targetEl) {
-          pinnedUserMessage.value = entry.isIntersecting ? null : lastMsg.content;
-        }
+        if (!matchedId) continue;
+        if (entry.isIntersecting) next.add(matchedId);
+        else next.delete(matchedId);
       }
+      visibleUserMessageIds.value = next;
+      recomputePinnedMessage();
     },
     { root: scrollbar.value, threshold: 0.01 }
   );

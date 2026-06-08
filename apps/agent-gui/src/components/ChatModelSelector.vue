@@ -55,8 +55,26 @@ const reasoningOptions = computed(() => {
   return options;
 });
 
+/** Display names that appear more than once across all model options. */
+const duplicateDisplayNames = computed(() => {
+  const counts = new Map<string, number>();
+  for (const profile of props.modelOptions) {
+    const display = formatProfileDisplay(profile);
+    counts.set(display, (counts.get(display) ?? 0) + 1);
+  }
+  const duplicates = new Set<string>();
+  for (const [display, count] of counts) {
+    if (count > 1) duplicates.add(display);
+  }
+  return duplicates;
+});
+
 function getModelOptionDisplay(profile: ProfileInfo): string {
-  return formatProfileDisplay(profile);
+  const display = formatProfileDisplay(profile);
+  if (duplicateDisplayNames.value.has(display)) {
+    return `${display} (${profile.alias})`;
+  }
+  return display;
 }
 
 function onModelHover(profile: ProfileInfo) {
