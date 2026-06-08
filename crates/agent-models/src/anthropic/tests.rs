@@ -1126,3 +1126,103 @@ fn web_search_without_domain_filters_omits_optional_fields() {
     assert!(tools[0]["blocked_domains"].is_null());
     assert!(tools[0]["user_location"].is_null());
 }
+
+#[test]
+fn tool_result_with_screenshot_data_uri_becomes_multimodal() {
+    let config = test_config("https://api.anthropic.com".into(), "ANTHROPIC_API_KEY");
+    let client = AnthropicClient::new(config);
+
+    let request = ModelRequest::user_text("fast", "take a screenshot")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "call_ss".into(),
+                name: "computer_use".into(),
+                arguments: serde_json::json!({"action": "screenshot"}),
+            }],
+        )
+        .add_tool_result(
+            "call_ss",
+            "success: true\nscreenshot:\n![screenshot](data:image/png;base64,AQIDBA==)",
+        );
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    // Find the user message containing tool_result
+    let tool_result_msg = messages
+        .iter()
+        .find(|m| {
+            m["content"]
+                .as_array()
+                .is_some_and(|blocks| blocks.iter().any(|b| b["type"] == "tool_result"))
+        })
+        .expect("should have a tool_result message");
+
+    let tool_result_block = tool_result_msg["content"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["type"] == "tool_result")
+        .unwrap();
+
+    // The content of the tool_result should be a multimodal array
+    let content = tool_result_block["content"]
+        .as_array()
+        .expect("tool_result content should be a multimodal array");
+
+    let has_text = content.iter().any(|p| p["type"] == "text");
+    let has_image = content.iter().any(|p| p["type"] == "image");
+    assert!(has_text, "should have a text content part");
+    assert!(has_image, "should have an image content part");
+
+    // The image source should contain the base64 data
+    let image_part = content.iter().find(|p| p["type"] == "image").unwrap();
+    assert_eq!(image_part["source"]["type"], "base64");
+    assert_eq!(image_part["source"]["media_type"], "image/png");
+    assert_eq!(image_part["source"]["data"], "AQIDBA==");
+}
+
+#[test]
+fn tool_result_without_images_stays_plain_string() {
+    let config = test_config("https://api.anthropic.com".into(), "ANTHROPIC_API_KEY");
+    let client = AnthropicClient::new(config);
+
+    let request = ModelRequest::user_text("fast", "run ls")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "call_ls".into(),
+                name: "shell_exec".into(),
+                arguments: serde_json::json!({"command": "ls"}),
+            }],
+        )
+        .add_tool_result("call_ls", "file1.txt\nfile2.rs");
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    let tool_result_msg = messages
+        .iter()
+        .find(|m| {
+            m["content"]
+                .as_array()
+                .is_some_and(|blocks| blocks.iter().any(|b| b["type"] == "tool_result"))
+        })
+        .expect("should have a tool_result message");
+
+    let tool_result_block = tool_result_msg["content"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["type"] == "tool_result")
+        .unwrap();
+
+    // Content should be a plain string, not an array
+    assert!(
+        tool_result_block["content"].is_string(),
+        "tool result without images should be a plain string"
+    );
+}

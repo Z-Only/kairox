@@ -182,6 +182,10 @@ where
                 user_request: request.content.clone(),
                 session_history,
                 tool_definitions: tool_definitions.clone(),
+                // Keep the 5 most recent images and drop older ones so that
+                // multi-turn screenshot conversations (computer.use, browser)
+                // don't accumulate unbounded image tokens.
+                image_pruning: agent_memory::ImagePruningStrategy::StripOldestImages { keep: 5 },
                 ..Default::default()
             },
             budget.clone(),
