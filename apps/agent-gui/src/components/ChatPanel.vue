@@ -3,7 +3,8 @@ import type { ComponentPublicInstance } from "vue";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
 import { useChatStream } from "@/composables/useChatStream";
-import type { ChatPermissionStreamItem } from "@/types/chatStream";
+import { useToast } from "@/composables/useToast";
+import type { ChatPermissionStreamItem, ChatMessageStreamItem } from "@/types/chatStream";
 import ChatComposer from "@/components/ChatComposer.vue";
 import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
@@ -14,7 +15,78 @@ import ChatMonitorItem from "@/components/chat/ChatMonitorItem.vue";
 const { t } = useI18n();
 const session = useSessionStore();
 const projectStore = useProjectStore();
+const toast = useToast();
 const scrollbar = ref<HTMLElement | null>(null);
+const composerRef = ref<InstanceType<typeof ChatComposer> | null>(null);
+
+// === Message copy / edit handlers ========================================
+function handleMessageCopy() {
+  toast.success(t("chat.copiedToClipboard"));
+}
+
+function handleMessageEdit(content: string) {
+  composerRef.value?.appendText(content);
+}
+
+// === Sticky pinned user message ==========================================
+// When the most recent user message scrolls above the visible area,
+// show it as a compact sticky header so the user always knows what
+// prompt is being answered.
+const pinnedUserMessage = ref<string | null>(null);
+let userMessageObserver: IntersectionObserver | null = null;
+const userMessageElements = new Map<string, HTMLElement>();
+
+const lastUserMessage = computed<ChatMessageStreamItem | null>(() => {
+  for (let i = chatStream.value.length - 1; i >= 0; i--) {
+    const item = chatStream.value[i];
+    if (item.kind === "message" && item.role === "user") return item;
+  }
+  return null;
+});
+
+function bindUserMessageRef(id: string, el: Element | ComponentPublicInstance | null) {
+  let domEl: HTMLElement | null = null;
+  if (el instanceof HTMLElement) domEl = el;
+  else if (el && typeof el === "object" && "$el" in el) {
+    const candidate = (el as ComponentPublicInstance).$el;
+    if (candidate instanceof HTMLElement) domEl = candidate;
+  }
+
+  const previous = userMessageElements.get(id);
+  if (domEl) {
+    if (previous !== domEl) {
+      if (previous) userMessageObserver?.unobserve(previous);
+      userMessageElements.set(id, domEl);
+      userMessageObserver?.observe(domEl);
+    }
+  } else if (previous) {
+    userMessageObserver?.unobserve(previous);
+    userMessageElements.delete(id);
+  }
+}
+
+function setupUserMessageObserver() {
+  if (typeof IntersectionObserver === "undefined") return;
+  userMessageObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const lastMsg = lastUserMessage.value;
+        if (!lastMsg) {
+          pinnedUserMessage.value = null;
+          continue;
+        }
+        const targetEl = userMessageElements.get(lastMsg.id);
+        if (entry.target === targetEl) {
+          pinnedUserMessage.value = entry.isIntersecting ? null : lastMsg.content;
+        }
+      }
+    },
+    { root: scrollbar.value, threshold: 0.01 }
+  );
+  for (const el of userMessageElements.values()) {
+    userMessageObserver.observe(el);
+  }
+}
 
 const chatStream = useChatStream();
 const hasCancellationStreamItem = computed(() =>
@@ -238,6 +310,7 @@ function jumpToPendingPermission(): void {
 }
 
 onMounted(() => {
+  setupUserMessageObserver();
   if (typeof IntersectionObserver === "undefined") return;
   permissionIntersectionObserver = new IntersectionObserver(
     (entries) => {
@@ -277,6 +350,9 @@ onBeforeUnmount(() => {
   permissionIntersectionObserver?.disconnect();
   permissionIntersectionObserver = null;
   permissionElementById.clear();
+  userMessageObserver?.disconnect();
+  userMessageObserver = null;
+  userMessageElements.clear();
 });
 
 const currentSession = computed(() => session.currentSessionInfo);
@@ -440,6 +516,12 @@ watch(
       <h2>{{ t("chat.header") }}</h2>
     </header>
 
+    <!-- Sticky pinned user message when scrolled out of view -->
+    <div v-if="pinnedUserMessage" class="pinned-user-message" data-test="pinned-user-message">
+      <span class="pinned-user-message-label">📌</span>
+      <span class="pinned-user-message-text">{{ pinnedUserMessage }}</span>
+    </div>
+
     <div ref="scrollbar" class="message-list" data-test="message-list">
       <div class="message-list-inner">
         <KxEmptyState
@@ -478,8 +560,11 @@ watch(
           >
             <ChatMessageItem
               v-if="item.kind === 'message'"
+              :ref="item.role === 'user' ? (el) => bindUserMessageRef(item.id, el) : undefined"
               :role="item.role"
               :content="item.content"
+              @copy="handleMessageCopy"
+              @edit="handleMessageEdit"
             />
             <ChatToolCallItem
               v-else-if="item.kind === 'tool_call'"
@@ -580,7 +665,11 @@ watch(
       {{ session.lastSendError }}
     </div>
 
-    <ChatComposer :workspace-path="workspacePath" :session-git-meta="sessionGitMeta" />
+    <ChatComposer
+      ref="composerRef"
+      :workspace-path="workspacePath"
+      :session-git-meta="sessionGitMeta"
+    />
   </section>
 </template>
 
@@ -605,6 +694,28 @@ watch(
   margin: 0;
   font-size: var(--app-text-lg);
   font-weight: 720;
+}
+/* ── Pinned user message (sticky header) ── */
+.pinned-user-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-primary-color) 8%, var(--app-card-color));
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.pinned-user-message-label {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.pinned-user-message-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--app-text-color);
 }
 .message-list {
   flex: 1;

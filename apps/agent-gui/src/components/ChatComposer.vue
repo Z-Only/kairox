@@ -52,8 +52,11 @@ const {
   clearQueuedMessages,
   moveQueuedMessage,
   restoreQueuedMessage,
-  cancelSession
+  cancelSession,
+  appendText
 } = composer;
+
+defineExpose({ appendText });
 const draggedQueuedMessageId = ref<string | null>(null);
 
 const modelOptions = computed<ProfileInfo[]>(() =>

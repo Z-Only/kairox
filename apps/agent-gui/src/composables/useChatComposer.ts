@@ -550,6 +550,16 @@ export function useChatComposer(options: UseChatComposerOptions) {
     restoreQueuedMessage,
     restoreLastQueuedMessage,
     cancelSession,
-    selectModelProfile
+    selectModelProfile,
+    appendText
   };
+
+  /** Append text to the composer. If there is already text, add a newline before appending. */
+  function appendText(text: string) {
+    if (inputText.value.trim()) {
+      inputText.value = inputText.value + "\n" + text;
+    } else {
+      inputText.value = text;
+    }
+  }
 }

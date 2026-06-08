@@ -279,7 +279,8 @@
     "queuedDeleteAria": "Delete this queued message",
     "queuedAttachments": "{count} file(s)",
     "emptyState": "Start a conversation",
-    "projectDraftContext": "Project: {project}"
+    "projectDraftContext": "Project: {project}",
+    "copiedToClipboard": "Copied to clipboard"
   },
   "context": {
     "title": "Context",
