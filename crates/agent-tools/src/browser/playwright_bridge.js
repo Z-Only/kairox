@@ -18,14 +18,12 @@ async function launchBrowser() {
       // Fallback: try playwright-core (installed separately)
       pw = require("playwright-core");
     } catch {
-      throw new Error(
-        "Playwright is not installed. Run: npx playwright install chromium"
-      );
+      throw new Error("Playwright is not installed. Run: npx playwright install chromium");
     }
   }
   browser = await pw.chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
+    viewport: { width: 1280, height: 720 }
   });
   page = await context.newPage();
 }
@@ -42,7 +40,7 @@ async function handleAction(action) {
       await ensurePage();
       await page.goto(action.url, {
         waitUntil: "domcontentloaded",
-        timeout: 30000,
+        timeout: 30000
       });
       const title = await page.title();
       const url = page.url();
@@ -51,7 +49,7 @@ async function handleAction(action) {
         output: `Navigated to ${url}`,
         screenshot: null,
         current_url: url,
-        title,
+        title
       };
     }
 
@@ -63,7 +61,7 @@ async function handleAction(action) {
         output: `Clicked element: ${action.selector}`,
         screenshot: null,
         current_url: page.url(),
-        title: await page.title(),
+        title: await page.title()
       };
     }
 
@@ -75,7 +73,7 @@ async function handleAction(action) {
         output: `Typed "${action.text}" into ${action.selector}`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -83,7 +81,7 @@ async function handleAction(action) {
       await ensurePage();
       const buf = await page.screenshot({
         fullPage: action.full_page === true,
-        type: "png",
+        type: "png"
       });
       const base64 = buf.toString("base64");
       return {
@@ -91,7 +89,7 @@ async function handleAction(action) {
         output: "Screenshot captured",
         screenshot: base64,
         current_url: page.url(),
-        title: await page.title(),
+        title: await page.title()
       };
     }
 
@@ -109,7 +107,7 @@ async function handleAction(action) {
         output: text || "",
         screenshot: null,
         current_url: page.url(),
-        title: await page.title(),
+        title: await page.title()
       };
     }
 
@@ -120,7 +118,7 @@ async function handleAction(action) {
         output: "Browser state retrieved",
         screenshot: null,
         current_url: page.url(),
-        title: await page.title(),
+        title: await page.title()
       };
     }
 
@@ -150,7 +148,7 @@ async function handleAction(action) {
         output: `Scrolled ${dir} by ${amount} pixels`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -162,7 +160,7 @@ async function handleAction(action) {
         output: `Hovered over: ${action.selector}`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -170,14 +168,14 @@ async function handleAction(action) {
       await ensurePage();
       if (action.selector) {
         await page.waitForSelector(action.selector, {
-          timeout: action.timeout_ms || 5000,
+          timeout: action.timeout_ms || 5000
         });
         return {
           success: true,
           output: `Waited for ${action.selector}`,
           screenshot: null,
           current_url: null,
-          title: null,
+          title: null
         };
       }
       await new Promise((r) => setTimeout(r, action.timeout_ms || 1000));
@@ -186,7 +184,7 @@ async function handleAction(action) {
         output: `Waited ${action.timeout_ms || 1000}ms`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -198,7 +196,7 @@ async function handleAction(action) {
         output: `Filled ${action.selector} with "${action.value}"`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -213,7 +211,7 @@ async function handleAction(action) {
         output: "Browser closed",
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
     }
 
@@ -223,7 +221,7 @@ async function handleAction(action) {
         output: `Unknown action: ${action.action}`,
         screenshot: null,
         current_url: null,
-        title: null,
+        title: null
       };
   }
 }
