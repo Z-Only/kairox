@@ -4,6 +4,88 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.38.0] - 2026-06-07
+
+### 🚀 Features
+
+- **eval**: enrich harness with regex, multi-turn, trajectory, and regression comparison (#881)
+- **gui**: add software update settings to general settings page (#882)
+- **runtime**: add trajectory recording with runtime auto-capture and GUI viewer (#901)
+- **core,store**: add autonomous task types, events, and persistence (Phase 3.1) (#907)
+- **runtime**: add autonomous checkpoint writer, orientation builder, and controller (#908)
+- **core,runtime**: add AutonomousFacade trait, AppFacade wiring, and runtime bootstrap (#909)
+- **gui**: add autonomous task Tauri commands and Pinia store (#911)
+- **gui**: add autonomous task management settings panel (#912)
+- **sdk**: add agent-sdk crate — embeddable runtime API (#925)
+- **runtime,core,config**: add agent self-reflection / advisor (#928)
+
+### 🐛 Bug Fixes
+
+- **gui**: translate hardcoded English and fix settings UX issues (#878) (#879)
+- **gui**: clarify hook templates vs user hooks in settings (#880)
+- **gui**: address updater review feedback from CodeRabbit (#884)
+- **runtime**: stabilize flaky monitor integration test (#891)
+- **gui**: refresh model router on settings reload and avoid loading flicker (#929)
+- **models,gui**: smart base_url suffix and connectivity message i18n (#930)
+- **gui**: make pilot scenario assertions i18n-aware (#931) (#931)
+
+### 📚 Documentation
+
+- **roadmap**: mark section 2.4 Computer use as complete (#905)
+- **testing**: add 2026-06-07 live validation entries (#932)
+
+### 🧪 Testing
+
+- **gui**: add general-settings E2E spec (#887)
+- **lsp**: add lifecycle and types unit tests (#888)
+- **tools**: add LSP and DAP provider tests (#890)
+- **config**: add profile, mcp, and hooks type tests (#889)
+- **plugins**: add marketplace parser edge case tests (#892)
+- **eval**: add compare_reports and summary unit tests (#894)
+- **store**: add project meta session binding and visibility tests (#893)
+- **eval**: add types serde roundtrip and edge case tests (#895)
+- **core**: add facade catalog, mcp, plugins, and skills tests (#896)
+- **memory**: add context assembler unit tests (#897)
+- **mcp**: add SSE parser unit tests (#898)
+- **tui**: add command palette registry filter and prefill tests (#899)
+- **tui**: add MCP overlay editor types conversion and editing tests (#900)
+- **tools**: add policy effect builder unit tests (#902)
+- **runtime**: add skill package discovery unit tests (#903)
+- **tui**: add help overlay shortcuts unit tests (#904)
+- **runtime**: add facade_autonomous unit tests (#910)
+- **tui**: add agent settings and plugin overlay integration tests (#913)
+- **gui**: add trajectory viewer pilot audit scenario (#915)
+- **gui**: add autonomous settings pilot audit scenario (#914)
+- **runtime**: add facade_skills unit tests (#916)
+- **runtime**: add facade_bootstrap unit tests (#917)
+- **runtime**: add facade_plugins unit tests (#918)
+- **runtime**: add facade_mcp unit tests (#920)
+- **runtime**: add session_actor unit tests (#919)
+- **agent-runtime**: add unit tests for facade_session_ops SessionFacade impl (#922)
+- **runtime**: add unit tests for facade_turn_executor (#921)
+- **agent-runtime**: add 12 unit tests for facade_models module (#923)
+- **agent-runtime**: add 23 unit tests for session.rs lifecycle functions (#924)
+- **agent-runtime**: add unit tests for facade_agents module (#927)
+- **agent-runtime**: add 14 unit tests for memory_handler (#926)
+- **sdk**: add integration tests for SDK builder, session, and lifecycle (#933)
+- **runtime**: add tool_loop unit tests (#934)
+- **runtime**: add turn_context and stream_handler unit tests (#935)
+- **runtime**: expand lsp_manager test coverage (#936)
+- **runtime**: expand dag_executor test coverage (#937)
+
+### 👷 CI
+
+- add CodeQL aggregation job and extract composite actions (#883)
+
+### 📦 Dependencies
+
+- **deps**: bump @vue/test-utils 2.4.10 → 2.4.11 (#886)
+- **deps**: bump tauri-plugin-pilot from v0.6.0 to v0.7.1 (#906)
+
+### 🔧 Miscellaneous Tasks
+
+- add CodeRabbit review configuration (#885)
+
 ## [0.37.0] - 2026-06-05
 
 ### 🚀 Features
@@ -28,7 +110,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **gui**: isolate pilot runner sockets (#818)
 - **gui**: widen assistant message bubbles (#819)
 - **runtime**: mark cancelled turns as cancelled (#820)
-- **gui**: preserve cancellation history (#822)
 - restore shell permission flow (#821)
 - **runtime**: include project instructions in prompts (#823)
 - **runtime**: account memory context source (#824)
