@@ -13,6 +13,7 @@ import { useChatToolExpand } from "@/composables/useChatToolExpand";
 import { useSessionStore } from "@/stores/session";
 import { storeToRefs } from "pinia";
 import DiffPreview from "@/components/chat/DiffPreview.vue";
+import ImageLightbox from "@/components/ImageLightbox.vue";
 
 interface ChatToolCallItemProps {
   toolId: string;
@@ -199,6 +200,70 @@ const toggleLabel = computed(() =>
 const outputIsDiff = computed(() =>
   props.outputPreview ? isDiffShaped(props.outputPreview) : false
 );
+
+/** Extract base64 image data URIs from tool output for inline rendering. */
+const outputImages = computed<string[]>(() => {
+  if (!props.outputPreview) return [];
+  const images: string[] = [];
+  // Match "screenshot": "..." or standalone base64 PNG/JPEG blobs
+  try {
+    const parsed = JSON.parse(props.outputPreview);
+    if (parsed && typeof parsed === "object") {
+      for (const value of Object.values(parsed)) {
+        if (typeof value === "string" && isBase64Image(value)) {
+          images.push(toDataUri(value));
+        }
+      }
+    }
+  } catch {
+    // Not JSON — try raw base64 match
+    const raw = props.outputPreview.trim();
+    if (isBase64Image(raw)) {
+      images.push(toDataUri(raw));
+    }
+  }
+  return images;
+});
+
+function isBase64Image(value: string): boolean {
+  if (value.length < 100) return false;
+  if (value.includes("placeholder")) return false;
+  // data URI or raw base64 starting with PNG/JPEG magic bytes
+  if (value.startsWith("data:image/")) return true;
+  // PNG magic: iVBOR
+  if (value.startsWith("iVBOR")) return true;
+  // JPEG magic: /9j/
+  if (value.startsWith("/9j/")) return true;
+  return false;
+}
+
+function toDataUri(value: string): string {
+  if (value.startsWith("data:image/")) return value;
+  if (value.startsWith("iVBOR")) return `data:image/png;base64,${value}`;
+  if (value.startsWith("/9j/")) return `data:image/jpeg;base64,${value}`;
+  return `data:image/png;base64,${value}`;
+}
+
+/** Output text with base64 blobs replaced by short placeholders for readability. */
+const sanitizedOutputPreview = computed<string | undefined>(() => {
+  if (!props.outputPreview || outputImages.value.length === 0) return props.outputPreview;
+  try {
+    const parsed = JSON.parse(props.outputPreview);
+    if (parsed && typeof parsed === "object") {
+      const cleaned = { ...parsed };
+      for (const [key, value] of Object.entries(cleaned)) {
+        if (typeof value === "string" && isBase64Image(value)) {
+          cleaned[key] =
+            `[image: ${value.length > 100 ? Math.round(value.length / 1024) + "KB base64" : "inline"}]`;
+        }
+      }
+      return JSON.stringify(cleaned, null, 2);
+    }
+  } catch {
+    // Not JSON
+  }
+  return props.outputPreview;
+});
 </script>
 
 <template>
@@ -275,8 +340,16 @@ const outputIsDiff = computed(() =>
       </div>
       <div v-if="props.outputPreview" class="chat-tool-call__section">
         <span class="chat-tool-call__label">{{ t("chatStream.toolCall.output") }}:</span>
+        <div v-if="outputImages.length" class="chat-tool-call__images">
+          <ImageLightbox
+            v-for="(imgSrc, idx) in outputImages"
+            :key="idx"
+            :src="imgSrc"
+            :alt="`Tool output image ${idx + 1}`"
+          />
+        </div>
         <DiffPreview v-if="outputIsDiff" :text="props.outputPreview" />
-        <pre v-else class="chat-tool-code">{{ props.outputPreview }}</pre>
+        <pre v-else class="chat-tool-code">{{ sanitizedOutputPreview }}</pre>
       </div>
     </div>
   </div>
@@ -384,5 +457,11 @@ const outputIsDiff = computed(() =>
   overflow-x: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.chat-tool-call__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
 }
 </style>

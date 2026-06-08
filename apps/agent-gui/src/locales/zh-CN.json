@@ -279,7 +279,8 @@
     "queuedDeleteAria": "删除这条队列消息",
     "queuedAttachments": "{count} 个文件",
     "emptyState": "开始对话",
-    "projectDraftContext": "项目：{project}"
+    "projectDraftContext": "项目：{project}",
+    "copiedToClipboard": "已复制到剪贴板"
   },
   "context": {
     "title": "上下文",
