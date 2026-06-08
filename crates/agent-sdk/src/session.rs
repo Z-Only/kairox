@@ -262,3 +262,7 @@ pub struct CollectedResponse {
     /// All events emitted during the turn.
     pub events: Vec<StreamEvent>,
 }
+
+#[cfg(test)]
+#[path = "session_tests.rs"]
+mod tests;
