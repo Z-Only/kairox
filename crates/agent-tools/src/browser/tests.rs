@@ -20,6 +20,20 @@ fn make_invocation(args: serde_json::Value) -> ToolInvocation {
     }
 }
 
+/// Check whether Node.js + Playwright are available for integration tests.
+fn playwright_available() -> bool {
+    std::process::Command::new("node")
+        .arg("-e")
+        .arg("try { require('playwright'); } catch { process.exit(1); }")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+// --- Unit tests (no Node.js required) ---
+
 #[test]
 fn definition_has_correct_tool_id() {
     let tool = make_tool();
@@ -41,117 +55,34 @@ fn risk_returns_browser_interact() {
     assert_eq!(risk.effect, ToolEffect::BrowserInteract);
 }
 
-#[tokio::test]
-async fn invoke_navigate() {
+#[test]
+fn definition_schema_has_all_action_variants() {
     let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "navigate",
-        "url": "https://example.com"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(!output.truncated);
-    assert!(output.text.contains("https://example.com"));
-    assert!(output.text.contains("\"success\": true"));
-}
-
-#[tokio::test]
-async fn invoke_screenshot() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "screenshot",
-        "full_page": true
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Screenshot captured"));
-    assert!(output.text.contains("base64-placeholder"));
-}
-
-#[tokio::test]
-async fn invoke_interaction_actions() {
-    let tool = make_tool();
-
-    let click = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "click",
-            "selector": "#submit"
-        })))
-        .await
-        .unwrap();
-    assert!(click.text.contains("Clicked element: #submit"));
-
-    let typing = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "type",
-            "selector": "#search",
-            "text": "kairox"
-        })))
-        .await
-        .unwrap();
-    assert!(typing.text.contains("kairox"));
-    assert!(typing.text.contains("#search"));
-
-    let scroll = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "scroll",
-            "direction": "down",
-            "amount": 640
-        })))
-        .await
-        .unwrap();
-    assert!(scroll.text.contains("Scrolled down by 640 pixels"));
-
-    let hover = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "hover",
-            "selector": ".menu"
-        })))
-        .await
-        .unwrap();
-    assert!(hover.text.contains("Hovered over: .menu"));
-
-    let wait = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "wait",
-            "selector": ".ready",
-            "timeout_ms": 250
-        })))
-        .await
-        .unwrap();
-    assert!(wait.text.contains("Waited for .ready"));
-
-    let form_fill = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "form_fill",
-            "selector": "input[name=email]",
-            "value": "user@example.com"
-        })))
-        .await
-        .unwrap();
-    assert!(form_fill.text.contains("input[name=email]"));
-    assert!(form_fill.text.contains("user@example.com"));
-}
-
-#[tokio::test]
-async fn invoke_readonly_browser_actions() {
-    let tool = make_tool();
-
-    let text = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "get_text",
-            "selector": "main"
-        })))
-        .await
-        .unwrap();
-    assert!(text.text.contains("Text content of main"));
-
-    let state = tool
-        .invoke(make_invocation(serde_json::json!({
-            "action": "get_state"
-        })))
-        .await
-        .unwrap();
-    assert!(state.text.contains("Browser state retrieved"));
-    assert!(state.text.contains("about:blank"));
+    let def = tool.definition();
+    let schema = &def.parameters;
+    let actions = schema["properties"]["action"]["enum"]
+        .as_array()
+        .expect("action enum should be an array");
+    let action_strs: Vec<&str> = actions.iter().filter_map(|v| v.as_str()).collect();
+    for expected in [
+        "navigate",
+        "click",
+        "type",
+        "scroll",
+        "hover",
+        "screenshot",
+        "get_text",
+        "wait",
+        "form_fill",
+        "get_state",
+        "close",
+    ] {
+        assert!(
+            action_strs.contains(&expected),
+            "Missing action variant: {}",
+            expected
+        );
+    }
 }
 
 #[tokio::test]
@@ -166,13 +97,110 @@ async fn invoke_invalid_action_returns_error() {
     assert!(err.to_string().contains("Invalid browser action"));
 }
 
+// --- Integration tests (require Node.js + Playwright) ---
+
 #[tokio::test]
-async fn invoke_close() {
-    let tool = make_tool();
+async fn invoke_navigate_real() {
+    if !playwright_available() {
+        eprintln!("Skipping: Playwright not available");
+        return;
+    }
+    let tool = BrowserTool::new(std::env::temp_dir());
     let invocation = make_invocation(serde_json::json!({
-        "action": "close"
+        "action": "navigate",
+        "url": "https://example.com"
     }));
     let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Browser closed"));
+    assert!(!output.truncated);
+    assert!(output.text.contains("example.com"));
     assert!(output.text.contains("\"success\": true"));
+
+    // Cleanup
+    tool.manager().shutdown().await;
+}
+
+#[tokio::test]
+async fn invoke_screenshot_returns_real_base64() {
+    if !playwright_available() {
+        eprintln!("Skipping: Playwright not available");
+        return;
+    }
+    let tool = BrowserTool::new(std::env::temp_dir());
+    // Navigate first so there's content
+    let _ = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "navigate",
+            "url": "https://example.com"
+        })))
+        .await;
+
+    let invocation = make_invocation(serde_json::json!({
+        "action": "screenshot"
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("\"success\": true"));
+
+    // Verify the screenshot field contains real base64 data (not placeholder)
+    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(
+        !screenshot.is_empty() && screenshot != "[base64-placeholder]",
+        "Expected real base64 screenshot data"
+    );
+    assert!(
+        screenshot.len() > 100,
+        "Screenshot data too short to be real PNG"
+    );
+
+    tool.manager().shutdown().await;
+}
+
+#[tokio::test]
+async fn invoke_get_state_and_close() {
+    if !playwright_available() {
+        eprintln!("Skipping: Playwright not available");
+        return;
+    }
+    let tool = BrowserTool::new(std::env::temp_dir());
+    let state_output = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "get_state"
+        })))
+        .await
+        .unwrap();
+    assert!(state_output.text.contains("\"success\": true"));
+
+    let close_output = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "close"
+        })))
+        .await
+        .unwrap();
+    assert!(close_output.text.contains("Browser closed"));
+}
+
+#[tokio::test]
+async fn graceful_error_without_playwright() {
+    // Test that the manager produces a clear error when Node.js is present
+    // but the bridge script encounters a missing playwright module.
+    // This test is conceptual — it verifies the error path exists.
+    // A full test would require mocking the node environment.
+    let manager =
+        crate::browser::playwright::PlaywrightManager::new(PathBuf::from("/nonexistent/workspace"));
+    // If node is available, it will try to start and may fail gracefully.
+    // If node is not available, ensure_running returns a clear error.
+    if let Err(err) = manager.ensure_running().await {
+        // Error should mention Node.js or Playwright, not panic
+        assert!(
+            err.contains("Node")
+                || err.contains("node")
+                || err.contains("Playwright")
+                || err.contains("playwright")
+                || err.contains("temp dir")
+                || err.contains("Failed"),
+            "Error should be descriptive: {}",
+            err
+        );
+    }
+    manager.shutdown().await;
 }

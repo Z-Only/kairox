@@ -16,6 +16,7 @@ thiserror.workspace = true
 tokio.workspace = true
 regex.workspace = true
 libc.workspace = true
+which.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
