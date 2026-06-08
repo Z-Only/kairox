@@ -352,6 +352,9 @@ jobs:
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
+      - name: Install desktop interaction deps
+        uses: ./.github/actions/install-tauri-deps
+
       - name: Build TUI
         run: cargo build -p agent-tui
 
@@ -388,6 +391,9 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+
+      - name: Install desktop interaction deps
+        uses: ./.github/actions/install-tauri-deps
 
       - name: Install just
         uses: taiki-e/install-action@just
