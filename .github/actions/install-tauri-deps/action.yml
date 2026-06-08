@@ -22,4 +22,8 @@ runs:
           libappindicator3-dev \
           librsvg2-dev \
           patchelf \
+          libpipewire-0.3-dev \
+          libwayland-dev \
+          libxdo-dev \
+          libgbm-dev \
           ${{ inputs.extra-packages }}

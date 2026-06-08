@@ -19,6 +19,16 @@ fn make_invocation(args: serde_json::Value) -> ToolInvocation {
     }
 }
 
+/// Check whether a display is available for screenshot tests.
+/// On CI (headless Linux) there is no monitor, so xcap will fail.
+fn display_available() -> bool {
+    xcap::Monitor::all()
+        .map(|monitors| !monitors.is_empty())
+        .unwrap_or(false)
+}
+
+// --- Unit tests (no display required) ---
+
 #[test]
 fn definition_has_correct_tool_id() {
     let tool = make_tool();
@@ -39,32 +49,36 @@ fn risk_returns_execute_effect() {
     assert_eq!(risk.effect, ToolEffect::Execute);
 }
 
-#[tokio::test]
-async fn invoke_screenshot() {
+#[test]
+fn definition_schema_has_all_action_variants() {
     let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "screenshot"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(!output.truncated);
-    assert!(output.text.contains("Full screen screenshot captured"));
-    assert!(output.text.contains("base64-screenshot-placeholder"));
+    let def = tool.definition();
+    let actions = def.parameters["properties"]["action"]["enum"]
+        .as_array()
+        .expect("action enum should be an array");
+    let action_strs: Vec<&str> = actions.iter().filter_map(|v| v.as_str()).collect();
+    for expected in [
+        "screenshot",
+        "mouse_move",
+        "mouse_click",
+        "mouse_drag",
+        "keyboard_type",
+        "key_press",
+        "scroll",
+        "wait",
+        "get_screen_size",
+        "get_cursor_position",
+    ] {
+        assert!(
+            action_strs.contains(&expected),
+            "Missing action variant: {}",
+            expected
+        );
+    }
 }
 
 #[tokio::test]
-async fn invoke_screenshot_with_region() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "screenshot",
-        "region": [100, 200, 300, 400]
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("Screenshot of region"));
-    assert!(output.text.contains("100"));
-}
-
-#[tokio::test]
-async fn invoke_mouse_move() {
+async fn invoke_mouse_move_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "mouse_move",
@@ -73,11 +87,12 @@ async fn invoke_mouse_move() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Mouse moved to (500, 300)"));
+    assert!(output.text.contains("simulated"));
     assert!(output.text.contains("\"success\": true"));
 }
 
 #[tokio::test]
-async fn invoke_mouse_click() {
+async fn invoke_mouse_click_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "mouse_click",
@@ -88,6 +103,7 @@ async fn invoke_mouse_click() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("right click (2) at (100, 200)"));
+    assert!(output.text.contains("simulated"));
 }
 
 #[tokio::test]
@@ -101,7 +117,7 @@ async fn invoke_mouse_click_defaults_to_current_position() {
 }
 
 #[tokio::test]
-async fn invoke_mouse_drag() {
+async fn invoke_mouse_drag_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "mouse_drag",
@@ -112,10 +128,11 @@ async fn invoke_mouse_drag() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Dragged from (10, 20) to (300, 400)"));
+    assert!(output.text.contains("simulated"));
 }
 
 #[tokio::test]
-async fn invoke_keyboard_type() {
+async fn invoke_keyboard_type_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "keyboard_type",
@@ -123,11 +140,12 @@ async fn invoke_keyboard_type() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Typed 11 characters"));
+    assert!(output.text.contains("simulated"));
     assert!(output.text.contains("\"success\": true"));
 }
 
 #[tokio::test]
-async fn invoke_key_press() {
+async fn invoke_key_press_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "key_press",
@@ -135,10 +153,11 @@ async fn invoke_key_press() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Pressed keys: cmd+c"));
+    assert!(output.text.contains("simulated"));
 }
 
 #[tokio::test]
-async fn invoke_scroll_at_coordinates() {
+async fn invoke_scroll_at_coordinates_simulated() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
         "action": "scroll",
@@ -149,6 +168,7 @@ async fn invoke_scroll_at_coordinates() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Scrolled down by 480 at (50, 75)"));
+    assert!(output.text.contains("simulated"));
 }
 
 #[tokio::test]
@@ -163,29 +183,6 @@ async fn invoke_wait_caps_duration() {
 }
 
 #[tokio::test]
-async fn invoke_get_screen_size() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "get_screen_size"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("1920"));
-    assert!(output.text.contains("1080"));
-    assert!(output.text.contains("\"success\": true"));
-}
-
-#[tokio::test]
-async fn invoke_get_cursor_position() {
-    let tool = make_tool();
-    let invocation = make_invocation(serde_json::json!({
-        "action": "get_cursor_position"
-    }));
-    let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("960"));
-    assert!(output.text.contains("540"));
-}
-
-#[tokio::test]
 async fn invoke_invalid_action_returns_error() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
@@ -195,4 +192,97 @@ async fn invoke_invalid_action_returns_error() {
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("Invalid computer action"));
+}
+
+// --- Integration tests (require a display / monitor) ---
+
+#[tokio::test]
+async fn invoke_screenshot_real() {
+    if !display_available() {
+        eprintln!("Skipping: no display available for screenshot");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "screenshot"
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(!output.truncated);
+    assert!(output.text.contains("Full screen screenshot captured"));
+    assert!(output.text.contains("\"success\": true"));
+
+    // Verify the screenshot is real base64 PNG data, not a placeholder
+    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(
+        !screenshot.contains("placeholder"),
+        "Screenshot should be real data, not a placeholder"
+    );
+    assert!(
+        screenshot.len() > 1000,
+        "Real screenshot should be at least 1KB of base64 data, got {} bytes",
+        screenshot.len()
+    );
+}
+
+#[tokio::test]
+async fn invoke_screenshot_with_region_real() {
+    if !display_available() {
+        eprintln!("Skipping: no display available for screenshot");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "screenshot",
+        "region": [100, 200, 300, 400]
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Screenshot of region"));
+    assert!(output.text.contains("\"success\": true"));
+
+    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(
+        screenshot.len() > 100,
+        "Region screenshot should produce real data"
+    );
+}
+
+#[tokio::test]
+async fn invoke_get_screen_size_real() {
+    if !display_available() {
+        eprintln!("Skipping: no display available for screen size");
+        return;
+    }
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "get_screen_size"
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("\"success\": true"));
+
+    // Real screen size should be reasonable (not the old hardcoded 1920x1080)
+    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+    let width = result["screen_size"]["width"].as_u64().unwrap_or(0);
+    let height = result["screen_size"]["height"].as_u64().unwrap_or(0);
+    assert!(width > 0, "Screen width should be positive");
+    assert!(height > 0, "Screen height should be positive");
+}
+
+#[tokio::test]
+async fn invoke_get_cursor_position() {
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "get_cursor_position"
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("\"success\": true"));
+    // Currently simulated, so just verify structure
+    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
+    assert!(result["cursor_position"].is_object());
+}
+
+#[test]
+fn backend_constructs_without_panic() {
+    let _backend = crate::computer_use::platform::DesktopBackend::new();
 }
