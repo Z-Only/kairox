@@ -37,42 +37,11 @@ const groups = [
     ],
     minFiles: 32,
     thresholds: {
-      // Latest CI baseline (40 files): functions 36.19%, lines 86.93%.
-      // Floors set to floor(actual − 1) for nightly wobble.
-      //
-      // Extracting inline `#[cfg(test)] mod tests` into `#[path]` sibling
-      // *_tests.rs files (registry.rs, projection.rs) removes those test
-      // functions from the T1 src-file function counts that previously
-      // inflated the ratio. *_tests.rs files are excluded from coverage
-      // (see isSourceFile), so the ratio drops to an honest 34.96% with no
-      // production-code regression. Floor lowered 35 → 33 to absorb the
-      // measurement shift (mirrors the T3 74 → 72 adjustment below).
-      // Floor lowered 33 → 31: facade tests extracted to facade_tests.rs,
-      // excluded from src function counts (same measurement shift, no regression).
-      // config loader/mcp tests extracted to mcp_tests.rs (excluded from src function counts); floor lowered 31 → 29.
-      // config loader/env tests extracted to env_tests.rs (excluded from src function counts); floor lowered 29 → 27.
-      // The 192-line env.rs test block also moved test lines out of T1 src,
-      // shifting lines 86.93% → 84.73% (measurement shift, no regression); floor lowered 85 → 84.
-      // config loader/profile tests extracted to profile_tests.rs (excluded from src function counts); floor lowered 27 → 25.
-      // The ~189-line profile.rs test block also moved test lines out of T1 src (measurement shift, no regression); floor lowered 84 → 83.
-      // config builder tests extracted to builder_tests.rs (excluded from src counts); ~172 test lines/7 fns left T1 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 25 → 23, lines 83 → 82.
-      // config loader/catalog tests extracted to catalog_tests.rs (excluded from src function counts); floor lowered 23 → 21.
-      // The ~180-line catalog.rs test block also moved test lines out of T1 src (measurement shift, no regression); floor lowered 82 → 81.
-      // facade/settings tests extracted to settings_tests.rs (excluded from src function counts); floor lowered 21 → 19.
-      // permission tests extracted to permission_tests.rs (excluded from src function counts); 11 test fns left T1 src, floor lowered 19 → 16.
-      // project_meta tests extracted to project_meta_tests.rs (excluded from src function counts); floor lowered 16 → 14.
-      // config effective tests extracted to effective_tests.rs (excluded from src function counts); floor lowered 14 → 12.
-      // config loader tests extracted to loader_tests.rs (excluded from src counts); ~148 test lines/4 fns left T1 src (measurement shift, no regression); floors lowered functions 12 → 10, lines 81 → 80.
-      // skill_dtos tests extracted to skill_dtos_tests.rs (excluded from src function counts); floor lowered 10 → 8.
-      // core facade/project tests extracted to project_tests.rs (excluded from src function counts); floor lowered 8 → 6.
-      // core ids tests extracted to ids_tests.rs (excluded from src function counts); floor lowered 6 → 4.
-      // config discovery tests extracted to discovery_tests.rs (excluded from src function counts); floor lowered 4 → 2.
-      // The ~122-line discovery.rs test block also moved test lines out of T1 src, shifting lines 80%+ → 79.67% (measurement shift, no regression); floor lowered 80 → 79.
-      // core task_types tests extracted to task_types_tests.rs (excluded from src counts); ~170 test lines/fns left T1 src (measurement shift, no regression); floors lowered functions 2 → 0, lines 79 → 78.
-      // config lib tests extracted to lib_tests.rs (excluded from src counts); ~83 test lines left T1 src (measurement shift, no regression); lines floor lowered 78 → 77.
-      // config loader/overlay tests extracted to overlay_tests.rs (~78 test lines left T1 src; measurement shift, no regression); lines floor lowered 77 → 76.
-      functions: 0,
-      lines: 76
+      // CI baseline 2026-06-08: functions 38.36%, lines 85.54% (49 files).
+      // Raising functions floor 0 → 37 and lines floor 76 → 84 to track
+      // measured coverage (floor ≈ actual − 1.5pp).
+      functions: 37,
+      lines: 84
     }
   },
   // Tier 2A — High-risk runtime hot path.
@@ -114,8 +83,10 @@ const groups = [
       // the ~120-line hooks.rs test block also moved test lines out of the T2 src tree; floor lowered 71 → 70.
       // mcp stdio transport tests extracted to stdio_tests.rs (excluded from src counts); ~342 test lines left T2 src (measurement shift, no regression); lines floor lowered 70 → 68.
       // runtime skills tests extracted to skills_tests.rs (excluded from src counts); ~168 test lines left T2 src (measurement shift, no regression); lines floor lowered 68 → 67.
+      // CI baseline 2026-06-08: functions 31.01%, lines 79.64% (148 files).
+      // Raising lines floor 67 → 78 to track measured coverage (floor ≈ actual − 1.6pp).
       functions: 0,
-      lines: 67
+      lines: 78
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
@@ -133,8 +104,10 @@ const groups = [
     exclude: [/^apps\/agent-gui\/src-tauri\/src\/specta\.rs$/],
     minFiles: 13,
     thresholds: {
-      functions: 2,
-      lines: 18
+      // CI baseline 2026-06-08: functions 6.19%, lines 30.84% (22 files).
+      // Raising floors to track measured coverage (floor ≈ actual − 1.5pp).
+      functions: 5,
+      lines: 29
     }
   },
   // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
@@ -210,9 +183,12 @@ const groups = [
       // app_state tests extracted to app_state_tests.rs (excluded from src
       // function counts); floor lowered 29 → 27.
       // scheduler tests extracted to scheduler_tests.rs (excluded from src function counts); floor lowered 27 → 25.
-      functions: 25,
+      // CI baseline 2026-06-08: functions 36.02%, lines 64.03% (128 files).
+      // Raising functions floor 25 → 35 to track measured coverage (floor ≈ actual − 1pp).
+      functions: 35,
       // view tests extracted to view_tests.rs: those test lines leave the gated T4 src tier's covered-lines numerator (measurement shift, not a production regression); post-shift baseline ~61-62%, floor lowered 62 → 60.
-      lines: 60
+      // CI baseline 2026-06-08: lines 64.03%; raising 60 → 62.
+      lines: 62
     }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
@@ -257,8 +233,11 @@ const groups = [
       // 30.19% margin (measurement shift, no production regression).
       // Preemptively lower functions 30 → 28 and lines 65 → 64 to absorb the
       // shift and leave headroom for the next batch.
-      functions: 28,
-      lines: 64
+      // CI baseline 2026-06-08: functions 31.64%, lines 70.21% (397 files).
+      // Raising functions floor 28 → 30 and lines floor 64 → 69 to track
+      // measured coverage (floor ≈ actual − 1.5pp).
+      functions: 30,
+      lines: 69
     }
   }
 ];
