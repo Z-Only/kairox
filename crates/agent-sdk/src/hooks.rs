@@ -73,3 +73,7 @@ impl fmt::Debug for dyn SdkHook {
         write!(f, "SdkHook({})", self.name())
     }
 }
+
+#[cfg(test)]
+#[path = "hooks_tests.rs"]
+mod tests;
