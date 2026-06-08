@@ -55,7 +55,9 @@ wiremock = "0.6.5"
 async-stream = "0.3.6"
 regex = "1.12.3"
 libc = "0.2.186"
+image = { version = "0.25", default-features = false, features = ["png"] }
 url = "2"
+xcap = "0.7"
 zip = "8"
 
 [profile.release]
