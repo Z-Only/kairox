@@ -58,6 +58,7 @@ libc = "0.2.186"
 image = { version = "0.25", default-features = false, features = ["png"] }
 url = "2"
 xcap = "0.7"
+enigo = { version = "0.3", features = ["serde"] }
 zip = "8"
 
 [profile.release]
