@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isDiffShaped } from "./useDiffDetect";
+import { isDiffShaped, useDiffDetect } from "./useDiffDetect";
 
 describe("useDiffDetect.isDiffShaped", () => {
   it("returns false for an empty string", () => {
@@ -46,5 +46,36 @@ describe("useDiffDetect.isDiffShaped", () => {
     expect(isDiffShaped(undefined as any)).toBe(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(isDiffShaped(null as any)).toBe(false);
+  });
+
+  it("returns false for single-char +/- lines (ambiguous)", () => {
+    expect(isDiffShaped("+\n-")).toBe(false);
+  });
+
+  it("returns true for `--- a/` header alone without full diff body", () => {
+    expect(isDiffShaped("--- a/some/file.ts\ncontext line")).toBe(true);
+  });
+
+  it("returns true for `+++ b/` header alone", () => {
+    expect(isDiffShaped("+++ b/another/file.rs\ncontext")).toBe(true);
+  });
+});
+
+describe("useDiffDetect composable", () => {
+  it("returns an object with isDiffShaped function", () => {
+    const result = useDiffDetect();
+    expect(result).toHaveProperty("isDiffShaped");
+    expect(typeof result.isDiffShaped).toBe("function");
+  });
+
+  it("exposed isDiffShaped is the same function as the named export", () => {
+    const { isDiffShaped: composableIsDiffShaped } = useDiffDetect();
+    expect(composableIsDiffShaped).toBe(isDiffShaped);
+  });
+
+  it("works correctly when called through the composable", () => {
+    const { isDiffShaped: detect } = useDiffDetect();
+    expect(detect("--- a/foo\n+++ b/foo\n@@ -1 +1 @@\n-old\n+new")).toBe(true);
+    expect(detect("plain text")).toBe(false);
   });
 });

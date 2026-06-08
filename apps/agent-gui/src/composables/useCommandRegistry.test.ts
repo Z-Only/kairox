@@ -248,6 +248,136 @@ describe("useCommandRegistry", () => {
     });
   });
 
+  describe("command handler execution", () => {
+    it("clear command calls resetProjection on session store", async () => {
+      const registry = useCommandRegistry();
+      registry.setFilter("clear");
+      const items = registry.allItems();
+      const clearItem = items.find((i) => i.kind === "command" && i.command.id === "clear");
+      expect(clearItem?.kind).toBe("command");
+      if (clearItem?.kind === "command") {
+        await clearItem.command.handler?.();
+      }
+      expect(sessionStore.resetProjection).toHaveBeenCalled();
+    });
+
+    it("compact command invokes compact_session when session is active", async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      sessionStore.currentSessionId = "ses_1";
+      const registry = useCommandRegistry();
+      registry.setFilter("compact");
+      const items = registry.allItems();
+      const compactItem = items.find((i) => i.kind === "command" && i.command.id === "compact");
+      if (compactItem?.kind === "command") {
+        await compactItem.command.handler?.();
+      }
+      expect(invoke).toHaveBeenCalledWith("compact_session");
+    });
+
+    it("compact command does not invoke when session is null", async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      vi.mocked(invoke).mockClear();
+      sessionStore.currentSessionId = null;
+      const registry = useCommandRegistry();
+      // Manually get all commands without session filter (use matchingCommands directly)
+      registry.setFilter("compact");
+      const commands = registry.matchingCommands.value;
+      const compactCmd = commands.find((c) => c.id === "compact");
+      if (compactCmd) {
+        await compactCmd.handler?.();
+      }
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it("help command handler executes without error", async () => {
+      const registry = useCommandRegistry();
+      registry.setFilter("help");
+      const items = registry.allItems();
+      const helpItem = items.find((i) => i.kind === "command" && i.command.id === "help");
+      if (helpItem?.kind === "command") {
+        // help handler is a no-op palette display; should not throw
+        await expect(helpItem.command.handler?.()).resolves.toBeUndefined();
+      }
+    });
+
+    it("model command has insertText instead of handler", () => {
+      const registry = useCommandRegistry();
+      registry.setFilter("model");
+      const items = registry.allItems();
+      const modelItem = items.find((i) => i.kind === "command" && i.command.id === "model");
+      expect(modelItem?.kind).toBe("command");
+      if (modelItem?.kind === "command") {
+        expect(modelItem.command.handler).toBeUndefined();
+        expect(modelItem.command.insertText).toBe("/model ");
+      }
+    });
+
+    it("navigates to each settings route through handler", async () => {
+      const navigateToRoute = vi.fn();
+      const registry = useCommandRegistry((key) => key, { navigateToRoute });
+
+      const settingsCommands = [
+        { id: "instructions", route: "settings-instructions" },
+        { id: "skills", route: "settings-skills" },
+        { id: "agents", route: "settings-agents" },
+        { id: "plugins", route: "settings-plugins" },
+        { id: "mcp", route: "settings-mcp" },
+        { id: "models", route: "settings-models" }
+      ];
+
+      for (const { id, route } of settingsCommands) {
+        navigateToRoute.mockClear();
+        registry.setFilter(id);
+        const items = registry.allItems();
+        const item = items.find((i) => i.kind === "command" && i.command.id === id);
+        if (item?.kind === "command") {
+          await item.command.handler?.();
+        }
+        expect(navigateToRoute).toHaveBeenCalledWith(route);
+      }
+    });
+  });
+
+  describe("filtering edge cases", () => {
+    it("filters commands by description text", () => {
+      const t = (key: string) =>
+        key === "chat.commands.clear.description" ? "Clear conversation history" : key;
+      const registry = useCommandRegistry(t);
+      registry.setFilter("history");
+      const items = registry.allItems();
+      const commandItems = items.filter((i) => i.kind === "command");
+      expect(commandItems.length).toBe(1);
+      if (commandItems[0].kind === "command") {
+        expect(commandItems[0].command.id).toBe("clear");
+      }
+    });
+
+    it("filters model profiles by provider", () => {
+      sessionStore.profileInfos = [
+        { alias: "fast", provider: "anthropic", model_id: "claude-3.5-sonnet" },
+        { alias: "smart", provider: "openai", model_id: "gpt-4o" }
+      ];
+      const registry = useCommandRegistry();
+      registry.setFilter("anthropic");
+      const items = registry.allItems();
+      const profileItems = items.filter((i) => i.kind === "model-profile");
+      expect(profileItems.length).toBe(1);
+    });
+
+    it("filters model profiles by model_id", () => {
+      sessionStore.profileInfos = [
+        { alias: "fast", provider: "anthropic", model_id: "claude-3.5-sonnet" },
+        { alias: "smart", provider: "openai", model_id: "gpt-4o" }
+      ];
+      const registry = useCommandRegistry();
+      registry.setFilter("gpt-4o");
+      const items = registry.allItems();
+      const profileItems = items.filter((i) => i.kind === "model-profile");
+      expect(profileItems.length).toBe(1);
+      expect(profileItems[0].alias).toBe("smart");
+    });
+  });
+
   describe("model profiles", () => {
     it("includes model-profile items in allItems when profiles are available", () => {
       sessionStore.profileInfos = [
