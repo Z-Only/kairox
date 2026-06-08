@@ -44,3 +44,7 @@ pub(crate) fn strategies_from_agent_settings(
 
     strategies
 }
+
+#[cfg(test)]
+#[path = "agent_settings_tests.rs"]
+mod tests;
