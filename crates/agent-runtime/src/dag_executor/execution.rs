@@ -307,3 +307,7 @@ where
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "execution_tests.rs"]
+mod tests;
