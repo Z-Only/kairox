@@ -161,9 +161,9 @@ const groups = [
       // skills state tests extracted to state_tests.rs (excluded from src counts); ~184 test lines/fns left T3 src (measurement shift, no regression); floors lowered functions 40 → 38, lines 84 → 83.
       // search/format tests extracted to format_tests.rs (excluded from src counts); ~89 test lines/N fns left T3 src (measurement shift, no regression); floors lowered functions 38 → 36, lines 83 → 82.
       // fs_read tests extracted to fs_read_tests.rs (~105 test lines left T3 src; measurement shift, no regression); lines floor lowered 82 → 81.
-      // enigo input control added to platform.rs; integration tests auto-skip on headless CI (no display/input controller), reducing measured lines coverage; floor lowered 81 → 80.
+      // enigo input + xcap screenshot added to platform.rs; integration tests auto-skip on headless CI (no display/input controller/monitor), reducing measured lines coverage; floor lowered 81 → 78.
       functions: 36,
-      lines: 80
+      lines: 78
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
