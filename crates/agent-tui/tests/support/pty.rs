@@ -1,13 +1,13 @@
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 pub struct PtyHarness {
     reader_rx: mpsc::Receiver<Vec<u8>>,
-    writer: Box<dyn Write + Send>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
     captured: Vec<u8>,
     home_dir: PathBuf,
@@ -62,15 +62,51 @@ impl PtyHarness {
             .master
             .try_clone_reader()
             .expect("PTY reader should clone");
-        let writer = pair.master.take_writer().expect("PTY writer should open");
+        let writer: Arc<Mutex<Box<dyn Write + Send>>> = Arc::new(Mutex::new(
+            pair.master.take_writer().expect("PTY writer should open"),
+        ));
         let (reader_tx, reader_rx) = mpsc::channel();
+
+        // The reader thread also auto-replies to DSR (Device Status Report)
+        // queries (`ESC[6n`) that crossterm emits during startup to read the
+        // cursor position. In a real terminal the emulator answers with
+        // `ESC[row;colR`; in a headless CI PTY nobody replies, so crossterm
+        // times out after 2 s and the TUI exits with an error. We intercept
+        // the query here and write back a synthetic reply.
+        let dsr_writer = Arc::clone(&writer);
         std::thread::spawn(move || {
             let mut buf = [0; 8192];
+            // Small ring buffer to detect ESC[6n across read boundaries.
+            let mut tail = Vec::<u8>::with_capacity(8);
+            let dsr_sequence: &[u8] = b"\x1b[6n";
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        if reader_tx.send(buf[..n].to_vec()).is_err() {
+                        let chunk = &buf[..n];
+
+                        // Check for DSR across the boundary of the previous
+                        // chunk and the start of the current one, then inside
+                        // the current chunk itself.
+                        tail.extend_from_slice(chunk);
+                        let dsr_count = count_subsequence(&tail, dsr_sequence);
+                        // Keep only the last few bytes for boundary detection.
+                        if tail.len() > dsr_sequence.len() {
+                            let keep_from = tail.len() - dsr_sequence.len() + 1;
+                            tail.drain(..keep_from);
+                        }
+
+                        if dsr_count > 0 {
+                            if let Ok(mut w) = dsr_writer.lock() {
+                                for _ in 0..dsr_count {
+                                    // Reply: cursor at row 1, col 1.
+                                    let _ = w.write_all(b"\x1b[1;1R");
+                                }
+                                let _ = w.flush();
+                            }
+                        }
+
+                        if reader_tx.send(chunk.to_vec()).is_err() {
                             break;
                         }
                     }
@@ -126,18 +162,18 @@ impl PtyHarness {
         label: &str,
         predicate: impl Fn(&[u8], &str) -> bool,
     ) {
-        self.writer
-            .write_all(data)
-            .expect("PTY input should be writable");
-        self.writer.flush().expect("PTY input should flush");
+        {
+            let mut w = self.writer.lock().expect("PTY writer lock");
+            w.write_all(data).expect("PTY input should be writable");
+            w.flush().expect("PTY input should flush");
+        }
         self.wait_for(timeout, label, predicate);
     }
 
     pub fn send(&mut self, data: &[u8]) {
-        self.writer
-            .write_all(data)
-            .expect("PTY input should be writable");
-        self.writer.flush().expect("PTY input should flush");
+        let mut w = self.writer.lock().expect("PTY writer lock");
+        w.write_all(data).expect("PTY input should be writable");
+        w.flush().expect("PTY input should flush");
     }
 
     pub fn visible_screen(&self) -> String {
@@ -368,4 +404,22 @@ fn resolve_program(repo_root: &Path, program: &str) -> PathBuf {
     }
 
     path
+}
+
+/// Count non-overlapping occurrences of `needle` in `haystack`.
+fn count_subsequence(haystack: &[u8], needle: &[u8]) -> usize {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return 0;
+    }
+    let mut count = 0;
+    let mut start = 0;
+    while start + needle.len() <= haystack.len() {
+        if &haystack[start..start + needle.len()] == needle {
+            count += 1;
+            start += needle.len();
+        } else {
+            start += 1;
+        }
+    }
+    count
 }
