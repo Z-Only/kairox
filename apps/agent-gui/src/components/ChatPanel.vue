@@ -65,7 +65,13 @@ function bindUserMessageRef(id: string, el: Element | ComponentPublicInstance | 
   }
 }
 
-/** Recompute which user message should be pinned based on visibility. */
+/** Recompute which user message should be pinned based on visibility.
+ *
+ * Rule: when ANY user message is visible in the scroll viewport, hide the
+ * sticky header entirely. Only when ALL user messages have scrolled out of
+ * view, pin the last (most recent) one so the user always knows which
+ * prompt the model is responding to.
+ */
 function recomputePinnedMessage() {
   const messages = allUserMessages.value;
   const visible = visibleUserMessageIds.value;
@@ -73,24 +79,12 @@ function recomputePinnedMessage() {
     pinnedUserMessage.value = null;
     return;
   }
-  // Walk messages from last to first. Find the latest user message that
-  // has scrolled out of the viewport (not visible) and has no later
-  // visible user message following it.
-  // If any user message is currently visible, pin nothing — the user can
-  // already see the prompt context.
-  // If no user message is visible, pin the last one that was sent (the
-  // most recent prompt the model is responding to).
-  let lastInvisibleBeforeVisible: ChatMessageStreamItem | null = null;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
+  // Any user message visible → no pin needed.
+  for (const msg of messages) {
     if (visible.has(msg.id)) {
-      // A visible user message exists — if there's an invisible one
-      // right before it (above it, scrolled out of top), pin that one.
-      // Otherwise pin nothing.
-      pinnedUserMessage.value = lastInvisibleBeforeVisible?.content ?? null;
+      pinnedUserMessage.value = null;
       return;
     }
-    lastInvisibleBeforeVisible = msg;
   }
   // No user message is visible at all — pin the last one (most recent).
   pinnedUserMessage.value = messages[messages.length - 1]?.content ?? null;
