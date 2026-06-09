@@ -21,14 +21,26 @@ where
         source_filter: Option<String>,
         project_root: Option<String>,
     ) -> agent_core::Result<Vec<ProfileSettingsView>> {
-        let profiles_toml_path = crate::profile_settings::writable_profiles_config_path(
-            self.marketplace_dir.as_deref(),
-        )?;
-        let user_config_path = std::env::var("HOME").ok().map(|h| {
-            std::path::PathBuf::from(h)
-                .join(".kairox")
-                .join("config.toml")
-        });
+        // Legacy profiles.toml — kept as a read-only fallback so that users
+        // who haven't migrated yet still see their old profiles.
+        let profiles_toml_path = self
+            .marketplace_dir
+            .as_ref()
+            .map(|dir| dir.join("profiles.toml"));
+        // User-level config.toml — the primary writable config location.
+        // Derived from marketplace_dir (which points to ~/.kairox/) so that
+        // tests using a temporary config directory work correctly.
+        let user_config_path = self
+            .marketplace_dir
+            .as_ref()
+            .map(|dir| dir.join("config.toml"))
+            .or_else(|| {
+                std::env::var("HOME").ok().map(|h| {
+                    std::path::PathBuf::from(h)
+                        .join(".kairox")
+                        .join("config.toml")
+                })
+            });
         let project_config_path = project_root
             .map(std::path::PathBuf::from)
             .map(|root| root.join(".kairox").join("config.toml"))

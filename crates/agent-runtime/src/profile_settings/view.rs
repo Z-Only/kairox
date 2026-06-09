@@ -9,12 +9,12 @@ use toml_edit::DocumentMut;
 use super::order;
 use super::row::{self, ProfileSettingsRow};
 
-const PROFILES_FILE_NAME: &str = "profiles.toml";
+const CONFIG_FILE_NAME: &str = "config.toml";
 
 pub fn writable_profiles_config_path(
     config_dir: Option<&Path>,
 ) -> agent_core::Result<Option<PathBuf>> {
-    Ok(config_dir.map(|dir| dir.join(PROFILES_FILE_NAME)))
+    Ok(config_dir.map(|dir| dir.join(CONFIG_FILE_NAME)))
 }
 
 pub async fn list_profile_settings(
@@ -99,7 +99,7 @@ pub async fn list_profile_settings(
     if source_filter != Some("project") {
         if let Some(path) = user_config_path {
             if path.exists() {
-                if let Some(file_rows) = rows_from_config_toml(path, "user_config", false).await? {
+                if let Some(file_rows) = rows_from_config_toml(path, "user_config", true).await? {
                     for (alias, row) in file_rows {
                         rows.insert(alias, row);
                     }
@@ -164,9 +164,9 @@ pub async fn list_profile_settings(
 
     let mut display_order: Vec<String> = Vec::new();
     let display_order_path = if source_filter == Some("project") {
-        project_config_path.or(profiles_toml_path)
+        project_config_path.or(user_config_path)
     } else {
-        profiles_toml_path
+        user_config_path.or(profiles_toml_path)
     };
     if let Some(path) = display_order_path {
         if path.exists() {
