@@ -323,8 +323,8 @@ fn map_server_deduplicates_env_vars() {
 #[test]
 fn map_server_trust_clamped_by_ceiling() {
     let wrapper = minimal_server("test");
-    let entry = map_mcp_to_entry("src", &wrapper, TrustLevel::Untrusted).unwrap();
-    assert_eq!(entry.trust, TrustLevel::Untrusted);
+    let entry = map_mcp_to_entry("src", &wrapper, TrustLevel::Unverified).unwrap();
+    assert_eq!(entry.trust, TrustLevel::Unverified);
 }
 
 #[test]
