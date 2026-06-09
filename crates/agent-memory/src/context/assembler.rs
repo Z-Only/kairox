@@ -271,6 +271,10 @@ pub(super) fn sanitize_context_text(
     }
 }
 
+#[cfg(test)]
+#[path = "assembler_tests.rs"]
+mod tests;
+
 pub(super) fn append_embedded_images(
     images: &mut Vec<ImageEntry>,
     next_position: &mut usize,

@@ -29,3 +29,7 @@ pub(super) fn find_lowest_priority_drop(
     }
     None
 }
+
+#[cfg(test)]
+#[path = "window_tests.rs"]
+mod tests;
