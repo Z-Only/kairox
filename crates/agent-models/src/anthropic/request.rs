@@ -318,6 +318,10 @@ fn serialize_server_tool(st: &ServerTool) -> serde_json::Value {
     }
 }
 
+#[cfg(test)]
+#[path = "request_tests.rs"]
+mod tests;
+
 fn reasoning_budget_tokens(effort: &str, max_tokens: u64) -> Option<u64> {
     if max_tokens <= 1_024 {
         return None;
