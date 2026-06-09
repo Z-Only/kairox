@@ -133,6 +133,7 @@ async fn settings_view_from_file(
         top_k: row.top_k,
         max_tokens: row.max_tokens,
         base_url: row.base_url,
+        api_key: None, // masked for security
         api_key_env: row.api_key_env,
         client_identity: row.client_identity,
         has_api_key: false,
@@ -188,6 +189,7 @@ fn upsert_profile_table(document: &mut DocumentMut, input: &ProfileSettingsInput
     set_optional_int_32(profile_table, "top_k", input.top_k);
     set_optional_int(profile_table, "max_tokens", input.max_tokens);
     set_optional_string(profile_table, "base_url", &input.base_url);
+    set_optional_string(profile_table, "api_key", &input.api_key);
     set_optional_string(profile_table, "api_key_env", &input.api_key_env);
     set_optional_string(profile_table, "client_identity", &input.client_identity);
 }

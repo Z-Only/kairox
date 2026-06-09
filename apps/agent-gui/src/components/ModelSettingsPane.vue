@@ -36,6 +36,7 @@ const formTopP = ref("");
 const formTopK = ref("");
 const formMaxTokens = ref("");
 const formBaseUrl = ref("");
+const formApiKey = ref("");
 const formApiKeyEnv = ref("");
 const formClaudeCodeIdentity = ref(false);
 const searchQuery = ref("");
@@ -170,6 +171,7 @@ function resetForm(): void {
   formTopK.value = "";
   formMaxTokens.value = "";
   formBaseUrl.value = "";
+  formApiKey.value = "";
   formApiKeyEnv.value = "";
   formClaudeCodeIdentity.value = false;
   advancedOpen.value = false;
@@ -198,6 +200,7 @@ function openEditDialog(profile: ProfileSettingsView): void {
   formTopK.value = profile.top_k?.toString() ?? "";
   formMaxTokens.value = profile.max_tokens?.toString() ?? "";
   formBaseUrl.value = profile.base_url ?? "";
+  formApiKey.value = profile.api_key ?? "";
   formApiKeyEnv.value = profile.api_key_env ?? "";
   formClaudeCodeIdentity.value = isClaudeCodeIdentity(profile.client_identity);
   editAdvancedOpen.value = false;
@@ -232,6 +235,7 @@ function buildProfileInput(alias: string, enabled: boolean) {
       : null,
     max_tokens: parseOptionalNumber(formMaxTokens.value),
     base_url: formBaseUrl.value.trim() || null,
+    api_key: formApiKey.value.trim() || null,
     api_key_env: formApiKeyEnv.value.trim() || null,
     client_identity: formClaudeCodeIdentity.value ? "claude_code" : null
   };
@@ -332,7 +336,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
       <KxToolbarAction
         data-test="model-open-config-file"
         :title="t('models.openConfigFile')"
-        @click="store.openConfigFile()"
+        @click="store.openConfigFile(configSource, projectRoot)"
       >
         {{ t("models.openConfigFile") }}
       </KxToolbarAction>
@@ -424,6 +428,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:top-k="formTopK"
       v-model:max-tokens="formMaxTokens"
       v-model:base-url="formBaseUrl"
+      v-model:api-key="formApiKey"
       v-model:api-key-env="formApiKeyEnv"
       v-model:claude-code-identity="formClaudeCodeIdentity"
       v-model:advanced-open="advancedOpen"
@@ -447,6 +452,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:top-k="formTopK"
       v-model:max-tokens="formMaxTokens"
       v-model:base-url="formBaseUrl"
+      v-model:api-key="formApiKey"
       v-model:api-key-env="formApiKeyEnv"
       v-model:claude-code-identity="formClaudeCodeIdentity"
       v-model:advanced-open="editAdvancedOpen"

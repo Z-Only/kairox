@@ -43,6 +43,7 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
                     top_k: Some(40),
                     max_tokens: Some(4096),
                     base_url: Some("http://localhost:11434/v1".into()),
+                    api_key: None,
                     api_key_env: Some("LOCAL_LLM_API_KEY".into()),
                     client_identity: None,
                 },

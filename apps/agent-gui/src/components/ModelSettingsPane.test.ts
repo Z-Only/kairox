@@ -24,6 +24,7 @@ vi.mock("@/generated/commands", () => ({
     deleteProfileSettings: vi.fn(),
     moveProfileInOrder: vi.fn(),
     openProfilesConfigFile: vi.fn(),
+    openConfigFileForScope: vi.fn(),
     testModelConnectivity: vi.fn(),
     testUrlConnectivity: vi.fn()
   }
@@ -49,6 +50,7 @@ const writableProfile = {
   top_k: null,
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
+  api_key: null,
   api_key_env: "OPENAI_API_KEY",
   client_identity: null,
   has_api_key: true,
@@ -69,6 +71,7 @@ const readOnlyProfile = {
   top_k: null,
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
+  api_key: null,
   api_key_env: "OPENAI_API_KEY",
   client_identity: null,
   has_api_key: true,
@@ -89,6 +92,7 @@ const projectOnlyProfile = {
   top_k: null,
   max_tokens: null,
   base_url: null,
+  api_key: null,
   api_key_env: null,
   client_identity: "claude_code",
   has_api_key: false,
@@ -150,6 +154,7 @@ beforeEach(() => {
   mockedCommands.deleteProfileSettings.mockResolvedValue(ok(null));
   mockedCommands.moveProfileInOrder.mockResolvedValue(ok(null));
   mockedCommands.openProfilesConfigFile.mockResolvedValue(ok("/tmp/profiles.toml"));
+  mockedCommands.openConfigFileForScope.mockResolvedValue(ok("/tmp/.kairox/config.toml"));
 });
 
 describe("ModelSettingsPane", () => {
@@ -508,7 +513,7 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="model-open-config-file"]').trigger("click");
-    expect(mockedCommands.openProfilesConfigFile).toHaveBeenCalled();
+    expect(mockedCommands.openConfigFileForScope).toHaveBeenCalledWith("user", null);
   });
 
   it("notifies success when test profile connectivity succeeds", async () => {

@@ -249,6 +249,52 @@ pub async fn open_profiles_config_file(
     Ok(Some(config_file_path.display().to_string()))
 }
 
+/// Open the config file for the given scope ("user" or "project").
+///
+/// - `"user"` → `~/.kairox/config.toml`
+/// - `"project"` → `<project_root>/.kairox/config.toml`
+///
+/// Creates the file (with an empty `[profiles]` section) if it doesn't exist.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_config_file_for_scope(
+    scope: String,
+    project_root: Option<String>,
+) -> Result<Option<String>, String> {
+    let config_path = match scope.as_str() {
+        "project" => {
+            let root = project_root
+                .ok_or_else(|| "project_root is required when scope is \"project\"".to_string())?;
+            std::path::PathBuf::from(root)
+                .join(".kairox")
+                .join("config.toml")
+        }
+        _ => {
+            // user scope
+            let home = std::env::var("HOME")
+                .map_err(|_| "HOME environment variable not set".to_string())?;
+            std::path::PathBuf::from(home)
+                .join(".kairox")
+                .join("config.toml")
+        }
+    };
+
+    // Ensure the parent directory and file exist so the system editor can open it.
+    if let Some(parent) = config_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("failed to create config directory: {e}"))?;
+        }
+    }
+    if !config_path.exists() {
+        std::fs::write(&config_path, "# Kairox configuration\n# See kairox.toml.example for available options.\n\n[profiles]\n")
+            .map_err(|e| format!("failed to create config file: {e}"))?;
+    }
+
+    open_path_in_system_file_manager(&config_path)?;
+    Ok(Some(config_path.display().to_string()))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn open_skills_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {

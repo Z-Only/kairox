@@ -90,6 +90,7 @@ pub fn build_effective_profile_settings_views(
                 top_k: profile.top_k,
                 max_tokens: profile.max_tokens,
                 base_url: profile.base_url.clone(),
+                api_key: None, // masked for security
                 api_key_env: profile.api_key_env.clone(),
                 client_identity: profile.client_identity.clone(),
                 has_api_key: profile_has_api_key(profile),

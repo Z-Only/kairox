@@ -135,9 +135,16 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
     return commands.testUrlConnectivity(url);
   }
 
-  async function openConfigFile(): Promise<void> {
+  async function openConfigFile(
+    scope?: "user" | "project" | null,
+    projectRoot?: string | null
+  ): Promise<void> {
     try {
-      await commands.openProfilesConfigFile();
+      if (scope === "project" && projectRoot) {
+        await commands.openConfigFileForScope("project", projectRoot);
+      } else {
+        await commands.openConfigFileForScope("user", null);
+      }
     } catch {
       // best-effort
     }

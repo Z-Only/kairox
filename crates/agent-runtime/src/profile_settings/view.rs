@@ -150,6 +150,7 @@ pub async fn list_profile_settings(
                 top_k: row.top_k,
                 max_tokens: row.max_tokens,
                 base_url: row.base_url,
+                api_key: None, // masked for security; use has_api_key to check presence
                 api_key_env: row.api_key_env,
                 client_identity: row.client_identity,
                 has_api_key,

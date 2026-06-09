@@ -112,6 +112,7 @@ async fn upsert_writes_profile_settings() {
         top_k: None,
         max_tokens: None,
         base_url: Some("https://api.openai.com/v1".to_string()),
+        api_key: None,
         api_key_env: Some("OPENAI_API_KEY".to_string()),
         client_identity: Some("claude_code".to_string()),
     };
@@ -186,6 +187,7 @@ async fn upsert_preserves_other_profiles_and_unknown_fields() {
         top_k: None,
         max_tokens: None,
         base_url: None,
+        api_key: None,
         api_key_env: None,
         client_identity: None,
     };

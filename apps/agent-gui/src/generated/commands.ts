@@ -203,6 +203,10 @@ export const commands = {
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   openProfilesConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_profiles_config_file")),
+  openConfigFileForScope: (scope: string, projectRoot: string | null) =>
+    typedError<string | null, string>(
+      __TAURI_INVOKE("open_config_file_for_scope", { scope, projectRoot })
+    ),
   openAgentsDir: (projectRoot: string | null) =>
     typedError<string | null, string>(__TAURI_INVOKE("open_agents_dir", { projectRoot })),
   listAgentSettings: (projectRoot: string | null) =>
@@ -16423,6 +16427,7 @@ export type ProfileSettingsInput = {
   top_k: number | null;
   max_tokens: number;
   base_url: string | null;
+  api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
 };
@@ -16439,6 +16444,7 @@ export type ProfileSettingsView = {
   top_k: number | null;
   max_tokens: number;
   base_url: string | null;
+  api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
   has_api_key: boolean;

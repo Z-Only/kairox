@@ -291,6 +291,7 @@ where
         top_k: profile.top_k,
         max_tokens: profile.max_tokens,
         base_url: profile.base_url,
+        api_key: profile.api_key,
         api_key_env: profile.api_key_env,
         client_identity: profile.client_identity,
     })
