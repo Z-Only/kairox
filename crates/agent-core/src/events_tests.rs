@@ -546,7 +546,6 @@ fn event_type_method_covers_monitor_variants() {
         "MonitorFailed"
     );
 }
-
 mod serde_roundtrip {
     use super::*;
     use crate::AutonomousTaskId;
@@ -672,5 +671,99 @@ mod serde_roundtrip {
         roundtrip(&EventPayload::AutonomousTaskCancelled {
             autonomous_task_id: AutonomousTaskId::new(),
         });
+    }
+}
+
+mod image_attachment_tests {
+    use super::*;
+
+    #[test]
+    fn construction_with_label() {
+        let attachment = ImageAttachment {
+            media_type: "image/png".into(),
+            data: "iVBORw0KGgo=".into(),
+            label: Some("screenshot".into()),
+        };
+        assert_eq!(attachment.media_type, "image/png");
+        assert_eq!(attachment.data, "iVBORw0KGgo=");
+        assert_eq!(attachment.label, Some("screenshot".into()));
+    }
+
+    #[test]
+    fn construction_without_label() {
+        let attachment = ImageAttachment {
+            media_type: "image/jpeg".into(),
+            data: "/9j/4AAQ".into(),
+            label: None,
+        };
+        assert_eq!(attachment.media_type, "image/jpeg");
+        assert!(attachment.label.is_none());
+    }
+
+    #[test]
+    fn serde_roundtrip_with_label() {
+        let attachment = ImageAttachment {
+            media_type: "image/png".into(),
+            data: "iVBORw0KGgo=".into(),
+            label: Some("screenshot".into()),
+        };
+        let json = serde_json::to_string(&attachment).unwrap();
+        let decoded: ImageAttachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(attachment, decoded);
+
+        // Verify label is present in serialized output
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["label"], "screenshot");
+    }
+
+    #[test]
+    fn serde_roundtrip_without_label() {
+        let attachment = ImageAttachment {
+            media_type: "image/jpeg".into(),
+            data: "/9j/4AAQ".into(),
+            label: None,
+        };
+        let json = serde_json::to_string(&attachment).unwrap();
+        let decoded: ImageAttachment = serde_json::from_str(&json).unwrap();
+        assert_eq!(attachment, decoded);
+
+        // Verify label is omitted (skip_serializing_if = "Option::is_none")
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(value.get("label").is_none());
+    }
+
+    #[test]
+    fn deserialize_with_missing_label_defaults_to_none() {
+        let json = r#"{"media_type":"image/png","data":"abc123"}"#;
+        let attachment: ImageAttachment = serde_json::from_str(json).unwrap();
+        assert_eq!(attachment.media_type, "image/png");
+        assert_eq!(attachment.data, "abc123");
+        assert!(attachment.label.is_none());
+    }
+
+    #[test]
+    fn equality_same_fields() {
+        let a = ImageAttachment {
+            media_type: "image/png".into(),
+            data: "data1".into(),
+            label: Some("l".into()),
+        };
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn inequality_different_data() {
+        let a = ImageAttachment {
+            media_type: "image/png".into(),
+            data: "data1".into(),
+            label: None,
+        };
+        let b = ImageAttachment {
+            media_type: "image/png".into(),
+            data: "data2".into(),
+            label: None,
+        };
+        assert_ne!(a, b);
     }
 }

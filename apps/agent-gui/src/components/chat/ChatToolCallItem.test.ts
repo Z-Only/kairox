@@ -398,4 +398,73 @@ describe("ChatToolCallItem", () => {
     });
     expect(wrapper2.find(".chat-tool-call__detail").exists()).toBe(true);
   });
+
+  describe("images prop rendering", () => {
+    it("renders images from structured images prop when expanded", async () => {
+      const wrapper = mountItem({
+        toolId: "browser.action",
+        status: "completed",
+        input: '{"action":"screenshot"}',
+        outputPreview: "screenshot taken",
+        images: [{ media_type: "image/png", data: "iVBORw0KGgo=", label: "screenshot" }]
+      });
+
+      // Expand detail panel
+      await wrapper.find(".chat-tool-call__row").trigger("click");
+
+      const imagesSection = wrapper.find(".chat-tool-call__images");
+      expect(imagesSection.exists()).toBe(true);
+
+      const imgs = imagesSection.findAll("img");
+      expect(imgs).toHaveLength(1);
+      expect(imgs[0].attributes("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    });
+
+    it("renders multiple images from structured images prop", async () => {
+      const wrapper = mountItem({
+        toolId: "computer.use",
+        status: "completed",
+        input: '{"action":"screenshot"}',
+        outputPreview: "done",
+        images: [
+          { media_type: "image/png", data: "iVBORw0KGgo=", label: "before" },
+          { media_type: "image/jpeg", data: "/9j/4AAQ", label: "after" }
+        ]
+      });
+
+      await wrapper.find(".chat-tool-call__row").trigger("click");
+
+      const imgs = wrapper.find(".chat-tool-call__images").findAll("img");
+      expect(imgs).toHaveLength(2);
+      expect(imgs[0].attributes("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+      expect(imgs[1].attributes("src")).toBe("data:image/jpeg;base64,/9j/4AAQ");
+    });
+
+    it("does not render images section when images prop is empty", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "echo hi",
+        outputPreview: "hi",
+        images: []
+      });
+
+      await wrapper.find(".chat-tool-call__row").trigger("click");
+
+      expect(wrapper.find(".chat-tool-call__images").exists()).toBe(false);
+    });
+
+    it("does not render images section when images prop is undefined", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "echo hi",
+        outputPreview: "hi"
+      });
+
+      await wrapper.find(".chat-tool-call__row").trigger("click");
+
+      expect(wrapper.find(".chat-tool-call__images").exists()).toBe(false);
+    });
+  });
 });
