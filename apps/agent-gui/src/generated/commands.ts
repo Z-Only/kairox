@@ -203,10 +203,6 @@ export const commands = {
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   openProfilesConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_profiles_config_file")),
-  openConfigFileForScope: (scope: string, projectRoot: string | null) =>
-    typedError<string | null, string>(
-      __TAURI_INVOKE("open_config_file_for_scope", { scope, projectRoot })
-    ),
   openAgentsDir: (projectRoot: string | null) =>
     typedError<string | null, string>(__TAURI_INVOKE("open_agents_dir", { projectRoot })),
   listAgentSettings: (projectRoot: string | null) =>
