@@ -288,7 +288,7 @@ describe("ModelSettingsPane", () => {
 
     const row = wrapper.find('[data-test="model-row-my-model"]');
     expect(row.exists()).toBe(true);
-    expect(row.text()).toContain("profiles.toml");
+    expect(row.text()).toContain("User config");
     expect(row.text()).toContain("Enabled");
     expect(wrapper.find('[data-test="model-audit-my-model"]').exists()).toBe(false);
   });
@@ -600,7 +600,7 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     const row = wrapper.find('[data-test="model-row-my-model"]');
-    await row.find('[data-test="model-test-connectivity"]').trigger("click");
+    await row.find('[data-test="model-test-my-model"]').trigger("click");
     await flushPromises();
 
     expect(mockNotify).toHaveBeenCalledWith("error", "connection refused");
