@@ -431,6 +431,9 @@ jobs:
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
+      - name: Install system deps (xcap requires libpipewire)
+        uses: ./.github/actions/install-tauri-deps
+
       - name: Run live model integration test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
