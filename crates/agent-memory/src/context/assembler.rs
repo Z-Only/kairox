@@ -155,9 +155,14 @@ impl ContextAssembler {
             sections.push((ContextSource::History, text, n));
         }
 
-        // P4: Tool results
+        // P4: Tool results — sanitize to extract embedded images (e.g.
+        // screenshots from computer.use / browser tools) so they enter the
+        // image pruning pipeline instead of being counted as raw text tokens.
+        let mut tool_result_images = Vec::new();
         for tr in &request.tool_results {
-            let text = format!("Tool result: {tr}");
+            let (sanitized_tr, tr_image_summaries) = sanitize_context_text(tr);
+            tool_result_images.extend(tr_image_summaries);
+            let text = format!("Tool result: {sanitized_tr}");
             let n = self.count_tokens(&text);
             sections.push((ContextSource::ToolResult, text, n));
         }
@@ -172,6 +177,7 @@ impl ContextAssembler {
                 .max()
                 .map(|position| position + 1)
                 .unwrap_or(0);
+            append_embedded_images(&mut images, &mut next_position, tool_result_images);
             append_embedded_images(&mut images, &mut next_position, history_images);
             append_embedded_images(&mut images, &mut next_position, request_images);
             prune_images(&mut images, &request.image_pruning);

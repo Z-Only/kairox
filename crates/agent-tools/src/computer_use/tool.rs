@@ -84,12 +84,34 @@ impl Tool for ComputerUseTool {
             .await
             .map_err(crate::ToolError::ExecutionFailed)?;
 
-        let text = serde_json::to_string_pretty(&result)
-            .map_err(|e| crate::ToolError::ExecutionFailed(e.to_string()))?;
+        let text = format_computer_result(&result);
 
         Ok(ToolOutput {
             text,
             truncated: false,
         })
     }
+}
+
+/// Format [`ComputerResult`] for the model, embedding any screenshot as a
+/// markdown data URI so the downstream multimodal pipeline can split it
+/// into a native image content block instead of counting it as text tokens.
+pub(crate) fn format_computer_result(result: &super::types::ComputerResult) -> String {
+    use std::fmt::Write;
+    let mut output = String::new();
+    let _ = writeln!(output, "success: {}", result.success);
+    if !result.output.is_empty() {
+        let _ = writeln!(output, "output: {}", result.output);
+    }
+    if let Some(ref size) = result.screen_size {
+        let _ = writeln!(output, "screen_size: {}x{}", size.width, size.height);
+    }
+    if let Some(ref pos) = result.cursor_position {
+        let _ = writeln!(output, "cursor_position: ({}, {})", pos.x, pos.y);
+    }
+    if let Some(ref screenshot) = result.screenshot {
+        let _ = writeln!(output, "screenshot:");
+        let _ = write!(output, "![screenshot](data:image/png;base64,{screenshot})");
+    }
+    output
 }

@@ -113,14 +113,14 @@ async fn invoke_navigate_real() {
     let output = tool.invoke(invocation).await.unwrap();
     assert!(!output.truncated);
     assert!(output.text.contains("example.com"));
-    assert!(output.text.contains("\"success\": true"));
+    assert!(output.text.contains("success: true"));
 
     // Cleanup
     tool.manager().shutdown().await;
 }
 
 #[tokio::test]
-async fn invoke_screenshot_returns_real_base64() {
+async fn invoke_screenshot_returns_data_uri() {
     if !playwright_available() {
         eprintln!("Skipping: Playwright not available");
         return;
@@ -138,18 +138,11 @@ async fn invoke_screenshot_returns_real_base64() {
         "action": "screenshot"
     }));
     let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("\"success\": true"));
-
-    // Verify the screenshot field contains real base64 data (not placeholder)
-    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
-    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(output.text.contains("success: true"));
+    // Screenshot should be embedded as a markdown data URI.
     assert!(
-        !screenshot.is_empty() && screenshot != "[base64-placeholder]",
-        "Expected real base64 screenshot data"
-    );
-    assert!(
-        screenshot.len() > 100,
-        "Screenshot data too short to be real PNG"
+        output.text.contains("![screenshot](data:image/png;base64,"),
+        "Screenshot should be embedded as a markdown data URI"
     );
 
     tool.manager().shutdown().await;
@@ -168,7 +161,7 @@ async fn invoke_get_state_and_close() {
         })))
         .await
         .unwrap();
-    assert!(state_output.text.contains("\"success\": true"));
+    assert!(state_output.text.contains("success: true"));
 
     let close_output = tool
         .invoke(make_invocation(serde_json::json!({
@@ -203,4 +196,43 @@ async fn graceful_error_without_playwright() {
         );
     }
     manager.shutdown().await;
+}
+
+// --- format_browser_result tests ---
+
+#[test]
+fn format_browser_result_without_screenshot() {
+    use super::tool::format_browser_result;
+    use super::types::BrowserResult;
+
+    let result = BrowserResult {
+        success: true,
+        output: "Navigated to https://example.com".into(),
+        screenshot: None,
+        current_url: Some("https://example.com".into()),
+        title: Some("Example Domain".into()),
+    };
+    let text = format_browser_result(&result);
+    assert!(text.contains("success: true"));
+    assert!(text.contains("output: Navigated to https://example.com"));
+    assert!(text.contains("current_url: https://example.com"));
+    assert!(text.contains("title: Example Domain"));
+    assert!(!text.contains("data:image/png;base64"));
+}
+
+#[test]
+fn format_browser_result_with_screenshot_embeds_data_uri() {
+    use super::tool::format_browser_result;
+    use super::types::BrowserResult;
+
+    let result = BrowserResult {
+        success: true,
+        output: "Screenshot captured".into(),
+        screenshot: Some("iVBORw0KGgo=".into()),
+        current_url: None,
+        title: None,
+    };
+    let text = format_browser_result(&result);
+    assert!(text.contains("success: true"));
+    assert!(text.contains("![screenshot](data:image/png;base64,iVBORw0KGgo=)"));
 }

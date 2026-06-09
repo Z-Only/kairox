@@ -74,12 +74,34 @@ impl Tool for BrowserTool {
             .await
             .map_err(crate::ToolError::ExecutionFailed)?;
 
-        let text = serde_json::to_string_pretty(&result)
-            .map_err(|e| crate::ToolError::ExecutionFailed(e.to_string()))?;
+        let text = format_browser_result(&result);
 
         Ok(ToolOutput {
             text,
             truncated: false,
         })
     }
+}
+
+/// Format [`BrowserResult`] for the model, embedding any screenshot as a
+/// markdown data URI so the downstream multimodal pipeline can split it
+/// into a native image content block instead of counting it as text tokens.
+pub(crate) fn format_browser_result(result: &super::types::BrowserResult) -> String {
+    use std::fmt::Write;
+    let mut output = String::new();
+    let _ = writeln!(output, "success: {}", result.success);
+    if !result.output.is_empty() {
+        let _ = writeln!(output, "output: {}", result.output);
+    }
+    if let Some(ref url) = result.current_url {
+        let _ = writeln!(output, "current_url: {url}");
+    }
+    if let Some(ref title) = result.title {
+        let _ = writeln!(output, "title: {title}");
+    }
+    if let Some(ref screenshot) = result.screenshot {
+        let _ = writeln!(output, "screenshot:");
+        let _ = write!(output, "![screenshot](data:image/png;base64,{screenshot})");
+    }
+    output
 }

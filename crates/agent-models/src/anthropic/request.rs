@@ -36,12 +36,23 @@ impl AnthropicClient {
                         .unwrap_or_else(|| msg.content.clone())
                 };
 
+                // If the tool result contains markdown data-URI images (e.g.
+                // from computer.use / browser screenshots), split them into
+                // native Anthropic image content blocks so the vision encoder
+                // handles them instead of counting raw base64 as text tokens.
+                let tool_result_content =
+                    if let Some(blocks) = anthropic_multimodal_content(&result_text) {
+                        serde_json::json!(blocks)
+                    } else {
+                        serde_json::json!(result_text)
+                    };
+
                 messages.push(serde_json::json!({
                     "role": "user",
                     "content": [{
                         "type": "tool_result",
                         "tool_use_id": tool_use_id,
-                        "content": result_text,
+                        "content": tool_result_content,
                     }]
                 }));
             } else if msg.role == "assistant" {

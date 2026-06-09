@@ -43,12 +43,24 @@ impl OpenAiCompatibleClient {
                 messages.push(msg_json);
             } else if msg.role == "tool" {
                 // Tool result message — include tool_call_id for OpenAI format.
+                // If the content contains markdown data-URI images (e.g. from
+                // computer.use / browser screenshots), split them into native
+                // multimodal content blocks so the vision encoder handles them
+                // instead of counting raw base64 as text tokens.
                 let tool_call_id = msg.tool_call_id.as_deref().unwrap_or("");
-                messages.push(serde_json::json!({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": msg.content,
-                }));
+                if let Some(content_parts) = openai_multimodal_content(&msg.content) {
+                    messages.push(serde_json::json!({
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": content_parts,
+                    }));
+                } else {
+                    messages.push(serde_json::json!({
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": msg.content,
+                    }));
+                }
             } else {
                 if !has_non_empty_text(&msg.content) {
                     continue;

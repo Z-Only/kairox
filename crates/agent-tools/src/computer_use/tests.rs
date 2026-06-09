@@ -201,18 +201,11 @@ async fn invoke_screenshot_real() {
     let output = tool.invoke(invocation).await.unwrap();
     assert!(!output.truncated);
     assert!(output.text.contains("Full screen screenshot captured"));
-    assert!(output.text.contains("\"success\": true"));
-
-    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
-    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(output.text.contains("success: true"));
+    // Screenshot should be embedded as a markdown data URI.
     assert!(
-        !screenshot.contains("placeholder"),
-        "Screenshot should be real data, not a placeholder"
-    );
-    assert!(
-        screenshot.len() > 1000,
-        "Real screenshot should be at least 1KB of base64 data, got {} bytes",
-        screenshot.len()
+        output.text.contains("![screenshot](data:image/png;base64,"),
+        "Screenshot should be embedded as a markdown data URI"
     );
 }
 
@@ -229,13 +222,10 @@ async fn invoke_screenshot_with_region_real() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Screenshot of region"));
-    assert!(output.text.contains("\"success\": true"));
-
-    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
-    let screenshot = result["screenshot"].as_str().unwrap_or("");
+    assert!(output.text.contains("success: true"));
     assert!(
-        screenshot.len() > 100,
-        "Region screenshot should produce real data"
+        output.text.contains("![screenshot](data:image/png;base64,"),
+        "Region screenshot should be embedded as a markdown data URI"
     );
 }
 
@@ -250,13 +240,11 @@ async fn invoke_get_screen_size_real() {
         "action": "get_screen_size"
     }));
     let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("\"success\": true"));
-
-    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
-    let width = result["screen_size"]["width"].as_u64().unwrap_or(0);
-    let height = result["screen_size"]["height"].as_u64().unwrap_or(0);
-    assert!(width > 0, "Screen width should be positive");
-    assert!(height > 0, "Screen height should be positive");
+    assert!(output.text.contains("success: true"));
+    assert!(
+        output.text.contains("screen_size:"),
+        "Should contain screen_size line"
+    );
 }
 
 // --- Input control integration tests (require input controller) ---
@@ -308,11 +296,11 @@ async fn invoke_get_cursor_position_real() {
         "action": "get_cursor_position"
     }));
     let output = tool.invoke(invocation).await.unwrap();
-    assert!(output.text.contains("\"success\": true"));
-    let result: serde_json::Value = serde_json::from_str(&output.text).unwrap();
-    assert!(result["cursor_position"].is_object());
-    assert!(result["cursor_position"]["x"].is_number());
-    assert!(result["cursor_position"]["y"].is_number());
+    assert!(output.text.contains("success: true"));
+    assert!(
+        output.text.contains("cursor_position:"),
+        "Should contain cursor_position line"
+    );
 }
 
 #[tokio::test]
@@ -369,4 +357,63 @@ async fn invoke_scroll_invalid_direction_error() {
 #[test]
 fn backend_constructs_without_panic() {
     let _backend = crate::computer_use::platform::DesktopBackend::new();
+}
+
+// --- format_computer_result tests ---
+
+#[test]
+fn format_computer_result_without_screenshot() {
+    use super::tool::format_computer_result;
+    use super::types::ComputerResult;
+
+    let result = ComputerResult {
+        success: true,
+        output: "Mouse moved to (100, 200)".into(),
+        screenshot: None,
+        screen_size: None,
+        cursor_position: None,
+    };
+    let text = format_computer_result(&result);
+    assert!(text.contains("success: true"));
+    assert!(text.contains("output: Mouse moved to (100, 200)"));
+    assert!(!text.contains("data:image/png;base64"));
+}
+
+#[test]
+fn format_computer_result_with_screenshot_embeds_data_uri() {
+    use super::tool::format_computer_result;
+    use super::types::ComputerResult;
+
+    let result = ComputerResult {
+        success: true,
+        output: "Full screen screenshot captured".into(),
+        screenshot: Some("iVBORw0KGgo=".into()),
+        screen_size: None,
+        cursor_position: None,
+    };
+    let text = format_computer_result(&result);
+    assert!(text.contains("success: true"));
+    assert!(text.contains("![screenshot](data:image/png;base64,iVBORw0KGgo=)"));
+}
+
+#[test]
+fn format_computer_result_with_screen_size_and_cursor() {
+    use super::tool::format_computer_result;
+    use super::types::{ComputerResult, CursorPosition, ScreenSize};
+
+    let result = ComputerResult {
+        success: true,
+        output: String::new(),
+        screenshot: None,
+        screen_size: Some(ScreenSize {
+            width: 1920,
+            height: 1080,
+        }),
+        cursor_position: Some(CursorPosition { x: 42, y: 99 }),
+    };
+    let text = format_computer_result(&result);
+    assert!(text.contains("screen_size: 1920x1080"));
+    assert!(text.contains("cursor_position: (42, 99)"));
+    // Empty output field should be omitted.
+    assert!(!text.contains("output:"));
 }

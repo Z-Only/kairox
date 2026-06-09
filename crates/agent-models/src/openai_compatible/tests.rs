@@ -595,3 +595,99 @@ async fn streams_multi_chunk_tool_arguments() {
 
     std::env::remove_var("TEST_KEY_OAI_MC");
 }
+
+#[test]
+fn tool_result_with_screenshot_data_uri_becomes_multimodal() {
+    let client = OpenAiCompatibleClient::new(OpenAiCompatibleConfig {
+        base_url: "https://api.openai.com/v1".into(),
+        api_key_env: "OPENAI_API_KEY".into(),
+        default_model: "gpt-4.1".into(),
+        headers: vec![],
+        capability_overrides: None,
+        temperature: None,
+        top_p: None,
+        extra_params: None,
+    });
+
+    let request = ModelRequest::user_text("fast", "take a screenshot")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "call_ss".into(),
+                name: "computer_use".into(),
+                arguments: serde_json::json!({"action": "screenshot"}),
+            }],
+        )
+        .add_tool_result(
+            "call_ss",
+            "success: true\noutput: Screenshot captured\nscreenshot:\n![screenshot](data:image/png;base64,AQIDBA==)",
+        );
+
+    let body = client.build_chat_request(&request).unwrap();
+    let messages = body["messages"].as_array().unwrap();
+
+    // Find the tool result message
+    let tool_msg = messages
+        .iter()
+        .find(|m| m["role"] == "tool")
+        .expect("should have a tool result message");
+
+    // Content should be a multimodal array, not a plain string
+    let content = tool_msg["content"]
+        .as_array()
+        .expect("tool result content should be a multimodal array");
+
+    // Should have text + image_url parts
+    let has_text = content.iter().any(|p| p["type"] == "text");
+    let has_image = content.iter().any(|p| p["type"] == "image_url");
+    assert!(has_text, "should have a text content part");
+    assert!(has_image, "should have an image_url content part");
+
+    // The image_url should contain the data URI
+    let image_part = content.iter().find(|p| p["type"] == "image_url").unwrap();
+    assert!(image_part["image_url"]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("data:image/png;base64,"));
+}
+
+#[test]
+fn tool_result_without_images_stays_plain_string() {
+    let client = OpenAiCompatibleClient::new(OpenAiCompatibleConfig {
+        base_url: "https://api.openai.com/v1".into(),
+        api_key_env: "OPENAI_API_KEY".into(),
+        default_model: "gpt-4.1".into(),
+        headers: vec![],
+        capability_overrides: None,
+        temperature: None,
+        top_p: None,
+        extra_params: None,
+    });
+
+    let request = ModelRequest::user_text("fast", "run ls")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "call_ls".into(),
+                name: "shell_exec".into(),
+                arguments: serde_json::json!({"command": "ls"}),
+            }],
+        )
+        .add_tool_result("call_ls", "file1.txt\nfile2.rs");
+
+    let body = client.build_chat_request(&request).unwrap();
+    let messages = body["messages"].as_array().unwrap();
+
+    let tool_msg = messages
+        .iter()
+        .find(|m| m["role"] == "tool")
+        .expect("should have a tool result message");
+
+    // Content should be a plain string, not an array
+    assert!(
+        tool_msg["content"].is_string(),
+        "tool result without images should be a plain string"
+    );
+}
