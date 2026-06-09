@@ -249,6 +249,7 @@ pub fn run() {
             crate::commands::test_url_connectivity,
             crate::commands::open_config_dir,
             crate::commands::open_profiles_config_file,
+            crate::commands::open_config_file_for_scope,
             crate::commands::open_agents_dir,
             crate::commands::list_agent_settings,
             crate::commands::upsert_agent_settings,

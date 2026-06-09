@@ -631,6 +631,7 @@ watch(
               :output-preview="item.outputPreview"
               :scope="item.scope"
               :images="item.images"
+              :default-expanded="!!(item.images && item.images.length > 0)"
             />
             <ChatPermissionItem
               v-else-if="item.kind === 'permission'"

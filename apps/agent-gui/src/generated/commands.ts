@@ -16423,6 +16423,7 @@ export type ProfileSettingsInput = {
   top_k: number | null;
   max_tokens: number;
   base_url: string | null;
+  api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
 };
@@ -16439,6 +16440,7 @@ export type ProfileSettingsView = {
   top_k: number | null;
   max_tokens: number;
   base_url: string | null;
+  api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
   has_api_key: boolean;

@@ -102,6 +102,7 @@ async fn upsert_profile_settings_returns_error() {
         top_k: None,
         max_tokens: None,
         base_url: None,
+        api_key: None,
         api_key_env: None,
         client_identity: None,
     };

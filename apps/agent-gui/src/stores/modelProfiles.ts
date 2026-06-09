@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
+import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
   type ProfileSettingsView,
@@ -135,9 +136,13 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
     return commands.testUrlConnectivity(url);
   }
 
-  async function openConfigFile(): Promise<void> {
+  async function openConfigFile(scope?: string, projectRoot?: string | null): Promise<void> {
     try {
-      await commands.openProfilesConfigFile();
+      if (scope === "project" && projectRoot) {
+        await invoke("open_config_file_for_scope", { scope: "project", projectRoot });
+      } else {
+        await invoke("open_config_file_for_scope", { scope: "user", projectRoot: null });
+      }
     } catch {
       // best-effort
     }

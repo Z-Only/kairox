@@ -23,11 +23,8 @@ model_id = "charlie"
 #[tokio::test]
 async fn move_profile_in_order_uses_current_display_order_for_unordered_profiles() {
     let config_dir = tempfile::tempdir().expect("config dir");
-    std::fs::write(
-        config_dir.path().join("profiles.toml"),
-        three_profiles_toml(),
-    )
-    .expect("profiles.toml should be written");
+    std::fs::write(config_dir.path().join("config.toml"), three_profiles_toml())
+        .expect("config.toml should be written");
     let store = SqliteEventStore::in_memory()
         .await
         .expect("in-memory store");

@@ -117,6 +117,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             test_url_connectivity,
             open_config_dir,
             open_profiles_config_file,
+            open_config_file_for_scope,
             open_agents_dir,
             list_agent_settings,
             upsert_agent_settings,

@@ -231,6 +231,7 @@ pub struct ProfileSettingsInput {
     #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
+    pub api_key: Option<String>,
     pub api_key_env: Option<String>,
     pub client_identity: Option<String>,
 }
@@ -256,6 +257,7 @@ pub struct ProfileSettingsView {
     #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
+    pub api_key: Option<String>,
     pub api_key_env: Option<String>,
     pub client_identity: Option<String>,
     pub has_api_key: bool,

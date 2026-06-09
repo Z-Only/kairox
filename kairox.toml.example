@@ -44,7 +44,8 @@
 provider = "deepseek"
 model_id = "deepseek-chat"
 base_url = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
+# api_key = "sk-..."          # direct key (takes priority over api_key_env)
+api_key_env = "DEEPSEEK_API_KEY" # or read from environment variable
 
 # ---------------------------------------------------------------------------
 # OpenAI-compatible providers (OpenAI, Groq, xAI, etc.)

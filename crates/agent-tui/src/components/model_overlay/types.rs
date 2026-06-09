@@ -147,6 +147,7 @@ impl ProfileDraft {
             top_k: parse_optional(&self.top_k),
             max_tokens: parse_optional(&self.max_tokens),
             base_url: trim_option(&self.base_url),
+            api_key: None,
             api_key_env: trim_option(&self.api_key_env),
             client_identity: self.client_identity.clone(),
         })

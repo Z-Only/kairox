@@ -27,6 +27,7 @@ const topP = defineModel<string>("topP", { required: true });
 const topK = defineModel<string>("topK", { required: true });
 const maxTokens = defineModel<string>("maxTokens", { required: true });
 const baseUrl = defineModel<string>("baseUrl", { required: true });
+const apiKey = defineModel<string>("apiKey", { required: true });
 const apiKeyEnv = defineModel<string>("apiKeyEnv", { required: true });
 const claudeCodeIdentity = defineModel<boolean>("claudeCodeIdentity", { required: true });
 const advancedOpen = defineModel<boolean>("advancedOpen", { required: true });
@@ -47,6 +48,9 @@ const modelIdTestId = computed(() =>
 );
 const baseUrlTestId = computed(() =>
   isAddMode.value ? "model-form-base-url" : "model-edit-base-url"
+);
+const apiKeyTestId = computed(() =>
+  isAddMode.value ? "model-form-api-key" : "model-edit-api-key"
 );
 const apiKeyEnvTestId = computed(() =>
   isAddMode.value ? "model-form-api-key-env" : "model-edit-api-key-env"
@@ -109,10 +113,20 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
         <KxFormField :label="t('models.baseUrl')">
           <KxInput :id="`${idPrefix}-base-url`" v-model="baseUrl" :data-test="baseUrlTestId" />
         </KxFormField>
+        <KxFormField :label="t('models.apiKey')">
+          <KxInput
+            :id="`${idPrefix}-api-key`"
+            v-model="apiKey"
+            type="password"
+            :placeholder="t('models.apiKeyPlaceholder')"
+            :data-test="apiKeyTestId"
+          />
+        </KxFormField>
         <KxFormField :label="t('models.apiKeyEnv')">
           <KxInput
             :id="`${idPrefix}-api-key-env`"
             v-model="apiKeyEnv"
+            :placeholder="t('models.apiKeyEnvPlaceholder')"
             :data-test="apiKeyEnvTestId"
           />
         </KxFormField>
