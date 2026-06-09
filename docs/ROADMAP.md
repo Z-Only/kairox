@@ -33,18 +33,18 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | Browser / computer use                    | ✅ Browser tool + Computer use primitives             | Claude quickstarts, browser-use, Cline                               |
 | Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                  | SWE-Agent, Moatless                                                  |
 | Agent self-reflection / advisor           | ✅ Inline advisor review before tool execution        | Anthropic BetaAdvisorTool (beta)                                     |
-| Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
+| Long-running autonomous mode              | ✅ Autonomous controller + session chaining           | Claude quickstarts autonomous-coding, Codex background tasks         |
 | Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming         | Claude Agent SDK, Goose extensible-agent                             |
 | Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
 | Git-aware workflows                       | ⚠️ Basic shell.exec                                   | Aider, Claude Code have deep git integration                         |
 
 ---
 
-## Phase 1 — Foundation hardening (v0.35 – v0.36)
+## Phase 1 — Foundation hardening (v0.35 – v0.36) ✅
 
 Low-risk, high-leverage improvements to the existing architecture.
 
-### 1.1 Prompt cache optimization
+### 1.1 Prompt cache optimization ✅
 
 **Crate**: `agent-models` (Anthropic adapter)
 
@@ -57,7 +57,7 @@ Apply the cache breakpoint strategy from Anthropic's computer-use best-practices
 
 **Why**: Direct cost/latency reduction. The pattern is proven in production (Anthropic's own reference impl). Minimal code change in the model adapter layer.
 
-### 1.2 Server-side tool types
+### 1.2 Server-side tool types ✅
 
 **Crates**: `agent-models`, `agent-tools`, `agent-config`
 
@@ -70,7 +70,7 @@ These are _not_ local tools — they're API-level tool types that Anthropic exec
 
 **Why**: Unlocks code execution and web search without running local infrastructure. Claude quickstarts L3 shows this is the lowest-friction path to these capabilities.
 
-### 1.3 Multimodal context management
+### 1.3 Multimodal context management ✅
 
 **Crate**: `agent-memory` (ContextAssembler)
 
@@ -82,7 +82,7 @@ Add image pruning strategies for conversations containing screenshots or uploade
 
 **Why**: Without this, a single conversation with several screenshots can exhaust the context window. Prerequisite for browser/computer use (Phase 2) and useful immediately for multimodal chat.
 
-### 1.4 Retry and error resilience
+### 1.4 Retry and error resilience ✅
 
 **Crate**: `agent-models`
 
@@ -101,7 +101,7 @@ Adopt the retry classification from computer-use best-practices:
 
 The leap from "reads and writes files" to "sees and interacts with running software."
 
-### 2.1 Browser tool (Playwright-backed)
+### 2.1 Browser tool (Playwright-backed) ✅
 
 **Crates**: `agent-tools` (built-in or MCP server)
 
@@ -168,7 +168,7 @@ Complete. The computer use system now includes:
 
 ---
 
-## Phase 3 — Autonomy and long-running agents (v0.40 – v0.42)
+## Phase 3 — Autonomy and long-running agents (v0.40 – v0.42) ✅
 
 From session-scoped to task-scoped execution that survives context limits.
 

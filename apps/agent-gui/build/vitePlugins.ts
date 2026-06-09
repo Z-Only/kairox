@@ -13,7 +13,8 @@ const vueUseImports = [
   "useIntervalFn",
   "useTimeoutFn",
   "useClipboard",
-  "useFocus"
+  "useFocus",
+  "whenever"
 ];
 
 export function createKairoxVitePlugins() {
