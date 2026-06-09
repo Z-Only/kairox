@@ -4,7 +4,11 @@ import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
-import { commands, type EffectiveProfileView } from "@/generated/commands";
+import {
+  commands,
+  type EffectiveProfileView,
+  type ProfileSettingsView
+} from "@/generated/commands";
 import { useProjectStore } from "@/stores/project";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
@@ -15,6 +19,11 @@ beforeAll(() => {
   HTMLDialogElement.prototype.close ??= vi.fn();
 });
 
+const mockInvoke = vi.fn();
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args)
+}));
+
 vi.mock("@/generated/commands", () => ({
   commands: {
     listProfileSettings: vi.fn(),
@@ -24,7 +33,6 @@ vi.mock("@/generated/commands", () => ({
     deleteProfileSettings: vi.fn(),
     moveProfileInOrder: vi.fn(),
     openProfilesConfigFile: vi.fn(),
-    openConfigFileForScope: vi.fn(),
     testModelConnectivity: vi.fn(),
     testUrlConnectivity: vi.fn()
   }
@@ -50,14 +58,14 @@ const writableProfile = {
   top_k: null,
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
-  api_key: null,
   api_key_env: "OPENAI_API_KEY",
+  api_key: null,
   client_identity: null,
   has_api_key: true,
   writable: true,
-  config_path: "/tmp/profiles.toml",
-  source: "profiles_toml"
-};
+  config_path: "/tmp/config.toml",
+  source: "user_config"
+} as unknown as ProfileSettingsView;
 
 const readOnlyProfile = {
   alias: "fast",
@@ -71,14 +79,14 @@ const readOnlyProfile = {
   top_k: null,
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
-  api_key: null,
   api_key_env: "OPENAI_API_KEY",
+  api_key: null,
   client_identity: null,
   has_api_key: true,
   writable: false,
   config_path: null,
   source: "user_config"
-};
+} as unknown as ProfileSettingsView;
 
 const projectOnlyProfile = {
   alias: "local-code",
@@ -92,14 +100,14 @@ const projectOnlyProfile = {
   top_k: null,
   max_tokens: null,
   base_url: null,
-  api_key: null,
   api_key_env: null,
+  api_key: null,
   client_identity: "claude_code",
   has_api_key: false,
   writable: true,
-  config_path: "/tmp/profiles.toml",
+  config_path: "/tmp/config.toml",
   source: "project_config"
-};
+} as unknown as ProfileSettingsView;
 
 function toEffective(
   profile: typeof writableProfile | typeof readOnlyProfile | typeof projectOnlyProfile
@@ -154,7 +162,7 @@ beforeEach(() => {
   mockedCommands.deleteProfileSettings.mockResolvedValue(ok(null));
   mockedCommands.moveProfileInOrder.mockResolvedValue(ok(null));
   mockedCommands.openProfilesConfigFile.mockResolvedValue(ok("/tmp/profiles.toml"));
-  mockedCommands.openConfigFileForScope.mockResolvedValue(ok("/tmp/.kairox/config.toml"));
+  mockInvoke.mockResolvedValue("/tmp/.kairox/config.toml");
 });
 
 describe("ModelSettingsPane", () => {
@@ -513,7 +521,10 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="model-open-config-file"]').trigger("click");
-    expect(mockedCommands.openConfigFileForScope).toHaveBeenCalledWith("user", null);
+    expect(mockInvoke).toHaveBeenCalledWith("open_config_file_for_scope", {
+      scope: "user",
+      projectRoot: null
+    });
   });
 
   it("notifies success when test profile connectivity succeeds", async () => {
@@ -577,12 +588,19 @@ describe("ModelSettingsPane", () => {
   it("notifies error when test profile connectivity returns ok with error message", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: false, error: "connection refused" }
+      data: {
+        ok: false,
+        error: "connection refused",
+        status: "failed",
+        message: "connection refused",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
 
-    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    const row = wrapper.find('[data-test="model-row-my-model"]');
+    await row.find('[data-test="model-test-connectivity"]').trigger("click");
     await flushPromises();
 
     expect(mockNotify).toHaveBeenCalledWith("error", "connection refused");
@@ -602,7 +620,13 @@ describe("ModelSettingsPane", () => {
   it("notifies success when form URL connectivity test succeeds", async () => {
     mockedCommands.testUrlConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: true, error: null }
+      data: {
+        ok: true,
+        error: null,
+        status: "endpoint_reachable",
+        message: "Endpoint is reachable.",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
@@ -640,7 +664,13 @@ describe("ModelSettingsPane", () => {
   it("notifies error when form URL connectivity test returns ok with error message", async () => {
     mockedCommands.testUrlConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: false, error: "timeout" }
+      data: {
+        ok: false,
+        error: "timeout",
+        status: "failed",
+        message: "timeout",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
@@ -827,7 +857,13 @@ describe("ModelSettingsPane", () => {
   it("notifies fallback error when test profile returns ok with no error message", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: false, error: null }
+      data: {
+        ok: false,
+        error: null,
+        status: "failed",
+        message: "Unknown error",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
@@ -842,7 +878,13 @@ describe("ModelSettingsPane", () => {
   it("notifies fallback error when form URL test returns ok with no error message", async () => {
     mockedCommands.testUrlConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: false, error: null }
+      data: {
+        ok: false,
+        error: null,
+        status: "failed",
+        message: "Unknown error",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
@@ -859,7 +901,13 @@ describe("ModelSettingsPane", () => {
   it("tests connectivity from edit dialog via test button", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: true, error: null }
+      data: {
+        ok: true,
+        error: null,
+        status: "chat_ready",
+        message: "Model is ready.",
+        response_preview: null
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
