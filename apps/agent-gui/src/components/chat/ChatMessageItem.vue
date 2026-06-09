@@ -15,7 +15,6 @@ const emit = defineEmits<{
 }>();
 
 const copiedRecently = ref(false);
-const isHovered = ref(false);
 
 async function handleCopy() {
   try {
@@ -66,12 +65,8 @@ const roleClass: Record<ProjectedRole, string> = {
     ></div>
     <!-- eslint-enable vue/no-v-html -->
     <template v-else>
-      <div
-        class="user-message-wrapper"
-        @mouseenter="isHovered = true"
-        @mouseleave="isHovered = false"
-      >
-        <div :class="['user-message-actions', { visible: isHovered }]">
+      <div class="user-message-wrapper">
+        <div class="user-message-actions">
           <button
             class="action-btn"
             :title="copiedRecently ? 'Copied!' : 'Copy'"
@@ -146,7 +141,7 @@ const roleClass: Record<ProjectedRole, string> = {
   pointer-events: none;
 }
 
-.user-message-actions.visible {
+.user-message-wrapper:hover .user-message-actions {
   opacity: 1;
   pointer-events: auto;
 }

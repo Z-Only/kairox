@@ -2,6 +2,12 @@ export type TraceEntryStatus = "running" | "completed" | "failed" | "pending";
 
 export type TraceEntryKind = "tool" | "permission" | "memory" | "monitor" | "cancellation";
 
+export interface ImageAttachment {
+  media_type: string;
+  data: string;
+  label?: string | null;
+}
+
 export interface TraceEntryData {
   id: string;
   kind: TraceEntryKind;
@@ -20,4 +26,6 @@ export interface TraceEntryData {
   scope?: string;
   content?: string;
   reason?: string;
+  /** Image attachments from tool output (e.g. screenshots). */
+  images?: ImageAttachment[];
 }

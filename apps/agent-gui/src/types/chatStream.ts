@@ -43,6 +43,8 @@ export interface ChatToolCallStreamItem {
   input?: string;
   outputPreview?: string;
   scope?: string;
+  /** Structured image attachments from tool output (e.g. screenshots). */
+  images?: Array<{ media_type: string; data: string; label?: string | null }>;
 }
 
 export interface ChatPermissionStreamItem {

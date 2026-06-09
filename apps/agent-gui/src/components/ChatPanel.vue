@@ -630,6 +630,7 @@ watch(
               :input="item.input"
               :output-preview="item.outputPreview"
               :scope="item.scope"
+              :images="item.images"
             />
             <ChatPermissionItem
               v-else-if="item.kind === 'permission'"

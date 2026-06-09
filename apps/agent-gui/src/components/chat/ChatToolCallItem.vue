@@ -15,6 +15,12 @@ import { storeToRefs } from "pinia";
 import DiffPreview from "@/components/chat/DiffPreview.vue";
 import ImageLightbox from "@/components/ImageLightbox.vue";
 
+interface ImageAttachmentProp {
+  media_type: string;
+  data: string;
+  label?: string | null;
+}
+
 interface ChatToolCallItemProps {
   toolId: string;
   /**
@@ -37,6 +43,8 @@ interface ChatToolCallItemProps {
   input?: string;
   outputPreview?: string;
   scope?: string;
+  /** Structured image attachments from the tool output (e.g. screenshots). */
+  images?: ImageAttachmentProp[];
   /** Controlled mode: when provided, the parent owns the expanded state. */
   expanded?: boolean;
   /** Uncontrolled initial value; ignored when `expanded` is provided. */
@@ -51,6 +59,7 @@ const props = withDefaults(defineProps<ChatToolCallItemProps>(), {
   input: undefined,
   outputPreview: undefined,
   scope: undefined,
+  images: undefined,
   expanded: undefined,
   defaultExpanded: false
 });
@@ -206,11 +215,20 @@ const outputIsDiff = computed(() =>
  */
 const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
 
-/** Extract base64 image data URIs from tool output for inline rendering. */
+/**
+ * Resolve images for inline rendering. Prefers structured `images` prop
+ * (from the new ToolInvocationCompleted.images field); falls back to
+ * legacy regex extraction from `outputPreview` for backward compat.
+ */
 const outputImages = computed<string[]>(() => {
+  // Structured path: images prop carries base64 data directly
+  if (props.images && props.images.length > 0) {
+    return props.images.map((img) => `data:${img.media_type};base64,${img.data}`);
+  }
+
+  // Legacy fallback: extract from outputPreview text
   if (!props.outputPreview) return [];
   const images: string[] = [];
-  // Match "screenshot": "..." or standalone base64 PNG/JPEG blobs
   try {
     const parsed = JSON.parse(props.outputPreview);
     if (parsed && typeof parsed === "object") {
@@ -221,11 +239,9 @@ const outputImages = computed<string[]>(() => {
       }
     }
   } catch {
-    // Not JSON — try markdown image syntax: ![alt](data:image/...;base64,...)
     for (const match of props.outputPreview.matchAll(MARKDOWN_IMAGE_RE)) {
       images.push(match[1]);
     }
-    // Fall back to raw base64 match when no markdown images found
     if (images.length === 0) {
       const raw = props.outputPreview.trim();
       if (isBase64Image(raw)) {
