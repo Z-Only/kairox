@@ -19,3 +19,7 @@ impl ContextBudget {
         self.context_window.saturating_sub(self.output_reservation)
     }
 }
+
+#[cfg(test)]
+#[path = "budget_tests.rs"]
+mod tests;
