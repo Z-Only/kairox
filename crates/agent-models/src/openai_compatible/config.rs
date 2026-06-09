@@ -35,3 +35,7 @@ impl OpenAiCompatibleConfig {
         std::env::var(&self.api_key_env).ok()
     }
 }
+
+#[cfg(test)]
+#[path = "config_tests.rs"]
+mod tests;

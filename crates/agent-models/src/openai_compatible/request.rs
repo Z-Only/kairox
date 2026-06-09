@@ -126,6 +126,10 @@ impl OpenAiCompatibleClient {
     }
 }
 
+#[cfg(test)]
+#[path = "request_tests.rs"]
+mod tests;
+
 fn has_non_empty_text(value: &str) -> bool {
     !value.trim().is_empty()
 }
