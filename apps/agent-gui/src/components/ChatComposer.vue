@@ -52,6 +52,7 @@ const {
   clearQueuedMessages,
   moveQueuedMessage,
   restoreQueuedMessage,
+  cancelling,
   cancelSession,
   appendText
 } = composer;
@@ -262,6 +263,7 @@ watch(modelPopoverOpen, (isOpen) => {
         v-if="session.isStreaming"
         variant="danger"
         data-test="cancel-button"
+        :disabled="cancelling"
         @click="cancelSession"
       >
         {{ t("common.cancel") }}
