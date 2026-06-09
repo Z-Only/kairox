@@ -55,6 +55,11 @@ async fn builtin_provider_lists_all_tools() {
         tool_ids
     );
     assert!(
+        tool_ids.contains(&"browser.action"),
+        "missing browser.action, got: {:?}",
+        tool_ids
+    );
+    assert!(
         tool_ids.contains(&"browser.batch"),
         "missing browser.batch, got: {:?}",
         tool_ids
@@ -80,6 +85,30 @@ async fn builtin_provider_returns_none_for_unknown() {
     let provider = BuiltinProvider::with_defaults(PathBuf::from("/tmp"));
     let tool = provider.get_tool("nonexistent").await;
     assert!(tool.is_none());
+}
+
+#[tokio::test]
+async fn builtin_provider_gets_browser_action() {
+    let provider = BuiltinProvider::with_defaults(PathBuf::from("/tmp"));
+    let tool = provider.get_tool("browser.action").await;
+    assert!(tool.is_some());
+    assert_eq!(tool.unwrap().definition().tool_id, "browser.action");
+}
+
+#[tokio::test]
+async fn builtin_provider_gets_browser_batch() {
+    let provider = BuiltinProvider::with_defaults(PathBuf::from("/tmp"));
+    let tool = provider.get_tool("browser.batch").await;
+    assert!(tool.is_some());
+    assert_eq!(tool.unwrap().definition().tool_id, "browser.batch");
+}
+
+#[tokio::test]
+async fn builtin_provider_gets_computer_use() {
+    let provider = BuiltinProvider::with_defaults(PathBuf::from("/tmp"));
+    let tool = provider.get_tool("computer.use").await;
+    assert!(tool.is_some());
+    assert_eq!(tool.unwrap().definition().tool_id, "computer.use");
 }
 
 #[tokio::test]
