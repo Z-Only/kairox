@@ -85,6 +85,7 @@ impl Tool for FsListTool {
         Ok(ToolOutput {
             text,
             truncated: false,
+            images: vec![],
         })
     }
 }

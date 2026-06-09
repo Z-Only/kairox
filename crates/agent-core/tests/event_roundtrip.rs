@@ -187,6 +187,7 @@ fn tool_invocation_completed_roundtrips() {
         exit_code: Some(0),
         duration_ms: 150,
         truncated: false,
+        images: vec![],
     });
     assert_eq!(roundtrip(&event), event);
 }

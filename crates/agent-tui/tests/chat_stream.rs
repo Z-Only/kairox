@@ -135,6 +135,7 @@ fn folds_tool_call_lifecycle_into_single_completed_item() {
                 exit_code: Some(0),
                 duration_ms: 120,
                 truncated: false,
+                images: vec![],
             },
         ),
     ];
@@ -377,6 +378,7 @@ fn chronological_interleaving_across_item_kinds() {
                 exit_code: Some(0),
                 duration_ms: 10,
                 truncated: false,
+                images: vec![],
             },
         ),
         make_event_at(

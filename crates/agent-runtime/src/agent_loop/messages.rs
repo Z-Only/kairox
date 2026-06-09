@@ -133,6 +133,7 @@ pub fn build_model_messages(
             EventPayload::ToolInvocationCompleted {
                 invocation_id,
                 output_preview,
+                images: _,
                 ..
             } => {
                 flush_pending_tool_calls(&mut messages, &mut pending_tool_calls);

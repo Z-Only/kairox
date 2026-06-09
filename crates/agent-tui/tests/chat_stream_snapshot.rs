@@ -234,6 +234,7 @@ fn collapsed_tool_call_renders_marker_and_status_after_messages() {
                 exit_code: Some(0),
                 duration_ms: 110,
                 truncated: false,
+                images: vec![],
             },
         ),
     ];
@@ -303,6 +304,7 @@ fn expanded_tool_call_renders_output_and_exit_code() {
                 exit_code: Some(0),
                 duration_ms: 250,
                 truncated: false,
+                images: vec![],
             },
         ),
     ];

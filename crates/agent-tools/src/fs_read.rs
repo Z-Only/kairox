@@ -48,7 +48,11 @@ impl Tool for FsReadTool {
         if truncated {
             text.truncate(invocation.output_limit_bytes);
         }
-        Ok(ToolOutput { text, truncated })
+        Ok(ToolOutput {
+            text,
+            truncated,
+            images: vec![],
+        })
     }
 }
 

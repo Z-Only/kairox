@@ -60,6 +60,7 @@ impl Tool for EchoTool {
         Ok(ToolOutput {
             text: format!("echo: {}", invocation.arguments),
             truncated: false,
+            images: vec![],
         })
     }
 }

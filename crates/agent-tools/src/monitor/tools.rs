@@ -128,6 +128,7 @@ impl Tool for MonitorStartTool {
         Ok(ToolOutput {
             text: format!("Monitor started: {monitor_id}"),
             truncated: false,
+            images: vec![],
         })
     }
 }
@@ -178,6 +179,7 @@ impl Tool for MonitorStopTool {
         Ok(ToolOutput {
             text: format!("Monitor stopped: {monitor_id}"),
             truncated: false,
+            images: vec![],
         })
     }
 }
@@ -217,6 +219,7 @@ impl Tool for MonitorListTool {
             return Ok(ToolOutput {
                 text: "No active monitors.".into(),
                 truncated: false,
+                images: vec![],
             });
         }
 
@@ -231,6 +234,7 @@ impl Tool for MonitorListTool {
         Ok(ToolOutput {
             text: output,
             truncated: false,
+            images: vec![],
         })
     }
 }

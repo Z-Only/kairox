@@ -202,11 +202,13 @@ async fn invoke_screenshot_real() {
     assert!(!output.truncated);
     assert!(output.text.contains("Full screen screenshot captured"));
     assert!(output.text.contains("success: true"));
-    // Screenshot should be embedded as a markdown data URI.
+    // Screenshot is now returned as a structured image attachment.
     assert!(
-        output.text.contains("![screenshot](data:image/png;base64,"),
-        "Screenshot should be embedded as a markdown data URI"
+        !output.images.is_empty(),
+        "Screenshot should be returned in images field"
     );
+    assert_eq!(output.images[0].media_type, "image/png");
+    assert!(output.text.contains("[image attached]"));
 }
 
 #[tokio::test]
@@ -223,10 +225,13 @@ async fn invoke_screenshot_with_region_real() {
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Screenshot of region"));
     assert!(output.text.contains("success: true"));
+    // Screenshot is now returned as a structured image attachment.
     assert!(
-        output.text.contains("![screenshot](data:image/png;base64,"),
-        "Region screenshot should be embedded as a markdown data URI"
+        !output.images.is_empty(),
+        "Region screenshot should be returned in images field"
     );
+    assert_eq!(output.images[0].media_type, "image/png");
+    assert!(output.text.contains("[image attached]"));
 }
 
 #[tokio::test]
@@ -373,14 +378,15 @@ fn format_computer_result_without_screenshot() {
         screen_size: None,
         cursor_position: None,
     };
-    let text = format_computer_result(&result);
+    let (text, images) = format_computer_result(&result);
     assert!(text.contains("success: true"));
     assert!(text.contains("output: Mouse moved to (100, 200)"));
     assert!(!text.contains("data:image/png;base64"));
+    assert!(images.is_empty());
 }
 
 #[test]
-fn format_computer_result_with_screenshot_embeds_data_uri() {
+fn format_computer_result_with_screenshot_returns_image_attachment() {
     use super::tool::format_computer_result;
     use super::types::ComputerResult;
 
@@ -391,9 +397,13 @@ fn format_computer_result_with_screenshot_embeds_data_uri() {
         screen_size: None,
         cursor_position: None,
     };
-    let text = format_computer_result(&result);
+    let (text, images) = format_computer_result(&result);
     assert!(text.contains("success: true"));
-    assert!(text.contains("![screenshot](data:image/png;base64,iVBORw0KGgo=)"));
+    assert!(text.contains("screenshot: [image attached]"));
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].media_type, "image/png");
+    assert_eq!(images[0].data, "iVBORw0KGgo=");
+    assert_eq!(images[0].label.as_deref(), Some("screenshot"));
 }
 
 #[test]
@@ -411,7 +421,7 @@ fn format_computer_result_with_screen_size_and_cursor() {
         }),
         cursor_position: Some(CursorPosition { x: 42, y: 99 }),
     };
-    let text = format_computer_result(&result);
+    let (text, _images) = format_computer_result(&result);
     assert!(text.contains("screen_size: 1920x1080"));
     assert!(text.contains("cursor_position: (42, 99)"));
     // Empty output field should be omitted.
