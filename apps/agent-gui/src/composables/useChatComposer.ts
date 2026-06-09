@@ -167,6 +167,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     () => [session.isStreaming, Boolean(session.compacting)] as const,
     ([isStreaming, compacting]) => {
       if (!isStreaming && !compacting) {
+        cancelling.value = false;
         void sendNextQueuedMessage();
       }
     },
@@ -457,7 +458,11 @@ export function useChatComposer(options: UseChatComposerOptions) {
     return last ? restoreQueuedMessage(last.id) : false;
   }
 
+  const cancelling = ref(false);
+
   async function cancelSession() {
+    if (cancelling.value) return;
+    cancelling.value = true;
     try {
       await invokeFn("cancel_session");
     } catch (e) {
@@ -549,6 +554,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     moveQueuedMessage,
     restoreQueuedMessage,
     restoreLastQueuedMessage,
+    cancelling,
     cancelSession,
     selectModelProfile,
     appendText
