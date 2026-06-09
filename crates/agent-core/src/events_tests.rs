@@ -546,3 +546,131 @@ fn event_type_method_covers_monitor_variants() {
         "MonitorFailed"
     );
 }
+
+mod serde_roundtrip {
+    use super::*;
+    use crate::AutonomousTaskId;
+
+    /// Helper: serialize to JSON string and deserialize back, asserting equality.
+    fn roundtrip(payload: &EventPayload) {
+        let json = serde_json::to_string(payload).unwrap();
+        let decoded: EventPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(*payload, decoded, "round-trip failed for: {json}");
+    }
+
+    #[test]
+    fn context_compaction_skipped_already_compacting() {
+        roundtrip(&EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::AlreadyCompacting,
+            ratio: 0.85,
+        });
+    }
+
+    #[test]
+    fn context_compaction_skipped_threshold_disabled() {
+        roundtrip(&EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::ThresholdDisabled,
+            ratio: 0.0,
+        });
+    }
+
+    #[test]
+    fn tool_invocation_completed_with_images() {
+        roundtrip(&EventPayload::ToolInvocationCompleted {
+            invocation_id: "inv-1".into(),
+            tool_id: "browser.action".into(),
+            output_preview: "screenshot taken".into(),
+            exit_code: Some(0),
+            duration_ms: 1500,
+            truncated: false,
+            images: vec![ImageAttachment {
+                media_type: "image/png".into(),
+                data: "iVBORw0KGgo=".into(),
+                label: Some("screenshot".into()),
+            }],
+        });
+    }
+
+    #[test]
+    fn tool_invocation_completed_empty_images() {
+        roundtrip(&EventPayload::ToolInvocationCompleted {
+            invocation_id: "inv-2".into(),
+            tool_id: "shell.exec".into(),
+            output_preview: "ok".into(),
+            exit_code: Some(0),
+            duration_ms: 42,
+            truncated: false,
+            images: vec![],
+        });
+    }
+
+    #[test]
+    fn tool_invocation_completed_image_without_label() {
+        roundtrip(&EventPayload::ToolInvocationCompleted {
+            invocation_id: "inv-3".into(),
+            tool_id: "computer.use".into(),
+            output_preview: "done".into(),
+            exit_code: None,
+            duration_ms: 800,
+            truncated: true,
+            images: vec![ImageAttachment {
+                media_type: "image/jpeg".into(),
+                data: "/9j/4AAQ".into(),
+                label: None,
+            }],
+        });
+    }
+
+    #[test]
+    fn autonomous_task_created() {
+        roundtrip(&EventPayload::AutonomousTaskCreated {
+            autonomous_task_id: AutonomousTaskId::new(),
+            goal: "refactor auth module".into(),
+            acceptance_criteria: vec!["tests pass".into(), "no regressions".into()],
+            max_sessions: 3,
+        });
+    }
+
+    #[test]
+    fn autonomous_task_session_started() {
+        roundtrip(&EventPayload::AutonomousTaskSessionStarted {
+            autonomous_task_id: AutonomousTaskId::new(),
+            session_id: SessionId::new(),
+            session_index: 0,
+        });
+    }
+
+    #[test]
+    fn autonomous_task_checkpointed() {
+        roundtrip(&EventPayload::AutonomousTaskCheckpointed {
+            autonomous_task_id: AutonomousTaskId::new(),
+            session_id: SessionId::new(),
+            session_index: 1,
+            checkpoint_json: r#"{"progress":50}"#.into(),
+            end_reason: "budget_exhausted".into(),
+        });
+    }
+
+    #[test]
+    fn autonomous_task_completed() {
+        roundtrip(&EventPayload::AutonomousTaskCompleted {
+            autonomous_task_id: AutonomousTaskId::new(),
+            total_sessions: 2,
+        });
+    }
+
+    #[test]
+    fn autonomous_task_failed() {
+        roundtrip(&EventPayload::AutonomousTaskFailed {
+            autonomous_task_id: AutonomousTaskId::new(),
+            reason: "max retries exceeded".into(),
+        });
+    }
+
+    #[test]
+    fn autonomous_task_cancelled() {
+        roundtrip(&EventPayload::AutonomousTaskCancelled {
+            autonomous_task_id: AutonomousTaskId::new(),
+        });
+    }
+}
