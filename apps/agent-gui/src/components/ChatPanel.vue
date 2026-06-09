@@ -69,8 +69,8 @@ function bindUserMessageRef(id: string, el: Element | ComponentPublicInstance | 
  *
  * Rule: when ANY user message is visible in the scroll viewport, hide the
  * sticky header entirely. Only when ALL user messages have scrolled out of
- * view, pin the last (most recent) one so the user always knows which
- * prompt the model is responding to.
+ * view, pin the one closest above the current scroll position so the user
+ * always knows which prompt the visible content is responding to.
  */
 function recomputePinnedMessage() {
   const messages = allUserMessages.value;
@@ -86,8 +86,31 @@ function recomputePinnedMessage() {
       return;
     }
   }
-  // No user message is visible at all — pin the last one (most recent).
-  pinnedUserMessage.value = messages[messages.length - 1]?.content ?? null;
+  // No user message is visible — find the closest one above the viewport.
+  const container = scrollbar.value;
+  if (!container) {
+    pinnedUserMessage.value = messages[messages.length - 1]?.content ?? null;
+    return;
+  }
+  const containerTop = container.getBoundingClientRect().top;
+  let closestMessage: ChatMessageStreamItem | null = null;
+  let closestDistance = Infinity;
+  for (const msg of messages) {
+    const element = userMessageElements.get(msg.id);
+    if (!element) continue;
+    const elementBottom = element.getBoundingClientRect().bottom;
+    // Message is above the viewport top — candidate for pinning.
+    // Pick the one with the smallest distance (closest to viewport top).
+    if (elementBottom <= containerTop) {
+      const distance = containerTop - elementBottom;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestMessage = msg;
+      }
+    }
+  }
+  // If all messages are below the viewport (scrolled to very top), don't pin.
+  pinnedUserMessage.value = closestMessage?.content ?? null;
 }
 
 function setupUserMessageObserver() {

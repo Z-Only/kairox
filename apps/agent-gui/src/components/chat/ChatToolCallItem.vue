@@ -201,6 +201,11 @@ const outputIsDiff = computed(() =>
   props.outputPreview ? isDiffShaped(props.outputPreview) : false
 );
 
+/** Regex matching markdown image syntax with base64 data URIs or raw base64 content.
+ *  Captures: group 1 = full data URI (e.g. `data:image/png;base64,iVBOR...`).
+ */
+const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((data:image\/[^)]+)\)/g;
+
 /** Extract base64 image data URIs from tool output for inline rendering. */
 const outputImages = computed<string[]>(() => {
   if (!props.outputPreview) return [];
@@ -216,10 +221,16 @@ const outputImages = computed<string[]>(() => {
       }
     }
   } catch {
-    // Not JSON — try raw base64 match
-    const raw = props.outputPreview.trim();
-    if (isBase64Image(raw)) {
-      images.push(toDataUri(raw));
+    // Not JSON — try markdown image syntax: ![alt](data:image/...;base64,...)
+    for (const match of props.outputPreview.matchAll(MARKDOWN_IMAGE_RE)) {
+      images.push(match[1]);
+    }
+    // Fall back to raw base64 match when no markdown images found
+    if (images.length === 0) {
+      const raw = props.outputPreview.trim();
+      if (isBase64Image(raw)) {
+        images.push(toDataUri(raw));
+      }
     }
   }
   return images;
@@ -260,7 +271,12 @@ const sanitizedOutputPreview = computed<string | undefined>(() => {
       return JSON.stringify(cleaned, null, 2);
     }
   } catch {
-    // Not JSON
+    // Not JSON — replace markdown image syntax with readable placeholders
+    return props.outputPreview.replace(MARKDOWN_IMAGE_RE, (_match, dataUri: string) => {
+      const sizeLabel =
+        dataUri.length > 100 ? `${Math.round(dataUri.length / 1024)}KB base64` : "inline";
+      return `[image: ${sizeLabel}]`;
+    });
   }
   return props.outputPreview;
 });
