@@ -26,10 +26,25 @@ pub struct ToolInvocation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// An image attachment produced by a tool invocation (e.g. screenshot).
+pub struct ImageAttachment {
+    /// MIME type, e.g. `"image/png"`.
+    pub media_type: String,
+    /// Base64-encoded image data (no `data:` prefix).
+    pub data: String,
+    /// Optional human-readable label, e.g. `"screenshot"`.
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// The result of a tool invocation.
 pub struct ToolOutput {
     pub text: String,
     pub truncated: bool,
+    /// Image attachments produced by the tool (e.g. screenshots).
+    /// Tools that don't produce images leave this empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<ImageAttachment>,
 }
 
 #[async_trait]

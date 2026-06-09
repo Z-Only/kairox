@@ -122,19 +122,19 @@ Can ship as either:
 
 **Why**: Enables end-to-end UI verification. The autonomous-coding demo shows this is the difference between "code compiles" and "feature actually works." Kairox already has `tauri-pilot` infrastructure for desktop testing; browser tool is the web equivalent.
 
-### 2.2 Batch tool execution
+### 2.2 Batch tool execution ✅
 
 **Crates**: `agent-runtime`, `agent-tools`
 
-Reference: `claude-quickstarts/computer-use-best-practices` batch tools
+Complete. The batch tool execution system now includes:
 
-Allow the model to chain multiple predictable actions in a single turn:
+- **`browser.batch` tool**: Sequences multiple browser actions in a single tool call without intermediate screenshots, reducing API round-trips for deterministic multi-step operations.
+- **Structured image attachments**: `ToolOutput.images: Vec<ImageAttachment>` carries screenshots as structured data (media_type + base64 data + optional label) rather than embedding them in truncated text output.
+- **Event propagation**: `EventPayload::ToolInvocationCompleted` includes an `images` field that flows through the entire pipeline — runtime → event store → Tauri IPC → GUI rendering.
+- **GUI rendering**: `ChatToolCallItem.vue` renders attached images from the structured `images` prop, with legacy regex fallback for older events.
+- **Batch reminder**: Model receives a nudge when issuing lone single-action calls that could be batched.
 
-- `browser_batch` — sequence of browser actions without intermediate screenshots.
-- Reduces API round-trips for deterministic multi-step operations.
-- Model gets a "batch reminder" nudge when it issues lone single-action calls.
-
-**Why**: 2-5x latency reduction on repetitive tasks. The best-practices reference shows significant cost savings.
+**Why**: 2-5x latency reduction on repetitive tasks. The best-practices reference shows significant cost savings. Structured image attachments also solve the screenshot truncation problem that affected `computer.use` output.
 
 ### 2.3 Trajectory recording ✅
 

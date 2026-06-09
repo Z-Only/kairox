@@ -343,6 +343,7 @@ impl Tool for SlowTool {
         Ok(ToolOutput {
             text: "slow completed".into(),
             truncated: false,
+            images: vec![],
         })
     }
 }

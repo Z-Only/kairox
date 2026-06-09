@@ -3,7 +3,7 @@
 use super::platform::DesktopBackend;
 use super::types::ComputerAction;
 use crate::permission::{ToolEffect, ToolRisk};
-use crate::registry::{Tool, ToolDefinition, ToolInvocation, ToolOutput};
+use crate::registry::{ImageAttachment, Tool, ToolDefinition, ToolInvocation, ToolOutput};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -84,21 +84,25 @@ impl Tool for ComputerUseTool {
             .await
             .map_err(crate::ToolError::ExecutionFailed)?;
 
-        let text = format_computer_result(&result);
+        let (text, images) = format_computer_result(&result);
 
         Ok(ToolOutput {
             text,
             truncated: false,
+            images,
         })
     }
 }
 
-/// Format [`ComputerResult`] for the model, embedding any screenshot as a
-/// markdown data URI so the downstream multimodal pipeline can split it
-/// into a native image content block instead of counting it as text tokens.
-pub(crate) fn format_computer_result(result: &super::types::ComputerResult) -> String {
+/// Format [`ComputerResult`] for the model, returning text and any screenshot
+/// as a separate [`ImageAttachment`] so the downstream multimodal pipeline can
+/// pass it as a native image content block instead of counting it as text tokens.
+pub(crate) fn format_computer_result(
+    result: &super::types::ComputerResult,
+) -> (String, Vec<ImageAttachment>) {
     use std::fmt::Write;
     let mut output = String::new();
+    let mut images = Vec::new();
     let _ = writeln!(output, "success: {}", result.success);
     if !result.output.is_empty() {
         let _ = writeln!(output, "output: {}", result.output);
@@ -110,8 +114,12 @@ pub(crate) fn format_computer_result(result: &super::types::ComputerResult) -> S
         let _ = writeln!(output, "cursor_position: ({}, {})", pos.x, pos.y);
     }
     if let Some(ref screenshot) = result.screenshot {
-        let _ = writeln!(output, "screenshot:");
-        let _ = write!(output, "![screenshot](data:image/png;base64,{screenshot})");
+        let _ = writeln!(output, "screenshot: [image attached]");
+        images.push(ImageAttachment {
+            media_type: "image/png".to_string(),
+            data: screenshot.clone(),
+            label: Some("screenshot".to_string()),
+        });
     }
-    output
+    (output, images)
 }

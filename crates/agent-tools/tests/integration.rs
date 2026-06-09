@@ -50,6 +50,7 @@ impl Tool for EchoTool {
         Ok(ToolOutput {
             text: "echo ok".into(),
             truncated: false,
+            images: vec![],
         })
     }
 }

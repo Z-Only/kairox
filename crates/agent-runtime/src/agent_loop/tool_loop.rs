@@ -206,6 +206,15 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                         exit_code: None,
                         duration_ms: tool_start.elapsed().as_millis() as u64,
                         truncated: output.truncated,
+                        images: output
+                            .images
+                            .iter()
+                            .map(|img| agent_core::events::ImageAttachment {
+                                media_type: img.media_type.clone(),
+                                data: img.data.clone(),
+                                label: img.label.clone(),
+                            })
+                            .collect(),
                     },
                 ),
                 Err(ref e) => DomainEvent::new(

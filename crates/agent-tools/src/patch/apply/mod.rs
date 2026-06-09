@@ -97,6 +97,7 @@ impl Tool for PatchApplyTool {
                 affected_files.join(", ")
             ),
             truncated: false,
+            images: vec![],
         })
     }
 }

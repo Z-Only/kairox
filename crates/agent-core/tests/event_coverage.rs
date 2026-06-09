@@ -123,6 +123,7 @@ fn every_event_payload_variant_has_event_type() {
             exit_code: Some(0),
             duration_ms: 120,
             truncated: false,
+            images: vec![],
         },
         EventPayload::ToolInvocationFailed {
             invocation_id: "inv1".into(),
@@ -390,6 +391,7 @@ fn payload_serde_roundtrip_for_all_variants() {
             exit_code: Some(0),
             duration_ms: 234,
             truncated: false,
+            images: vec![],
         },
         EventPayload::ToolInvocationFailed {
             invocation_id: "inv-99".into(),

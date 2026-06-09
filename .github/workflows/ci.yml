@@ -595,5 +595,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
-        if: ${{ contains(needs.*.result, 'failure') }}
-        run: exit 1
+        # Live model tests and tauri-pilot-live-e2e depend on external APIs
+        # (GitHub Models inference) that are frequently flaky. Their failure
+        # should not block merges — they are informational-only.
+        run: |
+          # Collect results from all required (non-flaky) jobs
+          required_results=(
+            "${{ needs.changes.result }}"
+            "${{ needs.format.result }}"
+            "${{ needs.lint-rust.result }}"
+            "${{ needs.lint-web.result }}"
+            "${{ needs.test-e2e.result }}"
+            "${{ needs.coverage-rust.result }}"
+            "${{ needs.coverage-web.result }}"
+            "${{ needs.type-sync.result }}"
+            "${{ needs.build-tui.result }}"
+            "${{ needs.build-gui.result }}"
+            "${{ needs.eval-smoke.result }}"
+            "${{ needs.tauri-pilot-e2e.result }}"
+          )
+          for result in "${required_results[@]}"; do
+            if [[ "$result" == "failure" ]]; then
+              echo "::error::Required CI job failed"
+              exit 1
+            fi
+          done
+          # Report flaky job status without blocking
+          if [[ "${{ needs.live-model-tests.result }}" == "failure" ]]; then
+            echo "::warning::Live model tests failed (external API flaky — non-blocking)"
+          fi
+          if [[ "${{ needs.tauri-pilot-live-e2e.result }}" == "failure" ]]; then
+            echo "::warning::Tauri pilot live E2E failed (external API flaky — non-blocking)"
+          fi

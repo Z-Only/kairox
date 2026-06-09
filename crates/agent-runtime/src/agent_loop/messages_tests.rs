@@ -132,6 +132,7 @@ fn build_model_messages_replays_tool_use_before_tool_result() {
                 exit_code: None,
                 duration_ms: 4,
                 truncated: false,
+                images: vec![],
             },
             2,
         ),

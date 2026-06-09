@@ -30,6 +30,7 @@ fn extract_tool_traces_from_events() {
             exit_code: None,
             duration_ms: 1200,
             truncated: false,
+            images: vec![],
         }),
         make_event(EventPayload::ToolInvocationStarted {
             invocation_id: "inv2".into(),

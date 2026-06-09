@@ -181,6 +181,7 @@ fn tool_call_collapsed_shows_one_line_with_status() {
                 exit_code: Some(0),
                 duration_ms: 120,
                 truncated: false,
+                images: vec![],
             },
         ),
     ];
@@ -226,6 +227,7 @@ fn tool_call_expanded_shows_output_preview() {
                 exit_code: Some(0),
                 duration_ms: 120,
                 truncated: false,
+                images: vec![],
             },
         ),
     ];

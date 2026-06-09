@@ -101,6 +101,7 @@ impl Tool for FsWriteTool {
         Ok(ToolOutput {
             text: format!("Written {} bytes to {}", content.len(), relative_path),
             truncated: false,
+            images: vec![],
         })
     }
 }

@@ -34,6 +34,19 @@ pub enum CompactionSkipReason {
     ThresholdDisabled,
 }
 
+/// An image attachment produced by a tool invocation (e.g. screenshot).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ImageAttachment {
+    /// MIME type, e.g. `"image/png"`.
+    pub media_type: String,
+    /// Base64-encoded image data (no `data:` prefix).
+    pub data: String,
+    /// Optional human-readable label, e.g. `"screenshot"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
 /// Why a background monitor process was stopped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -164,6 +177,9 @@ pub enum EventPayload {
         #[cfg_attr(feature = "specta", specta(type = u32))]
         duration_ms: u64,
         truncated: bool,
+        /// Image attachments produced by the tool (e.g. screenshots).
+        #[serde(default)]
+        images: Vec<ImageAttachment>,
     },
     ToolInvocationFailed {
         invocation_id: String,

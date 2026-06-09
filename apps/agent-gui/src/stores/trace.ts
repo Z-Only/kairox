@@ -182,6 +182,7 @@ export const useTraceStore = defineStore("trace", () => {
           outputPreview: p.output_preview,
           exitCode: p.exit_code,
           truncated: p.truncated,
+          images: p.images && p.images.length > 0 ? p.images : undefined,
           rawEvent: rawJson(event)
         });
         break;

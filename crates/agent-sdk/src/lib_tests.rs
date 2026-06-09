@@ -192,6 +192,7 @@ async fn stream_event_from_tool_invocation_completed() {
             exit_code: Some(0),
             duration_ms: 42,
             truncated: false,
+            images: vec![],
         },
     );
     let stream_event = StreamEvent::from_domain_event(event);

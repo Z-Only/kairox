@@ -69,6 +69,7 @@ impl Tool for McpToolAdapter {
         Ok(ToolOutput {
             text,
             truncated: result.is_error.unwrap_or(false),
+            images: vec![],
         })
     }
 }

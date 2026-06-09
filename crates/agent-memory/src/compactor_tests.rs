@@ -107,6 +107,7 @@ fn render_transcript_includes_user_assistant_and_tool_events() {
             exit_code: Some(0),
             duration_ms: 50,
             truncated: false,
+            images: vec![],
         }),
     ];
     let out = render_transcript(&events);

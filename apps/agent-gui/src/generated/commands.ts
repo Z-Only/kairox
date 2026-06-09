@@ -719,6 +719,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -814,6 +815,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -912,6 +914,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1012,6 +1015,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1105,6 +1109,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1200,6 +1205,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1298,6 +1304,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1396,6 +1403,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1489,6 +1497,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1589,6 +1598,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1689,6 +1699,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1803,6 +1814,7 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1895,6 +1907,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1988,6 +2001,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2084,6 +2098,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2178,6 +2193,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2271,6 +2287,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2366,6 +2383,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2460,6 +2478,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -2527,6 +2546,8 @@ export type EventPayload_Deserialize =
       exit_code: number | null;
       duration_ms: number;
       truncated: boolean;
+      /**  Image attachments produced by the tool (e.g. screenshots). */
+      images?: ImageAttachment_Deserialize[];
     } & {
       acceptance_criteria?: never;
       action?: never;
@@ -2651,6 +2672,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -2744,6 +2766,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2839,6 +2862,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2939,6 +2963,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -3037,6 +3062,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -3130,6 +3156,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3223,6 +3250,7 @@ export type EventPayload_Deserialize =
       file?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3316,6 +3344,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3411,6 +3440,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3505,6 +3535,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3600,6 +3631,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3693,6 +3725,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3786,6 +3819,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3879,6 +3913,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3974,6 +4009,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4069,6 +4105,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4164,6 +4201,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4259,6 +4297,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4351,6 +4390,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4451,6 +4491,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4544,6 +4585,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4637,6 +4679,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4730,6 +4773,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4825,6 +4869,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4919,6 +4964,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5013,6 +5059,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5108,6 +5155,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5201,6 +5249,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5295,6 +5344,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5390,6 +5440,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5484,6 +5535,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5578,6 +5630,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5672,6 +5725,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5766,6 +5820,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5860,6 +5915,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5955,6 +6011,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6049,6 +6106,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6148,6 +6206,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6248,6 +6307,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6341,6 +6401,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6435,6 +6496,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6528,6 +6590,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6623,6 +6686,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -6717,6 +6781,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -6811,6 +6876,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6905,6 +6971,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7000,6 +7067,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7094,6 +7162,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7188,6 +7257,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7282,6 +7352,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7382,6 +7453,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7479,6 +7551,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7577,6 +7650,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7675,6 +7749,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7771,6 +7846,7 @@ export type EventPayload_Deserialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7870,6 +7946,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7968,6 +8045,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8061,6 +8139,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8155,6 +8234,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8249,6 +8329,7 @@ export type EventPayload_Deserialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8347,6 +8428,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8442,6 +8524,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8540,6 +8623,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8640,6 +8724,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8733,6 +8818,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8828,6 +8914,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8926,6 +9013,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9024,6 +9112,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9117,6 +9206,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9217,6 +9307,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9317,6 +9408,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9431,6 +9523,7 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9523,6 +9616,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9616,6 +9710,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9712,6 +9807,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9806,6 +9902,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9899,6 +9996,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9994,6 +10092,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10088,6 +10187,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -10155,6 +10255,8 @@ export type EventPayload_Serialize =
       exit_code: number | null;
       duration_ms: number;
       truncated: boolean;
+      /**  Image attachments produced by the tool (e.g. screenshots). */
+      images: ImageAttachment_Serialize[];
     } & {
       acceptance_criteria?: never;
       action?: never;
@@ -10279,6 +10381,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -10372,6 +10475,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10467,6 +10571,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10567,6 +10672,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -10665,6 +10771,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -10758,6 +10865,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10851,6 +10959,7 @@ export type EventPayload_Serialize =
       file?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10944,6 +11053,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11039,6 +11149,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11133,6 +11244,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11228,6 +11340,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11321,6 +11434,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11414,6 +11528,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11507,6 +11622,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11602,6 +11718,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11697,6 +11814,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11792,6 +11910,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11887,6 +12006,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11979,6 +12099,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12079,6 +12200,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12172,6 +12294,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12265,6 +12388,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12358,6 +12482,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12453,6 +12578,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12547,6 +12673,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12641,6 +12768,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12736,6 +12864,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12829,6 +12958,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12923,6 +13053,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13018,6 +13149,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13112,6 +13244,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13206,6 +13339,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13300,6 +13434,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13394,6 +13529,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13488,6 +13624,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13583,6 +13720,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13677,6 +13815,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13776,6 +13915,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13876,6 +14016,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13969,6 +14110,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14063,6 +14205,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14156,6 +14299,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14251,6 +14395,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -14345,6 +14490,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -14439,6 +14585,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14533,6 +14680,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14628,6 +14776,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14722,6 +14871,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14816,6 +14966,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14910,6 +15061,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15010,6 +15162,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15107,6 +15260,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15205,6 +15359,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15303,6 +15458,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15399,6 +15555,7 @@ export type EventPayload_Serialize =
       file?: never;
       finding_id?: never;
       from_profile?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15498,6 +15655,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15596,6 +15754,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15689,6 +15848,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15783,6 +15943,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15877,6 +16038,7 @@ export type EventPayload_Serialize =
       finding_id?: never;
       from_profile?: never;
       goal?: never;
+      images?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15985,6 +16147,29 @@ export type HooksSettingsView = {
   templates: HookTemplateView[];
   userConfigPath: string;
   projectConfigPath: string | null;
+};
+
+/**  An image attachment produced by a tool invocation (e.g. screenshot). */
+export type ImageAttachment = ImageAttachment_Serialize | ImageAttachment_Deserialize;
+
+/**  An image attachment produced by a tool invocation (e.g. screenshot). */
+export type ImageAttachment_Deserialize = {
+  /**  MIME type, e.g. `"image/png"`. */
+  media_type: string;
+  /**  Base64-encoded image data (no `data:` prefix). */
+  data: string;
+  /**  Optional human-readable label, e.g. `"screenshot"`. */
+  label?: string | null;
+};
+
+/**  An image attachment produced by a tool invocation (e.g. screenshot). */
+export type ImageAttachment_Serialize = {
+  /**  MIME type, e.g. `"image/png"`. */
+  media_type: string;
+  /**  Base64-encoded image data (no `data:` prefix). */
+  data: string;
+  /**  Optional human-readable label, e.g. `"screenshot"`. */
+  label?: string | null;
 };
 
 export type InstallGithubSkillRequest = {

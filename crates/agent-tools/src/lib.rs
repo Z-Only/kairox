@@ -34,8 +34,8 @@ pub use provider::{
     McpToolAdapter, WorkspaceScopedBuiltinTools,
 };
 pub use registry::{
-    require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
-    ToolRegistry,
+    require_permission, ArcTool, ImageAttachment, Tool, ToolDefinition, ToolInvocation, ToolOutput,
+    ToolProvider, ToolRegistry,
 };
 pub use search::{glob_matches, RipgrepSearchTool, SearchEngine, SearchResult, SearchResults};
 pub use shell::{classify_command, parse_command, CommandRisk, ShellExecTool};

@@ -225,6 +225,7 @@ impl Tool for LspToolInstance {
         Ok(ToolOutput {
             text,
             truncated: false,
+            images: vec![],
         })
     }
 }
