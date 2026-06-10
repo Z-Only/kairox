@@ -183,3 +183,7 @@ impl SdkBuilder {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "builder_tests.rs"]
+mod tests;
