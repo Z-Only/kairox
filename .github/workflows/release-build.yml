@@ -96,6 +96,10 @@ jobs:
         if: runner.os == 'macOS'
         run: rustup target add x86_64-apple-darwin
 
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/install-tauri-deps
+
       - name: Build TUI
         run: cargo build -p agent-tui --release
 
