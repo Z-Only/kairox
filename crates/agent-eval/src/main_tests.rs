@@ -43,3 +43,42 @@ fn parses_fail_fast_run_arg() {
 
     assert!(args.fail_fast);
 }
+
+#[test]
+fn parses_allow_post_run_commands_arg() {
+    let command = CliCommand::parse([
+        "run".to_string(),
+        "--scenarios".to_string(),
+        "fixtures.jsonl".to_string(),
+        "--output".to_string(),
+        "results.jsonl".to_string(),
+        "--allow-post-run-commands".to_string(),
+    ])
+    .expect("run command should parse");
+
+    let CliCommand::Run(args) = command else {
+        panic!("expected run command");
+    };
+
+    assert!(args.allow_post_run_commands);
+}
+
+#[test]
+fn parses_scenario_timeout_arg() {
+    let command = CliCommand::parse([
+        "run".to_string(),
+        "--scenarios".to_string(),
+        "fixtures.jsonl".to_string(),
+        "--output".to_string(),
+        "results.jsonl".to_string(),
+        "--scenario-timeout-ms".to_string(),
+        "60000".to_string(),
+    ])
+    .expect("run command should parse");
+
+    let CliCommand::Run(args) = command else {
+        panic!("expected run command");
+    };
+
+    assert_eq!(args.scenario_timeout_ms, Some(60_000));
+}

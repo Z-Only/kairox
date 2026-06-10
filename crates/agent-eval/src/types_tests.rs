@@ -87,6 +87,17 @@ fn scenario_serde_roundtrip_full() {
             max_turns: Some(3),
             trajectory_actions: vec!["fs.read".into()],
             max_trajectory_steps: Some(10),
+            workspace_files: vec![EvalFileExpectation {
+                path: "src/lib.rs".into(),
+                contains: vec!["pub fn add".into()],
+                not_contains: vec!["TODO".into()],
+            }],
+            post_run_commands: vec![EvalCommandExpectation {
+                program: "cargo".into(),
+                args: vec!["test".into(), "--quiet".into()],
+                timeout_ms: Some(30_000),
+                ..EvalCommandExpectation::default()
+            }],
         },
         turns: vec!["follow up".into()],
         system_instructions: Some("Be concise".into()),
@@ -154,6 +165,8 @@ fn expectation_default_is_empty() {
     assert_eq!(exp.max_turns, None);
     assert!(exp.trajectory_actions.is_empty());
     assert_eq!(exp.max_trajectory_steps, None);
+    assert!(exp.workspace_files.is_empty());
+    assert!(exp.post_run_commands.is_empty());
 }
 
 #[test]
@@ -170,6 +183,20 @@ fn expectation_serde_roundtrip() {
         max_turns: Some(5),
         trajectory_actions: vec!["shell.exec".into(), "fs.write".into()],
         max_trajectory_steps: Some(20),
+        workspace_files: vec![EvalFileExpectation {
+            path: "src/lib.rs".into(),
+            contains: vec!["pub fn add".into()],
+            not_contains: vec!["TODO".into()],
+        }],
+        post_run_commands: vec![EvalCommandExpectation {
+            program: "cargo".into(),
+            args: vec!["test".into()],
+            cwd: Some("target/vibe-coding-kata".into()),
+            exit_code: Some(0),
+            timeout_ms: Some(60_000),
+            stdout_contains: vec!["test result".into()],
+            stderr_contains: Vec::new(),
+        }],
         ..EvalExpectation::default()
     };
     let json = serde_json::to_string(&exp).unwrap();
@@ -187,6 +214,8 @@ fn expectation_skip_serializing_if_omits_empty() {
     assert!(!json.contains("min_tool_invocations"));
     assert!(!json.contains("max_elapsed_ms"));
     assert!(!json.contains("trajectory_actions"));
+    assert!(!json.contains("workspace_files"));
+    assert!(!json.contains("post_run_commands"));
 }
 
 // ── EvalRunOptions Default ───────────────────────────────────────────────────
@@ -213,6 +242,8 @@ fn run_options_default_values() {
     assert_eq!(opts.fake_tool_arguments, None);
     assert_eq!(opts.wait_timeout_ms, None);
     assert_eq!(opts.seed_synthetic_pairs, None);
+    assert!(!opts.allow_post_run_commands);
+    assert_eq!(opts.scenario_timeout_ms, None);
 }
 
 // ── EvalResult serde ─────────────────────────────────────────────────────────

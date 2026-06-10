@@ -10,7 +10,8 @@ use agent_models::{FakeModelClient, ModelRouter};
 use agent_runtime::LocalRuntime;
 use agent_store::{EventStore, SqliteEventStore};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -20,8 +21,9 @@ mod types;
 mod types_tests;
 
 pub use types::{
-    EvalComparison, EvalError, EvalExpectation, EvalReport, EvalResult, EvalRunOptions,
-    EvalScenario, EvalSummary, Result, ScenarioImprovement, ScenarioRegression,
+    EvalCommandExpectation, EvalComparison, EvalError, EvalExpectation, EvalFileExpectation,
+    EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result, ScenarioImprovement,
+    ScenarioRegression,
 };
 
 pub struct EvalHarness {
@@ -29,6 +31,7 @@ pub struct EvalHarness {
     workspace_id: agent_core::WorkspaceId,
     options: EvalRunOptions,
     default_profile: String,
+    current_session_id: Option<SessionId>,
 }
 
 impl EvalHarness {
@@ -84,6 +87,7 @@ impl EvalHarness {
             workspace_id,
             options,
             default_profile,
+            current_session_id: None,
         })
     }
 
@@ -112,6 +116,7 @@ impl EvalHarness {
                 sandbox_policy: Some(serde_json::to_string(&sandbox)?),
             })
             .await?;
+        self.current_session_id = Some(session_id.clone());
 
         if let Some(pairs) = self.options.seed_synthetic_pairs {
             seed_synthetic_history_pairs(
@@ -249,9 +254,23 @@ impl EvalHarness {
             },
             &mut failures,
         )?;
+        evaluate_workspace_file_expectations(
+            &scenario.expected.workspace_files,
+            &self.options.workspace_root,
+            &mut failures,
+        )?;
+        evaluate_post_run_commands(
+            &scenario.expected.post_run_commands,
+            &self.options.workspace_root,
+            self.options.allow_post_run_commands,
+            &mut failures,
+        )
+        .await?;
         let error = failures
             .iter()
             .find_map(|failure| failure.strip_prefix("runtime error: ").map(str::to_string));
+
+        self.current_session_id = None;
 
         Ok(EvalResult {
             scenario_id: scenario.id.clone(),
@@ -291,7 +310,32 @@ impl EvalHarness {
     ) -> Vec<EvalResult> {
         let mut results = Vec::with_capacity(scenarios.len());
         for scenario in scenarios {
-            match self.run_scenario(scenario).await {
+            let scenario_timeout_ms = self.options.scenario_timeout_ms;
+            let scenario_result = match scenario_timeout_ms {
+                Some(timeout_ms) => {
+                    match tokio::time::timeout(
+                        Duration::from_millis(timeout_ms),
+                        self.run_scenario(scenario),
+                    )
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(_) => {
+                            let result = self.timeout_result(scenario, timeout_ms).await;
+                            self.current_session_id = None;
+                            results.push(result);
+                            let failed = results.last().is_some_and(|result| !result.passed);
+                            if fail_fast && failed {
+                                break;
+                            }
+                            continue;
+                        }
+                    }
+                }
+                None => self.run_scenario(scenario).await,
+            };
+
+            match scenario_result {
                 Ok(result) => results.push(result),
                 Err(error) => {
                     let err_str = error.to_string();
@@ -324,6 +368,89 @@ impl EvalHarness {
             }
         }
         results
+    }
+
+    async fn timeout_result(&self, scenario: &EvalScenario, timeout_ms: u64) -> EvalResult {
+        let profile = scenario
+            .profile
+            .clone()
+            .unwrap_or_else(|| self.default_profile.clone());
+        let message = format!("scenario timed out after {timeout_ms} ms");
+        let mut trace_events = Vec::new();
+        let mut assistant_response = None;
+        let mut context_input_tokens = None;
+        let mut context_window = None;
+
+        if let Some(session_id) = self.current_session_id.clone() {
+            if let Ok(projection) = self
+                .runtime
+                .get_session_projection(session_id.clone())
+                .await
+            {
+                assistant_response = projection
+                    .messages
+                    .iter()
+                    .rev()
+                    .find(|message| {
+                        matches!(
+                            message.role,
+                            agent_core::projection::ProjectedRole::Assistant
+                        )
+                    })
+                    .map(|message| message.content.clone());
+                context_input_tokens = projection
+                    .last_context_usage
+                    .as_ref()
+                    .map(|usage| usage.total_tokens);
+                context_window = projection
+                    .last_context_usage
+                    .as_ref()
+                    .map(|usage| usage.context_window);
+            }
+            if let Ok(trace_entries) = self.runtime.get_trace(session_id).await {
+                trace_events = trace_entries.into_iter().map(trace_event).collect();
+            }
+        }
+
+        let event_types = trace_events
+            .iter()
+            .map(|event| event.event_type.clone())
+            .collect::<Vec<_>>();
+        let tool_invocations = count_events(&trace_events, |payload| {
+            matches!(payload, EventPayload::ToolInvocationStarted { .. })
+        });
+        let tool_failures = count_events(&trace_events, |payload| {
+            matches!(payload, EventPayload::ToolInvocationFailed { .. })
+        });
+        let turns_count = count_events(&trace_events, |payload| {
+            matches!(payload, EventPayload::AssistantMessageCompleted { .. })
+        });
+        let trajectory_actions = trace_events
+            .iter()
+            .filter_map(|event| match &event.payload {
+                EventPayload::ToolInvocationStarted { tool_id, .. } => Some(tool_id.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        EvalResult {
+            scenario_id: scenario.id.clone(),
+            profile,
+            passed: false,
+            failures: vec![message.clone()],
+            error: Some(message),
+            elapsed_ms: timeout_ms,
+            assistant_response,
+            event_types,
+            tool_invocations,
+            tool_failures,
+            context_input_tokens,
+            context_window,
+            trace: self.options.include_trace.then_some(trace_events),
+            turns_count,
+            trajectory_step_count: Some(tool_invocations as u32),
+            trajectory_actions,
+        }
     }
 }
 
@@ -646,6 +773,193 @@ fn evaluate_expectations(
     }
 
     Ok(())
+}
+
+fn evaluate_workspace_file_expectations(
+    expected_files: &[EvalFileExpectation],
+    workspace_root: &Path,
+    failures: &mut Vec<String>,
+) -> Result<()> {
+    for expected_file in expected_files {
+        let path = match resolve_workspace_relative_path(workspace_root, &expected_file.path) {
+            Ok(path) => path,
+            Err(message) => {
+                failures.push(format!(
+                    "workspace file `{}` has invalid path: {message}",
+                    expected_file.path
+                ));
+                continue;
+            }
+        };
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                failures.push(format!("workspace file missing: {}", expected_file.path));
+                continue;
+            }
+            Err(error) => {
+                failures.push(format!(
+                    "workspace file `{}` could not be read as UTF-8 text: {error}",
+                    expected_file.path
+                ));
+                continue;
+            }
+        };
+
+        for needle in &expected_file.contains {
+            if !content.contains(needle) {
+                failures.push(format!(
+                    "workspace file `{}` missing substring: {needle}",
+                    expected_file.path
+                ));
+            }
+        }
+
+        for needle in &expected_file.not_contains {
+            if content.contains(needle) {
+                failures.push(format!(
+                    "workspace file `{}` contains forbidden substring: {needle}",
+                    expected_file.path
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn evaluate_post_run_commands(
+    expected_commands: &[EvalCommandExpectation],
+    workspace_root: &Path,
+    allow_post_run_commands: bool,
+    failures: &mut Vec<String>,
+) -> Result<()> {
+    if expected_commands.is_empty() {
+        return Ok(());
+    }
+
+    if !allow_post_run_commands {
+        failures
+            .push("post-run command expectations require --allow-post-run-commands".to_string());
+        return Ok(());
+    }
+
+    for (index, expected_command) in expected_commands.iter().enumerate() {
+        let cwd = match expected_command.cwd.as_deref() {
+            Some(cwd) => match resolve_workspace_relative_path(workspace_root, cwd) {
+                Ok(path) => path,
+                Err(message) => {
+                    failures.push(format!(
+                        "post-run command {index} cwd `{cwd}` has invalid path: {message}"
+                    ));
+                    continue;
+                }
+            },
+            None => workspace_root.to_path_buf(),
+        };
+
+        let mut command = tokio::process::Command::new(&expected_command.program);
+        command
+            .args(&expected_command.args)
+            .current_dir(&cwd)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+
+        let output_future = command.output();
+        let output = match expected_command.timeout_ms {
+            Some(timeout_ms) => {
+                match tokio::time::timeout(Duration::from_millis(timeout_ms), output_future).await {
+                    Ok(output) => output,
+                    Err(_) => {
+                        failures.push(format!(
+                            "post-run command {index} timed out after {timeout_ms} ms: {}",
+                            format_command(expected_command)
+                        ));
+                        continue;
+                    }
+                }
+            }
+            None => output_future.await,
+        };
+
+        let output = match output {
+            Ok(output) => output,
+            Err(error) => {
+                failures.push(format!(
+                    "post-run command {index} failed to start: {}; command: {}",
+                    error,
+                    format_command(expected_command)
+                ));
+                continue;
+            }
+        };
+
+        if let Some(expected_code) = expected_command.exit_code {
+            let actual_code = output.status.code();
+            if actual_code != Some(expected_code) {
+                failures.push(format!(
+                    "post-run command {index} exit code mismatch: expected {expected_code}, got {}; command: {}\nstdout:\n{}\nstderr:\n{}",
+                    actual_code
+                        .map(|code| code.to_string())
+                        .unwrap_or_else(|| "signal".to_string()),
+                    format_command(expected_command),
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr),
+                ));
+            }
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for needle in &expected_command.stdout_contains {
+            if !stdout.contains(needle) {
+                failures.push(format!(
+                    "post-run command {index} stdout missing substring: {needle}"
+                ));
+            }
+        }
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        for needle in &expected_command.stderr_contains {
+            if !stderr.contains(needle) {
+                failures.push(format!(
+                    "post-run command {index} stderr missing substring: {needle}"
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn resolve_workspace_relative_path(
+    workspace_root: &Path,
+    raw_path: &str,
+) -> std::result::Result<PathBuf, String> {
+    let path = Path::new(raw_path);
+    if path.is_absolute() {
+        return Err("expected a relative path".to_string());
+    }
+
+    for component in path.components() {
+        match component {
+            Component::CurDir | Component::Normal(_) => {}
+            Component::ParentDir => return Err("parent traversal is not allowed".to_string()),
+            Component::Prefix(_) | Component::RootDir => {
+                return Err("absolute path components are not allowed".to_string());
+            }
+        }
+    }
+
+    Ok(workspace_root.join(path))
+}
+
+fn format_command(command: &EvalCommandExpectation) -> String {
+    std::iter::once(command.program.as_str())
+        .chain(command.args.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 struct ExpectationObservation<'a> {

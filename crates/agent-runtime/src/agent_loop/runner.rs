@@ -242,6 +242,7 @@ where
     // ── 7. Agent loop ───────────────────────────────────────────────
     let mut current_request = model_request;
     let mut iterations = 0;
+    let mut previous_iteration_completed_tools = false;
 
     loop {
         // Guard: cancellation
@@ -313,6 +314,9 @@ where
             &cancel_token,
             &root_task_id,
             &current_request,
+            previous_iteration_completed_tools.then_some(
+                "I completed the requested tool call, but the model returned no final text.",
+            ),
         )
         .await?;
 
@@ -501,6 +505,7 @@ where
             &trajectory_step_counter,
         )
         .await?;
+        previous_iteration_completed_tools = !tool_loop_result.tool_results.is_empty();
 
         // Build next request with tool results appended
         let tool_calls_for_msg: Vec<agent_models::ToolCall> = tool_calls

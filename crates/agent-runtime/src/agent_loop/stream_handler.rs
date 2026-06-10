@@ -32,6 +32,7 @@ pub(crate) async fn process_model_stream<S, M>(
     cancel_token: &CancellationToken,
     root_task_id: &TaskId,
     current_request: &agent_models::ModelRequest,
+    empty_response_fallback: Option<&str>,
 ) -> agent_core::Result<StreamOutput>
 where
     S: EventStore + 'static,
@@ -165,6 +166,24 @@ where
     }
 
     if !cancel_token.is_cancelled() && assistant_text.trim().is_empty() && tool_calls.is_empty() {
+        if let Some(fallback) = empty_response_fallback {
+            let event = DomainEvent::new(
+                request.workspace_id.clone(),
+                request.session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::AssistantMessageCompleted {
+                    message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
+                    content: fallback.to_string(),
+                },
+            );
+            append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+            return Ok(StreamOutput {
+                assistant_text: fallback.to_string(),
+                tool_calls,
+            });
+        }
+
         emit_model_request_failure(
             &**deps.store,
             deps.event_tx,
