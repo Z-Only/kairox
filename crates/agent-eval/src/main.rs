@@ -41,7 +41,9 @@ async fn run_scenarios(args: RunArgs) -> Result<()> {
         fake_tool_id: args.fake_tool_id,
         fake_tool_arguments: args.fake_tool_arguments,
         wait_timeout_ms: args.wait_timeout_ms,
+        scenario_timeout_ms: args.scenario_timeout_ms,
         seed_synthetic_pairs: args.seed_synthetic_pairs,
+        allow_post_run_commands: args.allow_post_run_commands,
     })
     .await?;
     let results = if args.fail_fast {
@@ -134,7 +136,9 @@ struct RunArgs {
     fake_tool_id: Option<String>,
     fake_tool_arguments: Option<serde_json::Value>,
     wait_timeout_ms: Option<u64>,
+    scenario_timeout_ms: Option<u64>,
     seed_synthetic_pairs: Option<usize>,
+    allow_post_run_commands: bool,
     fail_fast: bool,
     include_tags: Vec<String>,
     exclude_tags: Vec<String>,
@@ -161,7 +165,9 @@ impl RunArgs {
         let mut fake_tool_id: Option<String> = None;
         let mut fake_tool_arguments: Option<serde_json::Value> = None;
         let mut wait_timeout_ms: Option<u64> = None;
+        let mut scenario_timeout_ms: Option<u64> = None;
         let mut seed_synthetic_pairs: Option<usize> = None;
+        let mut allow_post_run_commands = false;
         let mut fail_fast = false;
         let mut include_tags = Vec::new();
         let mut exclude_tags = Vec::new();
@@ -218,6 +224,14 @@ impl RunArgs {
                         ))
                     })?);
                 }
+                "--scenario-timeout-ms" => {
+                    let raw = next_value(&mut iter, "--scenario-timeout-ms")?;
+                    scenario_timeout_ms = Some(raw.parse().map_err(|error| {
+                        agent_eval::EvalError::Cli(format!(
+                            "invalid --scenario-timeout-ms `{raw}`: {error}"
+                        ))
+                    })?);
+                }
                 "--seed-synthetic-pairs" => {
                     let raw = next_value(&mut iter, "--seed-synthetic-pairs")?;
                     seed_synthetic_pairs = Some(raw.parse().map_err(|error| {
@@ -226,6 +240,7 @@ impl RunArgs {
                         ))
                     })?);
                 }
+                "--allow-post-run-commands" => allow_post_run_commands = true,
                 "--fail-fast" => fail_fast = true,
                 "--tag" => include_tags.push(next_value(&mut iter, "--tag")?),
                 "--exclude-tag" => exclude_tags.push(next_value(&mut iter, "--exclude-tag")?),
@@ -260,7 +275,9 @@ impl RunArgs {
             fake_tool_id,
             fake_tool_arguments,
             wait_timeout_ms,
+            scenario_timeout_ms,
             seed_synthetic_pairs,
+            allow_post_run_commands,
             fail_fast,
             include_tags,
             exclude_tags,
@@ -421,7 +438,7 @@ fn compare_usage() -> String {
 }
 
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--report <report.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--fail-fast] [--tag <tag>] [--exclude-tag <tag>]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--report <report.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--scenario-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--allow-post-run-commands] [--fail-fast] [--tag <tag>] [--exclude-tag <tag>]".into()
 }
 
 fn list_usage() -> String {

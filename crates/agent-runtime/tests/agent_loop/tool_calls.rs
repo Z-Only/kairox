@@ -60,6 +60,42 @@ impl ModelClient for ToolCallingModelClient {
     }
 }
 
+#[derive(Debug, Clone)]
+struct EmptyAfterToolModelClient {
+    call_count: Arc<AtomicUsize>,
+}
+
+impl EmptyAfterToolModelClient {
+    fn new() -> Self {
+        Self {
+            call_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelClient for EmptyAfterToolModelClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let count = self.call_count.fetch_add(1, Ordering::SeqCst);
+        let events: Vec<agent_models::Result<ModelEvent>> = if count == 0 {
+            vec![
+                Ok(ModelEvent::ToolCallRequested {
+                    tool_call_id: "call_1".into(),
+                    tool_id: "echo".into(),
+                    arguments: serde_json::json!({"text": "hello"}),
+                }),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        } else {
+            vec![Ok(ModelEvent::Completed { usage: None })]
+        };
+        Ok(Box::pin(futures::stream::iter(events)))
+    }
+}
+
 #[tokio::test]
 async fn agent_loop_processes_tool_call_and_continues() {
     let store = SqliteEventStore::in_memory().await.unwrap();
@@ -140,6 +176,77 @@ async fn agent_loop_processes_tool_call_and_continues() {
         !projection.messages.is_empty(),
         "Should have chat messages after agent loop"
     );
+}
+
+#[tokio::test]
+async fn agent_loop_completes_when_model_returns_empty_after_successful_tool_call() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = EmptyAfterToolModelClient::new();
+    let mut runtime = LocalRuntime::new(store, model);
+    runtime = runtime.with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
+
+    let registry = runtime.tool_registry();
+    registry.lock().await.register(Box::new(EchoTool));
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-empty-after-tool".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "test".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "echo something".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .expect("empty response after successful tool call should complete");
+
+    let trace = runtime.get_trace(session_id.clone()).await.unwrap();
+    let event_types: Vec<String> = trace.iter().map(|e| e.event.event_type.clone()).collect();
+    assert!(
+        event_types.contains(&"ToolInvocationCompleted".to_string()),
+        "Missing ToolInvocationCompleted: {:?}",
+        event_types
+    );
+    assert!(
+        event_types.contains(&"AssistantMessageCompleted".to_string()),
+        "Missing AssistantMessageCompleted: {:?}",
+        event_types
+    );
+
+    let projection = runtime.get_session_projection(session_id).await.unwrap();
+    let assistant = projection
+        .messages
+        .iter()
+        .rev()
+        .find(|message| {
+            matches!(
+                message.role,
+                agent_core::projection::ProjectedRole::Assistant
+            )
+        })
+        .expect("assistant fallback message");
+    assert!(assistant
+        .content
+        .contains("completed the requested tool call"));
 }
 
 /// A model client that records the request messages on the second call so we

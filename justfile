@@ -294,6 +294,37 @@ eval-live profile="":
         --tag live \
         --enable-mcp
 
+# Run a live vibe-coding eval in a disposable Kairox worktree.
+# Defaults to the stable live-model profile used for local model quality checks.
+# Override the profile via: just eval-vibe-coding <profile>
+eval-vibe-coding profile="kairox-live":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --quiet -p agent-eval --bin kairox-eval
+    KAIROX_EVAL_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
+    KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
+    KAIROX_EVAL_TMP="$(mktemp -d)"
+    KAIROX_EVAL_WS="$KAIROX_EVAL_TMP/kairox-vibe-worktree"
+    cleanup() {
+        git worktree remove --force "$KAIROX_EVAL_WS" >/dev/null 2>&1 || true
+        rm -rf "$KAIROX_EVAL_TMP"
+    }
+    trap cleanup EXIT
+    git worktree add --detach "$KAIROX_EVAL_WS" HEAD
+    mkdir -p target/eval-vibe-coding
+    "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/live-vibe-coding.jsonl \
+        --output target/eval-vibe-coding/results.jsonl \
+        --report target/eval-vibe-coding/report.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --profile "{{profile}}" \
+        --approval-policy on_request \
+        --tag vibe-coding \
+        --scenario-timeout-ms 300000 \
+        --allow-post-run-commands \
+        --fail-fast
+
 # Run the tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/.
 # Requires the tauri-pilot CLI on PATH; install via:
 #     cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli

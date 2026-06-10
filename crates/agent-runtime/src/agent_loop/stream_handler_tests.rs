@@ -191,6 +191,7 @@ async fn stream_success_accumulates_assistant_text() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await
     .expect("stream should succeed");
@@ -221,6 +222,7 @@ async fn stream_collects_tool_calls() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await
     .expect("stream with tool calls should succeed");
@@ -248,6 +250,7 @@ async fn stream_model_failed_event_returns_error() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await;
 
@@ -278,6 +281,7 @@ async fn stream_error_in_event_returns_error() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await;
 
@@ -299,6 +303,7 @@ async fn stream_empty_response_returns_empty_model_error() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await;
 
@@ -387,6 +392,7 @@ async fn stream_cancellation_exits_early() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await;
 
@@ -430,6 +436,7 @@ async fn stream_connection_failure_returns_error() {
         &cancel_token,
         &root_task_id,
         &minimal_model_request(),
+        None,
     )
     .await;
 

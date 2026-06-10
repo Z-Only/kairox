@@ -1,7 +1,8 @@
 use agent_config::Config;
 use agent_eval::{
-    compare_reports, filter_scenarios_by_tags, load_scenarios_from_str, EvalExpectation,
-    EvalHarness, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary,
+    compare_reports, filter_scenarios_by_tags, load_scenarios_from_str, EvalCommandExpectation,
+    EvalExpectation, EvalFileExpectation, EvalHarness, EvalReport, EvalResult, EvalRunOptions,
+    EvalScenario, EvalSummary,
 };
 use std::collections::HashMap;
 
@@ -27,7 +28,7 @@ fn loads_jsonl_scenarios_and_skips_comments() {
 
 #[test]
 fn loads_extended_expectation_fields_from_jsonl() {
-    let input = r#"{"id":"ext","prompt":"test","expected":{"assistant_not_contains":["error"],"assistant_matches_regex":["\\d+"],"min_events_of_type":{"ToolInvocationStarted":2},"max_events_of_type":{"ToolInvocationFailed":0},"max_turns":3,"trajectory_actions":["fs.read","fs.write"],"max_trajectory_steps":5}}"#;
+    let input = r#"{"id":"ext","prompt":"test","expected":{"assistant_not_contains":["error"],"assistant_matches_regex":["\\d+"],"min_events_of_type":{"ToolInvocationStarted":2},"max_events_of_type":{"ToolInvocationFailed":0},"max_turns":3,"trajectory_actions":["fs.read","fs.write"],"max_trajectory_steps":5,"workspace_files":[{"path":"src/lib.rs","contains":["pub fn add"],"not_contains":["TODO"]}],"post_run_commands":[{"program":"sh","args":["-c","test -f src/lib.rs"],"timeout_ms":1000}]}}"#;
 
     let scenarios = load_scenarios_from_str(input).expect("should parse");
     let expected = &scenarios[0].expected;
@@ -45,6 +46,26 @@ fn loads_extended_expectation_fields_from_jsonl() {
     assert_eq!(expected.max_turns, Some(3));
     assert_eq!(expected.trajectory_actions, vec!["fs.read", "fs.write"]);
     assert_eq!(expected.max_trajectory_steps, Some(5));
+    assert_eq!(
+        expected.workspace_files,
+        vec![EvalFileExpectation {
+            path: "src/lib.rs".into(),
+            contains: vec!["pub fn add".into()],
+            not_contains: vec!["TODO".into()],
+        }]
+    );
+    assert_eq!(
+        expected.post_run_commands,
+        vec![EvalCommandExpectation {
+            program: "sh".into(),
+            args: vec!["-c".into(), "test -f src/lib.rs".into()],
+            cwd: None,
+            timeout_ms: Some(1000),
+            exit_code: Some(0),
+            stdout_contains: Vec::new(),
+            stderr_contains: Vec::new(),
+        }]
+    );
 }
 
 #[test]
@@ -506,6 +527,135 @@ async fn fake_compaction_scenario_triggers_auto_compaction_events() {
     assert!(result
         .event_types
         .contains(&"ContextCompactionCompleted".into()));
+}
+
+#[tokio::test]
+async fn scenario_checks_workspace_files_and_post_run_commands() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let src_dir = workspace.path().join("src");
+    std::fs::create_dir_all(&src_dir).expect("src dir");
+    std::fs::write(
+        src_dir.join("lib.rs"),
+        "pub fn add(left: i32, right: i32) -> i32 { left + right }\n",
+    )
+    .expect("workspace file");
+
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        allow_post_run_commands: true,
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "workspace-assertions".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            workspace_files: vec![EvalFileExpectation {
+                path: "src/lib.rs".into(),
+                contains: vec!["pub fn add".into()],
+                not_contains: vec!["TODO".into()],
+            }],
+            post_run_commands: vec![EvalCommandExpectation {
+                program: "sh".into(),
+                args: vec![
+                    "-c".into(),
+                    "test -f src/lib.rs && grep -q 'pub fn add' src/lib.rs".into(),
+                ],
+                timeout_ms: Some(1_000),
+                ..EvalCommandExpectation::default()
+            }],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+}
+
+#[tokio::test]
+async fn post_run_commands_require_explicit_opt_in() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "command-opt-in".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            post_run_commands: vec![EvalCommandExpectation {
+                program: "sh".into(),
+                args: vec!["-c".into(), "true".into()],
+                ..EvalCommandExpectation::default()
+            }],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result.failures.iter().any(|failure| failure
+        .contains("post-run command expectations require --allow-post-run-commands")));
+}
+
+#[tokio::test]
+async fn scenario_timeout_stops_long_running_scenario() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        allow_post_run_commands: true,
+        scenario_timeout_ms: Some(3_000),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "scenario-timeout".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            post_run_commands: vec![EvalCommandExpectation {
+                program: "sh".into(),
+                args: vec!["-c".into(), "sleep 30".into()],
+                exit_code: None,
+                ..EvalCommandExpectation::default()
+            }],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let results = harness.run_scenarios_until_failure(&[scenario]).await;
+
+    assert_eq!(results.len(), 1);
+    assert!(!results[0].passed);
+    assert!(results[0]
+        .failures
+        .contains(&"scenario timed out after 3000 ms".to_string()));
+    assert!(results[0]
+        .event_types
+        .contains(&"AssistantMessageCompleted".to_string()));
 }
 
 #[tokio::test]

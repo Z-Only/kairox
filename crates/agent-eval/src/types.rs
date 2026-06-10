@@ -94,6 +94,61 @@ pub struct EvalExpectation {
     pub trajectory_actions: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_trajectory_steps: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub workspace_files: Vec<EvalFileExpectation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub post_run_commands: Vec<EvalCommandExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct EvalFileExpectation {
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contains: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub not_contains: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EvalCommandExpectation {
+    pub program: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(
+        default = "default_command_exit_code",
+        skip_serializing_if = "is_default_command_exit_code"
+    )]
+    pub exit_code: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stdout_contains: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stderr_contains: Vec<String>,
+}
+
+impl Default for EvalCommandExpectation {
+    fn default() -> Self {
+        Self {
+            program: String::new(),
+            args: Vec::new(),
+            cwd: None,
+            exit_code: default_command_exit_code(),
+            timeout_ms: None,
+            stdout_contains: Vec::new(),
+            stderr_contains: Vec::new(),
+        }
+    }
+}
+
+fn default_command_exit_code() -> Option<i32> {
+    Some(0)
+}
+
+fn is_default_command_exit_code(exit_code: &Option<i32>) -> bool {
+    *exit_code == default_command_exit_code()
 }
 
 #[derive(Debug, Clone)]
@@ -116,8 +171,16 @@ pub struct EvalRunOptions {
     /// When set, polls the persisted trace until every event listed in
     /// `scenario.expected.event_types` is present or timeout elapses.
     pub wait_timeout_ms: Option<u64>,
+    /// Hard wall-clock timeout for each scenario in batch runs.
+    pub scenario_timeout_ms: Option<u64>,
     /// Seed synthetic history pairs before each `send_message`.
     pub seed_synthetic_pairs: Option<usize>,
+    /// Permit scenario-controlled post-run commands after model execution.
+    ///
+    /// This is off by default because scenario JSONL is user-supplied input;
+    /// live eval fixtures opt in explicitly when they need independent build
+    /// or test verification of generated code.
+    pub allow_post_run_commands: bool,
 }
 
 impl Default for EvalRunOptions {
@@ -139,7 +202,9 @@ impl Default for EvalRunOptions {
             fake_tool_id: None,
             fake_tool_arguments: None,
             wait_timeout_ms: None,
+            scenario_timeout_ms: None,
             seed_synthetic_pairs: None,
+            allow_post_run_commands: false,
         }
     }
 }
