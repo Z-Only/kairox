@@ -27,7 +27,7 @@
 - [ ] **PF-1: Verify clean baseline on `main`**
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   git status
   ```
 
@@ -119,7 +119,7 @@
 - [ ] **Step 3: Install and update lockfile**
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   pnpm install
   ```
 
@@ -662,7 +662,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   Run this once and save output for reference (do not commit):
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   for f in apps/agent-gui/src/stores/{session,taskGraph,agents,mcp,memory,catalog}.ts; do
     echo "===== $f ====="
     cat "$f"
@@ -4025,7 +4025,7 @@ These three items must land in the same `refactor(gui): migrate components to na
 - [ ] **Step 1: Inventory current selectors and route assumptions in specs**
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   grep -n "page.goto\|page.locator\|getByTestId\|page.click" apps/agent-gui/e2e/*.spec.ts | head -100
   ```
 
@@ -4355,7 +4355,7 @@ These three items must land in the same `refactor(gui): migrate components to na
   **6.1 Build the candidate list.** Run:
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   grep -rln '\bfrom "vue"\b\|\bfrom "vue-router"\b\|\bfrom "pinia"\b\|\bfrom "vue-i18n"\b\|\bfrom "@vueuse/core"\b' \
     apps/agent-gui/src --include="*.ts" --include="*.vue" \
     > /tmp/kairox-autoimport-candidates.txt
@@ -4562,7 +4562,7 @@ After all 10 commits land on `feat/frontend-engineering`:
 - [ ] **FV-1: Full CI gate locally**
 
   ```bash
-  cd /Users/chanyu/AIProjects/kairox
+  cd ~/AIProjects/kairox
   pnpm run format:check
   pnpm run lint
   cargo test --workspace --all-targets

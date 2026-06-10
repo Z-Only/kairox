@@ -45,7 +45,7 @@ After this work, the GUI is fully aligned with the stack documented in `AGENTS.m
 
 ### Workspace decision
 
-Work happens in the **main worktree** (`/Users/chanyu/AIProjects/kairox`) on a fresh branch `feat/frontend-engineering`. Rationale: opening a separate git worktree would force `src-tauri/target/` to rebuild from scratch (Tauri's Rust target dir is per-worktree), adding 30+ minutes per dev iteration. We accept the small isolation tradeoff for the 5-10x speedup on `tauri-dev` cycles.
+Work happens in the **main worktree** (`~/AIProjects/kairox`) on a fresh branch `feat/frontend-engineering`. Rationale: opening a separate git worktree would force `src-tauri/target/` to rebuild from scratch (Tauri's Rust target dir is per-worktree), adding 30+ minutes per dev iteration. We accept the small isolation tradeoff for the 5-10x speedup on `tauri-dev` cycles.
 
 ---
 

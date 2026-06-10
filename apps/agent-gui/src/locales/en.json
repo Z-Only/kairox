@@ -87,6 +87,22 @@
     "autonomousPause": "Pause",
     "autonomousResume": "Resume",
     "autonomousCancel": "Cancel",
+    "autonomousStateValues": {
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "failed": "Failed"
+    },
+    "autonomousEndReasons": {
+      "checkpoint": "Checkpoint",
+      "context_limit_reached": "Context limit reached",
+      "max_iterations_reached": "Max iterations reached",
+      "max_turns": "Max turns",
+      "task_completed": "Task completed",
+      "task_failed": "Task failed",
+      "user_paused": "User paused"
+    },
     "configSource": "Config Source",
     "userConfig": "User",
     "projectConfig": "Project",
@@ -718,6 +734,17 @@
     "densityLabel": "Detail:",
     "tabTrajectory": "Trajectory"
   },
+  "tasks": {
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterFailed": "Failed",
+    "filterDone": "Done",
+    "stateFiltersAria": "Task state filters",
+    "searchAria": "Search tasks",
+    "searchPlaceholder": "Search tasks",
+    "empty": "No tasks yet",
+    "emptyFiltered": "No matching tasks"
+  },
   "trajectory": {
     "noSession": "No active session",
     "loading": "Loading trajectories…",
@@ -727,7 +754,13 @@
     "loadingSteps": "Loading steps…",
     "noSteps": "No steps recorded",
     "input": "Input",
-    "observation": "Observation"
+    "observation": "Observation",
+    "outcome": {
+      "success": "Succeeded",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "in_progress": "In progress"
+    }
   },
   "permission": {
     "allow": "Allow",

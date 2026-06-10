@@ -5,7 +5,7 @@ titleTemplate: 本地优先的 AI Agent 工作台
 hero:
   name: Kairox
   text: 本地优先的 AI Agent 工作台
-  tagline: 共享的 Rust 核心、终端 UI 与 Tauri 桌面 GUI，让你在本机构建可观测、可授权的 AI Agent 工作流。
+  tagline: 共享的 Rust 核心、终端 UI、Tauri 桌面 GUI 与可嵌入 SDK，让你在本机构建可观测、可授权的 AI Agent 工作流。
   image:
     src: /logo.svg
     alt: Kairox logo
@@ -18,13 +18,13 @@ hero:
       link: https://github.com/Z-Only/kairox
 features:
   - title: 事件溯源的本地 runtime
-    details: 每一个 session、tool 调用与 permission 决策都是 SQLite 中的 event。随时重启 —— 没有任何东西只活在内存里。
-  - title: TUI 与桌面 GUI 共享同一内核
-    details: 用 ratatui TUI 进行高效键盘操作，或用 Tauri + Vue 桌面应用获得持久会话、trace 时间线和设置 —— 两者背后是同一个 Rust runtime。
-  - title: 带 permission 的 tool 与 MCP
-    details: 正交的 Approval × Sandbox 策略引擎管控每一次 tool 调用 —— `ApprovalPolicy` 决定何时询问用户，`SandboxPolicy` 决定 runtime 在结构上允许什么。内置的 shell / 文件系统 / 搜索 / browser / computer-use 工具，加上经过整理的 MCP marketplace，让能力既可组合又可审计。
-  - title: 为扩展而生
-    details: 原生 skill、plugin、模型路由、hook 与按 workspace 的配置都是一等公民。带上你自己的模型和工具即可上手。
+    details: 每一个 session、tool 调用、permission 决策、advisor review、autonomous checkpoint 与 trajectory step 都是 SQLite 中的 event。随时重启 —— UI 从事件日志重建。
+  - title: TUI、桌面 GUI 与 SDK 共享同一内核
+    details: 用 ratatui TUI 进行高效键盘操作，用 Tauri + Vue 桌面应用管理持久化工作台 session，或用 `agent-sdk` 把同一个 runtime 嵌入自己的 harness。
+  - title: 带 permission 的多模态 tool 与 MCP
+    details: Approval × Sandbox 策略管控每一次 tool 调用。内置 shell / 文件系统 / 搜索 / browser / computer-use 工具、结构化图片附件、LSP/DAP provider 与 MCP marketplace server 都可组合且可审计。
+  - title: 为自主工作流扩展而生
+    details: 原生 skill、plugin、模型路由、hook、advisor 自反检查、autonomous task checkpoint 与按 workspace 的配置都是一等公民。带上你自己的模型和工具即可上手。
 ---
 
 <script setup>
@@ -40,7 +40,15 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/workbench.png"
     zhDark="/screenshots/zh/workbench-dark.png"
     alt="Kairox 桌面工作台，展示项目会话、聊天、trace 与任务面板"
-    caption="桌面工作台将项目会话、聊天、trace 与任务上下文集中在一个视图中。"
+    caption="桌面工作台将项目 session、实时聊天、trace event、任务上下文、trajectory 状态和模型控制集中在一个视图中。"
+  />
+  <ThemeScreenshot
+    light="/screenshots/trajectory.png"
+    dark="/screenshots/trajectory-dark.png"
+    zhLight="/screenshots/zh/trajectory.png"
+    zhDark="/screenshots/zh/trajectory-dark.png"
+    alt="Kairox trajectory viewer，展示一次已记录的文件系统 tool step"
+    caption="Trajectory viewer 用于查看可 replay 的 tool step，包括按顺序记录的 action input、observation output、耗时和 outcome 状态。"
   />
   <ThemeScreenshot
     light="/screenshots/settings.png"
@@ -48,7 +56,15 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/settings.png"
     zhDark="/screenshots/zh/settings-dark.png"
     alt="Kairox 设置界面，展示模型与 agent 配置"
-    caption="覆盖 model、agent、MCP、skill、plugin、hook 与项目指令的设置面板。"
+    caption="覆盖通用行为、model、agent、autonomous task、MCP、skill、plugin、hook、指令与归档的设置面板。"
+  />
+  <ThemeScreenshot
+    light="/screenshots/autonomous.png"
+    dark="/screenshots/autonomous-dark.png"
+    zhLight="/screenshots/zh/autonomous.png"
+    zhDark="/screenshots/zh/autonomous-dark.png"
+    alt="Kairox autonomous task 设置页，展示 checkpoint 详情"
+    caption="Autonomous task 控制页展示持久化目标、暂停 / 恢复状态、session 预算、checkpoint、已完成工作和剩余事项。"
   />
 </div>
 
@@ -65,7 +81,7 @@ import { withBase } from "vitepress";
   </a>
   <a class="kairox-link-card" :href="withBase('/zh/concepts/extensibility')">
     <strong>用 MCP、skill、plugin 扩展</strong>
-    <span>无需 fork runtime，即可新增模型、工具、能力与工作流。</span>
+    <span>无需 fork runtime，即可新增模型、工具、能力、advisor 策略与工作流。</span>
   </a>
   <a class="kairox-link-card" href="https://github.com/Z-Only/kairox/releases/latest">
     <strong>下载最新版本</strong>

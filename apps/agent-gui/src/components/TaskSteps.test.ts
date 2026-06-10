@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
 import TaskSteps from "./TaskSteps.vue";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import type { TaskSnapshot } from "../types";
+import en from "@/locales/en.json";
+import zhCN from "@/locales/zh-CN.json";
+import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -24,16 +26,25 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
+function mountTaskSteps(locale: "en" | "zh-CN" = "en") {
+  return mountWithPlugins(TaskSteps, { reusePinia: true, locale }).wrapper;
+}
+
 describe("TaskSteps", () => {
   it("shows empty hint when no tasks", () => {
-    const wrapper = mount(TaskSteps);
-    expect(wrapper.text()).toContain("No tasks yet");
+    const wrapper = mountTaskSteps();
+    expect(wrapper.text()).toContain(en.tasks.empty);
+  });
+
+  it("renders localized empty hint in Chinese", () => {
+    const wrapper = mountTaskSteps("zh-CN");
+    expect(wrapper.text()).toContain(zhCN.tasks.empty);
   });
 
   it("renders task tree with root task", () => {
     const taskGraph = useTaskGraphStore();
     taskGraph.setTaskGraph([makeTask("A", { title: "Root Task", state: "Running" })], "ses_1");
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
     expect(wrapper.text()).toContain("Root Task");
     expect(wrapper.text()).toContain("running...");
   });
@@ -50,13 +61,20 @@ describe("TaskSteps", () => {
       "ses_1"
     );
 
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
 
     expect(wrapper.find('[data-test="task-state-filters"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="task-filter-all"]').text()).toBe("All 4");
-    expect(wrapper.find('[data-test="task-filter-active"]').text()).toBe("Active 2");
-    expect(wrapper.find('[data-test="task-filter-failed"]').text()).toBe("Failed 1");
-    expect(wrapper.find('[data-test="task-filter-done"]').text()).toBe("Done 1");
+    expect(wrapper.find('[data-test="task-state-filters"]').attributes("aria-label")).toBe(
+      en.tasks.stateFiltersAria
+    );
+    expect(wrapper.find('[data-test="task-filter-all"]').text()).toBe(`${en.tasks.filterAll} 4`);
+    expect(wrapper.find('[data-test="task-filter-active"]').text()).toBe(
+      `${en.tasks.filterActive} 2`
+    );
+    expect(wrapper.find('[data-test="task-filter-failed"]').text()).toBe(
+      `${en.tasks.filterFailed} 1`
+    );
+    expect(wrapper.find('[data-test="task-filter-done"]').text()).toBe(`${en.tasks.filterDone} 1`);
   });
 
   it("filters visible tasks by selected state group", async () => {
@@ -70,7 +88,7 @@ describe("TaskSteps", () => {
       "ses_1"
     );
 
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
 
     await wrapper.find('[data-test="task-filter-failed"]').trigger("click");
 
@@ -107,12 +125,12 @@ describe("TaskSteps", () => {
       "ses_1"
     );
 
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
     const search = wrapper.get('[data-test="task-search-input"]');
 
     expect(search.attributes("type")).toBe("search");
-    expect(search.attributes("aria-label")).toBe("Search tasks");
-    expect(search.attributes("placeholder")).toBe("Search tasks");
+    expect(search.attributes("aria-label")).toBe(en.tasks.searchAria);
+    expect(search.attributes("placeholder")).toBe(en.tasks.searchPlaceholder);
 
     await search.setValue("dashboard");
     expect(wrapper.text()).toContain("Implement Dashboard");
@@ -136,7 +154,7 @@ describe("TaskSteps", () => {
 
     await wrapper.find('[data-test="task-filter-failed"]').trigger("click");
     await search.setValue("dashboard");
-    expect(wrapper.text()).toContain("No matching tasks");
+    expect(wrapper.text()).toContain(en.tasks.emptyFiltered);
     expect(wrapper.text()).not.toContain("Implement Dashboard");
 
     await search.setValue("network");
@@ -158,7 +176,7 @@ describe("TaskSteps", () => {
       ],
       "ses_1"
     );
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
     // Parent node should be auto-expanded since it has children
     // The error should be present in the DOM
     expect(wrapper.find(".task-error-text").exists()).toBe(true);
@@ -171,7 +189,7 @@ describe("TaskSteps", () => {
       [makeTask("1", { state: "Pending" }), makeTask("2", { state: "Failed", error: "err" })],
       "ses_1"
     );
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
     expect(wrapper.find(".task-state-pending").exists()).toBe(true);
     expect(wrapper.find(".task-state-failed").exists()).toBe(true);
   });
@@ -179,12 +197,12 @@ describe("TaskSteps", () => {
   it("displays Pending status icon", () => {
     const taskGraph = useTaskGraphStore();
     taskGraph.setTaskGraph([makeTask("1", { state: "Pending" })], "ses_1");
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
     expect(wrapper.find(".task-status").text()).toBe("⏳");
   });
 
   it("audit anchors: exposes stable task steps pilot selector", () => {
-    const wrapper = mount(TaskSteps);
+    const wrapper = mountTaskSteps();
 
     expect(wrapper.find('[data-test="task-steps"]').exists()).toBe(true);
   });

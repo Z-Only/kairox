@@ -104,13 +104,13 @@ Press <kbd>Ctrl+C</kbd> to interrupt the current turn (or to quit if no turn is 
 
 ## Part 2 — A first session in the GUI
 
-The GUI shows the same model with a different interaction style: clickable surfaces, persistent panels, and rich settings.
+The GUI shows the same runtime with a different interaction style: clickable surfaces, persistent panels, trajectory inspection, autonomous task controls, and rich settings.
 
 ```bash
 just tauri-dev
 ```
 
-The desktop window opens. The screenshot below shows the default workbench layout: sessions list on the left, chat in the center, trace + tasks on the right.
+The desktop window opens. The screenshot below shows the default workbench layout: sessions list on the left, chat in the center, trace + tasks on the right, plus model and context controls in the header.
 
 <ThemeScreenshot
   light="/screenshots/workbench.png"
@@ -118,20 +118,23 @@ The desktop window opens. The screenshot below shows the default workbench layou
   zhLight="/screenshots/zh/workbench.png"
   zhDark="/screenshots/zh/workbench-dark.png"
   alt="Kairox desktop workbench"
-  caption="The desktop workbench: project sessions, chat, trace, and task graph in one window."
+  caption="The desktop workbench: project sessions, chat, trace, task graph, context usage, and trajectory-aware runtime state in one window."
 />
 
 ### Configure from settings
 
 Click the settings icon (top right). Settings is organized by concern:
 
+- **General** — theme, language, devtools, updater state, and application behavior.
 - **Models** — profiles and the active default.
 - **Agents** — multi-agent strategy configuration.
+- **Autonomous** — checkpoint-driven autonomous task limits and controls.
 - **MCP** — server lifecycle, marketplace.
 - **Skills** — enabled skills per scope.
 - **Plugins** — installed plugins and their contributions.
 - **Hooks** — hook scripts and triggers.
 - **Instructions** — user and project instructions.
+- **Archive** — archived sessions and retention controls.
 
 <ThemeScreenshot
   light="/screenshots/settings.png"
@@ -139,7 +142,18 @@ Click the settings icon (top right). Settings is organized by concern:
   zhLight="/screenshots/zh/settings.png"
   zhDark="/screenshots/zh/settings-dark.png"
   alt="Kairox settings view"
-  caption="Settings surfaces every configurable piece — models, agents, MCP, skills, plugins, hooks, instructions."
+  caption="Settings surfaces every configurable piece — general app behavior, models, agents, autonomous tasks, MCP, skills, plugins, hooks, instructions, and archives."
+/>
+
+The same settings surface also exposes autonomous tasks when you let Kairox continue a goal across sessions. Checkpoints keep completed work, remaining items, and verification state inspectable.
+
+<ThemeScreenshot
+  light="/screenshots/autonomous.png"
+  dark="/screenshots/autonomous-dark.png"
+  zhLight="/screenshots/zh/autonomous.png"
+  zhDark="/screenshots/zh/autonomous-dark.png"
+  alt="Kairox autonomous task settings"
+  caption="Autonomous task settings show durable goals, pause/resume controls, session counts, and checkpoint details."
 />
 
 Click **Models** and confirm your profile is listed. Click the profile to make it the default for new sessions.
@@ -157,6 +171,17 @@ When the model requests a tool, the GUI renders the permission prompt _inline_ i
 ### Observe the trace
 
 The trace timeline on the right side updates in real time. Every event has a row; you can search the trace (`/`), filter by event type, and click a row to see its payload. The same `PermissionGranted` / `ToolInvocationCompleted` / `ModelTokenDelta` rows you saw in the TUI appear here, with richer presentation.
+
+When the turn records actions, the trajectory viewer can inspect the ordered action/observation steps that were captured for replay, debugging, and eval. Tool screenshots and other image attachments stay structured so models that support vision can receive them without overflowing the text context.
+
+<ThemeScreenshot
+  light="/screenshots/trajectory.png"
+  dark="/screenshots/trajectory-dark.png"
+  zhLight="/screenshots/zh/trajectory.png"
+  zhDark="/screenshots/zh/trajectory-dark.png"
+  alt="Kairox trajectory viewer"
+  caption="The trajectory tab expands a turn into ordered tool actions, inputs, observations, timing, and final outcome."
+/>
 
 ### Switch model mid-session
 
@@ -196,6 +221,7 @@ After this walkthrough you have hands-on intuition for:
 - Profile switching mid-session without losing history.
 - Automatic and manual context compaction.
 - Persistent sessions across restarts.
+- Trajectory capture and advisor-visible tool review events.
 - The marketplace and the MCP lifecycle.
 
 The deeper conceptual reads:

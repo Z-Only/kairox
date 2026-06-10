@@ -389,7 +389,7 @@ Apply these replacements in each file:
 - [ ] **Step 3: Run lint to verify**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
 pnpm run lint 2>&1 | head -50
 ```
 
@@ -697,7 +697,7 @@ git commit -m "refactor(gui): migrate marketplace components from NaiveUI, fix c
 - [ ] **Step 4: Delete naive-theme.ts**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
 git rm src/styles/naive-theme.ts
 ```
 
@@ -762,7 +762,7 @@ git commit -m "refactor(gui): remove NaiveUI Provider harness from test utils"
 - [ ] **Step 1: Uninstall naive-ui**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
 pnpm remove naive-ui
 ```
 
@@ -830,7 +830,7 @@ git commit -m "docs(gui): update AGENTS.md for NaiveUI removal"
 - [ ] **Step 1: Lint check**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
 pnpm run lint 2>&1 | tail -20
 ```
 
@@ -839,7 +839,7 @@ Expected: zero errors.
 - [ ] **Step 2: Run GUI tests**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix
 just test-gui 2>&1 | tail -30
 ```
 
@@ -848,7 +848,7 @@ Expected: all tests pass.
 - [ ] **Step 3: Verify zero NaiveUI references**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix/apps/agent-gui
 grep -rn "naive-ui" src/ vite.config.ts vitest.config.ts
 grep -rn "NaiveUiResolver" .
 pnpm ls naive-ui
@@ -859,7 +859,7 @@ All three commands should return empty/no results.
 - [ ] **Step 4: Dev server smoke test**
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix
+cd ~/AIProjects/kairox/.worktrees/feat-gui-polish-and-marketplace-fix
 just gui-dev
 ```
 

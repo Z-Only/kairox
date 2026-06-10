@@ -5,7 +5,7 @@ titleTemplate: Local-first AI agent workbench
 hero:
   name: Kairox
   text: Local-first AI agent workbench
-  tagline: A shared Rust core, terminal UI, and Tauri desktop GUI for building observable, permission-aware AI agent workflows on your machine.
+  tagline: A shared Rust core, terminal UI, Tauri desktop GUI, and embeddable SDK for observable, permission-aware AI agent workflows on your machine.
   image:
     src: /logo.svg
     alt: Kairox logo
@@ -18,13 +18,13 @@ hero:
       link: https://github.com/Z-Only/kairox
 features:
   - title: Event-sourced local runtime
-    details: Every session, tool call, and permission decision is an event in a SQLite store. Restart any time — nothing is held only in memory.
-  - title: TUI and desktop GUI on one core
-    details: Use the ratatui TUI for fast keyboard workflows or the Tauri + Vue desktop app for persistent sessions, trace timelines, and settings — both speak to the same Rust runtime.
-  - title: Permission-aware tools and MCP
-    details: An orthogonal Approval × Sandbox policy engine gates every tool call — `ApprovalPolicy` decides when you are asked, `SandboxPolicy` decides what is structurally allowed. Built-in shell / filesystem / search / browser / computer-use tools and a curated MCP marketplace make capabilities composable and auditable.
-  - title: Extensible by design
-    details: Native skills, plugins, model routing, hooks, and per-workspace configuration are first-class. Bring your own model and your own tools.
+    details: Every session, tool call, permission decision, advisor review, autonomous checkpoint, and trajectory step is an event in SQLite. Restart any time — the UI rebuilds from the log.
+  - title: TUI, desktop GUI, and SDK on one core
+    details: Use the ratatui TUI for fast keyboard workflows, the Tauri + Vue desktop app for persistent workbench sessions, or `agent-sdk` to embed the same runtime in your own harness.
+  - title: Permission-aware multimodal tools and MCP
+    details: Approval × Sandbox policy gates every tool call. Built-in shell / filesystem / search / browser / computer-use tools, structured image attachments, LSP/DAP providers, and MCP marketplace servers stay composable and auditable.
+  - title: Extensible autonomous workflows
+    details: Native skills, plugins, model routing, hooks, advisor self-reflection, autonomous task checkpoints, and per-workspace configuration are first-class. Bring your own model and your own tools.
 ---
 
 <script setup>
@@ -40,7 +40,15 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/workbench.png"
     zhDark="/screenshots/zh/workbench-dark.png"
     alt="Kairox desktop workbench with a project session, chat, trace, and task panels"
-    caption="Desktop workbench with a project-scoped session, chat, trace, and task context in one view."
+    caption="Desktop workbench with project sessions, live chat, trace events, task context, trajectory state, and model controls in one view."
+  />
+  <ThemeScreenshot
+    light="/screenshots/trajectory.png"
+    dark="/screenshots/trajectory-dark.png"
+    zhLight="/screenshots/zh/trajectory.png"
+    zhDark="/screenshots/zh/trajectory-dark.png"
+    alt="Kairox trajectory viewer showing a recorded filesystem tool step"
+    caption="Trajectory viewer for replayable tool steps, including ordered action input, observation output, timing, and outcome state."
   />
   <ThemeScreenshot
     light="/screenshots/settings.png"
@@ -48,7 +56,15 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/settings.png"
     zhDark="/screenshots/zh/settings-dark.png"
     alt="Kairox settings screen showing model and agent configuration"
-    caption="Settings surfaces for models, agents, MCP, skills, plugins, hooks, and project instructions."
+    caption="Settings surfaces for general app behavior, models, agents, autonomous tasks, MCP, skills, plugins, hooks, instructions, and archives."
+  />
+  <ThemeScreenshot
+    light="/screenshots/autonomous.png"
+    dark="/screenshots/autonomous-dark.png"
+    zhLight="/screenshots/zh/autonomous.png"
+    zhDark="/screenshots/zh/autonomous-dark.png"
+    alt="Kairox autonomous task settings with checkpoint details"
+    caption="Autonomous task controls expose durable goals, pause/resume state, session budgets, checkpoints, completed work, and remaining items."
   />
 </div>
 
@@ -65,7 +81,7 @@ import { withBase } from "vitepress";
   </a>
   <a class="kairox-link-card" :href="withBase('/concepts/extensibility')">
     <strong>Extend with MCP, skills, plugins</strong>
-    <span>Add models, tools, capabilities, and workflows without forking the runtime.</span>
+    <span>Add models, tools, capabilities, advisor policies, and workflows without forking the runtime.</span>
   </a>
   <a class="kairox-link-card" href="https://github.com/Z-Only/kairox/releases/latest">
     <strong>Download the latest release</strong>

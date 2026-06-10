@@ -99,7 +99,7 @@ mod tests {
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo test -p agent-config discovery
 ```
 
@@ -158,7 +158,7 @@ Keep the test module from Task 1 below this implementation.
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo test -p agent-config discovery
 ```
 
@@ -169,7 +169,7 @@ Expected: PASS for the four discovery tests.
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo test -p agent-config
 ```
 
@@ -261,7 +261,7 @@ cp .env.example .env
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 grep -R "cp kairox.toml.example kairox.toml\|./kairox.toml\|Copy this file to \`kairox.toml\`" kairox.toml.example docs/dev crates/agent-config/src/discovery.rs || true
 ```
 
@@ -288,7 +288,7 @@ git commit -m "docs(config): document .kairox project config"
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 if [ -f kairox.toml ]; then echo "legacy config exists"; else echo "legacy config missing"; fi
 if [ -f .kairox/config.toml ]; then echo "new config exists"; else echo "new config missing"; fi
 ```
@@ -300,7 +300,7 @@ Expected: The command reports whether migration is needed. Because both paths ar
 If `kairox.toml` exists and `.kairox/config.toml` does not exist, run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 mkdir -p .kairox
 cp kairox.toml /tmp/kairox.toml.before-migration
 mv kairox.toml .kairox/config.toml
@@ -317,7 +317,7 @@ If both files exist, do not overwrite `.kairox/config.toml`; report the conflict
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 git status --short --ignored .kairox/config.toml kairox.toml | cat
 ```
 
@@ -337,7 +337,7 @@ Expected: `.kairox/config.toml` appears as ignored (`!!`) when present, and no l
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo test -p agent-config discovery
 ```
 
@@ -348,7 +348,7 @@ Expected: PASS.
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo test -p agent-config
 ```
 
@@ -359,7 +359,7 @@ Expected: PASS.
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 cargo fmt --all --check
 pnpm exec oxfmt --check kairox.toml.example docs/dev/local-development.md docs/superpowers/specs/2026-05-10-project-local-config-path-design.md docs/superpowers/plans/2026-05-10-project-local-config-path.md
 ```
@@ -371,7 +371,7 @@ Expected: both commands pass. If formatting fails, run `cargo fmt --all` or `pnp
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-project-local-config-path
+cd ~/AIProjects/kairox/.worktrees/feat-project-local-config-path
 git status --short --branch | cat
 ```
 

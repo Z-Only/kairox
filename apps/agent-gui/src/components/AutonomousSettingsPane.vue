@@ -19,6 +19,18 @@ const stateTone: Record<string, "success" | "warning" | "error" | "info"> = {
   failed: "error"
 };
 
+function formatState(state: string): string {
+  const key = `settings.autonomousStateValues.${state}`;
+  const translated = t(key);
+  return translated === key ? state : translated;
+}
+
+function formatEndReason(reason: string): string {
+  const key = `settings.autonomousEndReasons.${reason}`;
+  const translated = t(key);
+  return translated === key ? reason : translated;
+}
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -102,7 +114,7 @@ onMounted(() => {
           <div class="autonomous-pane__card-header">
             <span class="autonomous-pane__goal">{{ truncateGoal(task.goal) }}</span>
             <SettingsStatusTag :tone="stateTone[task.state] ?? 'info'">
-              {{ task.state }}
+              {{ formatState(task.state) }}
             </SettingsStatusTag>
           </div>
 
@@ -155,7 +167,7 @@ onMounted(() => {
           <dt>{{ t("settings.autonomousState") }}</dt>
           <dd>
             <SettingsStatusTag :tone="stateTone[selectedTask.state] ?? 'info'">
-              {{ selectedTask.state }}
+              {{ formatState(selectedTask.state) }}
             </SettingsStatusTag>
           </dd>
           <dt>{{ t("settings.autonomousSessions") }}</dt>
@@ -181,7 +193,9 @@ onMounted(() => {
               <span class="tag"
                 >{{ t("settings.autonomousSession") }} {{ checkpoint.session_index + 1 }}</span
               >
-              <span class="autonomous-pane__checkpoint-reason">{{ checkpoint.end_reason }}</span>
+              <span class="autonomous-pane__checkpoint-reason">
+                {{ formatEndReason(checkpoint.end_reason) }}
+              </span>
             </div>
             <div class="autonomous-pane__checkpoint-body">
               <div v-if="checkpoint.completed_items.length > 0">

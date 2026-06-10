@@ -978,13 +978,13 @@ Use the project's `gh pr checks <num>` polling pattern (see PR #532 monitor). St
 After merge confirmed, from the main checkout (not from inside the worktree being removed):
 
 ```bash
-git -C /Users/chanyu/AIProjects/kairox fetch --prune
-git -C /Users/chanyu/AIProjects/kairox checkout main
-git -C /Users/chanyu/AIProjects/kairox merge --ff-only origin/main
-git -C /Users/chanyu/AIProjects/kairox worktree remove .worktrees/<branch>
-git -C /Users/chanyu/AIProjects/kairox branch -D <branch> || true
-git -C /Users/chanyu/AIProjects/kairox push origin --delete <branch> || true
-git -C /Users/chanyu/AIProjects/kairox worktree list
+git -C ~/AIProjects/kairox fetch --prune
+git -C ~/AIProjects/kairox checkout main
+git -C ~/AIProjects/kairox merge --ff-only origin/main
+git -C ~/AIProjects/kairox worktree remove .worktrees/<branch>
+git -C ~/AIProjects/kairox branch -D <branch> || true
+git -C ~/AIProjects/kairox push origin --delete <branch> || true
+git -C ~/AIProjects/kairox worktree list
 ```
 
 Confirm: no `<branch>` worktree, no local branch, no remote branch.

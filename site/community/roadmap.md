@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.37.x)
+## What ships today (v0.38.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -20,7 +20,9 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 - Shared Rust workspace with the `AppFacade` trait as the single seam between UIs and the runtime.
 - Event-sourced state with `SqliteEventStore`; sessions persist across restarts.
-- Trajectory DTOs and `SqliteTrajectoryStore` for task-scoped action/observation records with JSON export.
+- Trajectory DTOs, `SqliteTrajectoryStore`, runtime auto-capture, and GUI trajectory viewer for task-scoped action/observation records with JSON export.
+- Autonomous task domain types, events, persistence, checkpoint writer, orientation builder, controller bootstrap, Tauri commands, Pinia store, and GUI management settings.
+- Advisor self-reflection for tool-call review with `off` / `lightweight` / `full` modes and `AdvisorReview*` events.
 - Monitor domain events for long-running background work, with lifecycle cleanup when a session ends.
 - Agent loop with per-model context windows, budget-driven prompt assembly, manual and automatic compaction, and busy-state guards.
 - Mid-session model switching with profile preservation; reasoning effort selection where supported.
@@ -45,7 +47,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 ### UIs
 
 - **TUI** built on ratatui: three-pane layout, streaming chat, monitor stream items, trace panel, permission overlay, command palette, settings/marketplace overlays, monitor list/stop commands, model overlay with context-window details, monitor overlay for listing and stopping monitors, remote skill search and install via skills overlay, and trace export / config refresh commands.
-- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, monitor chat stream rendering with trace-store handling, inline permission flow, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions, and Tauri IPC controls for monitor list/stop.
+- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, trajectory viewer, memory browser, monitor chat stream rendering with trace-store handling, inline permission flow, structured image previews, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for general app behavior / models / agents / autonomous tasks / MCP / skills / plugins / hooks / instructions / archives, and Tauri IPC controls for monitor list/stop.
 - Tauri 2 auto-update wired to GitHub Releases.
 
 ### Extensibility
@@ -53,6 +55,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - Native **skills** with workspace / user / session scopes; SkillHub install support.
 - **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery; permission hints, compatibility metadata, and trust metadata for marketplace display and future install policy.
 - Configurable agent overrides per role (model, `ApprovalPolicy`, `SandboxPolicy`, skills, tool allowlists, reasoning effort).
+- `agent-sdk` for embedding the runtime in external harnesses, CI/CD pipelines, and custom UIs.
 
 ### Quality and CI
 
@@ -75,7 +78,7 @@ For the full shipped list with PR links, scroll the **Near term** section of [`R
 - Broader non-interactive and batch-run workflows built on `kairox-eval`.
 - User-extensible slash commands, output styles, and statusline customization in TUI and GUI.
 - Observability and replay tooling beyond structured trace export: event replay over `EventStore` and redacted diagnostics bundles.
-- Runtime trajectory auto-capture and a GUI trajectory viewer on top of the shipped trajectory store.
+- Hardening autonomous task UX beyond the current checkpoint-driven controller: richer scheduling, recovery, and review surfaces.
 - Continued runtime modularization beyond `SessionActor`.
 
 ## Long-term direction

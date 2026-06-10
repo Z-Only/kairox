@@ -1,12 +1,12 @@
 ---
 title: Runtime & Sessions
-description: How LocalRuntime drives the agent loop, session lifecycle, task graphs, multi-agent strategies, model switching, and MCP lifecycle.
+description: How LocalRuntime drives the agent loop, session lifecycle, task graphs, autonomous checkpoints, advisor review, model switching, and MCP lifecycle.
 outline: [2, 3]
 ---
 
 # Runtime & Sessions
 
-`agent-runtime` is the engine that turns a user prompt into work. It owns the agent loop, manages sessions, applies context budgets, calls model providers, invokes tools, asks the policy engine, runs multi-agent strategies, executes task DAGs, and orchestrates the MCP server lifecycle. Every other domain crate is something the runtime composes; the runtime composes none of the UIs.
+`agent-runtime` is the engine that turns a user prompt into work. It owns the agent loop, manages sessions, applies context budgets, calls model providers, invokes tools, asks the policy engine, runs advisor self-reflection, records trajectories, executes autonomous checkpoints, runs multi-agent strategies, executes task DAGs, and orchestrates the MCP server lifecycle. Every other domain crate is something the runtime composes; the runtime composes none of the UIs.
 
 If [Architecture](./architecture) explained the static shape of the system, this page explains how the system moves.
 
@@ -24,7 +24,10 @@ flowchart LR
   loop --> models["ModelClient / ModelRouter"]
   loop --> tools["ToolRegistry + PolicyEngine"]
   loop --> memory["ContextAssembler + MemoryStore"]
+  loop --> advisor["advisor<br/>(optional tool-call review)"]
+  loop --> trajectory["trajectory recorder"]
   loop --> dag["DagExecutor"]
+  loop --> autonomous["autonomous controller"]
   loop --> mcp["McpServerManager"]
   loop --> emitter["event_emitter"]
   emitter --> store["EventStore"]
@@ -49,8 +52,10 @@ sequenceDiagram
   participant SA as Session actor
   participant CA as ContextAssembler
   participant MC as ModelClient
+  participant A as Advisor
   participant PE as PolicyEngine
   participant T as Tool
+  participant TS as TrajectoryStore
   participant ES as EventStore
 
   U->>F: send_message(session_id, prompt)
@@ -63,30 +68,37 @@ sequenceDiagram
   SA->>ES: append ModelTokenDelta
   MC-->>SA: ToolCall{name, args}
   SA->>ES: append ModelToolCallRequested
+  SA->>A: optional review_tool_calls(tool_calls)
+  A-->>SA: approve / warn / reject
   SA->>PE: decide(PolicyRisk)
   PE-->>U: PermissionRequested event (NeedsApproval)
   U-->>PE: PermissionDecision
   PE->>ES: append Permission* events
   PE-->>SA: Allowed | DeniedBySandbox | Denied
+  SA->>TS: record TrajectoryStarted / step
   SA->>T: invoke(args)
   T-->>SA: ToolResult
+  SA->>TS: record TrajectoryStepRecorded
   SA->>ES: append ToolInvocationCompleted
   SA->>MC: continue with tool result
   MC-->>SA: text delta
   SA->>ES: append ModelTokenDelta
   MC-->>SA: stream end
   SA->>ES: append AssistantMessageCompleted
+  SA->>TS: record TrajectoryCompleted
 ```
 
 </div>
 
-Five things are worth pointing out:
+Seven things are worth pointing out:
 
 1. **The session is an actor.** Turns enqueue against the session, so a second user message arriving mid-turn waits for the current turn's terminal `AssistantMessageCompleted` or cancellation event. Model switches and compaction enqueue against the same actor — they cannot interleave halfway through a tool call.
 2. **The context assembler is consulted every turn.** It rebuilds the message list from recent history and relevant memory, respecting the active model's context window. Nothing is "kept in memory between turns"; everything is rebuilt from events.
 3. **Permission is a request/response on the event bus.** When `PolicyEngine::decide(PolicyRisk)` returns `NeedsApproval`, the runtime emits `PermissionRequested`, waits for `PermissionDecision`, then emits the terminal `PermissionGranted` / `PermissionDenied`. UIs subscribe to the request and post the decision back through the facade.
-4. **Tool results are model input.** The runtime feeds tool results back into the model in the same stream, so the assistant's next deltas may reflect the tool's output without a new user prompt.
-5. **`AssistantMessageCompleted` is the successful terminal signal.** The UI uses it to clear the "thinking" indicator and the test suite uses it to assert the turn ended. Cancelled turns emit `SessionCancelled` / `TaskCancelled` depending on scope.
+4. **Advisor review is optional and inline.** If `[advisor]` is enabled, the runtime asks a configured profile to review the planned tool calls before the policy engine executes them. A rejection blocks the tool batch and is recorded as events.
+5. **Tool results are model input.** The runtime feeds tool results back into the model in the same stream, so the assistant's next deltas may reflect the tool's output without a new user prompt.
+6. **Trajectory capture records the work.** Tool actions and observations become ordered trajectory steps with timing and optional screenshot IDs. This is the source for replay, eval, and GUI inspection.
+7. **`AssistantMessageCompleted` is the successful terminal signal.** The UI uses it to clear the "thinking" indicator and the test suite uses it to assert the turn ended. Cancelled turns emit `SessionCancelled` / `TaskCancelled` depending on scope.
 
 ## Session lifecycle
 
@@ -107,15 +119,16 @@ A session is never deleted by default. Archiving hides it. Removing events is a 
 
 `EventPayload` is a single enum that names every observable thing the runtime can do. The table below groups the variants by topic; the actual list lives in `crates/agent-core/src/events.rs` and is regenerated into TypeScript by `just gen-types`.
 
-| Group                         | Variants                                                                                                                                                                                   | Emitted by                                          |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
-| Workspace / session           | `WorkspaceOpened`, `SessionInitialized`, `SessionCancelled`                                                                                                                                | `session` module + facade                           |
-| Conversation / model          | `UserMessageAdded`, `ModelRequestStarted`, `ModelTokenDelta`, `ModelToolCallRequested`, `AssistantMessageCompleted`, `ModelProfileSwitched`                                                | `agent_loop` + session actor                        |
-| Tools / permissions           | `PermissionRequested`, `PermissionGranted`, `PermissionDenied`, `ToolInvocationStarted`, `ToolInvocationCompleted`, `ToolInvocationFailed`, `FilePatch*`                                   | `agent_loop` + `permission`                         |
-| Memory / context              | `ContextAssembled`, `MemoryProposed`, `MemoryAccepted`, `MemoryRejected`, `ContextCompaction*`, `CompactionSummary`                                                                        | `memory_handler` + compaction runtime               |
-| Task graph / agents           | `AgentTaskCreated`, `AgentTaskStarted`, `AgentTaskCompleted`, `AgentTaskFailed`, `TaskDecomposed`, `TaskBlocked`, `TaskRetried`, `TaskCancelled`, `Agent*`                                 | `dag_executor` + `task_graph`                       |
-| Skills / MCP / catalog        | `SkillDiscovered`, `SkillActivated`, `SkillDeactivated`, `SkillSuggested`, `McpServer*`, `McpToolCall*`, `McpTrust*`, `Catalog*`                                                           | skill registry, `mcp_manager`, catalog runtime      |
-| Monitors / LSP / DAP / traces | `MonitorStarted`, `MonitorEvent`, `MonitorStopped`, `MonitorFailed`, `LspServer*`, `DapSession*`, `DapBreakpointHit`, `TrajectoryStarted`, `TrajectoryStepRecorded`, `TrajectoryCompleted` | tool registry, debug integrations, trajectory store |
+| Group                               | Variants                                                                                                                                                 | Emitted by                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Workspace / session                 | `WorkspaceOpened`, `SessionInitialized`, `SessionCancelled`                                                                                              | `session` module + facade                      |
+| Conversation / model                | `UserMessageAdded`, `ModelRequestStarted`, `ModelTokenDelta`, `ModelToolCallRequested`, `AssistantMessageCompleted`, `ModelProfileSwitched`              | `agent_loop` + session actor                   |
+| Tools / permissions                 | `PermissionRequested`, `PermissionGranted`, `PermissionDenied`, `ToolInvocationStarted`, `ToolInvocationCompleted`, `ToolInvocationFailed`, `FilePatch*` | `agent_loop` + `permission`                    |
+| Advisor review                      | `AdvisorReviewStarted`, `AdvisorReviewCompleted`                                                                                                         | `advisor` + `agent_loop`                       |
+| Memory / context                    | `ContextAssembled`, `MemoryProposed`, `MemoryAccepted`, `MemoryRejected`, `ContextCompaction*`, `CompactionSummary`                                      | `memory_handler` + compaction runtime          |
+| Task graph / agents / autonomous    | `AgentTask*`, `TaskDecomposed`, `TaskBlocked`, `TaskRetried`, `TaskCancelled`, `Agent*`, `AutonomousTask*`                                               | `dag_executor`, `task_graph`, autonomous loop  |
+| Skills / MCP / catalog              | `SkillDiscovered`, `SkillActivated`, `SkillDeactivated`, `SkillSuggested`, `McpServer*`, `McpToolCall*`, `McpTrust*`, `Catalog*`                         | skill registry, `mcp_manager`, catalog runtime |
+| Monitors / LSP / DAP / trajectories | `MonitorStarted`, `MonitorEvent`, `MonitorStopped`, `MonitorFailed`, `LspServer*`, `DapSession*`, `DapBreakpointHit`, `Trajectory*`                      | tool registry, debug integrations, recorder    |
 
 Every variant is exhaustively matched in the GUI's TypeScript consumers — adding a variant to `EventPayload` without updating the TS handlers is a compile error after `just gen-types` runs. That is the contract that keeps the UIs honest as the runtime grows.
 
@@ -147,6 +160,40 @@ The executor emits task events for every transition (`AgentTaskStarted`, `AgentT
 - **Reviewer.** Inspects worker output against the parent task's acceptance signal and emits a verdict. Failed verdicts re-enqueue the worker.
 
 Strategies compose. A workspace can be configured to default to Planner-then-Worker; an individual session can override the strategy at creation time. The runtime never decides strategy mid-turn — it is part of the session's identity.
+
+## Advisor self-reflection
+
+The advisor is not a second visible chat participant and it is not an `AgentStrategy`. It is an inline safety review that runs between "the model proposed tool calls" and "the runtime asks the policy engine to execute them." It is configured from `[advisor]`:
+
+| Mode          | Behavior                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `off`         | Default. The primary agent proceeds directly to policy evaluation.                               |
+| `lightweight` | Review only high-risk tool batches, such as destructive shell commands or writes outside bounds. |
+| `full`        | Review every tool-call batch before execution.                                                   |
+
+The advisor uses `profile` from `[advisor]` when set, otherwise the session's active profile. It returns `approve`, `approve_with_warnings`, or `reject`. A reject records `AdvisorReviewCompleted`, emits a final assistant message explaining the block, and skips tool execution. Advisor failures are fail-open: the runtime logs the issue and continues rather than letting a malformed review deadlock the session.
+
+## Trajectory recording
+
+Every turn can produce a trajectory: an ordered action/observation record that lives beside the event stream. The runtime starts a trajectory for the turn, records each tool invocation as a step, and completes it with `success`, `failed`, or `cancelled`.
+
+Trajectory steps include:
+
+| Field           | Meaning                                                                  |
+| --------------- | ------------------------------------------------------------------------ |
+| `action`        | The tool or runtime action that was attempted.                           |
+| `action_input`  | JSON input sent to that action.                                          |
+| `observation`   | The result or error preview.                                             |
+| `screenshot_id` | Optional identifier when a browser/computer-use screenshot was captured. |
+| `duration_ms`   | Wall-clock duration for the step.                                        |
+
+The GUI trajectory viewer reads this store for debugging and replay; `kairox-eval` can use the same data to compare runs and regressions.
+
+## Autonomous task controller
+
+Autonomous tasks are durable goals that can span more than one session. The core types (`AutonomousTaskId`, task events, snapshots) live in `agent-core`; persistence lives in `agent-store`; the controller and checkpoint writer live in `agent-runtime`; and the GUI exposes management commands and a settings panel.
+
+The controller keeps the high-level goal, acceptance criteria, session budget, and checkpoint JSON explicit. It emits `AutonomousTaskCreated`, `AutonomousTaskSessionStarted`, `AutonomousTaskCheckpointed`, and terminal `AutonomousTaskCompleted` / `AutonomousTaskFailed` / `AutonomousTaskCancelled` events. This keeps long-running work inspectable instead of hiding progress inside one unbounded chat transcript.
 
 ## Model switching with budget guards
 
@@ -186,6 +233,7 @@ The runtime is configured at boot time, not at runtime:
 - **Profiles and model clients** come from `agent-config::build_router(...)`, which reads `~/.kairox/config.toml` (and `.kairox/` overrides), resolves API keys from env vars, and returns a `ModelRouter` ready for the runtime to consume.
 - **Tools** come from `agent-tools::ToolRegistry`, which registers the built-in `Tool` implementations and accepts `McpToolAdapter` instances for MCP-exposed tools.
 - **Skills and plugins** come from `agent-skills::SkillRegistry` and `agent-plugins`, which scan configured directories and produce `SkillDef`s the runtime can use as prompt or tool capabilities.
+- **Advisor policy** comes from `[advisor]` in config and is consulted only when the selected mode says a tool batch should be reviewed.
 - **Memory store and event store** are passed in at construction time. The TUI uses on-disk SQLite; tests use `:memory:`.
 
 The runtime is generic over `S: EventStore` and `M: ModelClient` precisely so that the same code runs in production and in `crates/agent-runtime/tests/full_stack.rs` with a fake model client and an in-memory event store. The same loop, the same event taxonomy, the same actor — only the backing stores differ.
@@ -198,6 +246,7 @@ If you want to learn the runtime by reading tests, start with these files in `cr
 - `agent_loop.rs` — the agent loop's behavior under tool calls, tool failures, and model errors.
 - `session_lifecycle.rs` — `Created`, `Active`, `SwitchingModel`, `Archived` transitions.
 - `task_graph_integration.rs` — DAG execution with Planner / Worker / Reviewer.
+- `agent_loop/advisor.rs` — advisor review events, fail-open behavior, and rejection blocking tool execution.
 - `memory_protocol.rs` — `<memory>` marker round-trip including approval queue.
 - `mcp_integration.rs` — the MCP manager against a fixture transport.
 - `refactor_baseline.rs` — invariants kept stable across runtime refactors.
