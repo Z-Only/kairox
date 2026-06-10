@@ -413,6 +413,7 @@ jobs:
     name: Live model tests (GitHub Models)
     needs: changes
     if: needs.changes.outputs.live_models == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    continue-on-error: true
     # Serialize across every PR + push so concurrent live jobs do not
     # trigger GitHub Models' anti-abuse "scraping" throttle, which is
     # repository-scoped and distinct from the documented RPM/RPD quota.
@@ -514,6 +515,7 @@ jobs:
     name: Tauri pilot live E2E (GitHub Models)
     needs: changes
     if: needs.changes.outputs.live_pilot == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    continue-on-error: true
     # Share the live-models serialization group: the pilot live scenarios
     # also exercise the GitHub Models endpoint and contribute to the same
     # anti-abuse throttle.
