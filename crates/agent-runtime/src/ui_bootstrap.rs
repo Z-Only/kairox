@@ -1,14 +1,19 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use agent_config::{CatalogSourceConfig, Config};
+use agent_config::{CatalogSourceConfig, Config, KnowledgeBaseKind};
 use agent_core::{AppFacade, DomainEvent, SessionId, StartSessionRequest, WorkspaceInfo};
-use agent_memory::{HashedEmbeddingBackend, MemoryStore, SqliteMemoryStore, WorkspaceRagIndex};
+use agent_memory::{
+    HashedEmbeddingBackend, MemoryStore, SqliteFtsKnowledgeBase, SqliteFtsKnowledgeBaseConfig,
+    SqliteMemoryStore, WorkspaceRagIndex, WorkspaceRetriever,
+};
 use agent_models::ModelRouter;
 use agent_store::{SqliteAutonomousTaskStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use futures::StreamExt;
+use sqlx::sqlite::SqlitePoolOptions;
 use tokio::task::JoinHandle;
 
 use crate::{LocalRuntime, RuntimeError};
@@ -105,6 +110,22 @@ pub fn sqlite_database_url(data_dir: &Path, database_filename: &str) -> String {
         "sqlite:///{}",
         db_path.display().to_string().trim_start_matches('/')
     )
+}
+
+fn sqlite_file_url(path: &Path) -> String {
+    format!(
+        "sqlite:///{}",
+        path.display().to_string().trim_start_matches('/')
+    )
+}
+
+fn resolve_knowledge_base_path(workspace_root: &Path, path: &str) -> PathBuf {
+    let path = PathBuf::from(path);
+    if path.is_absolute() {
+        path
+    } else {
+        workspace_root.join(path)
+    }
 }
 
 pub fn load_ui_config(data_dir: &Path) -> UiConfigLoad {
@@ -234,6 +255,8 @@ pub async fn build_ui_runtime_from_store(
         .await
         .map_err(|error| RuntimeError::Other(format!("workspace RAG index: {error}")))?,
     );
+    let knowledge_base_retrievers =
+        build_knowledge_base_retrievers(&options.config, &options.workspace_root).await?;
 
     let builtin_skills_root = crate::skills::ensure_builtin_skills_root(&options.data_dir).await?;
     let mut skill_roots =
@@ -285,6 +308,7 @@ pub async fn build_ui_runtime_from_store(
         .with_context_limit(100_000)
         .with_memory_store(memory_store.clone())
         .with_workspace_rag_index(workspace_rag_index)
+        .with_knowledge_base_retrievers(knowledge_base_retrievers)
         .with_config(config_arc)
         .with_ollama_clients(ollama_clients)
         .with_skill_registry(Arc::new(skill_registry))
@@ -319,6 +343,82 @@ pub async fn build_ui_runtime_from_store(
         data_dir: options.data_dir,
         catalog_sources: options.catalog_sources,
     })
+}
+
+async fn build_knowledge_base_retrievers(
+    config: &Config,
+    workspace_root: &Path,
+) -> crate::Result<HashMap<String, Arc<dyn WorkspaceRetriever>>> {
+    let mut retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>> = HashMap::new();
+    for (id, kb) in &config.knowledge_bases {
+        if !kb.enabled {
+            continue;
+        }
+        match kb.kind {
+            KnowledgeBaseKind::SqliteFts => {
+                let path = kb.path.as_deref().ok_or_else(|| {
+                    RuntimeError::Other(format!("knowledge base '{id}' missing SQLite path"))
+                })?;
+                let db_path = resolve_knowledge_base_path(workspace_root, path);
+                if let Some(parent) = db_path.parent() {
+                    tokio::fs::create_dir_all(parent).await.map_err(|error| {
+                        RuntimeError::Other(format!(
+                            "create knowledge base dir for '{id}': {error}"
+                        ))
+                    })?;
+                }
+                tokio::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&db_path)
+                    .await
+                    .map_err(|error| {
+                        RuntimeError::Other(format!("create knowledge base db for '{id}': {error}"))
+                    })?;
+                let pool = SqlitePoolOptions::new()
+                    .max_connections(5)
+                    .connect(&sqlite_file_url(&db_path))
+                    .await
+                    .map_err(|error| {
+                        RuntimeError::Other(format!("connect knowledge base '{id}': {error}"))
+                    })?;
+                let defaults = SqliteFtsKnowledgeBaseConfig::default();
+                let retriever = SqliteFtsKnowledgeBase::new(
+                    id.clone(),
+                    pool,
+                    SqliteFtsKnowledgeBaseConfig {
+                        table: kb.table.clone().unwrap_or(defaults.table),
+                        id_column: kb.id_column.clone().unwrap_or(defaults.id_column),
+                        title_column: kb.title_column.clone().or(defaults.title_column),
+                        content_column: kb
+                            .content_column
+                            .clone()
+                            .unwrap_or(defaults.content_column),
+                        workspace_id_column: kb
+                            .workspace_id_column
+                            .clone()
+                            .or(defaults.workspace_id_column),
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    RuntimeError::Other(format!("initialize knowledge base '{id}': {error}"))
+                })?;
+                retrievers.insert(id.clone(), Arc::new(retriever));
+            }
+            KnowledgeBaseKind::Tantivy
+            | KnowledgeBaseKind::BedrockKnowledgeBase
+            | KnowledgeBaseKind::Pinecone
+            | KnowledgeBaseKind::Weaviate => {
+                tracing::warn!(
+                    knowledge_base_id = %id,
+                    kind = ?kb.kind,
+                    "knowledge base connector kind is parsed but not wired in this build"
+                );
+            }
+        }
+    }
+    Ok(retrievers)
 }
 
 #[cfg(test)]

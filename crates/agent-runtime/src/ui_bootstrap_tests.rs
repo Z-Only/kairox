@@ -1,4 +1,4 @@
-use agent_config::Config;
+use agent_config::{Config, KnowledgeBaseConfig, KnowledgeBaseKind};
 use agent_core::facade::{SkillInstallSource, SkillSettingsScope, SkillsFacade};
 use agent_store::SqliteEventStore;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
@@ -65,4 +65,50 @@ async fn build_ui_runtime_discovers_builtin_skill_creator() {
     assert!(data_dir
         .join("builtin-skills/skill-creator/SKILL.md")
         .exists());
+}
+
+#[tokio::test]
+async fn build_ui_runtime_wires_configured_sqlite_fts_knowledge_base() {
+    let home_dir = tempfile::tempdir().expect("home dir");
+    let data_dir = default_data_dir(home_dir.path());
+    let workspace_root = tempfile::tempdir().expect("workspace root");
+    let kb_path = workspace_root.path().join("company.sqlite");
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory store");
+    let mut config = Config::defaults();
+    config.knowledge_bases = vec![(
+        "company-docs".into(),
+        KnowledgeBaseConfig {
+            kind: KnowledgeBaseKind::SqliteFts,
+            path: Some(kb_path.to_string_lossy().to_string()),
+            table: Some("company_docs".into()),
+            profile_aliases: vec!["fake".into()],
+            ..KnowledgeBaseConfig::default()
+        },
+    )];
+    let mut options = UiRuntimeOptions::new(
+        home_dir.path().to_path_buf(),
+        data_dir,
+        "kairox.sqlite",
+        workspace_root.path().to_path_buf(),
+        ApprovalPolicy::default(),
+        SandboxPolicy::default(),
+        config,
+        Vec::new(),
+    );
+    options.enable_marketplace = false;
+    options.enable_mcp_servers = false;
+    options.enable_lsp_servers = false;
+    options.enable_plugin_skill_roots = false;
+
+    let bootstrap = build_ui_runtime_from_store(store, options)
+        .await
+        .expect("runtime should build");
+
+    assert!(bootstrap
+        .runtime
+        .knowledge_base_retrievers
+        .contains_key("company-docs"));
+    assert!(kb_path.exists());
 }

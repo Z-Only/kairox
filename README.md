@@ -69,7 +69,7 @@ graph TD
 ## Features
 
 - **Shared Rust core** — domain types, event-sourced runtime, facade trait, typed IDs
-- **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol, keyword retrieval, and context assembly
+- **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol, keyword retrieval, workspace RAG, profile-scoped external KB retrieval, and context assembly
 - **Context management** — per-model context windows, budget-driven prompt assembly, manual/automatic compaction, busy-state guards, and GUI context usage meter
 - **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing, with mid-session model switching and reasoning effort selection when profiles support it
 - **Tool system** — built-in tools (`shell.exec`, context-aware `search.ripgrep`, `patch.apply`, `fs.read`, `fs.write`, `fs.list`, `monitor.start`, `monitor.list`, `monitor.stop`, `browser.action`, `browser.batch`, `computer.use`) with orthogonal Approval × Sandbox policy control and MCP (Model Context Protocol) integration

@@ -18,7 +18,8 @@ pub use marker::{extract_memory_markers, strip_memory_markers, MemoryMarker};
 pub use memory::{durable_memory_requires_confirmation, MemoryDecision, MemoryEntry, MemoryScope};
 pub use store::{MemoryQuery, MemoryStore, MemoryStoreError, SqliteMemoryStore};
 pub use workspace_rag::{
-    EmbeddingBackend, EmbeddingError, HashedEmbeddingBackend, WorkspaceDocument,
+    CompositeWorkspaceRetriever, EmbeddingBackend, EmbeddingError, HashedEmbeddingBackend,
+    KnowledgeBaseDocument, SqliteFtsKnowledgeBase, SqliteFtsKnowledgeBaseConfig, WorkspaceDocument,
     WorkspaceDocumentSource, WorkspaceIndexOptions, WorkspaceIndexOutcome, WorkspaceIndexSummary,
     WorkspaceRagConfig, WorkspaceRagError, WorkspaceRagIndex, WorkspaceRetrieval,
     WorkspaceRetrievalQuery, WorkspaceRetriever,

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::context::{AdvisorConfig, ContextPolicy, FeatureFlags};
 use super::hooks::{HookConfig, HookEvent};
+use super::knowledge_base::KnowledgeBaseConfig;
 use super::lsp::{DapServerConfig, LspServerConfig};
 use super::mcp::McpServerConfig;
 use super::profile::{profile_supports_reasoning, ConfigSource, ProfileDef, ProfileInfo};
@@ -11,6 +12,7 @@ use super::profile::{profile_supports_reasoning, ConfigSource, ProfileDef, Profi
 pub struct Config {
     pub profiles: Vec<(String, ProfileDef)>,
     pub mcp_servers: Vec<(String, McpServerConfig)>,
+    pub knowledge_bases: Vec<(String, KnowledgeBaseConfig)>,
     pub source: ConfigSource,
     /// Session compaction & context budgeting policy.
     pub context: ContextPolicy,
@@ -126,6 +128,15 @@ impl Config {
         let mut merged_mcp: Vec<(String, McpServerConfig)> = mcp_map.into_iter().collect();
         merged_mcp.sort_by(|a, b| a.0.cmp(&b.0));
 
+        // Merge knowledge bases: overlay entries replace base entries with the same ID.
+        let mut kb_map: HashMap<String, KnowledgeBaseConfig> =
+            base.knowledge_bases.into_iter().collect();
+        for (id, config) in overlay.knowledge_bases {
+            kb_map.insert(id, config);
+        }
+        let mut merged_kb: Vec<(String, KnowledgeBaseConfig)> = kb_map.into_iter().collect();
+        merged_kb.sort_by(|a, b| a.0.cmp(&b.0));
+
         // Merge disabled MCP server IDs: additive union across all layers.
         let mut disabled_set: std::collections::HashSet<String> =
             base.disabled_mcp_servers.into_iter().collect();
@@ -175,6 +186,7 @@ impl Config {
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
+            knowledge_bases: merged_kb,
             source,
             context: overlay.context,
             disabled_mcp_servers: merged_disabled,
@@ -283,6 +295,7 @@ impl Config {
         Config {
             profiles,
             mcp_servers: Vec::new(),
+            knowledge_bases: Vec::new(),
             source: ConfigSource::Defaults,
             context: ContextPolicy::default(),
             disabled_mcp_servers: Vec::new(),

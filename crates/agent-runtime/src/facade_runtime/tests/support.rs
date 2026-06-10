@@ -316,6 +316,7 @@ pub(super) fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
     Arc::new(agent_config::Config {
         profiles: vec![("fast".into(), fast), ("opus".into(), opus)],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: ConfigSource::Defaults,
         context: ContextPolicy::default(),
         disabled_mcp_servers: vec![],
@@ -359,6 +360,7 @@ pub(super) fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Co
     Arc::new(agent_config::Config {
         profiles: vec![("fake".into(), fake)],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: ConfigSource::Defaults,
         context: ContextPolicy {
             auto_compact_threshold: threshold,

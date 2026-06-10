@@ -70,3 +70,62 @@ model_id = "fake"
         "new-shared"
     );
 }
+
+#[test]
+fn merge_config_replaces_and_appends_knowledge_bases() {
+    let mut base = Config::defaults();
+    base.knowledge_bases = vec![
+        (
+            "shared".into(),
+            crate::KnowledgeBaseConfig {
+                kind: crate::KnowledgeBaseKind::SqliteFts,
+                path: Some("old.sqlite".into()),
+                profile_aliases: vec!["fast".into()],
+                ..crate::KnowledgeBaseConfig::default()
+            },
+        ),
+        (
+            "base-only".into(),
+            crate::KnowledgeBaseConfig {
+                kind: crate::KnowledgeBaseKind::Weaviate,
+                endpoint: Some("https://weaviate.example.com".into()),
+                ..crate::KnowledgeBaseConfig::default()
+            },
+        ),
+    ];
+    let overlay_path = temp_config_path("kb-overlay.toml");
+    std::fs::write(
+        &overlay_path,
+        r#"
+[knowledge_bases.shared]
+kind = "sqlite_fts"
+path = "new.sqlite"
+profile_aliases = ["wide"]
+
+[knowledge_bases.overlay-only]
+kind = "pinecone"
+endpoint = "https://pinecone.example.com"
+index_name = "support"
+"#,
+    )
+    .expect("write overlay config");
+
+    let merged =
+        Config::merge_config(base, &overlay_path, ConfigSource::ProjectFile).expect("merge config");
+    let _ = std::fs::remove_file(&overlay_path);
+
+    let ids: Vec<_> = merged
+        .knowledge_bases
+        .iter()
+        .map(|(id, _)| id.as_str())
+        .collect();
+    assert_eq!(ids, vec!["base-only", "overlay-only", "shared"]);
+    let shared = merged
+        .knowledge_bases
+        .iter()
+        .find(|(id, _)| id == "shared")
+        .map(|(_, kb)| kb)
+        .expect("shared KB is present");
+    assert_eq!(shared.path.as_deref(), Some("new.sqlite"));
+    assert_eq!(shared.profile_aliases, vec!["wide"]);
+}

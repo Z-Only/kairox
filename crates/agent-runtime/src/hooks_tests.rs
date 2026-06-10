@@ -54,6 +54,7 @@ async fn run_hooks_sends_event_payload_to_command_stdin() {
     let config = agent_config::Config {
         profiles: vec![],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: agent_config::ConfigSource::Defaults,
         context: agent_config::ContextPolicy::default(),
         disabled_mcp_servers: vec![],
@@ -93,6 +94,7 @@ async fn run_hooks_skips_when_feature_flag_disabled() {
     let config = agent_config::Config {
         profiles: vec![],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: agent_config::ConfigSource::Defaults,
         context: agent_config::ContextPolicy::default(),
         disabled_mcp_servers: vec![],

@@ -2,7 +2,7 @@ use crate::agent_loop::AgentLoopDeps;
 use crate::context_budget;
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{AgentId, DomainEvent, EventPayload, PrivacyClassification};
-use agent_memory::{WorkspaceDocument, WorkspaceIndexOptions};
+use agent_memory::{CompositeWorkspaceRetriever, WorkspaceDocument, WorkspaceIndexOptions};
 use agent_models::types::ServerTool;
 use agent_models::{ModelLimits, ToolDefinition};
 use agent_store::EventStore;
@@ -197,9 +197,39 @@ where
             .await;
     }
 
-    let mut assembler = agent_memory::ContextAssembler::new_standalone();
+    let mut retrievers: Vec<Arc<dyn agent_memory::WorkspaceRetriever>> = Vec::new();
     if let Some(index) = deps.workspace_rag_index.as_ref() {
-        assembler = assembler.with_workspace_retriever(index.clone());
+        retrievers.push(index.clone());
+    }
+    for (id, kb_config) in &deps.config.knowledge_bases {
+        if !kb_config.enabled {
+            continue;
+        }
+        if !kb_config.profile_aliases.is_empty()
+            && !kb_config
+                .profile_aliases
+                .iter()
+                .any(|alias| alias == &model_profile_alias)
+        {
+            continue;
+        }
+        if let Some(retriever) = deps.knowledge_base_retrievers.get(id) {
+            retrievers.push(retriever.clone());
+        }
+    }
+
+    let mut assembler = agent_memory::ContextAssembler::new_standalone();
+    match retrievers.len() {
+        0 => {}
+        1 => {
+            if let Some(retriever) = retrievers.pop() {
+                assembler = assembler.with_workspace_retriever(retriever);
+            }
+        }
+        _ => {
+            assembler = assembler
+                .with_workspace_retriever(Arc::new(CompositeWorkspaceRetriever::new(retrievers)));
+        }
     }
     let bundle = assembler
         .assemble(

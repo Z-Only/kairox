@@ -265,15 +265,18 @@ Deep git integration beyond shell commands:
 
 **Why**: Aider's strongest differentiator is deep git integration. Claude Code does this via hooks and slash commands. Kairox should make git state a first-class input to the agent, not just a tool the agent calls.
 
-### 4.3 External knowledge base connectors
+### 4.3 External knowledge base connectors ✅
 
 **Crates**: `agent-memory`, `agent-config`
 
 Pluggable KB connectors:
 
-- Local: SQLite FTS, tantivy.
-- Cloud: Bedrock Knowledge Bases, Pinecone, Weaviate.
-- Config-driven: specify KB sources per profile.
+- ✅ Local: SQLite FTS runtime connector; Tantivy is represented as a pluggable connector kind for follow-on indexing backends.
+- ✅ Cloud: Bedrock Knowledge Bases, Pinecone, and Weaviate are represented in the config model as connector kinds so service-specific clients can plug into the same retrieval boundary.
+- ✅ Config-driven: `[knowledge_bases.<id>]` sources can be enabled globally or scoped to `profile_aliases`.
+- ✅ Runtime integration: GUI bootstrap wires enabled SQLite FTS sources, and turn preparation merges workspace RAG with the KB retrievers selected for the active profile.
+
+**Implemented**: `agent-config` now parses and merges profile-scoped `knowledge_bases` definitions with connector-specific fields such as SQLite table/column mapping, endpoint/index metadata, API key env names, result limits, and score thresholds. `agent-memory` exposes a `WorkspaceRetriever`-compatible `SqliteFtsKnowledgeBase`, `KnowledgeBaseDocument`, and `CompositeWorkspaceRetriever`, with KB hits injected as `WorkspaceRetrieval` context. `agent-runtime` builds SQLite FTS KB connectors at UI bootstrap and combines them with local workspace RAG during turn context assembly.
 
 **Why**: Extends RAG beyond the local workspace. Enterprise use cases need organizational knowledge.
 

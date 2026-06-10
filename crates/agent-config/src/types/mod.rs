@@ -7,6 +7,7 @@
 mod config;
 mod context;
 mod hooks;
+mod knowledge_base;
 mod lsp;
 mod mcp;
 mod profile;
@@ -14,6 +15,7 @@ mod profile;
 pub use config::*;
 pub use context::*;
 pub use hooks::*;
+pub use knowledge_base::*;
 pub use lsp::*;
 pub use mcp::*;
 pub use profile::*;

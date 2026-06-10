@@ -3,8 +3,9 @@ use std::sync::Arc;
 use sqlx::sqlite::SqlitePoolOptions;
 
 use super::{
-    HashedEmbeddingBackend, WorkspaceDocument, WorkspaceDocumentSource, WorkspaceRagIndex,
-    WorkspaceRetrievalQuery,
+    CompositeWorkspaceRetriever, HashedEmbeddingBackend, KnowledgeBaseDocument,
+    SqliteFtsKnowledgeBase, SqliteFtsKnowledgeBaseConfig, WorkspaceDocument,
+    WorkspaceDocumentSource, WorkspaceRagIndex, WorkspaceRetrievalQuery, WorkspaceRetriever,
 };
 
 async fn test_index() -> WorkspaceRagIndex {
@@ -114,4 +115,119 @@ async fn unchanged_documents_are_not_reembedded() {
     assert_eq!(first.chunks_indexed, 1);
     assert_eq!(second.chunks_indexed, 0);
     assert!(second.skipped_unchanged);
+}
+
+#[tokio::test]
+async fn sqlite_fts_knowledge_base_retrieves_matching_documents() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company_docs".into(),
+            id_column: "doc_id".into(),
+            title_column: Some("title".into()),
+            content_column: "body".into(),
+            workspace_id_column: Some("workspace_id".into()),
+        },
+    )
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "payroll-runbook".into(),
+        workspace_id: Some("ws-alpha".into()),
+        title: Some("Payroll runbook".into()),
+        content: "Payroll incidents are escalated through the finance support queue.".into(),
+    })
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "sales-playbook".into(),
+        workspace_id: Some("ws-beta".into()),
+        title: Some("Sales playbook".into()),
+        content: "Enterprise sales playbooks describe account planning.".into(),
+    })
+    .await
+    .unwrap();
+
+    let hits = kb
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "Where are payroll incidents escalated?".into(),
+            limit: 4,
+            min_score: 0.0,
+            source: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].path, "kb://company-docs/payroll-runbook");
+    assert_eq!(hits[0].source, WorkspaceDocumentSource::KnowledgeBase);
+    assert!(hits[0].content.contains("Payroll runbook"));
+    assert!(hits[0].content.contains("finance support queue"));
+}
+
+#[tokio::test]
+async fn composite_workspace_retriever_merges_and_sorts_hits() {
+    let vector_index = Arc::new(test_index().await);
+    vector_index
+        .index_document(WorkspaceDocument::file(
+            "ws-alpha",
+            "docs/plugins.md",
+            "Plugin manifests define skills and MCP servers.",
+        ))
+        .await
+        .unwrap();
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = Arc::new(
+        SqliteFtsKnowledgeBase::new(
+            "support",
+            pool,
+            SqliteFtsKnowledgeBaseConfig {
+                table: "support_docs".into(),
+                ..SqliteFtsKnowledgeBaseConfig::default()
+            },
+        )
+        .await
+        .unwrap(),
+    );
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "plugin-support".into(),
+        workspace_id: Some("ws-alpha".into()),
+        title: Some("Plugin support".into()),
+        content: "Plugin support runbooks cover marketplace connector failures.".into(),
+    })
+    .await
+    .unwrap();
+
+    let retriever = CompositeWorkspaceRetriever::new(vec![
+        vector_index as Arc<dyn WorkspaceRetriever>,
+        kb as Arc<dyn WorkspaceRetriever>,
+    ]);
+    let hits = retriever
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "plugin connector support".into(),
+            limit: 4,
+            min_score: 0.0,
+            source: None,
+        })
+        .await
+        .unwrap();
+
+    assert!(hits
+        .iter()
+        .any(|hit| hit.path == "kb://support/plugin-support"));
+    assert!(hits.iter().any(|hit| hit.path == "docs/plugins.md"));
+    assert!(hits.windows(2).all(|pair| pair[0].score >= pair[1].score));
 }

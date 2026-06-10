@@ -7,7 +7,7 @@ use agent_core::{
     AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload,
     PrivacyClassification, SendMessageRequest, SessionId, TaskId, WorkspaceId,
 };
-use agent_memory::{MemoryStore, WorkspaceRagIndex};
+use agent_memory::{MemoryStore, WorkspaceRagIndex, WorkspaceRetriever};
 use agent_models::ModelClient;
 use agent_store::{EventStore, ProjectMetaRepository, TrajectoryStore};
 use agent_tools::{PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
@@ -31,6 +31,7 @@ where
     pending_permissions: crate::permission::PendingPermissionsMap,
     memory_store: Option<Arc<dyn MemoryStore>>,
     workspace_rag_index: Option<Arc<WorkspaceRagIndex>>,
+    knowledge_base_retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
     config: RuntimeConfig,
@@ -58,6 +59,7 @@ where
             pending_permissions: runtime.pending_permissions.clone(),
             memory_store: runtime.memory_store.clone(),
             workspace_rag_index: runtime.workspace_rag_index.clone(),
+            knowledge_base_retrievers: runtime.knowledge_base_retrievers.clone(),
             task_graphs: runtime.task_graphs.clone(),
             dag_executor: runtime.dag_executor.clone(),
             config: runtime.config.clone(),
@@ -120,6 +122,7 @@ where
                 pending_permissions: &self.pending_permissions,
                 memory_store: &self.memory_store,
                 workspace_rag_index: &self.workspace_rag_index,
+                knowledge_base_retrievers: &self.knowledge_base_retrievers,
                 task_graphs: &self.task_graphs,
                 config: &config,
                 session_states: &self.session_states,

@@ -45,6 +45,7 @@ fn dispatch_test_config() -> Arc<Config> {
             ("plain".into(), profile("fake-plain", false)),
         ],
         mcp_servers: Vec::new(),
+        knowledge_bases: Vec::new(),
         source: ConfigSource::Defaults,
         context: ContextPolicy::default(),
         disabled_mcp_servers: Vec::new(),

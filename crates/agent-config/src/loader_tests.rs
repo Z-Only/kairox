@@ -100,6 +100,46 @@ max_tool_definition_tokens = 50000
 }
 
 #[test]
+fn config_parse_includes_knowledge_base_sources() {
+    let cfg: crate::Config = crate::loader::load_from_str(
+        r#"
+[profiles.fast]
+provider = "fake"
+model_id = "fake"
+
+[knowledge_bases.company-docs]
+kind = "sqlite_fts"
+path = ".kairox/kb/company.sqlite"
+table = "kb_docs"
+id_column = "doc_id"
+title_column = "title"
+content_column = "body"
+workspace_id_column = "workspace_id"
+profile_aliases = ["fast"]
+max_results = 4
+min_score = 0.25
+"#,
+        "test.toml",
+    )
+    .unwrap();
+
+    assert_eq!(cfg.knowledge_bases.len(), 1);
+    let (id, kb) = &cfg.knowledge_bases[0];
+    assert_eq!(id, "company-docs");
+    assert_eq!(kb.kind, crate::KnowledgeBaseKind::SqliteFts);
+    assert_eq!(kb.path.as_deref(), Some(".kairox/kb/company.sqlite"));
+    assert_eq!(kb.table.as_deref(), Some("kb_docs"));
+    assert_eq!(kb.id_column.as_deref(), Some("doc_id"));
+    assert_eq!(kb.title_column.as_deref(), Some("title"));
+    assert_eq!(kb.content_column.as_deref(), Some("body"));
+    assert_eq!(kb.workspace_id_column.as_deref(), Some("workspace_id"));
+    assert_eq!(kb.profile_aliases, vec!["fast"]);
+    assert_eq!(kb.max_results, Some(4));
+    assert_eq!(kb.min_score, Some(0.25));
+    assert!(kb.enabled);
+}
+
+#[test]
 fn config_parse_includes_hooks() {
     let cfg: crate::Config = crate::loader::load_from_str(
         r#"
