@@ -314,6 +314,7 @@ impl SqliteFtsKnowledgeBase {
     }
 
     pub async fn upsert_document(&self, document: KnowledgeBaseDocument) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
         let table = &self.config.table;
         let delete_sql = format!(
             "DELETE FROM {table} WHERE {} = ?",
@@ -321,7 +322,7 @@ impl SqliteFtsKnowledgeBase {
         );
         sqlx::query(&delete_sql)
             .bind(&document.id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
 
         let mut columns = vec![self.config.id_column.as_str()];
@@ -347,7 +348,8 @@ impl SqliteFtsKnowledgeBase {
         if self.config.title_column.is_some() {
             query = query.bind(document.title.unwrap_or_default());
         }
-        query.bind(document.content).execute(&self.pool).await?;
+        query.bind(document.content).execute(&mut *tx).await?;
+        tx.commit().await?;
         Ok(())
     }
 
