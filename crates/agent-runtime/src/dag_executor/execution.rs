@@ -225,14 +225,18 @@ where
 
     for reviewer_task_id in reviewer_tasks {
         if cancellation.is_some_and(CancellationToken::is_cancelled) {
-            graph.mark_cancelled(&reviewer_task_id).unwrap();
+            graph
+                .mark_cancelled(&reviewer_task_id)
+                .expect("reviewer task must exist in graph");
             events
                 .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
                 .await?;
             return Ok(());
         }
 
-        graph.mark_running(&reviewer_task_id).unwrap();
+        graph
+            .mark_running(&reviewer_task_id)
+            .expect("reviewer task must exist in graph");
         events
             .emit_task_started(workspace_id, session_id, &reviewer_task_id)
             .await?;
@@ -273,12 +277,16 @@ where
         match result {
             Ok(()) => {
                 if cancellation.is_some_and(CancellationToken::is_cancelled) {
-                    graph.mark_cancelled(&reviewer_task_id).unwrap();
+                    graph
+                        .mark_cancelled(&reviewer_task_id)
+                        .expect("reviewer task must exist in graph");
                     events
                         .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
                         .await?;
                 } else {
-                    graph.mark_completed(&reviewer_task_id).unwrap();
+                    graph
+                        .mark_completed(&reviewer_task_id)
+                        .expect("reviewer task must exist in graph");
                     events
                         .emit_task_completed(workspace_id, session_id, &reviewer_task_id)
                         .await?;
@@ -286,13 +294,17 @@ where
             }
             Err(e) => {
                 if cancellation.is_some_and(CancellationToken::is_cancelled) {
-                    graph.mark_cancelled(&reviewer_task_id).unwrap();
+                    graph
+                        .mark_cancelled(&reviewer_task_id)
+                        .expect("reviewer task must exist in graph");
                     events
                         .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
                         .await?;
                 } else {
                     let error = e.to_string();
-                    graph.mark_failed(&reviewer_task_id, error.clone()).unwrap();
+                    graph
+                        .mark_failed(&reviewer_task_id, error.clone())
+                        .expect("reviewer task must exist in graph");
                     events
                         .emit_task_failed(workspace_id, session_id, &reviewer_task_id, &error)
                         .await?;

@@ -122,7 +122,9 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 if let Some(graph) = task_graphs_guard.get_mut(&session_id.to_string()) {
                     let sub_task =
                         graph.add_task(&tc.name, AgentRole::Worker, vec![root_task_id.clone()]);
-                    graph.mark_running(&sub_task).unwrap();
+                    graph
+                        .mark_running(&sub_task)
+                        .expect("sub-task was just added to graph");
                     Some(sub_task)
                 } else {
                     None
@@ -301,7 +303,9 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             // into native vision content blocks for the LLM.
             let result_text = match &completion_event.payload {
                 EventPayload::ToolInvocationCompleted { .. } => {
-                    let output = result.as_ref().unwrap();
+                    let output = result
+                        .as_ref()
+                        .expect("result guaranteed Some for ToolInvocationCompleted");
                     let mut text = format!("tool_id={}\nresult={}", tc.name, output.text);
                     for img in &output.images {
                         let label = img.label.as_deref().unwrap_or("image");

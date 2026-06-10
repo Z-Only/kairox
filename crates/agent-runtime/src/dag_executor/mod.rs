@@ -160,7 +160,9 @@ where
 
         let mut graph = TaskGraph::default();
         let root_task_id = graph.add_task(&root_title, AgentRole::Planner, vec![]);
-        graph.mark_running(&root_task_id).unwrap();
+        graph
+            .mark_running(&root_task_id)
+            .expect("root task must exist in graph");
 
         // Emit root task events
         self.events
@@ -278,7 +280,9 @@ where
                     .await?;
                 } else {
                     // Mark root task as completed
-                    graph.mark_completed(&root_task_id).unwrap();
+                    graph
+                        .mark_completed(&root_task_id)
+                        .expect("root task must exist in graph");
                     self.events
                         .emit_task_completed(
                             &request.workspace_id,
@@ -309,7 +313,9 @@ where
                 )
                 .await?;
 
-                graph.mark_completed(&root_task_id).unwrap();
+                graph
+                    .mark_completed(&root_task_id)
+                    .expect("root task must exist in graph");
                 self.events
                     .emit_task_completed(&request.workspace_id, &request.session_id, &root_task_id)
                     .await?;
@@ -319,7 +325,9 @@ where
             AgentDecision::RequestModel { .. } | AgentDecision::ReviewComplete { .. } => {
                 // Planner wants to call the model directly — delegate to agent loop
                 // For now, treat as a direct response
-                graph.mark_completed(&root_task_id).unwrap();
+                graph
+                    .mark_completed(&root_task_id)
+                    .expect("root task must exist in graph");
                 self.events
                     .emit_task_completed(&request.workspace_id, &request.session_id, &root_task_id)
                     .await?;

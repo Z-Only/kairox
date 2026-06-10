@@ -70,7 +70,10 @@ impl LspServerManager {
         });
 
         let client = {
-            let lifecycle = self.lsp_servers.get_mut(server_id).unwrap();
+            let lifecycle = self
+                .lsp_servers
+                .get_mut(server_id)
+                .expect("LSP server existence verified by contains_key check");
             match lifecycle.start(root_uri).await {
                 Ok(c) => c,
                 Err(e) => {
@@ -103,7 +106,10 @@ impl LspServerManager {
         }
 
         let client = {
-            let lifecycle = self.dap_servers.get_mut(server_id).unwrap();
+            let lifecycle = self
+                .dap_servers
+                .get_mut(server_id)
+                .expect("DAP server existence verified by contains_key check");
             match lifecycle.start().await {
                 Ok(c) => c,
                 Err(e) => {
