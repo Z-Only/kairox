@@ -38,3 +38,7 @@ impl<T: Serialize + serde::de::DeserializeOwned + Clone> EffectiveItem<T> {
         self
     }
 }
+
+#[cfg(test)]
+#[path = "effective_tests.rs"]
+mod tests;

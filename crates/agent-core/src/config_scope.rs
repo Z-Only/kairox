@@ -29,3 +29,7 @@ impl std::fmt::Display for ConfigScope {
         f.write_str(self.label())
     }
 }
+
+#[cfg(test)]
+#[path = "config_scope_tests.rs"]
+mod tests;
