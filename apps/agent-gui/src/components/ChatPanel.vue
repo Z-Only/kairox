@@ -408,6 +408,21 @@ onBeforeUnmount(() => {
   userMessageElements.clear();
 });
 
+// Reset sticky pinned message and observer tracking state when the active
+// session changes (switch or new session). Without this the pinned header
+// from the previous session lingers because the IntersectionObserver never
+// fires again for the now-removed DOM elements.
+watch(
+  () => session.currentSessionId,
+  () => {
+    pinnedUserMessage.value = null;
+    visibleUserMessageIds.value = new Set();
+    userMessageElements.clear();
+    visiblePermissionIds.value = new Set();
+    permissionElementById.clear();
+  }
+);
+
 const currentSession = computed(() => session.currentSessionInfo);
 const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
 const currentProject = computed(() => {

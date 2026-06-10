@@ -33,6 +33,17 @@ impl FakeTool {
         }
     }
 
+    fn with_images(name: &str, output: &str, images: Vec<agent_tools::ImageAttachment>) -> Self {
+        Self {
+            tool_name: name.to_string(),
+            result: std::sync::Mutex::new(Some(Ok(ToolOutput {
+                text: output.to_string(),
+                truncated: false,
+                images,
+            }))),
+        }
+    }
+
     fn failing(name: &str, error_msg: &str) -> Self {
         Self {
             tool_name: name.to_string(),
@@ -442,5 +453,68 @@ async fn cancellation_stops_execution() {
     assert!(
         output.contains("cancelled") || output.contains("Error"),
         "expected cancellation or error, got: {output}"
+    );
+}
+
+#[tokio::test]
+async fn tool_result_includes_image_data_uris() {
+    let harness = TestHarness::new().await;
+    harness.register_tool(Box::new(FakeTool::with_images(
+        "screenshot_tool",
+        "Screenshot captured",
+        vec![agent_tools::ImageAttachment {
+            media_type: "image/png".to_string(),
+            data: "iVBORw0KGgoAAAANSUhEUg==".to_string(),
+            label: Some("screenshot".to_string()),
+        }],
+    )));
+
+    let calls = vec![make_tool_call("call-1", "screenshot_tool", "")];
+    let result = harness.execute_simple(&calls).await.unwrap();
+
+    assert_eq!(result.tool_results.len(), 1);
+    let (ref call_id, ref output) = result.tool_results[0];
+    assert_eq!(call_id, "call-1");
+    assert!(
+        output.contains("Screenshot captured"),
+        "should contain text output"
+    );
+    assert!(
+        output.contains("![screenshot](data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==)"),
+        "should embed image as markdown data-URI, got: {output}"
+    );
+}
+
+#[tokio::test]
+async fn tool_result_multiple_images() {
+    let harness = TestHarness::new().await;
+    harness.register_tool(Box::new(FakeTool::with_images(
+        "multi_img_tool",
+        "done",
+        vec![
+            agent_tools::ImageAttachment {
+                media_type: "image/png".to_string(),
+                data: "AAAA".to_string(),
+                label: Some("first".to_string()),
+            },
+            agent_tools::ImageAttachment {
+                media_type: "image/jpeg".to_string(),
+                data: "BBBB".to_string(),
+                label: None,
+            },
+        ],
+    )));
+
+    let calls = vec![make_tool_call("call-1", "multi_img_tool", "")];
+    let result = harness.execute_simple(&calls).await.unwrap();
+
+    let (_, ref output) = result.tool_results[0];
+    assert!(
+        output.contains("![first](data:image/png;base64,AAAA)"),
+        "should embed first image with label"
+    );
+    assert!(
+        output.contains("![image](data:image/jpeg;base64,BBBB)"),
+        "should embed second image with default label"
     );
 }
