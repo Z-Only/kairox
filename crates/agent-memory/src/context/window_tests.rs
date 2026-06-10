@@ -75,6 +75,27 @@ fn drops_workspace_retrieval_after_history_before_memory() {
 }
 
 #[test]
+fn drops_knowledge_base_with_retrieval_priority() {
+    let sections = vec![
+        make_section(ContextSource::System, 100),
+        make_section(ContextSource::Request, 50),
+        make_section(ContextSource::KnowledgeBase, 120),
+        make_section(ContextSource::Git, 80),
+    ];
+    let idx = find_lowest_priority_drop(&sections).unwrap();
+    assert_eq!(sections[idx].0, ContextSource::KnowledgeBase);
+
+    let sections = vec![
+        make_section(ContextSource::System, 100),
+        make_section(ContextSource::Request, 50),
+        make_section(ContextSource::History, 120),
+        make_section(ContextSource::KnowledgeBase, 80),
+    ];
+    let idx = find_lowest_priority_drop(&sections).unwrap();
+    assert_eq!(sections[idx].0, ContextSource::History);
+}
+
+#[test]
 fn never_drops_system_or_request() {
     let sections = vec![
         make_section(ContextSource::System, 100),

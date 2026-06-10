@@ -389,8 +389,16 @@ async fn prepare_turn_context_records_profile_knowledge_base_usage_when_configur
         usage
             .by_source
             .iter()
-            .any(|(source, tokens)| *source == ContextSource::WorkspaceRetrieval && *tokens > 0),
+            .any(|(source, tokens)| *source == ContextSource::KnowledgeBase && *tokens > 0),
         "expected knowledge base retrieval tokens in {:?}",
+        usage.by_source
+    );
+    assert!(
+        usage
+            .by_source
+            .iter()
+            .all(|(source, _)| *source != ContextSource::WorkspaceRetrieval),
+        "knowledge base hits should not be counted as workspace retrieval: {:?}",
         usage.by_source
     );
 }

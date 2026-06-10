@@ -345,7 +345,7 @@ pub async fn build_ui_runtime_from_store(
     })
 }
 
-async fn build_knowledge_base_retrievers(
+pub async fn build_knowledge_base_retrievers(
     config: &Config,
     workspace_root: &Path,
 ) -> crate::Result<HashMap<String, Arc<dyn WorkspaceRetriever>>> {

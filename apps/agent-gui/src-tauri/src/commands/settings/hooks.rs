@@ -44,7 +44,7 @@ pub async fn upsert_hook_settings(
 ) -> Result<(), String> {
     let config_path = config_path_for_scope(input.scope, project_root.as_deref())?;
     agent_runtime::hooks_settings::upsert_hook(&input, &config_path).map_err(|e| e.to_string())?;
-    state.refresh_config()?;
+    state.refresh_config().await?;
     Ok(())
 }
 
@@ -60,7 +60,7 @@ pub async fn delete_hook_settings(
     let config_path = config_path_for_scope(scope, project_root.as_deref())?;
     agent_runtime::hooks_settings::delete_hook(&config_path, &event, &id)
         .map_err(|e| e.to_string())?;
-    state.refresh_config()?;
+    state.refresh_config().await?;
     Ok(())
 }
 

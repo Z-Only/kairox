@@ -202,7 +202,7 @@ where
         mut self,
         retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>>,
     ) -> Self {
-        self.knowledge_base_retrievers = retrievers;
+        self.knowledge_base_retrievers = Arc::new(std::sync::RwLock::new(retrievers));
         self
     }
 

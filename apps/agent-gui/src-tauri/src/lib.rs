@@ -117,7 +117,7 @@ pub fn run() {
                     home_dir,
                     db_dir.clone(),
                     "kairox-gui.sqlite",
-                    cwd,
+                    cwd.clone(),
                     ApprovalPolicy::default(),
                     SandboxPolicy::default(),
                     config,
@@ -133,6 +133,7 @@ pub fn run() {
                 );
                 gui_state.profiles_config_path = Some(runtime_bootstrap.profiles_config_path);
                 gui_state.home_dir = runtime_bootstrap.data_dir.clone();
+                gui_state.workspace_root = cwd.clone();
                 gui_state.devtools_enabled_at_startup = devtools_enabled;
                 handle.manage(gui_state);
 

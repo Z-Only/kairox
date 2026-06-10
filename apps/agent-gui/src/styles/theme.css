@@ -73,6 +73,7 @@
   --src-project: #475569;
   --src-tools: #2563eb;
   --src-memory: #7c3aed;
+  --src-knowledge-base: #7e22ce;
   --src-git: #059669;
   --src-history: #16a34a;
   --src-tool-result: #f59e0b;
@@ -154,6 +155,7 @@ html.dark {
   --src-project: #cbd5e1;
   --src-tools: #60a5fa;
   --src-memory: #a78bfa;
+  --src-knowledge-base: #d8b4fe;
   --src-git: #34d399;
   --src-history: #4ade80;
   --src-tool-result: #fbbf24;

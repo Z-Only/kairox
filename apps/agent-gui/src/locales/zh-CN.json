@@ -320,6 +320,7 @@
     "sourceTools": "工具定义",
     "sourceMemory": "记忆",
     "sourceWorkspaceRetrieval": "工作区检索",
+    "sourceKnowledgeBase": "知识库",
     "sourceGit": "Git 上下文",
     "sourceHistory": "对话历史",
     "sourceToolResult": "工具结果",

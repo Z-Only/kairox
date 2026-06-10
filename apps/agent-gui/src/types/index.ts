@@ -45,6 +45,7 @@ export type ContextSource =
   | "request"
   | "memory"
   | "workspace_retrieval"
+  | "knowledge_base"
   | "git"
   | "history"
   | "tool_result"

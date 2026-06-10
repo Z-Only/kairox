@@ -59,7 +59,7 @@ where
             pending_permissions: runtime.pending_permissions.clone(),
             memory_store: runtime.memory_store.clone(),
             workspace_rag_index: runtime.workspace_rag_index.clone(),
-            knowledge_base_retrievers: runtime.knowledge_base_retrievers.clone(),
+            knowledge_base_retrievers: runtime.knowledge_base_retrievers_snapshot(),
             task_graphs: runtime.task_graphs.clone(),
             dag_executor: runtime.dag_executor.clone(),
             config: runtime.config.clone(),

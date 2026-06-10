@@ -58,7 +58,7 @@ where
     pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
     pub(crate) workspace_rag_index: Option<Arc<WorkspaceRagIndex>>,
-    pub(crate) knowledge_base_retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>>,
+    pub(crate) knowledge_base_retrievers: Arc<RwLock<HashMap<String, Arc<dyn WorkspaceRetriever>>>>,
     pub(crate) pending_permissions: crate::permission::PendingPermissionsMap,
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
@@ -125,7 +125,7 @@ where
             context_assembler: ContextAssembler::new_standalone(),
             memory_store: None,
             workspace_rag_index: None,
-            knowledge_base_retrievers: HashMap::new(),
+            knowledge_base_retrievers: Arc::new(RwLock::new(HashMap::new())),
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
@@ -187,6 +187,25 @@ where
 
     pub fn update_config(&self, config: Arc<agent_config::Config>) {
         self.config.replace(config);
+    }
+
+    pub fn replace_knowledge_base_retrievers(
+        &self,
+        retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>>,
+    ) {
+        *self
+            .knowledge_base_retrievers
+            .write()
+            .expect("knowledge base retriever lock should not be poisoned") = retrievers;
+    }
+
+    pub fn knowledge_base_retrievers_snapshot(
+        &self,
+    ) -> HashMap<String, Arc<dyn WorkspaceRetriever>> {
+        self.knowledge_base_retrievers
+            .read()
+            .expect("knowledge base retriever lock should not be poisoned")
+            .clone()
     }
 
     pub fn monitor_registry(&self) -> Option<&Arc<MonitorRegistry>> {
