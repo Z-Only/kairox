@@ -35,31 +35,43 @@ impl DiscoveryCache {
     /// Get tools, fetching from the server if not cached.
     pub async fn tools(&self) -> Result<Vec<McpToolDef>> {
         let mut cache = self.tools.lock().await;
-        if cache.is_none() {
-            let fetched = self.client.discover_tools().await?;
-            *cache = Some(fetched);
+        match cache.as_ref() {
+            Some(cached) => Ok(cached.clone()),
+            None => {
+                let fetched = self.client.discover_tools().await?;
+                let result = fetched.clone();
+                *cache = Some(fetched);
+                Ok(result)
+            }
         }
-        Ok(cache.as_ref().unwrap().clone())
     }
 
     /// Get resources, fetching from the server if not cached.
     pub async fn resources(&self) -> Result<Vec<McpResourceDef>> {
         let mut cache = self.resources.lock().await;
-        if cache.is_none() {
-            let fetched = self.client.discover_resources().await?;
-            *cache = Some(fetched);
+        match cache.as_ref() {
+            Some(cached) => Ok(cached.clone()),
+            None => {
+                let fetched = self.client.discover_resources().await?;
+                let result = fetched.clone();
+                *cache = Some(fetched);
+                Ok(result)
+            }
         }
-        Ok(cache.as_ref().unwrap().clone())
     }
 
     /// Get prompts, fetching from the server if not cached.
     pub async fn prompts(&self) -> Result<Vec<McpPromptDef>> {
         let mut cache = self.prompts.lock().await;
-        if cache.is_none() {
-            let fetched = self.client.discover_prompts().await?;
-            *cache = Some(fetched);
+        match cache.as_ref() {
+            Some(cached) => Ok(cached.clone()),
+            None => {
+                let fetched = self.client.discover_prompts().await?;
+                let result = fetched.clone();
+                *cache = Some(fetched);
+                Ok(result)
+            }
         }
-        Ok(cache.as_ref().unwrap().clone())
     }
 
     /// Invalidate the tools cache (force re-fetch on next access).
