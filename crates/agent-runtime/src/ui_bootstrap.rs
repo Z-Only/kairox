@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use agent_config::{CatalogSourceConfig, Config};
 use agent_core::{AppFacade, DomainEvent, SessionId, StartSessionRequest, WorkspaceInfo};
-use agent_memory::{MemoryStore, SqliteMemoryStore};
+use agent_memory::{HashedEmbeddingBackend, MemoryStore, SqliteMemoryStore, WorkspaceRagIndex};
 use agent_models::ModelRouter;
 use agent_store::{SqliteAutonomousTaskStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
@@ -226,6 +226,14 @@ pub async fn build_ui_runtime_from_store(
             .await
             .map_err(|error| RuntimeError::Other(format!("memory store: {error}")))?,
     ) as Arc<dyn MemoryStore>;
+    let workspace_rag_index = Arc::new(
+        WorkspaceRagIndex::new(
+            store.pool().clone(),
+            Arc::new(HashedEmbeddingBackend::default()),
+        )
+        .await
+        .map_err(|error| RuntimeError::Other(format!("workspace RAG index: {error}")))?,
+    );
 
     let builtin_skills_root = crate::skills::ensure_builtin_skills_root(&options.data_dir).await?;
     let mut skill_roots =
@@ -276,6 +284,7 @@ pub async fn build_ui_runtime_from_store(
         .with_approval_and_sandbox(options.approval_policy, options.sandbox_policy)
         .with_context_limit(100_000)
         .with_memory_store(memory_store.clone())
+        .with_workspace_rag_index(workspace_rag_index)
         .with_config(config_arc)
         .with_ollama_clients(ollama_clients)
         .with_skill_registry(Arc::new(skill_registry))

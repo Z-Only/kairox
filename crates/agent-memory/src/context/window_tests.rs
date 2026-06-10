@@ -54,6 +54,27 @@ fn drops_history_before_memory() {
 }
 
 #[test]
+fn drops_workspace_retrieval_after_history_before_memory() {
+    let sections = vec![
+        make_section(ContextSource::System, 100),
+        make_section(ContextSource::Request, 50),
+        make_section(ContextSource::WorkspaceRetrieval, 120),
+        make_section(ContextSource::Memory, 80),
+    ];
+    let idx = find_lowest_priority_drop(&sections).unwrap();
+    assert_eq!(sections[idx].0, ContextSource::WorkspaceRetrieval);
+
+    let sections = vec![
+        make_section(ContextSource::System, 100),
+        make_section(ContextSource::Request, 50),
+        make_section(ContextSource::History, 120),
+        make_section(ContextSource::WorkspaceRetrieval, 80),
+    ];
+    let idx = find_lowest_priority_drop(&sections).unwrap();
+    assert_eq!(sections[idx].0, ContextSource::History);
+}
+
+#[test]
 fn never_drops_system_or_request() {
     let sections = vec![
         make_section(ContextSource::System, 100),

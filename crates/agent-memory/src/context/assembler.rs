@@ -7,6 +7,7 @@ use tiktoken_rs::CoreBPE;
 use crate::extractor::extract_keywords;
 use crate::memory::MemoryEntry;
 use crate::store::{MemoryQuery, MemoryStore};
+use crate::workspace_rag::{WorkspaceRetrievalQuery, WorkspaceRetriever};
 
 use super::budget::ContextBudget;
 use super::image_pruning::{prune_images, ImageEntry, ImagePruningStrategy};
@@ -45,6 +46,7 @@ pub struct ContextBundle {
 
 pub struct ContextAssembler {
     memory_store: Option<Arc<dyn MemoryStore>>,
+    workspace_retriever: Option<Arc<dyn WorkspaceRetriever>>,
     tokenizer: CoreBPE,
 }
 
@@ -52,6 +54,7 @@ impl ContextAssembler {
     pub fn new(memory_store: Arc<dyn MemoryStore>) -> Self {
         Self {
             memory_store: Some(memory_store),
+            workspace_retriever: None,
             tokenizer: tiktoken_rs::cl100k_base().expect("cl100k_base bundled with tiktoken-rs"),
         }
     }
@@ -62,8 +65,14 @@ impl ContextAssembler {
     pub fn new_standalone() -> Self {
         Self {
             memory_store: None,
+            workspace_retriever: None,
             tokenizer: tiktoken_rs::cl100k_base().expect("cl100k_base bundled with tiktoken-rs"),
         }
+    }
+
+    pub fn with_workspace_retriever(mut self, retriever: Arc<dyn WorkspaceRetriever>) -> Self {
+        self.workspace_retriever = Some(retriever);
+        self
     }
 
     pub async fn assemble(&self, request: ContextRequest, budget: ContextBudget) -> ContextBundle {
@@ -144,6 +153,27 @@ impl ContextAssembler {
             let text = format!("Memory: {}", mem.content);
             let n = self.count_tokens(&text);
             sections.push((ContextSource::Memory, text, n));
+        }
+
+        if let Some(retriever) = &self.workspace_retriever {
+            let hits = retriever
+                .retrieve(WorkspaceRetrievalQuery {
+                    workspace_id: request.workspace_id.clone(),
+                    query: sanitized_request.clone(),
+                    limit: 8,
+                    min_score: 0.05,
+                    source: None,
+                })
+                .await
+                .unwrap_or_default();
+            for hit in hits {
+                let text = format!(
+                    "Workspace context: {}#{} (score {:.3})\n{}",
+                    hit.path, hit.chunk_index, hit.score, hit.content
+                );
+                let n = self.count_tokens(&text);
+                sections.push((ContextSource::WorkspaceRetrieval, text, n));
+            }
         }
 
         // P3: Session history

@@ -2,8 +2,9 @@ use agent_core::ContextSource;
 
 /// Find the index of the lowest-priority section that can be dropped.
 ///
-/// Priority (highest first): System, Skill, ToolDefinitions, Request, Memory,
-/// History, ToolResult, SelectedFile.
+/// Priority (highest first): System, Skill, ToolDefinitions,
+/// ProjectInstruction, Memory, WorkspaceRetrieval, History, ToolResult,
+/// SelectedFile, Image.
 ///
 /// `System` and `Request` are never dropped; `Skill` is dropped only after
 /// `ToolDefinitions`.
@@ -15,6 +16,7 @@ pub(super) fn find_lowest_priority_drop(
         ContextSource::SelectedFile,
         ContextSource::ToolResult,
         ContextSource::History,
+        ContextSource::WorkspaceRetrieval,
         ContextSource::Memory,
         ContextSource::ProjectInstruction,
         ContextSource::ToolDefinitions,

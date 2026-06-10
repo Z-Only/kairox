@@ -14,6 +14,7 @@ const ALL_SOURCES: ContextSource[] = [
   "tool_definitions",
   "request",
   "memory",
+  "workspace_retrieval",
   "history",
   "tool_result",
   "selected_file",
@@ -53,11 +54,13 @@ describe("useContextFormatting", () => {
       ["system", "var(--src-system)"],
       ["tool_definitions", "var(--src-tools)"],
       ["memory", "var(--src-memory)"],
+      ["workspace_retrieval", "var(--src-memory)"],
       ["history", "var(--src-history)"],
       ["tool_result", "var(--src-tool-result)"],
       ["selected_file", "var(--src-selected-file)"],
       ["compaction_summary", "var(--src-compaction-summary)"],
-      ["request", "var(--src-request)"]
+      ["request", "var(--src-request)"],
+      ["image", "var(--src-image)"]
     ])("returns correct CSS variable for %s", (source, expected) => {
       expect(formatSourceColor(source)).toBe(expected);
     });
@@ -84,11 +87,13 @@ describe("useContextFormatting", () => {
       ["system", "context.sourceSystem"],
       ["tool_definitions", "context.sourceTools"],
       ["memory", "context.sourceMemory"],
+      ["workspace_retrieval", "context.sourceWorkspaceRetrieval"],
       ["history", "context.sourceHistory"],
       ["tool_result", "context.sourceToolResult"],
       ["selected_file", "context.sourceSelectedFile"],
       ["compaction_summary", "context.sourceCompactionSummary"],
-      ["request", "context.sourceRequest"]
+      ["request", "context.sourceRequest"],
+      ["image", "context.sourceImage"]
     ])("returns the i18n key for %s", (source, expectedKey) => {
       expect(formatSourceLabel(source)).toBe(expectedKey);
     });

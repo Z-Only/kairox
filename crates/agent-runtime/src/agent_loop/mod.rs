@@ -17,7 +17,7 @@ pub(crate) use turn_context::server_tools_for_profile;
 pub(crate) use turn_context::TurnContext;
 
 use crate::task_graph::TaskGraph;
-use agent_memory::MemoryStore;
+use agent_memory::{MemoryStore, WorkspaceRagIndex};
 use agent_models::ModelClient;
 use agent_store::{EventStore, TrajectoryStore};
 use agent_tools::{PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
@@ -41,6 +41,7 @@ where
     pub(crate) permission_engine: &'a Arc<Mutex<PermissionEngine>>,
     pub(crate) pending_permissions: &'a crate::permission::PendingPermissionsMap,
     pub(crate) memory_store: &'a Option<Arc<dyn MemoryStore>>,
+    pub(crate) workspace_rag_index: &'a Option<Arc<WorkspaceRagIndex>>,
     pub(crate) task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
     pub(crate) config: &'a Arc<agent_config::Config>,
     pub(crate) session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,

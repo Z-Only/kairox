@@ -1,6 +1,9 @@
 use super::*;
 use crate::memory::MemoryScope;
+use crate::{HashedEmbeddingBackend, WorkspaceDocument, WorkspaceRagIndex};
 use agent_core::ContextSource;
+use sqlx::sqlite::SqlitePoolOptions;
+use std::sync::Arc;
 
 fn standalone() -> ContextAssembler {
     ContextAssembler::new_standalone()
@@ -35,6 +38,42 @@ async fn basic_user_request_produces_single_message() {
     assert!(bundle.messages.iter().any(|m| m.contains("Hello world")));
     assert!(!bundle.truncated);
     assert!(bundle.usage.total_tokens > 0);
+}
+
+#[tokio::test]
+async fn workspace_rag_hits_are_injected_during_context_assembly() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let rag = Arc::new(
+        WorkspaceRagIndex::new(pool, Arc::new(HashedEmbeddingBackend::default()))
+            .await
+            .unwrap(),
+    );
+    rag.index_document(WorkspaceDocument::file(
+        "ws-alpha",
+        "docs/rag.md",
+        "Workspace RAG injects relevant vector chunks into the context bundle.",
+    ))
+    .await
+    .unwrap();
+
+    let req = ContextRequest {
+        workspace_id: Some("ws-alpha".into()),
+        user_request: "How does vector chunk context work?".into(),
+        ..Default::default()
+    };
+    let bundle = ContextAssembler::new_standalone()
+        .with_workspace_retriever(rag)
+        .assemble(req, large_budget())
+        .await;
+
+    assert!(bundle.sources.contains(&ContextSource::WorkspaceRetrieval));
+    assert!(bundle.messages.iter().any(
+        |message| message.contains("docs/rag.md") && message.contains("relevant vector chunks")
+    ));
 }
 
 #[tokio::test]

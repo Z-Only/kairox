@@ -12,7 +12,7 @@ use agent_core::{
 };
 use agent_lsp::{DapServerDef, LspServerDef};
 use agent_mcp::types::McpServerDef;
-use agent_memory::{ContextAssembler, MemoryStore};
+use agent_memory::{ContextAssembler, MemoryStore, WorkspaceRagIndex};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
     ApprovalPolicy, BuiltinProvider, MonitorEventSink, MonitorRegistry, PermissionEngine,
@@ -189,6 +189,11 @@ where
     pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
         self.memory_store = Some(store.clone());
         self.context_assembler = ContextAssembler::new(store);
+        self
+    }
+
+    pub fn with_workspace_rag_index(mut self, index: Arc<WorkspaceRagIndex>) -> Self {
+        self.workspace_rag_index = Some(index);
         self
     }
 
