@@ -12,12 +12,13 @@ use agent_core::{
 };
 use agent_lsp::{DapServerDef, LspServerDef};
 use agent_mcp::types::McpServerDef;
-use agent_memory::{ContextAssembler, MemoryStore, WorkspaceRagIndex};
+use agent_memory::{ContextAssembler, MemoryStore, WorkspaceRagIndex, WorkspaceRetriever};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
     ApprovalPolicy, BuiltinProvider, MonitorEventSink, MonitorRegistry, PermissionEngine,
     SandboxPolicy, ToolProvider, ToolRegistry, WorkspaceScopedBuiltinTools,
 };
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -194,6 +195,14 @@ where
 
     pub fn with_workspace_rag_index(mut self, index: Arc<WorkspaceRagIndex>) -> Self {
         self.workspace_rag_index = Some(index);
+        self
+    }
+
+    pub fn with_knowledge_base_retrievers(
+        mut self,
+        retrievers: HashMap<String, Arc<dyn WorkspaceRetriever>>,
+    ) -> Self {
+        self.knowledge_base_retrievers = retrievers;
         self
     }
 

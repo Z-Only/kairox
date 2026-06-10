@@ -1,5 +1,5 @@
 use super::*;
-use agent_config::{Config, ProfileDef};
+use agent_config::{Config, KnowledgeBaseConfig, KnowledgeBaseKind, ProfileDef};
 use agent_core::{
     ContextSource, DomainEvent, EventPayload, SendMessageRequest, SessionId, WorkspaceId,
 };
@@ -70,6 +70,7 @@ struct TestHarness {
     // Owned `Option` fields whose references are lent to `AgentLoopDeps`.
     memory_store: Option<Arc<dyn agent_memory::MemoryStore>>,
     workspace_rag_index: Option<Arc<agent_memory::WorkspaceRagIndex>>,
+    knowledge_base_retrievers: HashMap<String, Arc<dyn agent_memory::WorkspaceRetriever>>,
     skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
     workspace_scoped: Option<Arc<agent_tools::WorkspaceScopedBuiltinTools>>,
     trajectory_store: Option<Arc<dyn agent_store::TrajectoryStore>>,
@@ -107,6 +108,7 @@ impl TestHarness {
             active_skills,
             memory_store: None,
             workspace_rag_index: None,
+            knowledge_base_retrievers: HashMap::new(),
             skill_registry: None,
             workspace_scoped: None,
             trajectory_store: None,
@@ -123,6 +125,7 @@ impl TestHarness {
             pending_permissions: &self.pending,
             memory_store: &self.memory_store,
             workspace_rag_index: &self.workspace_rag_index,
+            knowledge_base_retrievers: &self.knowledge_base_retrievers,
             task_graphs: &self.task_graphs,
             config: &self.config,
             session_states: &self.session_states,
@@ -300,6 +303,95 @@ async fn prepare_turn_context_includes_instructions_in_system_prompt() {
     assert!(
         turn_ctx.system_prompt.contains("Always respond in JSON."),
         "system prompt should include custom instructions"
+    );
+}
+
+#[tokio::test]
+async fn prepare_turn_context_records_profile_knowledge_base_usage_when_configured() {
+    let mut wide_profile = profile_def(true, None, None);
+    wide_profile.context_window = Some(20_000);
+    wide_profile.output_limit = Some(1_000);
+    let mut config = config_with_profiles(vec![("wide".into(), wide_profile)]);
+    config.knowledge_bases = vec![(
+        "company-docs".into(),
+        KnowledgeBaseConfig {
+            kind: KnowledgeBaseKind::SqliteFts,
+            profile_aliases: vec!["wide".into()],
+            ..KnowledgeBaseConfig::default()
+        },
+    )];
+    let mut harness = TestHarness::new(config).await;
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = Arc::new(
+        agent_memory::SqliteFtsKnowledgeBase::new(
+            "company-docs",
+            pool,
+            agent_memory::SqliteFtsKnowledgeBaseConfig::default(),
+        )
+        .await
+        .unwrap(),
+    );
+    let workspace_id = WorkspaceId::from_string("ws-kb".to_string());
+    kb.upsert_document(agent_memory::KnowledgeBaseDocument {
+        id: "payroll-runbook".into(),
+        workspace_id: Some(workspace_id.as_str().to_string()),
+        title: Some("Payroll runbook".into()),
+        content: "Payroll incidents are escalated through the finance support queue.".into(),
+    })
+    .await
+    .unwrap();
+    harness
+        .knowledge_base_retrievers
+        .insert("company-docs".into(), kb);
+
+    let request = SendMessageRequest {
+        workspace_id: workspace_id.clone(),
+        session_id: SessionId::new(),
+        content: "Where are payroll incidents escalated?".into(),
+        display_content: None,
+        attachments: vec![],
+    };
+    let deps = harness.deps();
+    let session_events = vec![DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        agent_core::AgentId::system(),
+        agent_core::PrivacyClassification::MinimalTrace,
+        EventPayload::SessionInitialized {
+            model_profile: "wide".into(),
+        },
+    )];
+    prepare_turn_context(&deps, &request, &session_events)
+        .await
+        .unwrap();
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    let usage = events
+        .iter()
+        .find_map(|event| {
+            if let EventPayload::ContextAssembled { usage } = &event.payload {
+                Some(usage)
+            } else {
+                None
+            }
+        })
+        .expect("context assembled event should be recorded");
+
+    assert!(
+        usage
+            .by_source
+            .iter()
+            .any(|(source, tokens)| *source == ContextSource::WorkspaceRetrieval && *tokens > 0),
+        "expected knowledge base retrieval tokens in {:?}",
+        usage.by_source
     );
 }
 

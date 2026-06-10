@@ -90,6 +90,7 @@ fn two_profile_config() -> Arc<Config> {
     Arc::new(Config {
         profiles: vec![("fast".into(), fast), ("opus".into(), opus)],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: ConfigSource::Defaults,
         context: ContextPolicy::default(),
         disabled_mcp_servers: vec![],

@@ -27,6 +27,8 @@ struct ConfigToml {
     #[serde(default)]
     mcp_servers: toml::value::Table,
     #[serde(default)]
+    knowledge_bases: toml::value::Table,
+    #[serde(default)]
     context: crate::ContextPolicy,
     /// Top-level list of MCP server IDs to disable at this config layer.
     #[serde(default)]
@@ -54,6 +56,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
     Ok(Config {
         profiles: profile::parse_profiles(&config_toml.profiles, path_for_errors)?,
         mcp_servers: mcp::parse_mcp_servers(&config_toml.mcp_servers, path_for_errors)?,
+        knowledge_bases: parse_knowledge_bases(&config_toml.knowledge_bases, path_for_errors)?,
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
         context: config_toml.context,
         disabled_mcp_servers: config_toml.disabled_mcp_servers,
@@ -64,6 +67,25 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         dap_servers: lsp::parse_dap_servers(&config_toml.dap_servers, path_for_errors)?,
         advisor: config_toml.advisor.unwrap_or_default(),
     })
+}
+
+fn parse_knowledge_bases(
+    table: &toml::value::Table,
+    path_for_errors: &str,
+) -> Result<Vec<(String, crate::KnowledgeBaseConfig)>, ConfigError> {
+    let mut knowledge_bases = Vec::new();
+    for (id, value) in table {
+        let config: crate::KnowledgeBaseConfig =
+            value
+                .clone()
+                .try_into()
+                .map_err(|e: toml::de::Error| ConfigError::Parse {
+                    path: path_for_errors.to_string(),
+                    message: format!("knowledge_bases.{id}: {e}"),
+                })?;
+        knowledge_bases.push((id.clone(), config));
+    }
+    Ok(knowledge_bases)
 }
 
 fn parse_hooks(

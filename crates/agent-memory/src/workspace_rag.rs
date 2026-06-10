@@ -26,6 +26,8 @@ pub enum WorkspaceRagError {
     Embedding(#[from] EmbeddingError),
     #[error("embedding backend returned {actual} vectors for {expected} inputs")]
     EmbeddingCount { expected: usize, actual: usize },
+    #[error("invalid SQLite identifier: {0}")]
+    InvalidIdentifier(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkspaceRagError>;
@@ -76,6 +78,7 @@ pub enum WorkspaceDocumentSource {
     File,
     Documentation,
     PastConversation,
+    KnowledgeBase,
 }
 
 impl WorkspaceDocumentSource {
@@ -84,6 +87,7 @@ impl WorkspaceDocumentSource {
             Self::File => "file",
             Self::Documentation => "documentation",
             Self::PastConversation => "past_conversation",
+            Self::KnowledgeBase => "knowledge_base",
         }
     }
 
@@ -91,6 +95,7 @@ impl WorkspaceDocumentSource {
         match value {
             "documentation" => Self::Documentation,
             "past_conversation" => Self::PastConversation,
+            "knowledge_base" => Self::KnowledgeBase,
             _ => Self::File,
         }
     }
@@ -241,6 +246,230 @@ pub struct WorkspaceIndexSummary {
 #[async_trait]
 pub trait WorkspaceRetriever: Send + Sync {
     async fn retrieve(&self, query: WorkspaceRetrievalQuery) -> Result<Vec<WorkspaceRetrieval>>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KnowledgeBaseDocument {
+    pub id: String,
+    pub workspace_id: Option<String>,
+    pub title: Option<String>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SqliteFtsKnowledgeBaseConfig {
+    pub table: String,
+    pub id_column: String,
+    pub title_column: Option<String>,
+    pub content_column: String,
+    pub workspace_id_column: Option<String>,
+}
+
+impl Default for SqliteFtsKnowledgeBaseConfig {
+    fn default() -> Self {
+        Self {
+            table: "knowledge_base_docs".into(),
+            id_column: "doc_id".into(),
+            title_column: Some("title".into()),
+            content_column: "content".into(),
+            workspace_id_column: Some("workspace_id".into()),
+        }
+    }
+}
+
+pub struct SqliteFtsKnowledgeBase {
+    id: String,
+    pool: SqlitePool,
+    config: SqliteFtsKnowledgeBaseConfig,
+}
+
+impl SqliteFtsKnowledgeBase {
+    pub async fn new(
+        id: impl Into<String>,
+        pool: SqlitePool,
+        config: SqliteFtsKnowledgeBaseConfig,
+    ) -> Result<Self> {
+        validate_fts_config(&config)?;
+        let table = &config.table;
+        let mut columns = Vec::new();
+        columns.push(format!("{} UNINDEXED", config.id_column));
+        if let Some(column) = &config.workspace_id_column {
+            columns.push(format!("{column} UNINDEXED"));
+        }
+        if let Some(column) = &config.title_column {
+            columns.push(column.clone());
+        }
+        columns.push(config.content_column.clone());
+        let sql = format!(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS {table} USING fts5({})",
+            columns.join(", ")
+        );
+        sqlx::query(&sql).execute(&pool).await?;
+
+        Ok(Self {
+            id: id.into(),
+            pool,
+            config,
+        })
+    }
+
+    pub async fn upsert_document(&self, document: KnowledgeBaseDocument) -> Result<()> {
+        let table = &self.config.table;
+        let delete_sql = format!(
+            "DELETE FROM {table} WHERE {} = ?",
+            self.config.id_column.as_str()
+        );
+        sqlx::query(&delete_sql)
+            .bind(&document.id)
+            .execute(&self.pool)
+            .await?;
+
+        let mut columns = vec![self.config.id_column.as_str()];
+        if let Some(column) = &self.config.workspace_id_column {
+            columns.push(column.as_str());
+        }
+        if let Some(column) = &self.config.title_column {
+            columns.push(column.as_str());
+        }
+        columns.push(self.config.content_column.as_str());
+
+        let placeholders = std::iter::repeat_n("?", columns.len())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let insert_sql = format!(
+            "INSERT INTO {table} ({}) VALUES ({placeholders})",
+            columns.join(", ")
+        );
+        let mut query = sqlx::query(&insert_sql).bind(&document.id);
+        if self.config.workspace_id_column.is_some() {
+            query = query.bind(document.workspace_id.unwrap_or_default());
+        }
+        if self.config.title_column.is_some() {
+            query = query.bind(document.title.unwrap_or_default());
+        }
+        query.bind(document.content).execute(&self.pool).await?;
+        Ok(())
+    }
+
+    async fn retrieve_internal(
+        &self,
+        query: WorkspaceRetrievalQuery,
+    ) -> Result<Vec<WorkspaceRetrieval>> {
+        if query.limit == 0 || query.query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        if query
+            .source
+            .is_some_and(|source| source != WorkspaceDocumentSource::KnowledgeBase)
+        {
+            return Ok(Vec::new());
+        }
+
+        let Some(fts_query) = to_fts_query(&query.query) else {
+            return Ok(Vec::new());
+        };
+
+        let table = &self.config.table;
+        let workspace_select = self.config.workspace_id_column.as_deref().unwrap_or("''");
+        let title_select = self.config.title_column.as_deref().unwrap_or("''");
+        let mut sql = format!(
+            "SELECT {}, {workspace_select}, {title_select}, {}, bm25({table}) AS rank FROM {table} WHERE {table} MATCH ?",
+            self.config.id_column, self.config.content_column
+        );
+        if let (Some(column), Some(_)) = (&self.config.workspace_id_column, &query.workspace_id) {
+            sql.push_str(&format!(
+                " AND ({column} = ? OR {column} = '' OR {column} IS NULL)"
+            ));
+        }
+        sql.push_str(" ORDER BY rank ASC LIMIT ?");
+
+        let mut select =
+            sqlx::query_as::<_, (String, String, String, String, f64)>(&sql).bind(fts_query);
+        if self.config.workspace_id_column.is_some() {
+            if let Some(workspace_id) = &query.workspace_id {
+                select = select.bind(workspace_id);
+            }
+        }
+        select = select.bind(query.limit as i64);
+
+        let rows = select.fetch_all(&self.pool).await?;
+        let mut hits = Vec::new();
+        for (doc_id, row_workspace_id, title, content, rank) in rows {
+            let score = (1.0 / (1.0 + rank.abs() as f32)).clamp(0.0, 1.0);
+            if score < query.min_score {
+                continue;
+            }
+            let content = if title.trim().is_empty() {
+                content
+            } else {
+                format!("{title}\n{content}")
+            };
+            hits.push(WorkspaceRetrieval {
+                workspace_id: if row_workspace_id.trim().is_empty() {
+                    query.workspace_id.clone().unwrap_or_default()
+                } else {
+                    row_workspace_id
+                },
+                path: format!("kb://{}/{}", self.id, normalize_path(doc_id)),
+                source: WorkspaceDocumentSource::KnowledgeBase,
+                chunk_index: 0,
+                content,
+                score,
+            });
+        }
+
+        hits.sort_by(|a, b| {
+            b.score
+                .total_cmp(&a.score)
+                .then_with(|| a.path.cmp(&b.path))
+                .then_with(|| a.chunk_index.cmp(&b.chunk_index))
+        });
+        hits.truncate(query.limit);
+        Ok(hits)
+    }
+}
+
+#[async_trait]
+impl WorkspaceRetriever for SqliteFtsKnowledgeBase {
+    async fn retrieve(&self, query: WorkspaceRetrievalQuery) -> Result<Vec<WorkspaceRetrieval>> {
+        self.retrieve_internal(query).await
+    }
+}
+
+pub struct CompositeWorkspaceRetriever {
+    retrievers: Vec<Arc<dyn WorkspaceRetriever>>,
+}
+
+impl CompositeWorkspaceRetriever {
+    pub fn new(retrievers: Vec<Arc<dyn WorkspaceRetriever>>) -> Self {
+        Self { retrievers }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.retrievers.is_empty()
+    }
+}
+
+#[async_trait]
+impl WorkspaceRetriever for CompositeWorkspaceRetriever {
+    async fn retrieve(&self, query: WorkspaceRetrievalQuery) -> Result<Vec<WorkspaceRetrieval>> {
+        if query.limit == 0 || self.retrievers.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut hits = Vec::new();
+        for retriever in &self.retrievers {
+            hits.extend(retriever.retrieve(query.clone()).await?);
+        }
+        hits.sort_by(|a, b| {
+            b.score
+                .total_cmp(&a.score)
+                .then_with(|| a.path.cmp(&b.path))
+                .then_with(|| a.chunk_index.cmp(&b.chunk_index))
+        });
+        hits.truncate(query.limit);
+        Ok(hits)
+    }
 }
 
 pub struct WorkspaceRagIndex {
@@ -538,6 +767,56 @@ fn hashed_bag_of_words(input: &str, dimensions: usize) -> Vec<f32> {
 
     normalize(&mut vector);
     vector
+}
+
+fn validate_fts_config(config: &SqliteFtsKnowledgeBaseConfig) -> Result<()> {
+    validate_identifier(&config.table)?;
+    validate_identifier(&config.id_column)?;
+    validate_identifier(&config.content_column)?;
+    if let Some(column) = &config.title_column {
+        validate_identifier(column)?;
+    }
+    if let Some(column) = &config.workspace_id_column {
+        validate_identifier(column)?;
+    }
+    Ok(())
+}
+
+fn validate_identifier(identifier: &str) -> Result<()> {
+    let mut chars = identifier.chars();
+    let Some(first) = chars.next() else {
+        return Err(WorkspaceRagError::InvalidIdentifier(identifier.into()));
+    };
+    if !(first == '_' || first.is_ascii_alphabetic()) {
+        return Err(WorkspaceRagError::InvalidIdentifier(identifier.into()));
+    }
+    if chars.any(|ch| !(ch == '_' || ch.is_ascii_alphanumeric())) {
+        return Err(WorkspaceRagError::InvalidIdentifier(identifier.into()));
+    }
+    Ok(())
+}
+
+fn to_fts_query(input: &str) -> Option<String> {
+    let mut tokens = extract_keywords(input);
+    if tokens.is_empty() {
+        tokens = input
+            .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .filter(|token| !token.is_empty())
+            .map(|token| token.to_ascii_lowercase())
+            .collect();
+    }
+    let terms: Vec<String> = tokens
+        .into_iter()
+        .map(|token| {
+            token
+                .chars()
+                .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+                .collect::<String>()
+        })
+        .filter(|token| !token.is_empty())
+        .map(|token| format!("\"{token}\""))
+        .collect();
+    (!terms.is_empty()).then(|| terms.join(" OR "))
 }
 
 fn normalize(vector: &mut [f32]) {

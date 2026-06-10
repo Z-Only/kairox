@@ -26,6 +26,7 @@ pub(crate) fn hook_test_config(hooks: Vec<agent_config::HookConfig>) -> Arc<agen
     Arc::new(agent_config::Config {
         profiles: vec![],
         mcp_servers: vec![],
+        knowledge_bases: vec![],
         source: agent_config::ConfigSource::Defaults,
         context: agent_config::ContextPolicy::default(),
         disabled_mcp_servers: vec![],
