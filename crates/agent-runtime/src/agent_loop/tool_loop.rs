@@ -294,14 +294,23 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             )
             .await;
 
-            // Collect tool result for the next model request
+            // Collect tool result for the next model request.
+            // When the tool produced image attachments (e.g. computer.use
+            // screenshots), embed them as markdown data-URI images so that
+            // the model adapters' multimodal content parsers can split them
+            // into native vision content blocks for the LLM.
             let result_text = match &completion_event.payload {
                 EventPayload::ToolInvocationCompleted { .. } => {
-                    format!(
-                        "tool_id={}\nresult={}",
-                        tc.name,
-                        result.as_ref().unwrap().text
-                    )
+                    let output = result.as_ref().unwrap();
+                    let mut text = format!("tool_id={}\nresult={}", tc.name, output.text);
+                    for img in &output.images {
+                        let label = img.label.as_deref().unwrap_or("image");
+                        text.push_str(&format!(
+                            "\n![{label}](data:{};base64,{})",
+                            img.media_type, img.data
+                        ));
+                    }
+                    text
                 }
                 EventPayload::ToolInvocationFailed { error, .. } => {
                     format!("tool_id={}\nresult=Error: {}", tc.name, error)
