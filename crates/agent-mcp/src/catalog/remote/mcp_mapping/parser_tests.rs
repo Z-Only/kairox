@@ -1,4 +1,7 @@
 use super::*;
+use crate::catalog::remote::mcp_mapping::types::{
+    McpEnvVar, McpRemote, McpRemoteHeader, McpRepository, McpServer,
+};
 use crate::catalog::{InstallSpec, RuntimeKind, TrustLevel};
 
 fn minimal_server(name: &str) -> McpServerWrapper {
