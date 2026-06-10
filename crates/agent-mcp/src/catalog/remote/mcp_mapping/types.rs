@@ -105,3 +105,7 @@ pub struct McpRepository {
     #[serde(default)]
     pub url: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "types_tests.rs"]
+mod tests;

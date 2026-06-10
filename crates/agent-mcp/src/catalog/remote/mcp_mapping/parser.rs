@@ -180,6 +180,10 @@ pub fn map_mcp_to_entry(
     })
 }
 
+#[cfg(test)]
+#[path = "parser_tests.rs"]
+mod tests;
+
 pub fn build_install_from_package(pkg: &McpPackage) -> InstallSpec {
     let is_stdio = pkg
         .transport
