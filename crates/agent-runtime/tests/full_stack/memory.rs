@@ -32,6 +32,7 @@ async fn full_stack_memory_store_queries() {
         limit: 50,
         session_id: Some(sid.to_string()),
         workspace_id: None,
+        branch: None,
     };
 
     let results = mem_store.query(query).await.unwrap();
@@ -47,6 +48,7 @@ async fn full_stack_memory_store_queries() {
         limit: 50,
         session_id: None,
         workspace_id: None,
+        branch: None,
     };
     let results2 = mem_store.query(query2).await.unwrap();
     assert_eq!(results2.len(), 1);

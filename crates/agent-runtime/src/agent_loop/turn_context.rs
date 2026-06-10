@@ -131,9 +131,18 @@ where
         base_system_prompt.push_str("\n\n");
         base_system_prompt.push_str(instructions);
     }
-    let relevant_memories =
-        crate::memory_handler::retrieve_relevant_memories(deps.memory_store, &request.content)
-            .await;
+    let git_branch = deps
+        .root_path
+        .as_deref()
+        .and_then(crate::project::current_git_branch);
+    let relevant_memories = crate::memory_handler::retrieve_relevant_memories_for_context(
+        deps.memory_store,
+        &request.content,
+        Some(request.session_id.as_str().to_string()),
+        Some(request.workspace_id.as_str().to_string()),
+        git_branch.clone(),
+    )
+    .await;
     let mut system_prompt = base_system_prompt.clone();
     if let Some(section) = crate::memory_handler::render_memory_section(&relevant_memories) {
         system_prompt.push_str(&section);
@@ -155,6 +164,15 @@ where
             _ => None,
         })
         .collect();
+    let git_context = if let Some(root_path) = deps.root_path.as_deref() {
+        let mut conversation_context = session_history.clone();
+        conversation_context.push(format!("user: {}", request.content));
+        crate::project::build_git_context(root_path, &conversation_context)
+            .into_iter()
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let active_skill_blocks = super::runner::load_active_skill_blocks(
         deps.skill_registry,
@@ -194,6 +212,8 @@ where
                 session_history,
                 session_id: Some(request.session_id.as_str().to_string()),
                 workspace_id: Some(request.workspace_id.as_str().to_string()),
+                branch: git_branch.clone(),
+                git_context,
                 tool_definitions: tool_definitions.clone(),
                 // Keep the 5 most recent images and drop older ones so that
                 // multi-turn screenshot conversations (computer.use, browser)

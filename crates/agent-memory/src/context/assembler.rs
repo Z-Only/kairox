@@ -22,10 +22,12 @@ pub struct ContextRequest {
     pub selected_files: Vec<String>,
     pub tool_results: Vec<String>,
     pub memories: Vec<MemoryEntry>,
+    pub git_context: Vec<String>,
     pub active_skills: Vec<String>,
     pub active_task: Option<String>,
     pub session_id: Option<String>,
     pub workspace_id: Option<String>,
+    pub branch: Option<String>,
     /// MCP + built-in tool schemas to be injected into the model request.
     /// They're serialised once and counted as a single ToolDefinitions section.
     pub tool_definitions: Vec<agent_models::ToolDefinition>,
@@ -140,6 +142,7 @@ impl ContextAssembler {
                         limit: 20,
                         session_id: request.session_id.clone(),
                         workspace_id: request.workspace_id.clone(),
+                        branch: request.branch.clone(),
                     })
                     .await
                     .unwrap_or_default()
@@ -174,6 +177,12 @@ impl ContextAssembler {
                 let n = self.count_tokens(&text);
                 sections.push((ContextSource::WorkspaceRetrieval, text, n));
             }
+        }
+
+        for git_context in &request.git_context {
+            let text = format!("Git context:\n{git_context}");
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::Git, text, n));
         }
 
         // P3: Session history

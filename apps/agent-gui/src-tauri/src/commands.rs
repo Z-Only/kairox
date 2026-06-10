@@ -43,6 +43,7 @@ pub struct MemoryEntryResponse {
     pub key: Option<String>,
     pub content: String,
     pub accepted: bool,
+    pub branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -217,6 +218,7 @@ impl From<MemoryEntry> for MemoryEntryResponse {
             key: e.key,
             content: e.content,
             accepted: e.accepted,
+            branch: e.branch,
         }
     }
 }

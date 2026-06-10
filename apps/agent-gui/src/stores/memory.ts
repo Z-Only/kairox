@@ -12,6 +12,7 @@ export interface MemoryItem {
   key: string | null;
   content: string;
   accepted: boolean;
+  branch?: string | null;
 }
 
 export const useMemoryStore = defineStore("memory", () => {

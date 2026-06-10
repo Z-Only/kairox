@@ -40,14 +40,17 @@ import type { CompactionSkipReason } from "../generated/events";
 /** Mirrors `crates/agent-core/src/context_types.rs::ContextSource`. */
 export type ContextSource =
   | "system"
+  | "project_instruction"
   | "tool_definitions"
   | "request"
   | "memory"
   | "workspace_retrieval"
+  | "git"
   | "history"
   | "tool_result"
   | "selected_file"
   | "compaction_summary"
+  | "skill"
   | "image";
 
 /** Mirrors `crates/agent-core/src/context_types.rs::ContextUsage`. */

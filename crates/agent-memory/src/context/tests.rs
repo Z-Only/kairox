@@ -553,6 +553,7 @@ async fn sections_follow_priority_ordering() {
                     "remember this".into(),
                     true,
                 )],
+                git_context: vec!["branch main".into()],
                 session_history: vec!["prev turn".into()],
                 tool_results: vec!["result output".into()],
                 images: make_image_entries(1, 10),
@@ -563,9 +564,9 @@ async fn sections_follow_priority_ordering() {
         )
         .await;
 
-    // Verify expected ordering: System(P0) → ProjectInstruction(P0.25) →
-    // Skill(P0.5) → ToolDefinitions(P0.75) → Request(P1) → Memory(P2) →
-    // History(P3) → ToolResult(P4) → Image(P4.5) → SelectedFile(P5)
+    // Verify expected ordering: System(P0) -> ProjectInstruction(P0.25) ->
+    // Skill(P0.5) -> ToolDefinitions(P0.75) -> Request(P1) -> Memory(P2) ->
+    // Git(P2.5) -> History(P3) -> ToolResult(P4) -> Image(P4.5) -> SelectedFile(P5)
     let expected_order = [
         ContextSource::System,
         ContextSource::ProjectInstruction,
@@ -573,6 +574,7 @@ async fn sections_follow_priority_ordering() {
         ContextSource::ToolDefinitions,
         ContextSource::Request,
         ContextSource::Memory,
+        ContextSource::Git,
         ContextSource::History,
         ContextSource::ToolResult,
         ContextSource::Image,

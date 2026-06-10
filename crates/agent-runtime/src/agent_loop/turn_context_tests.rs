@@ -134,6 +134,16 @@ impl TestHarness {
             root_path: None,
         }
     }
+
+    fn deps_with_root(
+        &self,
+        root_path: std::path::PathBuf,
+    ) -> AgentLoopDeps<'_, SqliteEventStore, FakeModelClient> {
+        AgentLoopDeps {
+            root_path: Some(root_path),
+            ..self.deps()
+        }
+    }
 }
 
 fn make_request() -> SendMessageRequest {
@@ -379,5 +389,80 @@ async fn prepare_turn_context_records_workspace_rag_usage_when_configured() {
             .any(|(source, tokens)| *source == ContextSource::WorkspaceRetrieval && *tokens > 0),
         "expected workspace retrieval tokens in {:?}",
         usage.by_source
+    );
+}
+
+#[tokio::test]
+async fn prepare_turn_context_records_git_usage_when_project_has_changes() {
+    let mut wide_profile = profile_def(true, None, None);
+    wide_profile.context_window = Some(20_000);
+    wide_profile.output_limit = Some(1_000);
+    let harness = TestHarness::new(config_with_profiles(vec![("wide".into(), wide_profile)])).await;
+    let temp = tempfile::tempdir().unwrap();
+    init_git_repo_with_change(temp.path());
+
+    let request = make_request();
+    let deps = harness.deps_with_root(temp.path().to_path_buf());
+    let session_events = vec![DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        agent_core::AgentId::system(),
+        agent_core::PrivacyClassification::MinimalTrace,
+        EventPayload::SessionInitialized {
+            model_profile: "wide".into(),
+        },
+    )];
+    prepare_turn_context(&deps, &request, &session_events)
+        .await
+        .expect("prepare_turn_context should include git context");
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    let usage = events
+        .iter()
+        .find_map(|event| {
+            if let EventPayload::ContextAssembled { usage } = &event.payload {
+                Some(usage)
+            } else {
+                None
+            }
+        })
+        .expect("context assembled event should be recorded");
+
+    assert!(
+        usage
+            .by_source
+            .iter()
+            .any(|(source, tokens)| *source == ContextSource::Git && *tokens > 0),
+        "expected git context tokens in {:?}",
+        usage.by_source
+    );
+}
+
+fn init_git_repo_with_change(root: &std::path::Path) {
+    run_git(root, &["init"]);
+    run_git(root, &["config", "user.email", "tester@example.com"]);
+    run_git(root, &["config", "user.name", "Tester"]);
+    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    run_git(root, &["commit", "-m", "initial commit"]);
+    run_git(root, &["checkout", "-b", "feat/git-context"]);
+    std::fs::write(root.join("src.txt"), "original\nchanged\n").unwrap();
+}
+
+fn run_git(root: &std::path::Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .expect("git should run");
+    assert!(
+        output.status.success(),
+        "git {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
     );
 }

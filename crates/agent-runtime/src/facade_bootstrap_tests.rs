@@ -304,6 +304,7 @@ fn memory_event_ids_uses_entry_values_when_present() {
         accepted: false,
         workspace_id: Some("ws-from-entry".into()),
         session_id: Some("sess-from-entry".into()),
+        branch: None,
     };
     let fallback_ws = WorkspaceId::from_string("ws-fallback".into());
     let fallback_sess = SessionId::from_string("sess-fallback".into());
@@ -323,6 +324,7 @@ fn memory_event_ids_uses_fallback_when_entry_has_none() {
         accepted: false,
         workspace_id: None,
         session_id: None,
+        branch: None,
     };
     let fallback_ws = WorkspaceId::from_string("ws-fallback".into());
     let fallback_sess = SessionId::from_string("sess-fallback".into());

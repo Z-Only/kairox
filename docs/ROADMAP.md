@@ -36,7 +36,7 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | Long-running autonomous mode              | ✅ Autonomous controller + session chaining           | Claude quickstarts autonomous-coding, Codex background tasks         |
 | Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming         | Claude Agent SDK, Goose extensible-agent                             |
 | Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
-| Git-aware workflows                       | ⚠️ Basic shell.exec                                   | Aider, Claude Code have deep git integration                         |
+| Git-aware workflows                       | ✅ Git context injection + branch memory scope        | Aider, Claude Code have deep git integration                         |
 
 ---
 
@@ -249,17 +249,19 @@ Add embedding-based retrieval for workspace documents:
 
 **Why**: Current memory is key-value scoped. RAG enables "find relevant context I didn't explicitly save." The customer-support-agent demo uses Bedrock KB for this; Kairox should offer a local-first alternative.
 
-### 4.2 Git-aware context
+### 4.2 Git-aware context ✅
 
 **Crates**: `agent-tools` or `agent-memory`
 
 Deep git integration beyond shell commands:
 
-- Automatic diff context injection (what changed recently, what's staged).
-- Branch-aware memory scoping.
-- Commit message generation from conversation context.
-- PR description drafting.
-- Blame-informed context (who wrote this, when, why).
+- ✅ Automatic diff context injection (what changed recently, what's staged).
+- ✅ Branch-aware memory scoping.
+- ✅ Commit message generation from conversation context.
+- ✅ PR description drafting.
+- ✅ Blame-informed context (who wrote this, when, why).
+
+**Implemented**: Kairox now builds a first-class `git` context source during turn preparation for project sessions. The context includes branch, status, staged and unstaged diff summaries, recent commits, deterministic commit message and PR description drafts derived from the conversation cue, and per-file last-commit context. Memory entries and queries now carry an optional branch so workspace/session memories can be scoped to the active branch while branchless legacy memories remain visible. TUI and GUI context meters recognize the `git` source.
 
 **Why**: Aider's strongest differentiator is deep git integration. Claude Code does this via hooks and slash commands. Kairox should make git state a first-class input to the agent, not just a tool the agent calls.
 
