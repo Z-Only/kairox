@@ -194,7 +194,9 @@ where
             .entry(request.session_id.to_string())
             .or_insert_with(TaskGraph::default);
         let root = graph.add_task(&root_title, AgentRole::Planner, vec![]);
-        graph.mark_running(&root).unwrap();
+        graph
+            .mark_running(&root)
+            .expect("root task was just added to graph");
         root
     };
     emit_task_created_and_started(

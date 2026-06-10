@@ -118,7 +118,7 @@ impl SkillSourcesToml {
             }
             doc["skill_sources"]
                 .as_array_of_tables_mut()
-                .unwrap()
+                .expect("skill_sources key was just inserted as ArrayOfTables")
                 .push(tbl);
         }
 

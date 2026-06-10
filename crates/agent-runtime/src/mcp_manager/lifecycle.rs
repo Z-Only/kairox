@@ -43,7 +43,10 @@ impl McpServerManager {
 
         // Get current status before starting
         let was_stopped = {
-            let lifecycle = self.servers.get(server_id).unwrap();
+            let lifecycle = self
+                .servers
+                .get(server_id)
+                .expect("server existence verified by contains_key check");
             *lifecycle.status() == McpServerStatus::Stopped
                 || matches!(lifecycle.status(), McpServerStatus::Failed)
         };
@@ -54,7 +57,10 @@ impl McpServerManager {
 
         // Start the server
         let client = {
-            let lifecycle = self.servers.get_mut(server_id).unwrap();
+            let lifecycle = self
+                .servers
+                .get_mut(server_id)
+                .expect("server existence verified by contains_key check");
             lifecycle.ensure_running().await.inspect_err(|e| {
                 self.emit_event(EventPayload::McpServerFailed {
                     server_id: server_id.to_string(),
@@ -66,7 +72,10 @@ impl McpServerManager {
         if was_stopped {
             // Register tools from this server (skip disabled tools)
             let tools_result = {
-                let lifecycle = self.servers.get_mut(server_id).unwrap();
+                let lifecycle = self
+                    .servers
+                    .get_mut(server_id)
+                    .expect("server existence verified by contains_key check");
                 lifecycle.cached_tools().await
             };
             match tools_result {

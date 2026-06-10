@@ -75,7 +75,9 @@ pub fn build_model_messages_within_budget(
     // matching assistant tool_calls".
     let mut total: u64 = messages.iter().map(&count_message).sum();
     while total > budget_tokens && messages.len() > 1 {
-        let front = messages.first().unwrap();
+        let front = messages
+            .first()
+            .expect("messages guaranteed non-empty by loop guard");
         if front.role == "tool" {
             // No matching assistant left at the front — safe to drop alone.
             total = total.saturating_sub(count_message(front));

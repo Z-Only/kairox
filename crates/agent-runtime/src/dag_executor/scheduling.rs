@@ -95,7 +95,9 @@ where
         // once we have async tool execution properly wired.
         for task_id in batch.task_ids {
             if let Some(task) = graph.get_task(&task_id).cloned() {
-                graph.mark_running(&task_id).unwrap();
+                graph
+                    .mark_running(&task_id)
+                    .expect("task must exist in graph");
                 events
                     .emit_task_started(workspace_id, session_id, &task_id)
                     .await?;
@@ -127,7 +129,9 @@ where
                 } else {
                     // No strategy for this role — mark as failed
                     let error = format!("No strategy registered for role {:?}", task.role);
-                    graph.mark_failed(&task_id, error.clone()).unwrap();
+                    graph
+                        .mark_failed(&task_id, error.clone())
+                        .expect("task must exist in graph");
                     events
                         .emit_task_failed(workspace_id, session_id, &task_id, &error)
                         .await?;
@@ -144,7 +148,9 @@ where
 
                 match result {
                     Ok(()) => {
-                        graph.mark_completed(&task_id).unwrap();
+                        graph
+                            .mark_completed(&task_id)
+                            .expect("task must exist in graph");
                         events
                             .emit_task_completed(workspace_id, session_id, &task_id)
                             .await?;
@@ -157,7 +163,7 @@ where
                                 error.clone(),
                                 TaskFailureReason::ModelError { retries: 0 },
                             )
-                            .unwrap();
+                            .expect("task must exist in graph");
                         events
                             .emit_task_failed(workspace_id, session_id, &task_id, &error)
                             .await?;
