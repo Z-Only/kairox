@@ -1,4 +1,9 @@
 use crate::Config;
+use regex::Regex;
+use std::sync::LazyLock;
+
+static ENV_VAR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\$\{([^}]+)\}").expect("env var regex must compile"));
 
 /// Resolve API keys: if `api_key_env` is set and `api_key` is not,
 /// read the environment variable and populate `api_key`.
@@ -75,11 +80,11 @@ pub fn resolve_mcp_env(config: &mut Config) {
 
 /// Expand `${VAR}` patterns in a string from environment variables.
 fn expand_env_vars(input: &str) -> String {
-    let re = regex::Regex::new(r"\$\{([^}]+)\}").unwrap();
-    re.replace_all(input, |caps: &regex::Captures| {
-        std::env::var(&caps[1]).unwrap_or_else(|_| caps[0].to_string())
-    })
-    .to_string()
+    ENV_VAR_RE
+        .replace_all(input, |caps: &regex::Captures| {
+            std::env::var(&caps[1]).unwrap_or_else(|_| caps[0].to_string())
+        })
+        .to_string()
 }
 
 #[cfg(test)]

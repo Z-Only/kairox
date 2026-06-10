@@ -1,5 +1,16 @@
 use crate::memory::MemoryScope;
 use regex::Regex;
+use std::sync::LazyLock;
+
+static MEMORY_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<memory(?:\s+scope="([^"]*)")?(?:\s+key="([^"]*)")?\s*>([\s\S]*?)</memory>"#)
+        .expect("memory tag regex must compile")
+});
+
+static MEMORY_STRIP_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<memory(?:\s+scope="[^"]*")?(?:\s+key="[^"]*")?\s*>[\s\S]*?</memory>\n?"#)
+        .expect("memory strip regex must compile")
+});
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemoryMarker {
@@ -9,11 +20,8 @@ pub struct MemoryMarker {
 }
 
 pub fn extract_memory_markers(text: &str) -> Vec<MemoryMarker> {
-    let re =
-        Regex::new(r#"<memory(?:\s+scope="([^"]*)")?(?:\s+key="([^"]*)")?\s*>([\s\S]*?)</memory>"#)
-            .unwrap();
-
-    re.captures_iter(text)
+    MEMORY_TAG_RE
+        .captures_iter(text)
         .map(|cap| MemoryMarker {
             scope: match cap.get(1).map(|m| m.as_str()) {
                 Some("user") => MemoryScope::User,
@@ -31,10 +39,7 @@ pub fn extract_memory_markers(text: &str) -> Vec<MemoryMarker> {
 }
 
 pub fn strip_memory_markers(text: &str) -> String {
-    let re =
-        Regex::new(r#"<memory(?:\s+scope="[^"]*")?(?:\s+key="[^"]*")?\s*>[\s\S]*?</memory>\n?"#)
-            .unwrap();
-    re.replace_all(text, "").trim_end().to_string()
+    MEMORY_STRIP_RE.replace_all(text, "").trim_end().to_string()
 }
 
 #[cfg(test)]
