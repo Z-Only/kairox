@@ -173,6 +173,75 @@ async fn sqlite_fts_knowledge_base_retrieves_matching_documents() {
 }
 
 #[tokio::test]
+async fn sqlite_fts_knowledge_base_failed_upsert_preserves_existing_document() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool.clone(),
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company_docs".into(),
+            id_column: "doc_id".into(),
+            title_column: Some("title".into()),
+            content_column: "body".into(),
+            workspace_id_column: Some("workspace_id".into()),
+        },
+    )
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "benefits".into(),
+        workspace_id: Some("ws-alpha".into()),
+        title: Some("Benefits handbook".into()),
+        content: "Benefits enrollment uses the quarterly vesting calendar.".into(),
+    })
+    .await
+    .unwrap();
+
+    let bad_kb = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company_docs".into(),
+            id_column: "doc_id".into(),
+            title_column: Some("title".into()),
+            content_column: "missing_body".into(),
+            workspace_id_column: Some("workspace_id".into()),
+        },
+    )
+    .await
+    .unwrap();
+    let error = bad_kb
+        .upsert_document(KnowledgeBaseDocument {
+            id: "benefits".into(),
+            workspace_id: Some("ws-alpha".into()),
+            title: Some("Replacement".into()),
+            content: "Replacement text should never be committed.".into(),
+        })
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("missing_body"));
+
+    let hits = kb
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "quarterly vesting calendar".into(),
+            limit: 4,
+            min_score: 0.0,
+            source: Some(WorkspaceDocumentSource::KnowledgeBase),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0].content.contains("quarterly vesting calendar"));
+    assert!(!hits[0].content.contains("Replacement text"));
+}
+
+#[tokio::test]
 async fn composite_workspace_retriever_merges_and_sorts_hits() {
     let vector_index = Arc::new(test_index().await);
     vector_index
