@@ -287,6 +287,27 @@ auto_compact_threshold = 0.85
 
 compaction pipeline 与防止 compaction 与活动 turn 竞态的 busy-state guard,见 [Memory & Context](../concepts/memory-and-context)。
 
+## `[advisor]` —— tool-call 自反检查
+
+可选。控制 runtime 是否在执行 tool 前,先让第二次 advisor pass 检查计划中的 tool call。
+
+```toml
+[advisor]
+mode = "lightweight"
+# profile = "fast"
+# max_concerns = 5
+```
+
+| 字段           | 类型   | 默认值 | 说明                                                                                                |
+| -------------- | ------ | ------ | --------------------------------------------------------------------------------------------------- |
+| `mode`         | string | `off`  | `"off"` 关闭 advisor review。`"lightweight"` 只检查高风险 tool batch。`"full"` 检查每批 tool call。 |
+| `profile`      | string | 未设置 | advisor review 使用的 model profile 别名。未设置时复用 session 当前激活的 profile。                 |
+| `max_concerns` | int    | `5`    | 单次 review 最多报告的 concern 数量。                                                               |
+
+Advisor review 是 fail-open 的:如果 advisor 模型调用失败或返回无法解析的 JSON,主 agent 会继续执行,runtime 只记录 warning。如果 advisor 返回 `reject`,runtime 会记录 `AdvisorReviewCompleted`,发出一条解释阻断原因的 assistant message,并跳过这一批 tool。
+
+启用 `full` 时建议为 `profile` 指定一个速度快、成本低的模型;advisor 位于 tool 执行前的关键路径上。
+
 ## 隐私默认值
 
 当前 `kairox.toml` 中**没有** `[privacy]` 段;隐私相关的默认值在代码里强制执行,而非通过配置。规则如下:

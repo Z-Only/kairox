@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import AutonomousSettingsPane from "./AutonomousSettingsPane.vue";
-import { useAutonomousStore } from "@/stores/autonomous";
+import en from "@/locales/en.json";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -108,7 +108,7 @@ describe("AutonomousSettingsPane", () => {
 
     const card = wrapper.find(`[data-test="autonomous-task-${taskActive.autonomous_task_id}"]`);
     expect(card.text()).toContain("Implement feature X");
-    expect(card.text()).toContain("active");
+    expect(card.text()).toContain(en.settings.autonomousStateValues.active);
     expect(card.text()).toContain("2/5");
   });
 
@@ -166,6 +166,9 @@ describe("AutonomousSettingsPane", () => {
 
     expect(wrapper.find('[data-test="autonomous-detail"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="autonomous-detail"]').text()).toContain(taskActive.goal);
+    expect(wrapper.find('[data-test="autonomous-detail"]').text()).toContain(
+      en.settings.autonomousStateValues.active
+    );
   });
 
   it("deselects a task on second click", async () => {
@@ -202,6 +205,8 @@ describe("AutonomousSettingsPane", () => {
     expect(checkpointsEl.text()).toContain("Added unit tests");
     expect(checkpointsEl.text()).toContain("Integration tests");
     expect(checkpointsEl.text()).toContain("abc12345");
+    expect(checkpointsEl.text()).toContain(en.settings.autonomousEndReasons.checkpoint);
+    expect(checkpointsEl.text()).toContain(en.settings.autonomousEndReasons.max_turns);
   });
 
   it("calls pause and refreshes tasks", async () => {

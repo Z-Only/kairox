@@ -7,6 +7,7 @@ type TaskStateFilter = "all" | "active" | "failed" | "done";
 
 const agents = useAgentsStore();
 const taskGraph = useTaskGraphStore();
+const { t } = useI18n();
 const selectedFilter = ref<TaskStateFilter>("all");
 const searchQuery = ref("");
 
@@ -54,20 +55,20 @@ function taskMatchesSearch(task: (typeof taskGraph.tasks)[number], query: string
 }
 
 const filterOptions = computed<{ id: TaskStateFilter; label: string; count: number }[]>(() => [
-  { id: "all", label: "All", count: taskGraph.tasks.length },
+  { id: "all", label: t("tasks.filterAll"), count: taskGraph.tasks.length },
   {
     id: "active",
-    label: "Active",
+    label: t("tasks.filterActive"),
     count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "active")).length
   },
   {
     id: "failed",
-    label: "Failed",
+    label: t("tasks.filterFailed"),
     count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "failed")).length
   },
   {
     id: "done",
-    label: "Done",
+    label: t("tasks.filterDone"),
     count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "done")).length
   }
 ]);
@@ -113,7 +114,7 @@ function toggleExpand(taskId: string) {
     <KxChipGroup
       v-if="taskGraph.tasks.length > 0"
       class="task-state-filters"
-      aria-label="Task state filters"
+      :aria-label="t('tasks.stateFiltersAria')"
       data-test="task-state-filters"
     >
       <KxChipButton
@@ -131,18 +132,18 @@ function toggleExpand(taskId: string) {
           v-model="searchQuery"
           type="search"
           size="compact"
-          aria-label="Search tasks"
-          placeholder="Search tasks"
+          :aria-label="t('tasks.searchAria')"
+          :placeholder="t('tasks.searchPlaceholder')"
           class="task-search-input"
           data-test="task-search-input"
         />
       </template>
     </KxChipGroup>
     <KxEmptyState v-if="taskGraph.tasks.length === 0" class="task-empty" compact>
-      No tasks yet
+      {{ t("tasks.empty") }}
     </KxEmptyState>
     <KxEmptyState v-else-if="tree.length === 0" class="task-empty" compact>
-      No matching tasks
+      {{ t("tasks.emptyFiltered") }}
     </KxEmptyState>
     <div v-else class="task-tree-scroll" :style="{ overflowY: 'auto' }">
       <TaskNode

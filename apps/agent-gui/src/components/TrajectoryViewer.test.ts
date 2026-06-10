@@ -153,9 +153,9 @@ describe("TrajectoryViewer", () => {
       await wrapper.vm.$nextTick();
       const cards = wrapper.findAll('[data-test="trajectory-card"]');
       expect(cards[0].text()).toContain("task_analyze");
-      expect(cards[0].text()).toContain("success");
+      expect(cards[0].text()).toContain(en.trajectory.outcome.success);
       expect(cards[1].text()).toContain("task_fix_bug");
-      expect(cards[1].text()).toContain("failed");
+      expect(cards[1].text()).toContain(en.trajectory.outcome.failed);
     });
 
     it("applies correct badge class for each outcome", async () => {
@@ -502,6 +502,9 @@ describe("TrajectoryViewer", () => {
 
       const badge = wrapper.find(".trajectory-badge");
       expect(badge.classes()).toContain(expectedClass);
+      expect(badge.text()).toBe(
+        en.trajectory.outcome[outcome as keyof typeof en.trajectory.outcome]
+      );
     });
   });
 });

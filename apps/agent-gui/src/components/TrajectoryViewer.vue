@@ -35,6 +35,12 @@ function outcomeClass(outcome: string): string {
   return outcomeBadgeClass[outcome as TrajectoryOutcome] ?? "badge--in-progress";
 }
 
+function formatOutcome(outcome: string): string {
+  const key = `trajectory.outcome.${outcome}`;
+  const translated = t(key);
+  return translated === key ? outcome : translated;
+}
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -172,7 +178,7 @@ watch(() => session.currentSessionId, fetchTrajectories, { immediate: true });
         <div class="trajectory-card-header">
           <span class="trajectory-task-id">{{ traj.task_id }}</span>
           <span class="trajectory-badge" :class="outcomeClass(traj.outcome)">
-            {{ traj.outcome }}
+            {{ formatOutcome(traj.outcome) }}
           </span>
         </div>
         <div class="trajectory-card-meta">

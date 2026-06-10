@@ -24,7 +24,7 @@ The source spec spans several independent subsystems. Implement it as a mileston
 
 ## File Structure
 
-All paths are relative to `/Users/chanyu/AIProjects/kairox`.
+All paths are relative to `~/AIProjects/kairox`.
 
 - `Cargo.toml`: Rust workspace members and shared dependency versions.
 - `.gitignore`: generated Rust, Node, SQLite, and Tauri build artifacts.

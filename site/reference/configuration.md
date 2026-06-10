@@ -287,6 +287,27 @@ auto_compact_threshold = 0.85
 
 See [Memory & Context](../concepts/memory-and-context) for the compaction pipeline and the busy-state guard that prevents compaction from racing the active turn.
 
+## `[advisor]` — tool-call self-reflection
+
+Optional. Controls whether the runtime asks a secondary advisor pass to review planned tool calls before execution.
+
+```toml
+[advisor]
+mode = "lightweight"
+# profile = "fast"
+# max_concerns = 5
+```
+
+| Field          | Type   | Default | Notes                                                                                                                    |
+| -------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `mode`         | string | `off`   | `"off"` disables advisor review. `"lightweight"` reviews high-risk tool batches. `"full"` reviews every tool-call batch. |
+| `profile`      | string | unset   | Model profile alias for advisor reviews. When unset, the session's active profile is reused.                             |
+| `max_concerns` | int    | `5`     | Maximum number of concerns the advisor should report for one review.                                                     |
+
+Advisor review is fail-open: if the advisor model call fails or returns malformed JSON, the main agent continues and the runtime logs a warning. If the advisor returns `reject`, the runtime records `AdvisorReviewCompleted`, emits an assistant message explaining the block, and skips that tool batch.
+
+Use a fast, inexpensive profile for `profile` when you enable `full`; the advisor runs on the critical path before tools execute.
+
 ## Privacy defaults
 
 There is no `[privacy]` section in `kairox.toml` today; privacy defaults are enforced in code rather than via config. The rules:

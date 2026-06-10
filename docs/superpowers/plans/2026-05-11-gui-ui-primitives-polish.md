@@ -52,7 +52,7 @@
 Run before editing to capture current dependency absence:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-ui-primitives-polish
+cd ~/AIProjects/kairox/.worktrees/feat-gui-ui-primitives-polish
 pnpm --filter agent-gui list reka-ui
 ```
 
@@ -63,7 +63,7 @@ Expected: no `reka-ui` entry.
 Run:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/.worktrees/feat-gui-ui-primitives-polish
+cd ~/AIProjects/kairox/.worktrees/feat-gui-ui-primitives-polish
 pnpm --filter agent-gui add reka-ui
 ```
 

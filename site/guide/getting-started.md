@@ -80,7 +80,7 @@ By default the TUI runs against the `fake` provider, which echoes a configured r
 
 ## Try the GUI
 
-The desktop GUI gives you persistent sessions, a trace timeline, a memory browser, MCP marketplace, and a settings surface that exposes everything the TUI shows in a keyboard-driven menu.
+The desktop GUI gives you persistent sessions, a trace timeline, trajectory inspection, a memory browser, MCP marketplace, autonomous task controls, and a settings surface that exposes everything the TUI shows in a keyboard-driven menu.
 
 ```bash
 just tauri-dev
@@ -94,7 +94,7 @@ This starts the Vite dev server and the native Tauri window together with hot re
   zhLight="/screenshots/zh/workbench.png"
   zhDark="/screenshots/zh/workbench-dark.png"
   alt="Kairox desktop GUI after opening a project session"
-  caption="The GUI opens into the workbench, where project sessions, chat, trace events, task state, and context usage stay visible together."
+  caption="The GUI opens into the workbench, where project sessions, chat, trace events, task state, trajectory progress, and context usage stay visible together."
 />
 
 If Tauri fails to compile on the first run, you are almost certainly missing a platform prerequisite (WebKitGTK on Linux, WebView2 on Windows, Xcode CLT on macOS). The [Installation](./installation) page lists everything.
@@ -133,7 +133,7 @@ OPENAI_API_KEY=sk-...
 
 Restart the TUI or GUI. The profile selector (<kbd>Alt+P</kbd> in the TUI, the profile dropdown in the GUI) now lists `fast`. Pick it for your next session.
 
-The full configuration schema — every provider, every field, every supported MCP transport, the `[context]` budgeting section — lives in [Configuration](../reference/configuration).
+The full configuration schema — every provider, every field, every supported MCP transport, the `[context]` budgeting section, and the optional `[advisor]` self-reflection policy — lives in [Configuration](../reference/configuration).
 
 ## What to read next
 

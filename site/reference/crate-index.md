@@ -68,12 +68,12 @@ flowchart TD
 
 ### `agent-core`
 
-| What           | Detail                                                                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)                                    |
-| Purpose        | Domain types, events, the `AppFacade` trait, build-info plumbing, and trajectory DTOs.                                 |
-| Key types      | `AppFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo`, `TrajectoryId`, `TrajectoryStep` |
-| Depended on by | Every other crate. This is the foundation.                                                                             |
+| What           | Detail                                                                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)                                                                         |
+| Purpose        | Domain types, events, the `AppFacade` and `AutonomousFacade` traits, build-info plumbing, trajectory DTOs, autonomous task types, and advisor review types. |
+| Key types      | `AppFacade`, `AutonomousFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo`, `TrajectoryId`, `AutonomousTaskId`, `AdvisorMode` |
+| Depended on by | Every other crate. This is the foundation.                                                                                                                  |
 
 `agent-core` is intentionally small. It does not know how to persist events, how to call a model, or how to run a tool — it only defines the contracts. The `AppFacade` trait in particular is the single seam between UIs and the runtime, and the `EventPayload` enum is the single seam between the runtime and anything that wants to observe what is happening.
 
@@ -167,12 +167,12 @@ A plugin packages multiple contributions in a single install. The runtime routes
 
 ### `agent-config`
 
-| What           | Detail                                                                                               |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-config`](https://github.com/Z-Only/kairox/tree/main/crates/agent-config)              |
-| Purpose        | TOML config parsing, profile discovery, `.kairox/` discovery, instructions, skill/MCP config wiring. |
-| Key types      | `ProfileDef`, `McpServerConfig`, `ContextSettings`, `build_router(...)`                              |
-| Depended on by | `agent-runtime`                                                                                      |
+| What           | Detail                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-config`](https://github.com/Z-Only/kairox/tree/main/crates/agent-config)                              |
+| Purpose        | TOML config parsing, profile discovery, `.kairox/` discovery, advisor policy, instructions, skill/MCP config wiring. |
+| Key types      | `ProfileDef`, `McpServerConfig`, `ContextSettings`, `AdvisorConfig`, `build_router(...)`                             |
+| Depended on by | `agent-runtime`                                                                                                      |
 
 The runtime calls `build_router(...)` at boot to get a configured `ModelRouter` plus the rest of the static config. Discovery walks up five parents from the cwd looking for `.kairox/config.toml`, then falls back to `~/.kairox/config.toml`, then built-in defaults. See [Configuration](./configuration).
 
@@ -180,14 +180,14 @@ The runtime calls `build_router(...)` at boot to get a configured `ModelRouter` 
 
 ### `agent-runtime`
 
-| What           | Detail                                                                                                                       |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-runtime`](https://github.com/Z-Only/kairox/tree/main/crates/agent-runtime)                                    |
-| Purpose        | The agent loop, session actor, context budgets, compaction, model switching, agent strategies, DAG execution, MCP lifecycle. |
-| Key types      | `LocalRuntime<S, M>`, `DagExecutor`, `AgentStrategy`, `McpServerManager`, session actor types                                |
-| Depended on by | `agent-tui`, `agent-gui-tauri`, `agent-eval`                                                                                 |
+| What           | Detail                                                                                                                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-runtime`](https://github.com/Z-Only/kairox/tree/main/crates/agent-runtime)                                                                                                    |
+| Purpose        | The agent loop, session actor, context budgets, compaction, model switching, agent strategies, DAG execution, advisor review, autonomous checkpoints, trajectory capture, and MCP lifecycle. |
+| Key types      | `LocalRuntime<S, M>`, `DagExecutor`, `AgentStrategy`, `McpServerManager`, `advisor::review_tool_calls`, autonomous controller and session actor types                                        |
+| Depended on by | `agent-tui`, `agent-gui-tauri`, `agent-eval`                                                                                                                                                 |
 
-`LocalRuntime<S, M>` is generic over its event store `S` and model client `M`. Production wires `SqliteEventStore` and a real `ModelRouter`; tests wire `:memory:` SQLite and a `FakeModelClient`. The session actor (PRs [#531](https://github.com/Z-Only/kairox/pull/531), [#532](https://github.com/Z-Only/kairox/pull/532), [#533](https://github.com/Z-Only/kairox/pull/533)) serializes turns, model switches, and compaction against a single session. See [Runtime & Sessions](../concepts/runtime-and-sessions).
+`LocalRuntime<S, M>` is generic over its event store `S` and model client `M`. Production wires `SqliteEventStore` and a real `ModelRouter`; tests wire `:memory:` SQLite and a `FakeModelClient`. The session actor (PRs [#531](https://github.com/Z-Only/kairox/pull/531), [#532](https://github.com/Z-Only/kairox/pull/532), [#533](https://github.com/Z-Only/kairox/pull/533)) serializes turns, model switches, and compaction against a single session. The same runtime now records trajectories, can review tool calls through the advisor layer, and exposes autonomous task control through facade methods. See [Runtime & Sessions](../concepts/runtime-and-sessions).
 
 ## UI crates
 
