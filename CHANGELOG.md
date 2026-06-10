@@ -4,7 +4,63 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.38.0] - 2026-06-07
+## [0.39.0] - 2026-06-10
+
+### 🚀 Features
+
+- **tools**: implement real Playwright browser backend (#948)
+- **tools**: implement real screenshot backend for computer.use (#949)
+- **tools**: implement real input control for computer.use (#950)
+- **gui**: add message copy/edit actions, sticky pinned message, inline image rendering (#951)
+- **tools,core,runtime,gui**: structured ImageAttachment for tool output images (#956)
+
+### 🐛 Bug Fixes
+
+- **gui**: fix message hover actions, sticky pin logic, and duplicate model names (#952)
+- **gui**: fix message hover actions and sticky pinned message logic (#953)
+- **tools,models,memory,runtime**: prevent screenshot base64 from overflowing context window (#954)
+- **gui**: support markdown image preview in tool output and fix sticky pin logic (#955)
+- **ci**: add system deps to live-model-tests job (#957)
+- **gui**: prevent duplicate cancel by disabling button after click (#958)
+- **gui,runtime,core**: add api_key field, scope-aware config file open, image default-expanded (#959)
+- **gui**: add whenever to vueuse auto-import whitelist (#960)
+- **runtime,gui**: embed tool images in model request and clear pinned message on session switch (#974)
+
+### 📚 Documentation
+
+- audit and fix AI instruction files for accuracy (#961)
+- **site**: refresh Kairox website screenshots (#978)
+
+### 🧪 Testing
+
+- **gui**: add TrajectoryViewer tests and boost coverage thresholds (#939)
+- **runtime,config**: expand integration tests for advisor, autonomous, config (#940)
+- **runtime**: add dag_executor/events unit tests (#941)
+- **runtime**: add dag_executor/execution unit tests (#942)
+- **runtime**: add dag_executor/agent_settings unit tests (#943)
+- **lsp**: add stdio transport unit tests (#945)
+- **store**: add event_store metadata unit tests (#944)
+- **sdk**: add config, hooks, and session unit tests (#946)
+- **store**: add project_meta unit tests (#947)
+- **core**: add EventPayload serde round-trip tests for recent variants (#962)
+- **tools**: add browser and computer.use registry integration tests (#963)
+- **core,gui**: add ImageAttachment unit and component tests (#964)
+- **models**: add anthropic/openai config and request builder unit tests (#965)
+- **memory**: add context assembler, budget, and window unit tests (#966)
+- **mcp**: add mcp_mapping parser/types unit tests (#967)
+- **core**: add config_scope and effective unit tests (#968)
+- **sdk**: add builder unit tests (#971)
+- **lsp**: add unit tests for LSP client, DAP client, and transport (#976)
+- **skills,plugins**: add unit tests for registry, state, settings, and manifest (#977)
+
+### 🧹 Refactor
+
+- **mcp**: eliminate unwrap in DiscoveryCache with match pattern (#970)
+- **memory,config**: use LazyLock for static regex compilation (#969)
+- **runtime**: replace #[allow(dead_code)] with underscore prefix in LspServerManager (#972)
+- **runtime**: eliminate unwrap() in production code (#975)
+
+## [0.38.0] - 2026-06-08
 
 ### 🚀 Features
 
