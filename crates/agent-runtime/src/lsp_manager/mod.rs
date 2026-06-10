@@ -17,8 +17,7 @@ pub struct LspServerManager {
     lsp_servers: HashMap<String, LspServerLifecycle>,
     dap_servers: HashMap<String, DapServerLifecycle>,
     tool_registry: Arc<Mutex<ToolRegistry>>,
-    #[allow(dead_code)]
-    permission_engine: Arc<Mutex<PermissionEngine>>,
+    _permission_engine: Arc<Mutex<PermissionEngine>>,
     event_tx: Option<tokio::sync::broadcast::Sender<DomainEvent>>,
 }
 
@@ -48,7 +47,7 @@ impl LspServerManager {
             lsp_servers,
             dap_servers,
             tool_registry,
-            permission_engine,
+            _permission_engine: permission_engine,
             event_tx,
         }
     }
