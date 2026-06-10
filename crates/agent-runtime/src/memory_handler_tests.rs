@@ -14,6 +14,7 @@ fn make_entry(scope: MemoryScope, key: Option<&str>, content: &str, accepted: bo
         accepted,
         session_id: Some("sid_1".into()),
         workspace_id: Some("wid_1".into()),
+        branch: None,
     }
 }
 
@@ -216,6 +217,7 @@ async fn store_session_scope_marker_auto_accepted() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -268,8 +270,45 @@ async fn store_user_scope_marker_produces_proposed_event() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
     assert!(all.iter().any(|m| !m.accepted && m.content == "Rust"));
+}
+
+#[tokio::test]
+async fn store_marker_records_current_branch_when_provided() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (event_tx, _rx) = tokio::sync::broadcast::channel(16);
+    let sqlite_mem = Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
+    let mem_store: Option<Arc<dyn MemoryStore>> = Some(sqlite_mem.clone());
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    store_memory_markers_with_branch(
+        &store,
+        &event_tx,
+        &mem_store,
+        &workspace_id,
+        &session_id,
+        r#"<memory scope="session">Use the git-aware context path</memory>"#,
+        Some("feat/git-context"),
+    )
+    .await;
+
+    let all = sqlite_mem
+        .query(agent_memory::MemoryQuery {
+            scope: Some(MemoryScope::Session),
+            keywords: Vec::new(),
+            limit: 10,
+            session_id: Some(session_id.to_string()),
+            workspace_id: Some(workspace_id.to_string()),
+            branch: Some("feat/git-context".into()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].branch.as_deref(), Some("feat/git-context"));
 }

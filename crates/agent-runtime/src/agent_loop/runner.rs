@@ -339,13 +339,18 @@ where
         }
 
         // Process memory markers
-        crate::memory_handler::store_memory_markers(
+        let current_branch = deps
+            .root_path
+            .as_deref()
+            .and_then(crate::project::current_git_branch);
+        crate::memory_handler::store_memory_markers_with_branch(
             &**deps.store,
             deps.event_tx,
             deps.memory_store,
             &request.workspace_id,
             &request.session_id,
             &assistant_text,
+            current_branch.as_deref(),
         )
         .await;
 

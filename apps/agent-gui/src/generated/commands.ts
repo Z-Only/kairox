@@ -16308,6 +16308,7 @@ export type MemoryEntryResponse = {
   key: string | null;
   content: string;
   accepted: boolean;
+  branch: string | null;
 };
 
 export type MonitorInfoResponse = {

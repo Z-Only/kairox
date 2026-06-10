@@ -17,6 +17,7 @@ pub struct MemoryEntry {
     pub accepted: bool,
     pub session_id: Option<String>,
     pub workspace_id: Option<String>,
+    pub branch: Option<String>,
 }
 
 impl MemoryEntry {
@@ -29,6 +30,7 @@ impl MemoryEntry {
             accepted,
             session_id: None,
             workspace_id: None,
+            branch: None,
         }
     }
 
@@ -36,6 +38,16 @@ impl MemoryEntry {
         marker: crate::marker::MemoryMarker,
         session_id: Option<String>,
         workspace_id: Option<String>,
+        accepted: bool,
+    ) -> Self {
+        Self::from_marker_with_branch(marker, session_id, workspace_id, None, accepted)
+    }
+
+    pub fn from_marker_with_branch(
+        marker: crate::marker::MemoryMarker,
+        session_id: Option<String>,
+        workspace_id: Option<String>,
+        branch: Option<String>,
         accepted: bool,
     ) -> Self {
         Self {
@@ -46,6 +58,7 @@ impl MemoryEntry {
             accepted,
             session_id,
             workspace_id,
+            branch,
         }
     }
 }

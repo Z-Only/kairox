@@ -17,6 +17,7 @@ pub(super) fn find_lowest_priority_drop(
         ContextSource::ToolResult,
         ContextSource::History,
         ContextSource::WorkspaceRetrieval,
+        ContextSource::Git,
         ContextSource::Memory,
         ContextSource::ProjectInstruction,
         ContextSource::ToolDefinitions,

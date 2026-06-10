@@ -77,6 +77,25 @@ async fn workspace_rag_hits_are_injected_during_context_assembly() {
 }
 
 #[tokio::test]
+async fn git_context_is_injected_during_context_assembly() {
+    let asm = standalone();
+    let req = ContextRequest {
+        user_request: "Summarize my branch".into(),
+        git_context: vec![
+            "Git context: branch feat/git-context\n\nChanged files:\nM crates/example.rs".into(),
+        ],
+        ..Default::default()
+    };
+
+    let bundle = asm.assemble(req, large_budget()).await;
+
+    assert!(bundle.sources.contains(&ContextSource::Git));
+    assert!(bundle.messages.iter().any(|message| {
+        message.contains("branch feat/git-context") && message.contains("M crates/example.rs")
+    }));
+}
+
+#[tokio::test]
 async fn system_prompt_included_first() {
     let asm = standalone();
     let req = ContextRequest {

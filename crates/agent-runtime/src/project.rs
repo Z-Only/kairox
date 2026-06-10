@@ -158,6 +158,238 @@ pub fn get_git_status(path: &str) -> ProjectGitStatus {
     }
 }
 
+pub fn current_git_branch(root_path: &Path) -> Option<String> {
+    if !is_git_worktree(root_path) {
+        return None;
+    }
+
+    let branch = run_git_text(root_path, &["branch", "--show-current"]).unwrap_or_default();
+    if !branch.is_empty() {
+        return Some(branch);
+    }
+
+    run_git_text(root_path, &["rev-parse", "--short", "HEAD"])
+        .filter(|sha| !sha.is_empty())
+        .map(|sha| format!("detached@{sha}"))
+}
+
+pub fn build_git_context(root_path: &Path, conversation_context: &[String]) -> Option<String> {
+    if !is_git_worktree(root_path) {
+        return None;
+    }
+
+    let branch = current_git_branch(root_path).unwrap_or_else(|| "unknown".into());
+    let status = run_git_text(root_path, &["status", "--porcelain=v1"]).unwrap_or_default();
+    let changed_files = changed_files_from_status(&status);
+    let staged_diff = diff_section(
+        root_path,
+        "Staged changes",
+        &["diff", "--cached", "--stat"],
+        &["diff", "--cached", "--no-ext-diff", "--unified=3", "--"],
+    );
+    let unstaged_diff = diff_section(
+        root_path,
+        "Unstaged changes",
+        &["diff", "--stat"],
+        &["diff", "--no-ext-diff", "--unified=3", "--"],
+    );
+    let recent_commits =
+        run_git_text(root_path, &["log", "--oneline", "--decorate", "-5"]).unwrap_or_default();
+    let commit_draft = draft_commit_message(&branch, &changed_files, conversation_context);
+    let pr_draft = draft_pr_description(&branch, &changed_files, conversation_context);
+    let blame_context = blame_context(root_path, &changed_files);
+
+    let mut sections = vec![
+        "Repository git context".to_string(),
+        format!("Branch: {branch}"),
+    ];
+
+    if status.trim().is_empty() {
+        sections.push("Working tree status: clean".into());
+    } else {
+        sections.push(format!(
+            "Working tree status:\n{}",
+            truncate_chars(&status, 2_000)
+        ));
+    }
+
+    if !recent_commits.is_empty() {
+        sections.push(format!("Recent commits:\n{recent_commits}"));
+    }
+    if !staged_diff.is_empty() {
+        sections.push(staged_diff);
+    }
+    if !unstaged_diff.is_empty() {
+        sections.push(unstaged_diff);
+    }
+    sections.push(format!("Commit message draft:\n{commit_draft}"));
+    sections.push(format!("PR description draft:\n{pr_draft}"));
+    if !blame_context.is_empty() {
+        sections.push(format!("Blame context:\n{blame_context}"));
+    }
+
+    Some(truncate_chars(&sections.join("\n\n"), 16_000))
+}
+
+fn is_git_worktree(root_path: &Path) -> bool {
+    matches!(
+        run_git_text(root_path, &["rev-parse", "--is-inside-work-tree"]).as_deref(),
+        Some("true")
+    )
+}
+
+fn run_git_text(root_path: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root_path)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn changed_files_from_status(status: &str) -> Vec<String> {
+    let mut files = Vec::new();
+    for line in status.lines() {
+        let path = line.get(3..).unwrap_or("").trim();
+        if path.is_empty() {
+            continue;
+        }
+        let path = path
+            .rsplit_once(" -> ")
+            .map(|(_, after)| after)
+            .unwrap_or(path);
+        if !files.iter().any(|file| file == path) {
+            files.push(path.to_string());
+        }
+        if files.len() >= 24 {
+            break;
+        }
+    }
+    files
+}
+
+fn diff_section(root_path: &Path, label: &str, stat_args: &[&str], diff_args: &[&str]) -> String {
+    let stat = run_git_text(root_path, stat_args).unwrap_or_default();
+    let diff = run_git_text(root_path, diff_args).unwrap_or_default();
+    if stat.is_empty() && diff.is_empty() {
+        return String::new();
+    }
+
+    let mut parts = vec![format!("{label}:")];
+    if !stat.is_empty() {
+        parts.push(format!("Stat:\n{}", truncate_chars(&stat, 2_000)));
+    }
+    if !diff.is_empty() {
+        parts.push(format!("Diff:\n{}", truncate_chars(&diff, 6_000)));
+    }
+    parts.join("\n")
+}
+
+fn draft_commit_message(
+    branch: &str,
+    changed_files: &[String],
+    conversation_context: &[String],
+) -> String {
+    let scope = infer_commit_scope(changed_files);
+    let file_summary = summarize_changed_files(changed_files);
+    let cue = latest_conversation_cue(conversation_context);
+    let subject = if file_summary == "working tree" {
+        format!("feat({scope}): update git-aware context")
+    } else {
+        format!("feat({scope}): update {file_summary}")
+    };
+
+    let mut lines = vec![subject, String::new(), format!("- Branch: {branch}")];
+    if !changed_files.is_empty() {
+        lines.push(format!("- Changed files: {}", changed_files.join(", ")));
+    }
+    if let Some(cue) = cue {
+        lines.push(format!("- Conversation cue: {cue}"));
+    }
+    lines.join("\n")
+}
+
+fn draft_pr_description(
+    branch: &str,
+    changed_files: &[String],
+    conversation_context: &[String],
+) -> String {
+    let file_summary = summarize_changed_files(changed_files);
+    let cue = latest_conversation_cue(conversation_context)
+        .unwrap_or_else(|| "No recent conversation cue available".into());
+    format!(
+        "## Summary\n- Update {file_summary} on `{branch}`\n- Conversation context: {cue}\n\n## Testing\n- Not run; draft generated from local git context"
+    )
+}
+
+fn infer_commit_scope(changed_files: &[String]) -> &'static str {
+    if changed_files
+        .iter()
+        .any(|file| file.contains("agent-memory"))
+    {
+        "memory"
+    } else if changed_files
+        .iter()
+        .any(|file| file.contains("agent-runtime"))
+    {
+        "runtime"
+    } else if changed_files
+        .iter()
+        .any(|file| file.starts_with("apps/agent-gui"))
+    {
+        "gui"
+    } else if changed_files.iter().any(|file| file.starts_with("docs/")) {
+        "docs"
+    } else {
+        "git"
+    }
+}
+
+fn summarize_changed_files(changed_files: &[String]) -> String {
+    match changed_files {
+        [] => "working tree".into(),
+        [one] => one.clone(),
+        files if files.len() <= 3 => files.join(", "),
+        files => format!("{}, and {} more files", files[0], files.len() - 1),
+    }
+}
+
+fn latest_conversation_cue(conversation_context: &[String]) -> Option<String> {
+    conversation_context
+        .iter()
+        .rev()
+        .map(|line| line.trim())
+        .find(|line| !line.is_empty())
+        .map(|line| truncate_chars(line, 240))
+}
+
+fn blame_context(root_path: &Path, changed_files: &[String]) -> String {
+    let mut lines = Vec::new();
+    for file in changed_files.iter().take(8) {
+        let last_commit = run_git_text(
+            root_path,
+            &["log", "-1", "--format=%h %an %ar %s", "--", file],
+        )
+        .unwrap_or_else(|| "untracked or not committed yet".into());
+        lines.push(format!("{file}: {last_commit}"));
+    }
+    lines.join("\n")
+}
+
+fn truncate_chars(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+
+    let mut truncated: String = text.chars().take(max_chars).collect();
+    truncated.push_str("\n[...truncated]");
+    truncated
+}
+
 pub async fn read_project_instruction_summary(root_path: &Path) -> ProjectInstructionSummary {
     let mut source_paths = Vec::new();
     let mut content_parts: Vec<String> = Vec::new();

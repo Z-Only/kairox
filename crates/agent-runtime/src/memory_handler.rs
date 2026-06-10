@@ -43,6 +43,16 @@ pub async fn retrieve_relevant_memories(
     memory_store: &Option<Arc<dyn MemoryStore>>,
     user_content: &str,
 ) -> Vec<MemoryEntry> {
+    retrieve_relevant_memories_for_context(memory_store, user_content, None, None, None).await
+}
+
+pub async fn retrieve_relevant_memories_for_context(
+    memory_store: &Option<Arc<dyn MemoryStore>>,
+    user_content: &str,
+    session_id: Option<String>,
+    workspace_id: Option<String>,
+    branch: Option<String>,
+) -> Vec<MemoryEntry> {
     let Some(mem_store) = memory_store.as_ref() else {
         return Vec::new();
     };
@@ -59,8 +69,9 @@ pub async fn retrieve_relevant_memories(
             scope: None,
             keywords: keywords.clone(),
             limit: 20,
-            session_id: None,
-            workspace_id: None,
+            session_id: session_id.clone(),
+            workspace_id: workspace_id.clone(),
+            branch: branch.clone(),
         })
         .await
         .unwrap_or_default();
@@ -71,8 +82,9 @@ pub async fn retrieve_relevant_memories(
                 scope: None,
                 keywords: Vec::new(),
                 limit: 20,
-                session_id: None,
-                workspace_id: None,
+                session_id,
+                workspace_id,
+                branch,
             })
             .await
             .unwrap_or_default();
@@ -129,6 +141,27 @@ pub async fn store_memory_markers<S: EventStore>(
     session_id: &SessionId,
     assistant_text: &str,
 ) {
+    store_memory_markers_with_branch(
+        store,
+        event_tx,
+        memory_store,
+        workspace_id,
+        session_id,
+        assistant_text,
+        None,
+    )
+    .await;
+}
+
+pub async fn store_memory_markers_with_branch<S: EventStore>(
+    store: &S,
+    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
+    memory_store: &Option<Arc<dyn MemoryStore>>,
+    workspace_id: &WorkspaceId,
+    session_id: &SessionId,
+    assistant_text: &str,
+    branch: Option<&str>,
+) {
     if assistant_text.is_empty() {
         return;
     }
@@ -138,10 +171,11 @@ pub async fn store_memory_markers<S: EventStore>(
 
     let markers = extract_memory_markers(assistant_text);
     for marker in markers {
-        let entry = MemoryEntry::from_marker(
+        let entry = MemoryEntry::from_marker_with_branch(
             marker,
             Some(session_id.to_string()),
             Some(workspace_id.to_string()),
+            branch.map(ToOwned::to_owned),
             false,
         );
         let mem_id = entry.id.clone();

@@ -194,6 +194,7 @@ async fn user_scope_memory_is_proposed_for_approval_in_suggest_mode() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -383,6 +384,7 @@ async fn stored_memories_injected_into_subsequent_request() {
         accepted: true,
         session_id: None,
         workspace_id: None,
+        branch: None,
     };
     mem_store.store(entry).await.unwrap();
 

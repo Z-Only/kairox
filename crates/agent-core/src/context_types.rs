@@ -10,6 +10,7 @@ pub enum ContextSource {
     Request,
     Memory,
     WorkspaceRetrieval,
+    Git,
     History,
     ToolResult,
     SelectedFile,

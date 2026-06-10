@@ -22,6 +22,7 @@ async fn store_and_query_round_trip() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -42,6 +43,7 @@ async fn unaccepted_memories_excluded_from_query() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -61,6 +63,7 @@ async fn query_including_pending_returns_unaccepted_memories() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -96,6 +99,7 @@ async fn set_accepted_promotes_pending_memory() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -117,6 +121,7 @@ async fn delete_removes_entry() {
             limit: 10,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .unwrap();
@@ -161,6 +166,38 @@ async fn same_scope_and_key_deduplicates() {
     let results = store.list_by_scope(MemoryScope::Workspace).await.unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].content, "cargo nextest");
+}
+
+#[tokio::test]
+async fn workspace_memory_query_filters_by_branch_when_provided() {
+    let store = test_store().await;
+    let main_entry = MemoryEntry {
+        workspace_id: Some("workspace-a".into()),
+        branch: Some("main".into()),
+        ..MemoryEntry::new(MemoryScope::Workspace, "Use stable API".into(), true)
+    };
+    let feature_entry = MemoryEntry {
+        workspace_id: Some("workspace-a".into()),
+        branch: Some("feat/git-context".into()),
+        ..MemoryEntry::new(MemoryScope::Workspace, "Use git context API".into(), true)
+    };
+    store.store(main_entry).await.unwrap();
+    store.store(feature_entry).await.unwrap();
+
+    let results = store
+        .query(MemoryQuery {
+            scope: Some(MemoryScope::Workspace),
+            keywords: vec![],
+            limit: 10,
+            session_id: None,
+            workspace_id: Some("workspace-a".into()),
+            branch: Some("feat/git-context".into()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].content, "Use git context API");
 }
 
 #[tokio::test]

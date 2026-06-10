@@ -31,6 +31,7 @@ pub(crate) async fn dispatch(
                             limit,
                             session_id: None,
                             workspace_id: None,
+                            branch: None,
                         })
                         .await
                     {

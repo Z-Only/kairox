@@ -79,3 +79,46 @@ fn worktree_dir_replaces_slashes_with_dashes() {
         Path::new("/repo/.kairox/worktrees/feature-my-cool-branch")
     );
 }
+
+#[test]
+fn build_git_context_includes_branch_diff_drafts_and_blame() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    run_git(root, &["init"]);
+    run_git(root, &["config", "user.email", "tester@example.com"]);
+    run_git(root, &["config", "user.name", "Tester"]);
+    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    run_git(root, &["commit", "-m", "initial commit"]);
+    run_git(root, &["checkout", "-b", "feat/git-context"]);
+    std::fs::write(root.join("src.txt"), "original\nchanged\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    std::fs::write(root.join("src.txt"), "original\nchanged\nunstaged\n").unwrap();
+    std::fs::write(root.join("notes.txt"), "draft\n").unwrap();
+
+    let context = build_git_context(root, &["user: finish git context".to_string()])
+        .expect("git context should be available");
+
+    assert!(context.contains("Branch: feat/git-context"));
+    assert!(context.contains("Staged changes"));
+    assert!(context.contains("Unstaged changes"));
+    assert!(context.contains("Commit message draft"));
+    assert!(context.contains("PR description draft"));
+    assert!(context.contains("Blame context"));
+    assert!(context.contains("src.txt"));
+    assert!(context.contains("finish git context"));
+}
+
+fn run_git(root: &Path, args: &[&str]) {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .expect("git should run");
+    assert!(
+        output.status.success(),
+        "git {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

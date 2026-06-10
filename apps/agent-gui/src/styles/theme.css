@@ -70,13 +70,17 @@
 
   /* Context meter — per-source colours (light) */
   --src-system: #64748b;
+  --src-project: #475569;
   --src-tools: #2563eb;
   --src-memory: #7c3aed;
+  --src-git: #059669;
   --src-history: #16a34a;
   --src-tool-result: #f59e0b;
   --src-selected-file: #db2777;
   --src-compaction-summary: #94a3b8;
+  --src-skill: #9333ea;
   --src-request: #0ea5e9;
+  --src-image: #0891b2;
 }
 
 html.dark {
@@ -147,11 +151,15 @@ html.dark {
 
   /* Context meter — per-source colours (dark, higher contrast) */
   --src-system: #94a3b8;
+  --src-project: #cbd5e1;
   --src-tools: #60a5fa;
   --src-memory: #a78bfa;
+  --src-git: #34d399;
   --src-history: #4ade80;
   --src-tool-result: #fbbf24;
   --src-selected-file: #f472b6;
   --src-compaction-summary: #64748b;
+  --src-skill: #c084fc;
   --src-request: #38bdf8;
+  --src-image: #22d3ee;
 }

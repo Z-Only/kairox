@@ -52,13 +52,16 @@ describe("useContextFormatting", () => {
   describe("formatSourceColor", () => {
     it.each<[ContextSource, string]>([
       ["system", "var(--src-system)"],
+      ["project_instruction", "var(--src-project)"],
       ["tool_definitions", "var(--src-tools)"],
       ["memory", "var(--src-memory)"],
       ["workspace_retrieval", "var(--src-memory)"],
+      ["git", "var(--src-git)"],
       ["history", "var(--src-history)"],
       ["tool_result", "var(--src-tool-result)"],
       ["selected_file", "var(--src-selected-file)"],
       ["compaction_summary", "var(--src-compaction-summary)"],
+      ["skill", "var(--src-skill)"],
       ["request", "var(--src-request)"],
       ["image", "var(--src-image)"]
     ])("returns correct CSS variable for %s", (source, expected) => {
@@ -85,13 +88,16 @@ describe("useContextFormatting", () => {
   describe("formatSourceLabel", () => {
     it.each<[ContextSource, string]>([
       ["system", "context.sourceSystem"],
+      ["project_instruction", "context.sourceProjectInstruction"],
       ["tool_definitions", "context.sourceTools"],
       ["memory", "context.sourceMemory"],
       ["workspace_retrieval", "context.sourceWorkspaceRetrieval"],
+      ["git", "context.sourceGit"],
       ["history", "context.sourceHistory"],
       ["tool_result", "context.sourceToolResult"],
       ["selected_file", "context.sourceSelectedFile"],
       ["compaction_summary", "context.sourceCompactionSummary"],
+      ["skill", "context.sourceSkill"],
       ["request", "context.sourceRequest"],
       ["image", "context.sourceImage"]
     ])("returns the i18n key for %s", (source, expectedKey) => {

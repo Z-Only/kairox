@@ -139,6 +139,7 @@ pub async fn query_memories(
             limit: limit.unwrap_or(50) as usize,
             session_id: None,
             workspace_id: None,
+            branch: None,
         })
         .await
         .map_err(|e| e.to_string())?;
