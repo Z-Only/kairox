@@ -234,16 +234,18 @@ Complete. The advisor (self-reflection) system now includes:
 
 ## Phase 4 — Knowledge and retrieval (v0.43+)
 
-### 4.1 Workspace RAG (vector retrieval)
+### 4.1 Workspace RAG (vector retrieval) ✅
 
 **Crates**: `agent-memory`
 
 Add embedding-based retrieval for workspace documents:
 
-- Index project files, documentation, past conversations.
-- Retrieval at context assembly time — inject relevant chunks.
-- Pluggable embedding backend (local via `fastembed` / remote via API).
-- Incremental index updates on file change.
+- ✅ Index project files, documentation, past conversations.
+- ✅ Retrieval at context assembly time — inject relevant chunks.
+- ✅ Pluggable embedding backend (local deterministic backend now; `fastembed` / remote API can implement the same trait).
+- ✅ Incremental index updates on file change.
+
+**Implemented**: `agent-memory` now provides `WorkspaceRagIndex`, a SQLite-backed vector chunk store, pluggable `EmbeddingBackend`, workspace-scoped retrieval, and runtime context injection with a distinct `workspace_retrieval` context source.
 
 **Why**: Current memory is key-value scoped. RAG enables "find relevant context I didn't explicitly save." The customer-support-agent demo uses Bedrock KB for this; Kairox should offer a local-first alternative.
 

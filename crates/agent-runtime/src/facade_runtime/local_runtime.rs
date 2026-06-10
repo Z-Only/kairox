@@ -7,7 +7,7 @@ use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
 use agent_mcp::installer::Installer;
 use agent_mcp::{HttpResponseCache, SharedHttpClient};
-use agent_memory::{ContextAssembler, MemoryStore};
+use agent_memory::{ContextAssembler, MemoryStore, WorkspaceRagIndex};
 use agent_store::{EventStore, TrajectoryStore};
 use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry, WorkspaceScopedBuiltinTools};
 use std::collections::HashMap;
@@ -57,6 +57,7 @@ where
     pub(crate) tool_registry: Arc<Mutex<ToolRegistry>>,
     pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
+    pub(crate) workspace_rag_index: Option<Arc<WorkspaceRagIndex>>,
     pub(crate) pending_permissions: crate::permission::PendingPermissionsMap,
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
@@ -122,6 +123,7 @@ where
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
             context_assembler: ContextAssembler::new_standalone(),
             memory_store: None,
+            workspace_rag_index: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),

@@ -2,9 +2,12 @@ use crate::agent_loop::AgentLoopDeps;
 use crate::context_budget;
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{AgentId, DomainEvent, EventPayload, PrivacyClassification};
+use agent_memory::{WorkspaceDocument, WorkspaceIndexOptions};
 use agent_models::types::ServerTool;
 use agent_models::{ModelLimits, ToolDefinition};
 use agent_store::EventStore;
+use std::path::Path;
+use std::sync::Arc;
 
 /// All the context prepared for a single model turn.
 pub(crate) struct TurnContext {
@@ -171,7 +174,15 @@ where
         format!("<project-instructions>\n{instructions}\n</project-instructions>")
     });
 
-    let assembler = agent_memory::ContextAssembler::new_standalone();
+    if let Some(index) = deps.workspace_rag_index.as_ref() {
+        hydrate_workspace_rag_index(index, request, session_events, deps.root_path.as_deref())
+            .await;
+    }
+
+    let mut assembler = agent_memory::ContextAssembler::new_standalone();
+    if let Some(index) = deps.workspace_rag_index.as_ref() {
+        assembler = assembler.with_workspace_retriever(index.clone());
+    }
     let bundle = assembler
         .assemble(
             agent_memory::ContextRequest {
@@ -181,6 +192,8 @@ where
                 active_skills: active_skill_blocks.clone(),
                 user_request: request.content.clone(),
                 session_history,
+                session_id: Some(request.session_id.as_str().to_string()),
+                workspace_id: Some(request.workspace_id.as_str().to_string()),
                 tool_definitions: tool_definitions.clone(),
                 // Keep the 5 most recent images and drop older ones so that
                 // multi-turn screenshot conversations (computer.use, browser)
@@ -246,6 +259,77 @@ where
         tool_definitions,
         server_tools,
     })
+}
+
+async fn hydrate_workspace_rag_index(
+    index: &Arc<agent_memory::WorkspaceRagIndex>,
+    request: &agent_core::SendMessageRequest,
+    session_events: &[DomainEvent],
+    root_path: Option<&Path>,
+) {
+    if let Some(root_path) = root_path {
+        if let Err(error) = index
+            .index_workspace_files(
+                request.workspace_id.as_str(),
+                root_path,
+                WorkspaceIndexOptions::default(),
+            )
+            .await
+        {
+            tracing::warn!(
+                error = %error,
+                workspace_id = %request.workspace_id.as_str(),
+                root_path = %root_path.display(),
+                "workspace RAG file indexing failed"
+            );
+        }
+    }
+
+    if let Some(transcript) = render_past_conversation_document(session_events, &request.content) {
+        if let Err(error) = index
+            .index_document(WorkspaceDocument::past_conversation(
+                request.workspace_id.as_str(),
+                request.session_id.as_str(),
+                transcript,
+            ))
+            .await
+        {
+            tracing::warn!(
+                error = %error,
+                workspace_id = %request.workspace_id.as_str(),
+                session_id = %request.session_id.as_str(),
+                "workspace RAG conversation indexing failed"
+            );
+        }
+    }
+}
+
+fn render_past_conversation_document(
+    session_events: &[DomainEvent],
+    current_user_content: &str,
+) -> Option<String> {
+    let mut lines: Vec<String> = session_events
+        .iter()
+        .filter_map(|event| match &event.payload {
+            EventPayload::UserMessageAdded { content, .. } => Some(format!("user: {content}")),
+            EventPayload::AssistantMessageCompleted { content, .. } => {
+                Some(format!("assistant: {content}"))
+            }
+            EventPayload::ToolInvocationCompleted {
+                tool_id,
+                output_preview,
+                ..
+            } => Some(format!("tool[{tool_id}]: {output_preview}")),
+            _ => None,
+        })
+        .collect();
+
+    let current_user_line = format!("user: {current_user_content}");
+    if lines.last() == Some(&current_user_line) {
+        lines.pop();
+    }
+
+    (lines.len() >= 2).then(|| lines.join("\n"))
 }
 
 #[cfg(test)]

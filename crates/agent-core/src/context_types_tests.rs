@@ -25,6 +25,10 @@ fn context_source_serializes_snake_case_with_new_variants() {
         "compaction_summary"
     );
     assert_eq!(serde_json::to_value(ContextSource::Skill).unwrap(), "skill");
+    assert_eq!(
+        serde_json::to_value(ContextSource::WorkspaceRetrieval).unwrap(),
+        "workspace_retrieval"
+    );
 }
 
 #[test]

@@ -43,6 +43,7 @@ export type ContextSource =
   | "tool_definitions"
   | "request"
   | "memory"
+  | "workspace_retrieval"
   | "history"
   | "tool_result"
   | "selected_file"

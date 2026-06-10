@@ -9,6 +9,7 @@ pub enum ContextSource {
     ToolDefinitions,
     Request,
     Memory,
+    WorkspaceRetrieval,
     History,
     ToolResult,
     SelectedFile,
