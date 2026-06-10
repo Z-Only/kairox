@@ -320,6 +320,7 @@
     "sourceTools": "Tool definitions",
     "sourceMemory": "Memory",
     "sourceWorkspaceRetrieval": "Workspace retrieval",
+    "sourceKnowledgeBase": "Knowledge base",
     "sourceGit": "Git context",
     "sourceHistory": "Conversation history",
     "sourceToolResult": "Tool results",

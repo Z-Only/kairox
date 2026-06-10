@@ -108,7 +108,40 @@ async fn build_ui_runtime_wires_configured_sqlite_fts_knowledge_base() {
 
     assert!(bootstrap
         .runtime
-        .knowledge_base_retrievers
+        .knowledge_base_retrievers_snapshot()
         .contains_key("company-docs"));
     assert!(kb_path.exists());
+}
+
+#[tokio::test]
+async fn runtime_can_replace_knowledge_base_retrievers_after_config_refresh() {
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory store");
+    let runtime = crate::LocalRuntime::new(store, agent_models::FakeModelClient::new(vec![]));
+    assert!(runtime.knowledge_base_retrievers_snapshot().is_empty());
+
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let retriever = agent_memory::SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        agent_memory::SqliteFtsKnowledgeBaseConfig::default(),
+    )
+    .await
+    .unwrap();
+    let mut retrievers: std::collections::HashMap<
+        String,
+        std::sync::Arc<dyn agent_memory::WorkspaceRetriever>,
+    > = std::collections::HashMap::new();
+    retrievers.insert("company-docs".into(), std::sync::Arc::new(retriever));
+
+    runtime.replace_knowledge_base_retrievers(retrievers);
+
+    assert!(runtime
+        .knowledge_base_retrievers_snapshot()
+        .contains_key("company-docs"));
 }

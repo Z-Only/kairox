@@ -52,7 +52,9 @@ pub async fn disable_mcp_server_at_scope(
     std::fs::write(&config_path, doc.to_string())
         .map_err(|e| format!("failed to write project config: {e}"))?;
 
-    state.refresh_config_for_project(std::path::Path::new(&project_root))?;
+    state
+        .refresh_config_for_project(std::path::Path::new(&project_root))
+        .await?;
     Ok(())
 }
 
@@ -104,7 +106,9 @@ pub async fn enable_mcp_server_at_scope(
     std::fs::write(&config_path, doc.to_string())
         .map_err(|e| format!("failed to write project config: {e}"))?;
 
-    state.refresh_config_for_project(std::path::Path::new(&project_root))?;
+    state
+        .refresh_config_for_project(std::path::Path::new(&project_root))
+        .await?;
     Ok(())
 }
 

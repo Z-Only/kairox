@@ -54,7 +54,7 @@ pub async fn upsert_instructions(
     .map_err(|e| e.to_string())?;
 
     // Refresh config so the runtime picks up the new instructions.
-    state.refresh_config()?;
+    state.refresh_config().await?;
 
     Ok(())
 }

@@ -4,7 +4,8 @@ use agent_core::WorkspaceId;
 use agent_memory::MemoryStore;
 use agent_models::ModelRouter;
 use agent_runtime::ui_bootstrap::{
-    load_config_with_profiles_overlay, load_ui_config, load_user_ui_config,
+    build_knowledge_base_retrievers, load_config_with_profiles_overlay, load_ui_config,
+    load_user_ui_config,
 };
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -22,6 +23,7 @@ pub struct GuiState {
     pub forwarder_handle: Mutex<Option<JoinHandle<()>>>,
     pub profiles_config_path: Option<std::path::PathBuf>,
     pub home_dir: std::path::PathBuf,
+    pub workspace_root: std::path::PathBuf,
     pub devtools_enabled_at_startup: bool,
 }
 
@@ -40,44 +42,57 @@ impl GuiState {
             forwarder_handle: Mutex::new(None),
             profiles_config_path: None,
             home_dir: std::path::PathBuf::from("."),
+            workspace_root: std::path::PathBuf::from("."),
             devtools_enabled_at_startup: false,
         }
     }
 
+    async fn install_refreshed_config(
+        &self,
+        new_config: Config,
+        knowledge_base_root: &std::path::Path,
+    ) -> Result<(), String> {
+        let knowledge_base_retrievers =
+            build_knowledge_base_retrievers(&new_config, knowledge_base_root)
+                .await
+                .map_err(|e| e.to_string())?;
+        self.runtime.update_config(Arc::new(new_config.clone()));
+        self.runtime
+            .replace_knowledge_base_retrievers(knowledge_base_retrievers);
+        self.runtime.refresh_model_router_from_config(&new_config);
+        let mut cfg = self.config.write().map_err(|e| e.to_string())?;
+        *cfg = new_config;
+        Ok(())
+    }
+
     /// Reload the project-level portion of the config from `project_root`.
     /// Merges defaults + user-level + project-level `.kairox/config.toml`.
-    pub fn refresh_config_for_project(&self, project_root: &std::path::Path) -> Result<(), String> {
+    pub async fn refresh_config_for_project(
+        &self,
+        project_root: &std::path::Path,
+    ) -> Result<(), String> {
         let base_config =
             Config::load_with_project_root(Some(project_root)).map_err(|e| e.to_string())?;
         let new_config = load_config_with_profiles_overlay(base_config, &self.home_dir)
             .map_err(|e| e.to_string())?
             .config;
-        self.runtime.update_config(Arc::new(new_config.clone()));
-        self.runtime.refresh_model_router_from_config(&new_config);
-        let mut cfg = self.config.write().map_err(|e| e.to_string())?;
-        *cfg = new_config;
-        Ok(())
+        self.install_refreshed_config(new_config, project_root)
+            .await
     }
 
     /// Reload the full config, including profiles.toml overlay.
-    pub fn refresh_config(&self) -> Result<(), String> {
+    pub async fn refresh_config(&self) -> Result<(), String> {
         let new_config = load_ui_config(&self.home_dir).config;
-        self.runtime.update_config(Arc::new(new_config.clone()));
-        self.runtime.refresh_model_router_from_config(&new_config);
-        let mut cfg = self.config.write().map_err(|e| e.to_string())?;
-        *cfg = new_config;
-        Ok(())
+        self.install_refreshed_config(new_config, &self.workspace_root)
+            .await
     }
 
     /// Reload the user-level config, including profiles.toml overlay, without
     /// discovering project-level `.kairox/config.toml` from the GUI cwd.
-    pub fn refresh_user_config(&self) -> Result<(), String> {
+    pub async fn refresh_user_config(&self) -> Result<(), String> {
         let new_config = load_user_ui_config(&self.home_dir).config;
-        self.runtime.update_config(Arc::new(new_config.clone()));
-        self.runtime.refresh_model_router_from_config(&new_config);
-        let mut cfg = self.config.write().map_err(|e| e.to_string())?;
-        *cfg = new_config;
-        Ok(())
+        self.install_refreshed_config(new_config, &self.workspace_root)
+            .await
     }
 }
 
@@ -196,7 +211,10 @@ mod tests {
         state.home_dir = config_dir;
         let _home_guard = HomeEnvGuard::set(&home_dir);
 
-        state.refresh_config().expect("refresh should succeed");
+        state
+            .refresh_config()
+            .await
+            .expect("refresh should succeed");
 
         assert_eq!(
             state.config.read().unwrap().instructions.as_deref(),
@@ -238,7 +256,10 @@ model_id = "fake"
         state.home_dir = config_dir;
         let _home_guard = HomeEnvGuard::set(&home_dir);
 
-        state.refresh_config().expect("refresh should succeed");
+        state
+            .refresh_config()
+            .await
+            .expect("refresh should succeed");
 
         let workspace = state
             .runtime
@@ -267,6 +288,52 @@ model_id = "fake"
             })
             .await
             .expect("refreshed profile should be routable");
+
+        fs::remove_dir_all(home_dir).ok();
+    }
+
+    #[tokio::test]
+    async fn refresh_config_registers_knowledge_base_retrievers() {
+        let _env_lock = HOME_ENV_LOCK.lock().await;
+        let home_dir = unique_home();
+        let config_dir = home_dir.join(".kairox");
+        let workspace_root = home_dir.join("workspace");
+        fs::create_dir_all(&config_dir).expect("config dir should be created");
+        fs::create_dir_all(&workspace_root).expect("workspace dir should be created");
+        fs::write(
+            config_dir.join("config.toml"),
+            r#"
+[knowledge_bases.company-docs]
+kind = "sqlite_fts"
+path = "company.sqlite"
+profile_aliases = ["fake"]
+"#,
+        )
+        .expect("config should be written");
+
+        let initial_config = Config::defaults();
+        let router = initial_config.build_router();
+        let runtime = LocalRuntime::new(SqliteEventStore::in_memory().await.unwrap(), router)
+            .with_config(Arc::new(initial_config.clone()));
+        let mut state = GuiState::new(
+            runtime,
+            initial_config,
+            Arc::new(NoopMemoryStore) as Arc<dyn MemoryStore>,
+        );
+        state.home_dir = config_dir;
+        state.workspace_root = workspace_root.clone();
+        let _home_guard = HomeEnvGuard::set(&home_dir);
+
+        state
+            .refresh_config()
+            .await
+            .expect("refresh should succeed");
+
+        assert!(state
+            .runtime
+            .knowledge_base_retrievers_snapshot()
+            .contains_key("company-docs"));
+        assert!(workspace_root.join("company.sqlite").exists());
 
         fs::remove_dir_all(home_dir).ok();
     }

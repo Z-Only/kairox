@@ -7,7 +7,7 @@ use tiktoken_rs::CoreBPE;
 use crate::extractor::extract_keywords;
 use crate::memory::MemoryEntry;
 use crate::store::{MemoryQuery, MemoryStore};
-use crate::workspace_rag::{WorkspaceRetrievalQuery, WorkspaceRetriever};
+use crate::workspace_rag::{WorkspaceDocumentSource, WorkspaceRetrievalQuery, WorkspaceRetriever};
 
 use super::budget::ContextBudget;
 use super::image_pruning::{prune_images, ImageEntry, ImagePruningStrategy};
@@ -175,7 +175,11 @@ impl ContextAssembler {
                     hit.path, hit.chunk_index, hit.score, hit.content
                 );
                 let n = self.count_tokens(&text);
-                sections.push((ContextSource::WorkspaceRetrieval, text, n));
+                let source = match hit.source {
+                    WorkspaceDocumentSource::KnowledgeBase => ContextSource::KnowledgeBase,
+                    _ => ContextSource::WorkspaceRetrieval,
+                };
+                sections.push((source, text, n));
             }
         }
 

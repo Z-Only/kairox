@@ -60,7 +60,7 @@ pub async fn upsert_profile_settings(
         .upsert_profile_settings(input)
         .await
         .map_err(|error| error.to_string())?;
-    state.refresh_config()?;
+    state.refresh_config().await?;
     Ok(view)
 }
 
@@ -76,7 +76,7 @@ pub async fn set_profile_enabled(
         .set_profile_enabled(alias, enabled)
         .await
         .map_err(|error| error.to_string())?;
-    state.refresh_config()?;
+    state.refresh_config().await?;
     Ok(())
 }
 
@@ -91,7 +91,7 @@ pub async fn delete_profile_settings(
         .delete_profile_settings(alias)
         .await
         .map_err(|error| error.to_string())?;
-    state.refresh_config()?;
+    state.refresh_config().await?;
     Ok(())
 }
 

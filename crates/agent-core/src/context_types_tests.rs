@@ -29,6 +29,10 @@ fn context_source_serializes_snake_case_with_new_variants() {
         serde_json::to_value(ContextSource::WorkspaceRetrieval).unwrap(),
         "workspace_retrieval"
     );
+    assert_eq!(
+        serde_json::to_value(ContextSource::KnowledgeBase).unwrap(),
+        "knowledge_base"
+    );
     assert_eq!(serde_json::to_value(ContextSource::Git).unwrap(), "git");
 }
 

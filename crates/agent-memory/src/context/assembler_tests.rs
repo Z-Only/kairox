@@ -77,6 +77,54 @@ async fn workspace_rag_hits_are_injected_during_context_assembly() {
 }
 
 #[tokio::test]
+async fn knowledge_base_hits_are_reported_as_knowledge_base_source() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = Arc::new(
+        crate::SqliteFtsKnowledgeBase::new(
+            "company-docs",
+            pool,
+            crate::SqliteFtsKnowledgeBaseConfig::default(),
+        )
+        .await
+        .unwrap(),
+    );
+    kb.upsert_document(crate::KnowledgeBaseDocument {
+        id: "phase4-kb".into(),
+        workspace_id: Some("ws-alpha".into()),
+        title: Some("Phase 4 KB".into()),
+        content: "External knowledge base connectors add retrieval context.".into(),
+    })
+    .await
+    .unwrap();
+
+    let req = ContextRequest {
+        workspace_id: Some("ws-alpha".into()),
+        user_request: "How do external knowledge base connectors work?".into(),
+        ..Default::default()
+    };
+    let bundle = ContextAssembler::new_standalone()
+        .with_workspace_retriever(kb)
+        .assemble(req, large_budget())
+        .await;
+
+    assert!(bundle.sources.contains(&ContextSource::KnowledgeBase));
+    assert!(!bundle.sources.contains(&ContextSource::WorkspaceRetrieval));
+    assert!(bundle
+        .usage
+        .by_source
+        .iter()
+        .any(|(source, tokens)| *source == ContextSource::KnowledgeBase && *tokens > 0));
+    assert!(bundle.messages.iter().any(|message| {
+        message.contains("kb://company-docs/phase4-kb")
+            && message.contains("External knowledge base connectors")
+    }));
+}
+
+#[tokio::test]
 async fn git_context_is_injected_during_context_assembly() {
     let asm = standalone();
     let req = ContextRequest {
