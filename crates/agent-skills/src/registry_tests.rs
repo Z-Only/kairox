@@ -364,3 +364,83 @@ async fn plugin_skill_list_includes_all_namespaced_skills() {
     assert!(ids.contains(&"my-plugin:review"));
     assert!(ids.contains(&"my-plugin:brainstorm"));
 }
+
+#[tokio::test]
+async fn files_in_root_are_skipped_during_discovery() {
+    let root = tempfile::tempdir().expect("root should exist");
+    // Create a regular file (not a directory) in the root.
+    fs::write(root.path().join("not-a-directory.md"), "random file").expect("file should write");
+    write_skill(root.path(), "valid", "valid", "Valid skill", "Body.\n");
+
+    let registry =
+        FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+            .await
+            .expect("files should be skipped during discovery");
+
+    assert_eq!(registry.list().len(), 1);
+    assert!(registry.get(&SkillId::new("valid")).is_some());
+}
+
+#[tokio::test]
+async fn directories_without_skill_md_are_skipped() {
+    let root = tempfile::tempdir().expect("root should exist");
+    // Create a directory without SKILL.md.
+    fs::create_dir_all(root.path().join("no-skill-md")).expect("directory should be created");
+    write_skill(
+        root.path(),
+        "has-skill",
+        "has-skill",
+        "Has SKILL.md",
+        "Body.\n",
+    );
+
+    let registry =
+        FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+            .await
+            .expect("directories without SKILL.md should be skipped");
+
+    assert_eq!(registry.list().len(), 1);
+    assert!(registry.get(&SkillId::new("has-skill")).is_some());
+}
+
+#[tokio::test]
+async fn multiple_skills_in_same_root_are_all_discovered() {
+    let root = tempfile::tempdir().expect("root should exist");
+    write_skill(root.path(), "alpha", "alpha", "Alpha skill", "Body A.\n");
+    write_skill(root.path(), "beta", "beta", "Beta skill", "Body B.\n");
+    write_skill(root.path(), "gamma", "gamma", "Gamma skill", "Body C.\n");
+
+    let registry =
+        FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+            .await
+            .expect("discover should succeed");
+
+    let list = registry.list();
+    assert_eq!(list.len(), 3);
+    let ids: Vec<&str> = list.iter().map(|m| m.id.as_str()).collect();
+    assert!(ids.contains(&"alpha"));
+    assert!(ids.contains(&"beta"));
+    assert!(ids.contains(&"gamma"));
+}
+
+#[tokio::test]
+async fn builtin_skill_is_used_when_no_overrides() {
+    let root = tempfile::tempdir().expect("root should exist");
+    write_skill(
+        root.path(),
+        "builtin-only",
+        "builtin-only",
+        "Built-in only skill",
+        "Body.\n",
+    );
+
+    let registry =
+        FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::Builtin, root.path())])
+            .await
+            .expect("discover should succeed");
+
+    let metadata = registry
+        .get(&SkillId::new("builtin-only"))
+        .expect("builtin skill should exist");
+    assert_eq!(metadata.source.kind, SkillSourceKind::Builtin);
+}

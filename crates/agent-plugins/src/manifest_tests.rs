@@ -192,3 +192,160 @@ async fn invalid_manifest_stays_visible() {
     assert!(!plugin.valid);
     assert!(plugin.validation_error.unwrap().contains("name"));
 }
+
+#[tokio::test]
+async fn missing_manifest_returns_not_found_error() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // No manifest directory at all.
+    let result = read_plugin_manifest(dir.path()).await;
+    assert!(matches!(result, Err(crate::PluginError::ManifestNotFound)));
+}
+
+#[tokio::test]
+async fn malformed_json_returns_invalid_manifest_error() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(manifest_dir.join("plugin.json"), "{ not valid json }").expect("write");
+
+    let result = read_plugin_manifest(dir.path()).await;
+    match result {
+        Err(crate::PluginError::InvalidManifest(msg)) => {
+            assert!(!msg.is_empty(), "error message should describe the issue");
+        }
+        other => panic!("expected InvalidManifest error, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn author_string_format_is_parsed() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{"name":"test","description":"Test","author":"Jane Doe"}"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert_eq!(plugin.author_name.as_deref(), Some("Jane Doe"));
+}
+
+#[tokio::test]
+async fn repository_object_format_extracts_url() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{"name":"test","description":"Test","repository":{"type":"git","url":"https://github.com/example/repo"}}"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert_eq!(
+        plugin.repository.as_deref(),
+        Some("https://github.com/example/repo")
+    );
+}
+
+#[tokio::test]
+async fn repository_string_format_is_preserved() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{"name":"test","description":"Test","repository":"https://github.com/example/repo"}"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert_eq!(
+        plugin.repository.as_deref(),
+        Some("https://github.com/example/repo")
+    );
+}
+
+#[tokio::test]
+async fn empty_name_triggers_validation_error() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{"name":"  ","description":"Whitespace name"}"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert!(!plugin.valid);
+    assert!(plugin.validation_error.is_some());
+}
+
+#[tokio::test]
+async fn kairox_manifest_has_priority_over_codex_and_claude() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // Create all three manifest types.
+    for subdir in [".kairox-plugin", ".codex-plugin", ".claude-plugin"] {
+        let manifest_dir = dir.path().join(subdir);
+        fs::create_dir_all(&manifest_dir).expect("manifest dir");
+        fs::write(
+            manifest_dir.join("plugin.json"),
+            format!(r#"{{"name":"from-{subdir}","description":"Test"}}"#),
+        )
+        .expect("write");
+    }
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    // Kairox manifest should be resolved first.
+    assert_eq!(plugin.manifest_kind, PluginManifestKind::Kairox);
+    assert_eq!(plugin.name, "from-.kairox-plugin");
+}
+
+#[tokio::test]
+async fn manifest_with_keywords_and_license() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{
+            "name": "licensed-plugin",
+            "description": "A plugin with license",
+            "license": "MIT",
+            "keywords": ["testing", "automation", "ci"]
+        }"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert_eq!(plugin.license.as_deref(), Some("MIT"));
+    assert_eq!(plugin.keywords, vec!["testing", "automation", "ci"]);
+}
+
+#[tokio::test]
+async fn security_metadata_with_object_format() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{
+            "name": "obj-security",
+            "description": "Object-format security fields",
+            "publisher": {"name": "Acme Corp", "id": "acme"},
+            "trust": {"level": "verified"},
+            "signature": {"signature": "sig123"},
+            "checksum": {"sha256": "abc123"}
+        }"#,
+    )
+    .expect("write");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+    assert_eq!(plugin.security.publisher.as_deref(), Some("Acme Corp"));
+    assert_eq!(plugin.security.trust.as_deref(), Some("verified"));
+    assert_eq!(plugin.security.signature.as_deref(), Some("sig123"));
+    assert_eq!(plugin.security.checksum.as_deref(), Some("abc123"));
+}
