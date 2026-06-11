@@ -50,15 +50,15 @@ reqwest = { version = "0.13", features = ["json", "stream", "rustls"], default-f
 eventsource-stream = "0.2.3"
 lsp-types = "0.97"
 tracing = "0.1.44"
-rand = "0.9"
+rand = "0.10"
 wiremock = "0.6.5"
 async-stream = "0.3.6"
 regex = "1.12.3"
 libc = "0.2.186"
 image = { version = "0.25", default-features = false, features = ["png"] }
 url = "2"
-xcap = "0.7"
-enigo = { version = "0.3", features = ["serde"] }
+xcap = "0.9"
+enigo = { version = "0.6", features = ["serde"] }
 zip = "8"
 
 [profile.release]
