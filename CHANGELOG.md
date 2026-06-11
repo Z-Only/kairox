@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0] - 2026-06-11
+
+### 🚀 Features
+
+- **memory**: add workspace RAG retrieval (#981)
+- **runtime**: add git-aware context (#982)
+- **memory**: add external knowledge bases (#984)
+- **gui**: add right-sidebar git review (#994)
+- **gui**: improve git review details (#996)
+- add goal chat command (#1005)
+
+### 🐛 Bug Fixes
+
+- **memory**: make KB upserts atomic (#985)
+- **context**: surface knowledge base usage (#986)
+- **gui**: address git review followups (#995)
+- **gui**: label git review file toggles (#1000)
+- **models**: surface OpenAI stream errors (#1001)
+- **memory**: label knowledge base context (#1002)
+- **gui**: keep refreshed model profiles in sync (#1003)
+- **mcp**: widen flaky parallel-list timing assertion (#1007)
+
+### 🧪 Testing
+
+- **eval**: add live vibe-coding suite
+- **memory**: harden sqlite kb retrieval (#993)
+- **runtime**: harden kb bootstrap (#992)
+- **gui**: remove legacy model profile store test (#998)
+- **gui**: stabilize catalog option selectors (#999)
+- **gui**: assert chat-flow attachment enrichment (#1004)
+- **gui**: add modelProfiles store unit tests (#1008)
+- **gui**: add ImageLightbox component tests (#1009)
+
+### 🧹 Refactor
+
+- **gui**: remove legacy marketplace route (#997)
+
+### 👷 CI
+
+- make live model jobs informational (#987)
+- support merge queue checks (#991)
+- tighten coverage thresholds (#1006)
+
+### 📦 Dependencies
+
+- **deps**: bump the bun-minor-patch group with 7 updates (#988)
+- **deps**: bump tauri-plugin-pilot from v0.7.1 to v0.7.2 (#990)
+- **deps**: bump the cargo-major group with 3 updates (#989)
+
 ## [0.39.0] - 2026-06-10
 
 ### 🚀 Features
@@ -25,6 +74,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **gui,runtime,core**: add api_key field, scope-aware config file open, image default-expanded (#959)
 - **gui**: add whenever to vueuse auto-import whitelist (#960)
 - **runtime,gui**: embed tool images in model request and clear pinned message on session switch (#974)
+- **release**: install Linux TUI build deps (#980)
 
 ### 📚 Documentation
 
