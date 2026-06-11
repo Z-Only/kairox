@@ -49,6 +49,9 @@ function makeProjectGitStatus(project) {
 function makeProjectGitReviewFromStatus(status) {
   return Object.assign({}, status, {
     changed_files: [],
+    file_count: 0,
+    additions: 0,
+    deletions: 0,
     staged: null,
     unstaged: null,
     untracked: null

@@ -108,7 +108,9 @@ describe("project store", () => {
 
     const project = await store.createBlankProject("Scratch");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", { displayName: "Scratch" });
+    expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", {
+      displayName: "Scratch"
+    });
     expect(project.projectId).toBe("p2");
     expect(store.projects.map((entry) => entry.projectId)).toEqual(["p2"]);
   });
@@ -118,7 +120,9 @@ describe("project store", () => {
 
     const project = await store.createBlankProject();
 
-    expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", { displayName: null });
+    expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", {
+      displayName: null
+    });
     expect(project.displayName).toBe("New Project");
   });
 
@@ -145,7 +149,9 @@ describe("project store", () => {
 
     await store.removeProject("p1");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("remove_project", { projectId: "p1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("remove_project", {
+      projectId: "p1"
+    });
     expect(mockedInvoke).toHaveBeenCalledWith("list_projects");
     expect(store.projects[0].removedAt).toBe("2026-05-10T00:00:00Z");
   });
@@ -200,7 +206,9 @@ describe("project store", () => {
       approvalPolicy: null,
       sandboxPolicy: null
     });
-    expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", { projectId: "p1" });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", {
+      projectId: "p1"
+    });
     expect(store.sessionsByProject.get("p1")?.map((session) => session.sessionId)).toEqual([
       "s-draft"
     ]);
@@ -381,7 +389,9 @@ describe("project store", () => {
       sessionId: "s1",
       title: "Renamed Draft"
     });
-    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", {
+      sessionId: "s1"
+    });
     expect(store.sessionsByProject.get("p1")?.map((entry) => entry.title)).toEqual([]);
   });
 
@@ -408,7 +418,9 @@ describe("project store", () => {
     const store = useProjectStore();
 
     await expect(store.listProjectBranches("p1")).resolves.toEqual(["main", "feat/chat"]);
-    expect(mockedInvoke).toHaveBeenCalledWith("list_project_branches", { projectId: "p1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("list_project_branches", {
+      projectId: "p1"
+    });
   });
 });
 
@@ -438,7 +450,9 @@ describe("project store — additional coverage", () => {
 
     const project = await store.addExistingProject("/tmp/existing");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("add_existing_project", { path: "/tmp/existing" });
+    expect(mockedInvoke).toHaveBeenCalledWith("add_existing_project", {
+      path: "/tmp/existing"
+    });
     expect(project.projectId).toBe("p3");
     expect(project.displayName).toBe("Existing");
     expect(store.projects).toContainEqual(expect.objectContaining({ projectId: "p3" }));
@@ -634,7 +648,9 @@ describe("project store — additional coverage", () => {
 
     const project = await store.restoreProjectSession("s1");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("restore_project_session", { sessionId: "s1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("restore_project_session", {
+      sessionId: "s1"
+    });
     expect(project.projectId).toBe("p1");
     expect(project.displayName).toBe("Restored");
     expect(store.projects).toContainEqual(expect.objectContaining({ projectId: "p1" }));
@@ -657,7 +673,9 @@ describe("project store — additional coverage", () => {
 
     const result = await store.initProjectGit("p1");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("init_project_git", { projectId: "p1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("init_project_git", {
+      projectId: "p1"
+    });
     expect(result).toEqual({
       kind: "Initialized",
       branch: "main",
@@ -682,7 +700,9 @@ describe("project store — additional coverage", () => {
 
     const result = await store.getSessionGitStatus("s1");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_status", { sessionId: "s1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_status", {
+      sessionId: "s1"
+    });
     expect(result).toEqual({
       kind: "Dirty",
       branch: "feat/test",
@@ -699,17 +719,40 @@ describe("project store — additional coverage", () => {
           branch: "feat/test",
           worktree_path: "/tmp/worktree",
           message: null,
+          file_count: 2,
+          additions: 2,
+          deletions: 0,
           changed_files: ["src/App.vue", "notes.txt"],
           staged: {
             label: "Staged changes",
             stat: " src/App.vue | 1 +",
-            diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+            diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new",
+            additions: 1,
+            deletions: 0,
+            files: [
+              {
+                path: "src/App.vue",
+                additions: 1,
+                deletions: 0,
+                diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+              }
+            ]
           },
           unstaged: null,
           untracked: {
             label: "Untracked files",
             stat: " notes.txt | 1 +",
-            diff: "+++ b/notes.txt\n+draft"
+            diff: "+++ b/notes.txt\n+draft",
+            additions: 1,
+            deletions: 0,
+            files: [
+              {
+                path: "notes.txt",
+                additions: 1,
+                deletions: 0,
+                diff: "+++ b/notes.txt\n+draft"
+              }
+            ]
           }
         };
       }
@@ -719,24 +762,86 @@ describe("project store — additional coverage", () => {
 
     const result = await store.getSessionGitReview("s1");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", { sessionId: "s1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "s1"
+    });
     expect(result).toEqual({
       kind: "dirty",
       branch: "feat/test",
       worktreePath: "/tmp/worktree",
       message: null,
+      fileCount: 2,
+      additions: 2,
+      deletions: 0,
       changedFiles: ["src/App.vue", "notes.txt"],
       staged: {
         label: "Staged changes",
         stat: " src/App.vue | 1 +",
-        diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+        diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new",
+        additions: 1,
+        deletions: 0,
+        files: [
+          {
+            path: "src/App.vue",
+            additions: 1,
+            deletions: 0,
+            diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+          }
+        ]
       },
       unstaged: null,
       untracked: {
         label: "Untracked files",
         stat: " notes.txt | 1 +",
-        diff: "+++ b/notes.txt\n+draft"
+        diff: "+++ b/notes.txt\n+draft",
+        additions: 1,
+        deletions: 0,
+        files: [
+          {
+            path: "notes.txt",
+            additions: 1,
+            deletions: 0,
+            diff: "+++ b/notes.txt\n+draft"
+          }
+        ]
       }
+    });
+  });
+
+  it("getSessionGitReview fills defaults for legacy diff metadata", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_session_git_review") {
+        return {
+          kind: "dirty",
+          branch: "feat/legacy",
+          worktree_path: "/tmp/worktree",
+          message: null,
+          changed_files: ["README.md"],
+          staged: {
+            label: "Staged changes",
+            stat: " README.md | 1 +",
+            diff: "+legacy"
+          },
+          unstaged: null,
+          untracked: null
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const result = await store.getSessionGitReview("s1");
+
+    expect(result.fileCount).toBe(1);
+    expect(result.additions).toBe(0);
+    expect(result.deletions).toBe(0);
+    expect(result.staged).toEqual({
+      label: "Staged changes",
+      stat: " README.md | 1 +",
+      diff: "+legacy",
+      additions: 0,
+      deletions: 0,
+      files: []
     });
   });
 

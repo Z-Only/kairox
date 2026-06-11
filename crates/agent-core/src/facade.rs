@@ -28,8 +28,9 @@ pub use plugins::{
     PluginSettingsView, PluginsFacade,
 };
 pub use project::{
-    ProjectFacade, ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind,
-    ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
+    ProjectFacade, ProjectGitDiffSection, ProjectGitFileChange, ProjectGitReview, ProjectGitStatus,
+    ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding,
+    ProjectSessionVisibility,
 };
 pub use session::{
     AgentStatusInfo, AttachmentInfo, PermissionDecision, SendMessageRequest, SessionFacade,

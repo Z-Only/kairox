@@ -14,18 +14,27 @@
 
 interface DiffPreviewProps {
   text: string;
+  collapseUnmodified?: boolean;
+  unmodifiedExpanded?: boolean;
 }
 
 const props = defineProps<DiffPreviewProps>();
+const emit = defineEmits<{
+  "toggle-unmodified": [];
+}>();
 
 const { t } = useI18n();
 
-type DiffLineKind = "file-old" | "file-new" | "hunk" | "added" | "removed" | "default";
+type DiffLineKind = "file-old" | "file-new" | "hunk" | "added" | "removed" | "context" | "default";
 
 interface ClassifiedLine {
   kind: DiffLineKind;
   text: string;
 }
+
+type RenderedDiffRow =
+  | { type: "line"; key: string; line: ClassifiedLine }
+  | { type: "collapsed-context"; key: string; count: number };
 
 function classify(line: string): DiffLineKind {
   // File headers require a non-empty path component after the sigil so
@@ -36,6 +45,7 @@ function classify(line: string): DiffLineKind {
   // Added / removed lines: must NOT be a doubled sigil header.
   if (line.startsWith("+") && !line.startsWith("++")) return "added";
   if (line.startsWith("-") && !line.startsWith("--")) return "removed";
+  if (line.startsWith(" ")) return "context";
   return "default";
 }
 
@@ -44,16 +54,98 @@ const lines = computed<ClassifiedLine[]>(() => {
   return props.text.split("\n").map((line) => ({ kind: classify(line), text: line }));
 });
 
+const hasContextLines = computed(() => lines.value.some((line) => line.kind === "context"));
+
+const renderedRows = computed<RenderedDiffRow[]>(() => {
+  if (!props.collapseUnmodified || props.unmodifiedExpanded) {
+    return lines.value.map((line, idx) => ({
+      type: "line",
+      key: `line-${idx}`,
+      line
+    }));
+  }
+
+  const rows: RenderedDiffRow[] = [];
+  let collapsedCount = 0;
+  let collapsedIndex = 0;
+
+  const flushCollapsedContext = () => {
+    if (!collapsedCount) return;
+    rows.push({
+      type: "collapsed-context",
+      key: `collapsed-context-${collapsedIndex}`,
+      count: collapsedCount
+    });
+    collapsedIndex += 1;
+    collapsedCount = 0;
+  };
+
+  lines.value.forEach((line, idx) => {
+    if (line.kind === "context") {
+      collapsedCount += 1;
+      return;
+    }
+    flushCollapsedContext();
+    rows.push({
+      type: "line",
+      key: `line-${idx}`,
+      line
+    });
+  });
+  flushCollapsedContext();
+
+  return rows;
+});
+
 const ariaLabel = computed(() => t("chatStream.toolCall.diffPreview"));
+
+function showUnchangedLabel(count: number): string {
+  return t(count === 1 ? "chat.gitReview.showUnchangedLine" : "chat.gitReview.showUnchangedLines", {
+    count
+  });
+}
 </script>
 
 <template>
-  <pre class="diff-preview" data-test="diff-preview" :aria-label="ariaLabel"><span
+  <pre
+    v-if="!props.collapseUnmodified"
+    class="diff-preview"
+    data-test="diff-preview"
+    :aria-label="ariaLabel"
+  ><span
       v-for="(line, idx) in lines"
       :key="idx"
       :class="['diff-line', `diff-line--${line.kind}`]"
       data-test="diff-line"
     >{{ line.text }}<br /></span></pre>
+  <div v-else class="diff-preview" data-test="diff-preview" role="region" :aria-label="ariaLabel">
+    <button
+      v-if="props.unmodifiedExpanded && hasContextLines"
+      type="button"
+      class="diff-context-toggle"
+      data-test="diff-expanded-context"
+      @click="emit('toggle-unmodified')"
+    >
+      {{ t("chat.gitReview.hideUnchangedLines") }}
+    </button>
+    <template v-for="row in renderedRows" :key="row.key">
+      <span
+        v-if="row.type === 'line'"
+        :class="['diff-line', `diff-line--${row.line.kind}`]"
+        data-test="diff-line"
+        >{{ row.line.text }}<br
+      /></span>
+      <button
+        v-else
+        type="button"
+        class="diff-context-toggle"
+        data-test="diff-collapsed-context"
+        @click="emit('toggle-unmodified')"
+      >
+        {{ showUnchangedLabel(row.count) }}
+      </button>
+    </template>
+  </div>
 </template>
 
 <style scoped>
@@ -76,6 +168,9 @@ const ariaLabel = computed(() => t("chatStream.toolCall.diffPreview"));
 }
 .diff-line--default {
   color: var(--app-text-color);
+}
+.diff-line--context {
+  color: var(--app-text-color-2);
 }
 .diff-line--added {
   color: var(--app-success-color, #2ea043);
@@ -101,5 +196,23 @@ const ariaLabel = computed(() => t("chatStream.toolCall.diffPreview"));
    so it does not introduce extra vertical whitespace. */
 .diff-line br {
   display: none;
+}
+.diff-context-toggle {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-text-color-3);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.diff-context-toggle:hover,
+.diff-context-toggle:focus-visible {
+  outline: none;
+  color: var(--app-text-color);
+  text-decoration: underline;
 }
 </style>

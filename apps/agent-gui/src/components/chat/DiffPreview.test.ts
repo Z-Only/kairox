@@ -48,8 +48,8 @@ describe("DiffPreview", () => {
     expect(lines[3].classes()).toContain("diff-line--removed");
     // +bar
     expect(lines[4].classes()).toContain("diff-line--added");
-    // ` unchanged` — context line, default class
-    expect(lines[5].classes()).toContain("diff-line--default");
+    // ` unchanged` — unified diff context line
+    expect(lines[5].classes()).toContain("diff-line--context");
   });
 
   it("treats mixed garbage lines as default when they do not match any sigil", () => {
@@ -77,8 +77,37 @@ describe("DiffPreview", () => {
     expect(lines[2].text()).toBe("@@ middle @@");
   });
 
+  it("collapses unchanged context lines by default and expands them on request", async () => {
+    const wrapper = mountDiff({
+      text: "--- a/foo\n+++ b/foo\n@@ -1,4 +1,4 @@\n keep one\n-old\n+new\n keep two",
+      collapseUnmodified: true
+    });
+
+    expect(wrapper.text()).toContain("-old");
+    expect(wrapper.text()).toContain("+new");
+    expect(wrapper.text()).not.toContain("keep one");
+    expect(wrapper.text()).not.toContain("keep two");
+
+    const collapsedRows = wrapper.findAll('[data-test="diff-collapsed-context"]');
+    expect(collapsedRows).toHaveLength(2);
+    const collapsed = collapsedRows[0];
+    expect(collapsed.text()).toBe("Show 1 unchanged line");
+
+    await collapsed.trigger("click");
+    expect(wrapper.emitted("toggle-unmodified")).toHaveLength(1);
+
+    await wrapper.setProps({ unmodifiedExpanded: true });
+    expect(wrapper.text()).toContain("keep one");
+    expect(wrapper.text()).toContain("keep two");
+
+    await wrapper.get('[data-test="diff-expanded-context"]').trigger("click");
+    expect(wrapper.emitted("toggle-unmodified")).toHaveLength(2);
+  });
+
   it("does NOT colorize markdown-style headings starting with `--` or `++`", () => {
-    const wrapper = mountDiff({ text: "-- markdown heading\n++ another heading" });
+    const wrapper = mountDiff({
+      text: "-- markdown heading\n++ another heading"
+    });
     const lines = wrapper.findAll('[data-test="diff-line"]');
     expect(lines).toHaveLength(2);
     // First line `--` — without a path after the dashes, NOT file-old.

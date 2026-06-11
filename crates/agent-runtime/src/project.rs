@@ -1,7 +1,7 @@
 use agent_core::{
-    CoreError, ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind,
-    ProjectId, ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId,
-    SessionMeta, WorkspaceId,
+    CoreError, ProjectGitDiffSection, ProjectGitFileChange, ProjectGitReview, ProjectGitStatus,
+    ProjectGitStatusKind, ProjectId, ProjectInstructionSummary, ProjectMeta,
+    ProjectSessionVisibility, SessionId, SessionMeta, WorkspaceId,
 };
 use agent_store::{event_store::ProjectSessionMetaRow, ProjectRow};
 use std::ffi::OsStr;
@@ -175,6 +175,9 @@ pub fn get_git_review(path: &str) -> ProjectGitReview {
             worktree_path: status.worktree_path,
             message: status.message,
             changed_files: Vec::new(),
+            file_count: 0,
+            additions: 0,
+            deletions: 0,
             staged: None,
             unstaged: None,
             untracked: None,
@@ -183,25 +186,37 @@ pub fn get_git_review(path: &str) -> ProjectGitReview {
 
     let porcelain = run_git_text(root_path, &["status", "--porcelain=v1"]).unwrap_or_default();
     let changed_files = changed_files_from_status(&porcelain);
+    let file_count = changed_file_count_from_status(&porcelain) as u32;
+    let staged = git_diff_section(
+        root_path,
+        "Staged changes",
+        &["diff", "--cached", "--stat"],
+        &["diff", "--cached", "--numstat"],
+        &["diff", "--cached", "--no-ext-diff", "--unified=3", "--"],
+    );
+    let unstaged = git_diff_section(
+        root_path,
+        "Unstaged changes",
+        &["diff", "--stat"],
+        &["diff", "--numstat"],
+        &["diff", "--no-ext-diff", "--unified=3", "--"],
+    );
+    let untracked = untracked_diff_section(root_path, &porcelain);
+    let (additions, deletions) =
+        review_line_totals([staged.as_ref(), unstaged.as_ref(), untracked.as_ref()]);
+
     ProjectGitReview {
         kind: status.kind,
         branch: status.branch,
         worktree_path: status.worktree_path,
         message: status.message,
         changed_files,
-        staged: git_diff_section(
-            root_path,
-            "Staged changes",
-            &["diff", "--cached", "--stat"],
-            &["diff", "--cached", "--no-ext-diff", "--unified=3", "--"],
-        ),
-        unstaged: git_diff_section(
-            root_path,
-            "Unstaged changes",
-            &["diff", "--stat"],
-            &["diff", "--no-ext-diff", "--unified=3", "--"],
-        ),
-        untracked: untracked_diff_section(root_path, &porcelain),
+        file_count,
+        additions,
+        deletions,
+        staged,
+        unstaged,
+        untracked,
     }
 }
 
@@ -232,12 +247,14 @@ pub fn build_git_context(root_path: &Path, conversation_context: &[String]) -> O
         root_path,
         "Staged changes",
         &["diff", "--cached", "--stat"],
+        &["diff", "--cached", "--numstat"],
         &["diff", "--cached", "--no-ext-diff", "--unified=3", "--"],
     );
     let unstaged_diff = diff_section(
         root_path,
         "Unstaged changes",
         &["diff", "--stat"],
+        &["diff", "--numstat"],
         &["diff", "--no-ext-diff", "--unified=3", "--"],
     );
     let recent_commits =
@@ -305,14 +322,9 @@ fn run_git_text(root_path: &Path, args: &[&str]) -> Option<String> {
 fn changed_files_from_status(status: &str) -> Vec<String> {
     let mut files = Vec::new();
     for line in status.lines() {
-        let path = line.get(3..).unwrap_or("").trim();
-        if path.is_empty() {
+        let Some(path) = changed_file_path_from_status_line(line) else {
             continue;
-        }
-        let path = path
-            .rsplit_once(" -> ")
-            .map(|(_, after)| after)
-            .unwrap_or(path);
+        };
         if !files.iter().any(|file| file == path) {
             files.push(path.to_string());
         }
@@ -323,8 +335,40 @@ fn changed_files_from_status(status: &str) -> Vec<String> {
     files
 }
 
-fn diff_section(root_path: &Path, label: &str, stat_args: &[&str], diff_args: &[&str]) -> String {
-    let Some(section) = git_diff_section(root_path, label, stat_args, diff_args) else {
+fn changed_file_count_from_status(status: &str) -> usize {
+    let mut files = Vec::new();
+    for line in status.lines() {
+        let Some(path) = changed_file_path_from_status_line(line) else {
+            continue;
+        };
+        if !files.iter().any(|file| file == path) {
+            files.push(path.to_string());
+        }
+    }
+    files.len()
+}
+
+fn changed_file_path_from_status_line(line: &str) -> Option<&str> {
+    let path = line.get(3..).unwrap_or("").trim();
+    if path.is_empty() {
+        return None;
+    }
+    Some(
+        path.rsplit_once(" -> ")
+            .map(|(_, after)| after)
+            .unwrap_or(path),
+    )
+}
+
+fn diff_section(
+    root_path: &Path,
+    label: &str,
+    stat_args: &[&str],
+    numstat_args: &[&str],
+    diff_args: &[&str],
+) -> String {
+    let Some(section) = git_diff_section(root_path, label, stat_args, numstat_args, diff_args)
+    else {
         return String::new();
     };
 
@@ -342,19 +386,158 @@ fn git_diff_section(
     root_path: &Path,
     label: &str,
     stat_args: &[&str],
+    numstat_args: &[&str],
     diff_args: &[&str],
 ) -> Option<ProjectGitDiffSection> {
     let stat = run_git_text(root_path, stat_args).unwrap_or_default();
+    let numstat = run_git_text(root_path, numstat_args).unwrap_or_default();
     let diff = run_git_text(root_path, diff_args).unwrap_or_default();
     if stat.is_empty() && diff.is_empty() {
         return None;
     }
 
+    let files = build_file_changes(&numstat, &diff);
+    let (additions, deletions) = line_totals(&files);
+
     Some(ProjectGitDiffSection {
         label: label.to_string(),
         stat: truncate_chars(&stat, 2_000),
         diff: truncate_chars(&diff, 10_000),
+        additions,
+        deletions,
+        files,
     })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileLineStats {
+    path: String,
+    additions: u32,
+    deletions: u32,
+}
+
+fn build_file_changes(numstat: &str, diff: &str) -> Vec<ProjectGitFileChange> {
+    let mut diff_parts = split_diff_by_file(diff);
+    let mut files = Vec::new();
+
+    for stats in parse_numstat(numstat) {
+        let diff = diff_parts
+            .iter()
+            .position(|(path, _)| path == &stats.path)
+            .map(|index| diff_parts.remove(index).1)
+            .unwrap_or_default();
+        files.push(ProjectGitFileChange {
+            path: stats.path,
+            additions: stats.additions,
+            deletions: stats.deletions,
+            diff: truncate_chars(&diff, 10_000),
+        });
+    }
+
+    for (path, diff) in diff_parts {
+        if files.iter().any(|file| file.path == path) {
+            continue;
+        }
+        let (additions, deletions) = count_diff_lines(&diff);
+        files.push(ProjectGitFileChange {
+            path,
+            additions,
+            deletions,
+            diff: truncate_chars(&diff, 10_000),
+        });
+    }
+
+    files
+}
+
+fn parse_numstat(numstat: &str) -> Vec<FileLineStats> {
+    numstat
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(3, '\t');
+            let additions = parse_numstat_count(parts.next()?);
+            let deletions = parse_numstat_count(parts.next()?);
+            let path = parts.next()?.trim();
+            if path.is_empty() {
+                return None;
+            }
+            Some(FileLineStats {
+                path: path.to_string(),
+                additions,
+                deletions,
+            })
+        })
+        .collect()
+}
+
+fn parse_numstat_count(value: &str) -> u32 {
+    value.parse::<u32>().unwrap_or(0)
+}
+
+fn split_diff_by_file(diff: &str) -> Vec<(String, String)> {
+    let mut files = Vec::new();
+    let mut current_path: Option<String> = None;
+    let mut current_lines: Vec<&str> = Vec::new();
+
+    for line in diff.lines() {
+        if let Some(next_path) = path_from_diff_header(line) {
+            if let Some(path) = current_path.replace(next_path) {
+                files.push((path, current_lines.join("\n")));
+                current_lines.clear();
+            }
+        }
+        current_lines.push(line);
+    }
+
+    if let Some(path) = current_path {
+        files.push((path, current_lines.join("\n")));
+    }
+
+    files
+}
+
+fn path_from_diff_header(line: &str) -> Option<String> {
+    let rest = line.strip_prefix("diff --git ")?;
+    let (_, path) = rest.rsplit_once(" b/")?;
+    Some(path.trim_matches('"').to_string())
+}
+
+fn count_diff_lines(diff: &str) -> (u32, u32) {
+    let mut additions = 0_u32;
+    let mut deletions = 0_u32;
+    for line in diff.lines() {
+        if line.starts_with('+') && !line.starts_with("+++") {
+            additions = additions.saturating_add(1);
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            deletions = deletions.saturating_add(1);
+        }
+    }
+    (additions, deletions)
+}
+
+fn line_totals(files: &[ProjectGitFileChange]) -> (u32, u32) {
+    files
+        .iter()
+        .fold((0_u32, 0_u32), |(additions, deletions), file| {
+            (
+                additions.saturating_add(file.additions),
+                deletions.saturating_add(file.deletions),
+            )
+        })
+}
+
+fn review_line_totals<'a>(
+    sections: impl IntoIterator<Item = Option<&'a ProjectGitDiffSection>>,
+) -> (u32, u32) {
+    sections
+        .into_iter()
+        .flatten()
+        .fold((0_u32, 0_u32), |(additions, deletions), section| {
+            (
+                additions.saturating_add(section.additions),
+                deletions.saturating_add(section.deletions),
+            )
+        })
 }
 
 fn untracked_diff_section(root_path: &Path, status: &str) -> Option<ProjectGitDiffSection> {
@@ -372,6 +555,7 @@ fn untracked_diff_section(root_path: &Path, status: &str) -> Option<ProjectGitDi
 
     let mut stat_lines = Vec::new();
     let mut diff_parts = Vec::new();
+    let mut file_changes = Vec::new();
     for file in files {
         let file_path = root_path.join(&file);
         let Ok(metadata) = std::fs::metadata(&file_path) else {
@@ -402,17 +586,32 @@ fn untracked_diff_section(root_path: &Path, status: &str) -> Option<ProjectGitDi
             format!("@@ -0,0 +1,{} @@", lines.len()),
         ];
         part.extend(lines.into_iter().map(|line| format!("+{line}")));
-        diff_parts.push(part.join("\n"));
+        let diff = part.join("\n");
+        file_changes.push(ProjectGitFileChange {
+            path: file,
+            additions: diff
+                .lines()
+                .filter(|line| line.starts_with('+') && !line.starts_with("+++"))
+                .count() as u32,
+            deletions: 0,
+            diff: truncate_chars(&diff, 10_000),
+        });
+        diff_parts.push(diff);
     }
 
     if stat_lines.is_empty() && diff_parts.is_empty() {
         return None;
     }
 
+    let (additions, deletions) = line_totals(&file_changes);
+
     Some(ProjectGitDiffSection {
         label: "Untracked files".into(),
         stat: truncate_chars(&stat_lines.join("\n"), 2_000),
         diff: truncate_chars(&diff_parts.join("\n\n"), 10_000),
+        additions,
+        deletions,
+        files: file_changes,
     })
 }
 

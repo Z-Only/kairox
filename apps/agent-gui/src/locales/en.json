@@ -305,6 +305,10 @@
       "loading": "Loading changes…",
       "failed": "Failed to load changes: {error}",
       "changedFiles": "Files",
+      "fileCount": "{count} files",
+      "showUnchangedLine": "Show {count} unchanged line",
+      "showUnchangedLines": "Show {count} unchanged lines",
+      "hideUnchangedLines": "Hide unchanged lines",
       "clean": "No local changes",
       "noContext": "Open repository changes from a project chat."
     }

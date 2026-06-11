@@ -116,7 +116,7 @@ fn get_git_review_includes_staged_unstaged_and_untracked_diffs() {
     run_git(root, &["init"]);
     run_git(root, &["config", "user.email", "tester@example.com"]);
     run_git(root, &["config", "user.name", "Tester"]);
-    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    std::fs::write(root.join("src.txt"), "original\nobsolete\n").unwrap();
     run_git(root, &["add", "src.txt"]);
     run_git(root, &["commit", "-m", "initial commit"]);
     run_git(root, &["checkout", "-b", "feat/git-review"]);
@@ -130,20 +130,41 @@ fn get_git_review_includes_staged_unstaged_and_untracked_diffs() {
 
     assert_eq!(review.kind, agent_core::ProjectGitStatusKind::Dirty);
     assert_eq!(review.branch.as_deref(), Some("feat/git-review"));
+    assert_eq!(review.file_count, 2);
+    assert_eq!(review.additions, 3);
+    assert_eq!(review.deletions, 1);
     assert!(review.changed_files.iter().any(|file| file == "src.txt"));
     assert!(review.changed_files.iter().any(|file| file == "notes.txt"));
 
     let staged = review.staged.expect("staged diff should be present");
     assert_eq!(staged.label, "Staged changes");
+    assert_eq!(staged.additions, 1);
+    assert_eq!(staged.deletions, 1);
+    assert_eq!(staged.files.len(), 1);
+    assert_eq!(staged.files[0].path, "src.txt");
+    assert_eq!(staged.files[0].additions, 1);
+    assert_eq!(staged.files[0].deletions, 1);
     assert!(staged.stat.contains("src.txt"));
     assert!(staged.diff.contains("+staged"));
 
     let unstaged = review.unstaged.expect("unstaged diff should be present");
     assert_eq!(unstaged.label, "Unstaged changes");
+    assert_eq!(unstaged.additions, 1);
+    assert_eq!(unstaged.deletions, 0);
+    assert_eq!(unstaged.files.len(), 1);
+    assert_eq!(unstaged.files[0].path, "src.txt");
+    assert_eq!(unstaged.files[0].additions, 1);
+    assert_eq!(unstaged.files[0].deletions, 0);
     assert!(unstaged.diff.contains("+unstaged"));
 
     let untracked = review.untracked.expect("untracked diff should be present");
     assert_eq!(untracked.label, "Untracked files");
+    assert_eq!(untracked.additions, 1);
+    assert_eq!(untracked.deletions, 0);
+    assert_eq!(untracked.files.len(), 1);
+    assert_eq!(untracked.files[0].path, "notes.txt");
+    assert_eq!(untracked.files[0].additions, 1);
+    assert_eq!(untracked.files[0].deletions, 0);
     assert!(untracked.diff.contains("+++ b/notes.txt"));
     assert!(untracked.diff.contains("+draft"));
 }

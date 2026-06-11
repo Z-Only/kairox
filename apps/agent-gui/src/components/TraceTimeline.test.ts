@@ -79,7 +79,9 @@ function mountTimeline(locale: "en" | "zh-CN" = "en") {
     mount: {
       global: {
         provide: {
-          [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+          [confirmDialogKey as symbol]: {
+            confirm: vi.fn().mockResolvedValue(true)
+          }
         }
       }
     }
@@ -144,12 +146,25 @@ describe("TraceTimeline", () => {
       branch: "feat/review",
       worktreePath: "/repo",
       message: null,
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
       changedFiles: ["README.md"],
       staged: null,
       unstaged: {
         label: "Unstaged changes",
         stat: " README.md | 1 +",
-        diff: "--- a/README.md\n+++ b/README.md\n+local agent edit"
+        diff: "--- a/README.md\n+++ b/README.md\n+local agent edit",
+        additions: 1,
+        deletions: 0,
+        files: [
+          {
+            path: "README.md",
+            additions: 1,
+            deletions: 0,
+            diff: "--- a/README.md\n+++ b/README.md\n+local agent edit"
+          }
+        ]
       },
       untracked: null
     };

@@ -24,10 +24,10 @@ use agent_gui_tauri::commands::{
     InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
     McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
     McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
-    ProjectGitDiffSectionResponse, ProjectGitReviewResponse, ProjectGitStatusResponse,
-    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse,
-    SessionInfoResponse, TaskSnapshotResponse, TrajectoryMetaResponse, TrajectoryStepResponse,
-    WorkspaceFilesResponse, WorkspaceInfoResponse,
+    ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
+    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
+    SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
+    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -211,6 +211,7 @@ fn main() {
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitFileChangeResponse>()
         .typ::<ProjectGitDiffSectionResponse>()
         .typ::<ProjectGitReviewResponse>()
         .typ::<ProjectGitStatusResponse>()

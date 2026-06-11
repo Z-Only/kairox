@@ -60,10 +60,22 @@ pub struct ProjectGitStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectGitFileChange {
+    pub path: String,
+    pub additions: u32,
+    pub deletions: u32,
+    pub diff: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProjectGitDiffSection {
     pub label: String,
     pub stat: String,
     pub diff: String,
+    pub additions: u32,
+    pub deletions: u32,
+    pub files: Vec<ProjectGitFileChange>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +86,9 @@ pub struct ProjectGitReview {
     pub worktree_path: String,
     pub message: Option<String>,
     pub changed_files: Vec<String>,
+    pub file_count: u32,
+    pub additions: u32,
+    pub deletions: u32,
     pub staged: Option<ProjectGitDiffSection>,
     pub unstaged: Option<ProjectGitDiffSection>,
     pub untracked: Option<ProjectGitDiffSection>,

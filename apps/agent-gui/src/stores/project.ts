@@ -39,10 +39,23 @@ export interface ProjectGitDiffSectionInfo {
   label: string;
   stat: string;
   diff: string;
+  additions: number;
+  deletions: number;
+  files: ProjectGitFileChangeInfo[];
+}
+
+export interface ProjectGitFileChangeInfo {
+  path: string;
+  additions: number;
+  deletions: number;
+  diff: string;
 }
 
 export interface ProjectGitReviewInfo extends ProjectGitStatusInfo {
   changedFiles: string[];
+  fileCount: number;
+  additions: number;
+  deletions: number;
   staged: ProjectGitDiffSectionInfo | null;
   unstaged: ProjectGitDiffSectionInfo | null;
   untracked: ProjectGitDiffSectionInfo | null;
@@ -74,10 +87,23 @@ interface ProjectGitDiffSectionResponse {
   label: string;
   stat: string;
   diff: string;
+  additions?: number;
+  deletions?: number;
+  files?: ProjectGitFileChangeResponse[];
+}
+
+interface ProjectGitFileChangeResponse {
+  path: string;
+  additions?: number;
+  deletions?: number;
+  diff: string;
 }
 
 interface ProjectGitReviewResponse extends ProjectGitStatusResponse {
   changed_files: string[];
+  file_count?: number;
+  additions?: number;
+  deletions?: number;
   staged: ProjectGitDiffSectionResponse | null;
   unstaged: ProjectGitDiffSectionResponse | null;
   untracked: ProjectGitDiffSectionResponse | null;
@@ -131,7 +157,15 @@ function normalizeGitDiffSection(
   return {
     label: section.label,
     stat: section.stat,
-    diff: section.diff
+    diff: section.diff,
+    additions: section.additions ?? 0,
+    deletions: section.deletions ?? 0,
+    files: (section.files ?? []).map((file) => ({
+      path: file.path,
+      additions: file.additions ?? 0,
+      deletions: file.deletions ?? 0,
+      diff: file.diff
+    }))
   };
 }
 
@@ -139,6 +173,9 @@ function normalizeGitReview(response: ProjectGitReviewResponse): ProjectGitRevie
   return {
     ...normalizeGitStatus(response),
     changedFiles: response.changed_files,
+    fileCount: response.file_count ?? response.changed_files.length,
+    additions: response.additions ?? 0,
+    deletions: response.deletions ?? 0,
     staged: normalizeGitDiffSection(response.staged),
     unstaged: normalizeGitDiffSection(response.unstaged),
     untracked: normalizeGitDiffSection(response.untracked)
