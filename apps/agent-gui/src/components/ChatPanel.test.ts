@@ -671,17 +671,40 @@ describe("ChatPanel", () => {
           branch: "feat/review",
           worktree_path: "/repo/.kairox/worktrees/feat-review",
           message: null,
+          file_count: 2,
+          additions: 2,
+          deletions: 1,
           changed_files: ["src/main.ts", "notes.txt"],
           staged: null,
           unstaged: {
             label: "Unstaged changes",
             stat: " src/main.ts | 2 +-",
-            diff: "--- a/src/main.ts\n+++ b/src/main.ts\n@@ -1 +1 @@\n-old\n+new"
+            diff: "--- a/src/main.ts\n+++ b/src/main.ts\n@@ -1 +1 @@\n-old\n+new",
+            additions: 1,
+            deletions: 1,
+            files: [
+              {
+                path: "src/main.ts",
+                additions: 1,
+                deletions: 1,
+                diff: "--- a/src/main.ts\n+++ b/src/main.ts\n@@ -1 +1 @@\n-old\n+new"
+              }
+            ]
           },
           untracked: {
             label: "Untracked files",
             stat: " notes.txt | 1 +",
-            diff: "+++ b/notes.txt\n+draft"
+            diff: "+++ b/notes.txt\n+draft",
+            additions: 1,
+            deletions: 0,
+            files: [
+              {
+                path: "notes.txt",
+                additions: 1,
+                deletions: 0,
+                diff: "+++ b/notes.txt\n+draft"
+              }
+            ]
           }
         };
       }
@@ -742,17 +765,40 @@ describe("ChatPanel", () => {
           branch: "test/vibe-review",
           worktree_path: "/repo",
           message: null,
+          file_count: 2,
+          additions: 2,
+          deletions: 0,
           changed_files: ["README.md", "VIBE_REVIEW_NOTES.md"],
           staged: null,
           unstaged: {
             label: "Unstaged changes",
             stat: " README.md | 1 +",
-            diff: "--- a/README.md\n+++ b/README.md\n@@ -1 +1,2 @@\n readme\n+local agent edit"
+            diff: "--- a/README.md\n+++ b/README.md\n@@ -1 +1,2 @@\n readme\n+local agent edit",
+            additions: 1,
+            deletions: 0,
+            files: [
+              {
+                path: "README.md",
+                additions: 1,
+                deletions: 0,
+                diff: "--- a/README.md\n+++ b/README.md\n@@ -1 +1,2 @@\n readme\n+local agent edit"
+              }
+            ]
           },
           untracked: {
             label: "Untracked files",
             stat: " VIBE_REVIEW_NOTES.md | 1 +",
-            diff: "+++ b/VIBE_REVIEW_NOTES.md\n+new file from simulated agent"
+            diff: "+++ b/VIBE_REVIEW_NOTES.md\n+new file from simulated agent",
+            additions: 1,
+            deletions: 0,
+            files: [
+              {
+                path: "VIBE_REVIEW_NOTES.md",
+                additions: 1,
+                deletions: 0,
+                diff: "+++ b/VIBE_REVIEW_NOTES.md\n+new file from simulated agent"
+              }
+            ]
           }
         };
       }

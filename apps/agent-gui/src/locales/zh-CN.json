@@ -305,6 +305,10 @@
       "loading": "正在加载变更…",
       "failed": "加载变更失败：{error}",
       "changedFiles": "文件",
+      "fileCount": "{count} 个文件",
+      "showUnchangedLine": "显示 {count} 行未修改内容",
+      "showUnchangedLines": "显示 {count} 行未修改内容",
+      "hideUnchangedLines": "隐藏未修改内容",
       "clean": "没有本地变更",
       "noContext": "从项目对话中打开仓库变更。"
     }

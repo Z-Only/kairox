@@ -16473,6 +16473,16 @@ export type ProjectGitDiffSectionResponse = {
   label: string;
   stat: string;
   diff: string;
+  additions: number;
+  deletions: number;
+  files: ProjectGitFileChangeResponse[];
+};
+
+export type ProjectGitFileChangeResponse = {
+  path: string;
+  additions: number;
+  deletions: number;
+  diff: string;
 };
 
 export type ProjectGitReviewResponse = {
@@ -16481,6 +16491,9 @@ export type ProjectGitReviewResponse = {
   worktree_path: string;
   message: string | null;
   changed_files: string[];
+  file_count: number;
+  additions: number;
+  deletions: number;
   staged: ProjectGitDiffSectionResponse | null;
   unstaged: ProjectGitDiffSectionResponse | null;
   untracked: ProjectGitDiffSectionResponse | null;

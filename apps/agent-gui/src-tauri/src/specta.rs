@@ -198,6 +198,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitFileChangeResponse>()
         .typ::<ProjectGitDiffSectionResponse>()
         .typ::<ProjectGitReviewResponse>()
         .typ::<ProjectGitStatusResponse>()

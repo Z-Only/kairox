@@ -43,12 +43,25 @@ describe("useWorkspaceUiStore", () => {
       branch: "feat/review",
       worktree_path: "/repo",
       message: null,
+      file_count: 1,
+      additions: 1,
+      deletions: 0,
       changed_files: ["README.md"],
       staged: null,
       unstaged: {
         label: "Unstaged changes",
         stat: " README.md | 1 +",
-        diff: "+local agent edit"
+        diff: "+local agent edit",
+        additions: 1,
+        deletions: 0,
+        files: [
+          {
+            path: "README.md",
+            additions: 1,
+            deletions: 0,
+            diff: "+local agent edit"
+          }
+        ]
       },
       untracked: null
     });
@@ -57,7 +70,9 @@ describe("useWorkspaceUiStore", () => {
     await store.openGitReview({ sessionId: "ses_1", projectId: "project_1" });
 
     expect(store.rightPanelTab).toBe("changes");
-    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", { sessionId: "ses_1" });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_1"
+    });
     expect(store.gitReview?.changedFiles).toEqual(["README.md"]);
     expect(store.gitReviewError).toBeNull();
   });
@@ -70,18 +85,34 @@ describe("useWorkspaceUiStore", () => {
         branch: "main",
         worktree_path: "/repo",
         message: null,
+        file_count: 1,
+        additions: 1,
+        deletions: 0,
         changed_files: ["VIBE_REVIEW_NOTES.md"],
         staged: null,
         unstaged: null,
         untracked: {
           label: "Untracked files",
           stat: " VIBE_REVIEW_NOTES.md | 1 +",
-          diff: "+new file from simulated agent"
+          diff: "+new file from simulated agent",
+          additions: 1,
+          deletions: 0,
+          files: [
+            {
+              path: "VIBE_REVIEW_NOTES.md",
+              additions: 1,
+              deletions: 0,
+              diff: "+new file from simulated agent"
+            }
+          ]
         }
       });
     const store = useWorkspaceUiStore();
 
-    await store.openGitReview({ sessionId: "ses_draft", projectId: "project_1" });
+    await store.openGitReview({
+      sessionId: "ses_draft",
+      projectId: "project_1"
+    });
 
     expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
       sessionId: "ses_draft"
