@@ -39,41 +39,44 @@ export default defineConfig({
       //   T3 (components, views)   — UI presentation layer
       // Aggregate (no glob) is the workspace floor.
       // Baseline: 2026-06-01 — floor(actual - 1), only raised.
-      // 2026-06-11 after deleting legacy modelProfiles store spec:
-      // all files stmts 91.84, br 85.11, fn 91.64, ln 92.92;
-      // raise global functions 90 → 91 and keep other floors unchanged.
+      // GitHub CI baseline 2026-06-11 (run 27352470387): all files stmts
+      // 91.53, br 85.09, fn 91.60, ln 92.76; global floors remain tight.
       thresholds: {
         statements: 91,
         branches: 85,
         functions: 91,
         lines: 92,
-        // T3 — components aggregate: stmts 90.68, br 85.86, fn 89.90, ln 91.27
+        // T3 — components recursive aggregate: stmts 89.70, br 84.87,
+        // fn 90.18, ln 90.78.
         "src/components/**/*.{ts,vue}": {
           statements: 89,
           branches: 84,
           functions: 88,
           lines: 90
         },
-        // T3 — views aggregate: stmts 95.23, br 84.00, fn 93.75, ln 95.00
+        // T3 — views recursive aggregate: stmts 95.83, br 90.53,
+        // fn 92.31, ln 95.58; raise branches 83 → 89.
         "src/views/**/*.vue": {
           statements: 94,
-          branches: 83,
+          branches: 89,
           functions: 92,
           lines: 94
         },
-        // T2 — stores aggregate: stmts 95.13, br 85.39, fn 95.53, ln 96.52
+        // T2 — stores recursive aggregate: stmts 94.20, br 84.73,
+        // fn 95.76, ln 95.68.
         "src/stores/**/*.ts": {
           statements: 94,
           branches: 84,
           functions: 94,
           lines: 95
         },
-        // T2 — composables aggregate: stmts 92.40, br 86.45, fn 89.26, ln 94.11
+        // T2 — composables recursive aggregate: stmts 94.18, br 86.52,
+        // fn 95.72, ln 95.68; tighten floors where current headroom is real.
         "src/composables/**/*.ts": {
-          statements: 91,
+          statements: 92,
           branches: 85,
-          functions: 88,
-          lines: 93
+          functions: 94,
+          lines: 94
         },
         // T1 — utils aggregate: stmts 95.83, br 100, fn 100, ln 95.83
         "src/utils/**/*.ts": {
