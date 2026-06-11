@@ -63,3 +63,20 @@ fn parses_completion_event() {
         if u.input_tokens == 10 && u.output_tokens == 5
     ));
 }
+
+#[test]
+fn maps_top_level_error_chunk_to_failed_event() {
+    let data = r#"{"error":{"message":"rate limit exceeded","type":"rate_limit_error","code":"rate_limit_exceeded"},"type":"error"}"#;
+
+    let events = parse_openai_chunk(data).unwrap();
+
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        OpenAiChunkEvent::Event(ModelEvent::Failed { message }) => {
+            assert!(message.contains("rate limit exceeded"), "{message}");
+            assert!(message.contains("rate_limit_error"), "{message}");
+            assert!(message.contains("rate_limit_exceeded"), "{message}");
+        }
+        _ => panic!("expected Failed event"),
+    }
+}

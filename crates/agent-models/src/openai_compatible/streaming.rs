@@ -27,6 +27,12 @@ pub(super) fn parse_openai_chunk(data: &str) -> Result<Vec<OpenAiChunkEvent>> {
     let chunk: serde_json::Value =
         serde_json::from_str(data).map_err(|e| ModelError::StreamParse(e.to_string()))?;
 
+    if let Some(message) = openai_stream_error_message(&chunk) {
+        return Ok(vec![OpenAiChunkEvent::Event(ModelEvent::Failed {
+            message,
+        })]);
+    }
+
     let mut events = Vec::new();
 
     if let Some(choices) = chunk["choices"].as_array() {
@@ -94,6 +100,53 @@ pub(super) fn parse_openai_chunk(data: &str) -> Result<Vec<OpenAiChunkEvent>> {
     }
 
     Ok(events)
+}
+
+fn openai_stream_error_message(chunk: &serde_json::Value) -> Option<String> {
+    let error = chunk.get("error")?;
+    if error.is_null() {
+        return None;
+    }
+
+    let mut message = error
+        .get("message")
+        .and_then(|message| message.as_str())
+        .filter(|message| !message.is_empty())
+        .map(ToString::to_string)
+        .or_else(|| {
+            error
+                .as_str()
+                .filter(|message| !message.is_empty())
+                .map(ToString::to_string)
+        })
+        .unwrap_or_else(|| error.to_string());
+
+    let error_type = error
+        .get("type")
+        .and_then(|error_type| error_type.as_str())
+        .or_else(|| chunk.get("type").and_then(|error_type| error_type.as_str()))
+        .filter(|error_type| !error_type.is_empty());
+    let error_code = error
+        .get("code")
+        .and_then(|error_code| error_code.as_str())
+        .or_else(|| chunk.get("code").and_then(|error_code| error_code.as_str()))
+        .filter(|error_code| !error_code.is_empty());
+
+    let details = [
+        error_type.map(|error_type| format!("type: {error_type}")),
+        error_code.map(|error_code| format!("code: {error_code}")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    if !details.is_empty() {
+        message.push_str(" (");
+        message.push_str(&details.join(", "));
+        message.push(')');
+    }
+
+    Some(message)
 }
 
 pub(super) fn stream_openai_response(
