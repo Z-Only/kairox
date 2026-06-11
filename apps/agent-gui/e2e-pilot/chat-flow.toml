@@ -122,12 +122,18 @@ name = "send chat attachment over IPC"
 action = "eval"
 script = """
 (async () => {
+  const repoRoot = localStorage.getItem("kairox.pilot.repoRoot");
+  if (!repoRoot) {
+    throw new Error("pilot repo root is not registered");
+  }
+  const attachmentPath = `${repoRoot}/apps/agent-gui/e2e-pilot/fixtures/live-model-attachment.txt`;
+  window.__pilotChatFlowAttachmentSentinel = "KAIROX_PILOT_ATTACHMENT_7F3C9A";
   await window.__TAURI_INTERNALS__.invoke("send_message", {
     content: "Pilot attachment IPC coverage from chat-flow",
     attachments: [{
-      path: "apps/agent-gui/e2e-pilot/chat-flow.toml",
-      name: "chat-flow.toml",
-      mime_type: "application/toml",
+      path: attachmentPath,
+      name: "live-model-attachment.txt",
+      mime_type: "text/plain",
     }],
   });
   return "sent";
@@ -161,6 +167,7 @@ name = "assert attachment message keeps display content"
 action = "eval"
 script = """
 (() => {
+  const sentinel = window.__pilotChatFlowAttachmentSentinel;
   const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
   const text = messages.find((message) =>
     message.textContent?.includes("Pilot attachment IPC coverage from chat-flow")
@@ -168,9 +175,49 @@ script = """
   if (!text.includes("Pilot attachment IPC coverage from chat-flow")) {
     throw new Error(`attachment message missing prompt text: ${text}`);
   }
-  if (text.includes("send chat attachment over IPC")) {
-    throw new Error(`attachment message leaked real file content: ${text}`);
+  if (text.includes(sentinel)) {
+    throw new Error(`attachment message leaked enriched file content: ${text}`);
   }
   return text;
+})()
+"""
+
+[[step]]
+name = "assert attachment trace includes file content"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const sentinel = window.__pilotChatFlowAttachmentSentinel;
+  const sessionId = localStorage.getItem("kairox.last-active-session-id");
+  if (!sessionId) {
+    throw new Error("missing active attachment session id");
+  }
+
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const trace = await window.__TAURI_INTERNALS__.invoke("export_trace", { sessionId });
+    const userMessages = (trace.events ?? [])
+      .map((event) => event.payload)
+      .filter((payload) => payload?.type === "UserMessageAdded");
+    const attachmentMessage = userMessages.find((payload) =>
+      payload.display_content === "Pilot attachment IPC coverage from chat-flow"
+    );
+
+    if (attachmentMessage) {
+      const content = attachmentMessage.content ?? "";
+      if (!content.includes(sentinel)) {
+        throw new Error(`attachment file content was not enriched into trace: ${content}`);
+      }
+      if (content.includes("(read error)")) {
+        throw new Error(`attachment trace recorded read error: ${content}`);
+      }
+      return content;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("attachment UserMessageAdded trace event did not appear");
 })()
 """
