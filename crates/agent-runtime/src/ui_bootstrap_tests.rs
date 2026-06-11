@@ -3,7 +3,10 @@ use agent_core::facade::{SkillInstallSource, SkillSettingsScope, SkillsFacade};
 use agent_store::SqliteEventStore;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
-use super::{build_ui_runtime_from_store, default_data_dir, UiRuntimeOptions};
+use super::{
+    build_knowledge_base_retrievers, build_ui_runtime_from_store, default_data_dir,
+    UiRuntimeOptions,
+};
 
 #[tokio::test]
 async fn build_ui_runtime_discovers_builtin_skill_creator() {
@@ -111,6 +114,68 @@ async fn build_ui_runtime_wires_configured_sqlite_fts_knowledge_base() {
         .knowledge_base_retrievers_snapshot()
         .contains_key("company-docs"));
     assert!(kb_path.exists());
+}
+
+#[tokio::test]
+async fn build_knowledge_base_retrievers_rejects_sqlite_fts_without_path() {
+    let workspace_root = tempfile::tempdir().expect("workspace root");
+    let mut config = Config::defaults();
+    config.knowledge_bases = vec![(
+        "missing-path".into(),
+        KnowledgeBaseConfig {
+            kind: KnowledgeBaseKind::SqliteFts,
+            ..KnowledgeBaseConfig::default()
+        },
+    )];
+
+    let result = build_knowledge_base_retrievers(&config, workspace_root.path()).await;
+    let Err(error) = result else {
+        panic!("sqlite_fts knowledge bases require an explicit path");
+    };
+
+    assert!(
+        error
+            .to_string()
+            .contains("knowledge base 'missing-path' missing SQLite path"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn build_knowledge_base_retrievers_skips_disabled_and_unwired_sources() {
+    let workspace_root = tempfile::tempdir().expect("workspace root");
+    let disabled_path = workspace_root.path().join("disabled.sqlite");
+    let mut config = Config::defaults();
+    config.knowledge_bases = vec![
+        (
+            "disabled-sqlite".into(),
+            KnowledgeBaseConfig {
+                kind: KnowledgeBaseKind::SqliteFts,
+                enabled: false,
+                path: Some(disabled_path.to_string_lossy().to_string()),
+                ..KnowledgeBaseConfig::default()
+            },
+        ),
+        (
+            "remote-pinecone".into(),
+            KnowledgeBaseConfig {
+                kind: KnowledgeBaseKind::Pinecone,
+                endpoint: Some("https://pinecone.example.com".into()),
+                index_name: Some("support".into()),
+                ..KnowledgeBaseConfig::default()
+            },
+        ),
+    ];
+
+    let retrievers = build_knowledge_base_retrievers(&config, workspace_root.path())
+        .await
+        .expect("disabled and unwired sources should not fail bootstrap");
+
+    assert!(retrievers.is_empty());
+    assert!(
+        !disabled_path.exists(),
+        "disabled sqlite knowledge bases should not create database files"
+    );
 }
 
 #[tokio::test]
