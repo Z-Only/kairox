@@ -21,9 +21,9 @@ const metrics = ["functions", "lines"];
 // floor and a tier-specific gate). Stricter tiers must pass first; relaxed
 // tiers act as a safety net against report truncation.
 //
-// 2026-06-01: inline test extraction complete (CI guard active).
-// Functions floors for T1 and T2 remain at 0 pending next CI coverage run to
-// establish honest post-extraction baseline; raise to floor(actual - 1) then.
+// 2026-06-11: thresholds track the latest successful GitHub CI baseline and
+// stay just below measured coverage so new regressions fail without treating
+// prior inline-test extraction measurement shifts as production regressions.
 const groups = [
   // Tier 1 — Critical: permission engine, persistence, domain types,
   // configuration loader. Defects here affect audit, security, recoverability.
@@ -40,8 +40,10 @@ const groups = [
       // CI baseline 2026-06-08: functions 38.36%, lines 85.54% (49 files).
       // Raising functions floor 0 → 37 and lines floor 76 → 84 to track
       // measured coverage (floor ≈ actual − 1.5pp).
-      functions: 37,
-      lines: 84
+      // GitHub CI baseline 2026-06-11 (run 27352470387): functions 39.70%,
+      // lines 86.74% (50 files); tighten floors to prevent regression.
+      functions: 38,
+      lines: 85
     }
   },
   // Tier 2A — High-risk runtime hot path.
@@ -85,8 +87,10 @@ const groups = [
       // runtime skills tests extracted to skills_tests.rs (excluded from src counts); ~168 test lines left T2 src (measurement shift, no regression); lines floor lowered 68 → 67.
       // CI baseline 2026-06-08: functions 31.01%, lines 79.64% (148 files).
       // Raising lines floor 67 → 78 to track measured coverage (floor ≈ actual − 1.6pp).
-      functions: 0,
-      lines: 78
+      // GitHub CI baseline 2026-06-11 (run 27352470387): functions 31.51%,
+      // lines 81.72% (149 files); restore the functions gate and raise lines.
+      functions: 30,
+      lines: 80
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
@@ -106,8 +110,11 @@ const groups = [
     thresholds: {
       // CI baseline 2026-06-08: functions 6.19%, lines 30.84% (22 files).
       // Raising floors to track measured coverage (floor ≈ actual − 1.5pp).
+      // GitHub CI baseline 2026-06-11 (run 27352470387): functions 6.87%,
+      // lines 32.44% (22 files); keep functions near the macro-heavy adapter
+      // limit and tighten the lines floor.
       functions: 5,
-      lines: 29
+      lines: 30
     }
   },
   // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
@@ -162,7 +169,10 @@ const groups = [
       // search/format tests extracted to format_tests.rs (excluded from src counts); ~89 test lines/N fns left T3 src (measurement shift, no regression); floors lowered functions 38 → 36, lines 83 → 82.
       // fs_read tests extracted to fs_read_tests.rs (~105 test lines left T3 src; measurement shift, no regression); lines floor lowered 82 → 81.
       // enigo input + xcap screenshot added to platform.rs; integration tests auto-skip on headless CI (no display/input controller/monitor), reducing measured lines coverage; floor lowered 81 → 78.
-      functions: 36,
+      // GitHub CI baseline 2026-06-11 (run 27352470387): functions 59.24%,
+      // lines 79.17% (43 files); restore a meaningful functions gate while
+      // keeping the lines floor below the headless-CI baseline.
+      functions: 58,
       lines: 78
     }
   },
@@ -189,7 +199,9 @@ const groups = [
       functions: 35,
       // view tests extracted to view_tests.rs: those test lines leave the gated T4 src tier's covered-lines numerator (measurement shift, not a production regression); post-shift baseline ~61-62%, floor lowered 62 → 60.
       // CI baseline 2026-06-08: lines 64.03%; raising 60 → 62.
-      lines: 62
+      // GitHub CI baseline 2026-06-11 (run 27352470387): lines 64.18%;
+      // raise one more point to protect the latest baseline.
+      lines: 63
     }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
