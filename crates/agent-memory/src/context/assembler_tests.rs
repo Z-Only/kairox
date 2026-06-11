@@ -71,9 +71,10 @@ async fn workspace_rag_hits_are_injected_during_context_assembly() {
         .await;
 
     assert!(bundle.sources.contains(&ContextSource::WorkspaceRetrieval));
-    assert!(bundle.messages.iter().any(
-        |message| message.contains("docs/rag.md") && message.contains("relevant vector chunks")
-    ));
+    assert!(bundle.messages.iter().any(|message| {
+        message.contains("Workspace context: docs/rag.md#")
+            && message.contains("relevant vector chunks")
+    }));
 }
 
 #[tokio::test]
@@ -119,9 +120,13 @@ async fn knowledge_base_hits_are_reported_as_knowledge_base_source() {
         .iter()
         .any(|(source, tokens)| *source == ContextSource::KnowledgeBase && *tokens > 0));
     assert!(bundle.messages.iter().any(|message| {
-        message.contains("kb://company-docs/phase4-kb")
+        message.contains("Knowledge base context: kb://company-docs/phase4-kb#")
             && message.contains("External knowledge base connectors")
     }));
+    assert!(!bundle
+        .messages
+        .iter()
+        .any(|message| message.contains("Workspace context: kb://company-docs/phase4-kb")));
 }
 
 #[tokio::test]
