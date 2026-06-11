@@ -35,6 +35,19 @@ export interface ProjectGitStatusInfo {
   message: string | null;
 }
 
+export interface ProjectGitDiffSectionInfo {
+  label: string;
+  stat: string;
+  diff: string;
+}
+
+export interface ProjectGitReviewInfo extends ProjectGitStatusInfo {
+  changedFiles: string[];
+  staged: ProjectGitDiffSectionInfo | null;
+  unstaged: ProjectGitDiffSectionInfo | null;
+  untracked: ProjectGitDiffSectionInfo | null;
+}
+
 export interface ProjectInstructionSummaryInfo {
   sourcePaths: string[];
   warning: string | null;
@@ -55,6 +68,19 @@ interface ProjectGitStatusResponse {
   branch: string | null;
   worktree_path: string;
   message: string | null;
+}
+
+interface ProjectGitDiffSectionResponse {
+  label: string;
+  stat: string;
+  diff: string;
+}
+
+interface ProjectGitReviewResponse extends ProjectGitStatusResponse {
+  changed_files: string[];
+  staged: ProjectGitDiffSectionResponse | null;
+  unstaged: ProjectGitDiffSectionResponse | null;
+  untracked: ProjectGitDiffSectionResponse | null;
 }
 
 interface ProjectInstructionSummaryResponse {
@@ -95,6 +121,27 @@ function normalizeGitStatus(response: ProjectGitStatusResponse): ProjectGitStatu
     branch: response.branch,
     worktreePath: response.worktree_path,
     message: response.message
+  };
+}
+
+function normalizeGitDiffSection(
+  section: ProjectGitDiffSectionResponse | null
+): ProjectGitDiffSectionInfo | null {
+  if (!section) return null;
+  return {
+    label: section.label,
+    stat: section.stat,
+    diff: section.diff
+  };
+}
+
+function normalizeGitReview(response: ProjectGitReviewResponse): ProjectGitReviewInfo {
+  return {
+    ...normalizeGitStatus(response),
+    changedFiles: response.changed_files,
+    staged: normalizeGitDiffSection(response.staged),
+    unstaged: normalizeGitDiffSection(response.unstaged),
+    untracked: normalizeGitDiffSection(response.untracked)
   };
 }
 
@@ -388,6 +435,20 @@ export const useProjectStore = defineStore("project", () => {
     return normalizeGitStatus(response);
   }
 
+  async function getProjectGitReview(projectId: string): Promise<ProjectGitReviewInfo> {
+    const response = await invoke<ProjectGitReviewResponse>("get_project_git_review", {
+      projectId
+    });
+    return normalizeGitReview(response);
+  }
+
+  async function getSessionGitReview(sessionId: string): Promise<ProjectGitReviewInfo> {
+    const response = await invoke<ProjectGitReviewResponse>("get_session_git_review", {
+      sessionId
+    });
+    return normalizeGitReview(response);
+  }
+
   async function initProjectGit(projectId: string): Promise<ProjectGitStatusInfo> {
     const response = await invoke<ProjectGitStatusResponse>("init_project_git", { projectId });
     return normalizeGitStatus(response);
@@ -441,6 +502,8 @@ export const useProjectStore = defineStore("project", () => {
     archiveProjectSession,
     getProjectGitStatus,
     getSessionGitStatus,
+    getProjectGitReview,
+    getSessionGitReview,
     initProjectGit,
     getProjectInstructionSummary
   };

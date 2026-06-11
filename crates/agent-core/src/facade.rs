@@ -28,8 +28,8 @@ pub use plugins::{
     PluginSettingsView, PluginsFacade,
 };
 pub use project::{
-    ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta,
-    ProjectSessionBinding, ProjectSessionVisibility,
+    ProjectFacade, ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind,
+    ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
 };
 pub use session::{
     AgentStatusInfo, AttachmentInfo, PermissionDecision, SendMessageRequest, SessionFacade,
@@ -494,6 +494,18 @@ pub trait AppFacade:
         session_id: SessionId,
     ) -> crate::Result<ProjectGitStatus> {
         ProjectFacade::get_session_git_status(self, session_id).await
+    }
+    async fn get_project_git_review(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<ProjectGitReview> {
+        ProjectFacade::get_project_git_review(self, project_id).await
+    }
+    async fn get_session_git_review(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<ProjectGitReview> {
+        ProjectFacade::get_session_git_review(self, session_id).await
     }
     async fn init_project_git(&self, project_id: ProjectId) -> crate::Result<ProjectGitStatus> {
         ProjectFacade::init_project_git(self, project_id).await

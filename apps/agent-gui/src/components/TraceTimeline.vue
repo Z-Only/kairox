@@ -4,14 +4,17 @@ import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
 import TrajectoryViewer from "./TrajectoryViewer.vue";
+import GitReviewSidebarPanel from "./GitReviewSidebarPanel.vue";
 import { traceState } from "../composables/useTraceStore";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import type { TraceEntryData } from "../types/trace";
 
 type TraceStatusFilter = "all" | "active" | "failed" | "done";
 type TraceKindFilter = "all" | "tool" | "permission" | "memory";
 
 const { t } = useI18n();
-const rightPanelTab = ref<"trace" | "tasks" | "memory" | "trajectory">("trace");
+const workspaceUi = useWorkspaceUiStore();
+const { rightPanelTab } = storeToRefs(workspaceUi);
 const selectedTraceFilter = ref<TraceStatusFilter>("all");
 const selectedTraceKindFilter = ref<TraceKindFilter>("all");
 const traceSearchQuery = ref("");
@@ -130,6 +133,15 @@ const visibleTraceEntries = computed(() =>
         </KxButton>
         <KxButton
           size="sm"
+          :variant="rightPanelTab === 'changes' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'changes' }"
+          data-test="trace-tab-changes"
+          @click="rightPanelTab = 'changes'"
+        >
+          {{ t("trace.tabChanges") }}
+        </KxButton>
+        <KxButton
+          size="sm"
           :variant="rightPanelTab === 'trajectory' ? 'primary' : 'default'"
           :class="{ active: rightPanelTab === 'trajectory' }"
           data-test="trace-tab-trajectory"
@@ -217,6 +229,7 @@ const visibleTraceEntries = computed(() =>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
+    <GitReviewSidebarPanel v-if="rightPanelTab === 'changes'" />
     <TrajectoryViewer v-if="rightPanelTab === 'trajectory'" />
   </section>
 </template>

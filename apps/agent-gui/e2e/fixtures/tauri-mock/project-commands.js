@@ -164,6 +164,12 @@ registerCommandHandlers({
     if (!statusProject) return Promise.reject(new Error("Project not found"));
     return Promise.resolve(makeProjectGitStatus(statusProject));
   },
+  get_project_git_review: function (args) {
+    var reviewProjectId = args.projectId || args.project_id;
+    var reviewProject = getProject(reviewProjectId);
+    if (!reviewProject) return Promise.reject(new Error("Project not found"));
+    return Promise.resolve(makeProjectGitReviewFromStatus(makeProjectGitStatus(reviewProject)));
+  },
   get_session_git_status: function (args) {
     var statusSessionId = args.sessionId || args.session_id;
     var statusSession = getSession(statusSessionId);
@@ -174,6 +180,19 @@ registerCommandHandlers({
       worktree_path: statusSession.worktree_path || "/mock/workspace",
       message: null
     });
+  },
+  get_session_git_review: function (args) {
+    var reviewSessionId = args.sessionId || args.session_id;
+    var reviewSession = getSession(reviewSessionId);
+    if (!reviewSession) return Promise.reject(new Error("Session not found"));
+    return Promise.resolve(
+      makeProjectGitReviewFromStatus({
+        kind: "not_initialized",
+        branch: reviewSession.branch,
+        worktree_path: reviewSession.worktree_path || "/mock/workspace",
+        message: null
+      })
+    );
   },
   init_project_git: function (args) {
     var initProjectId = args.projectId || args.project_id;

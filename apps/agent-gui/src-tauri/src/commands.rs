@@ -8,8 +8,9 @@ use agent_core::facade::{
     SkillSettingsDetail, SkillSettingsView, SkillSourceView, TraceExport,
 };
 use agent_core::{
-    AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
-    ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta,
+    AppFacade, PermissionDecision, ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus,
+    ProjectGitStatusKind, ProjectId, ProjectInstructionSummary, ProjectMeta,
+    ProjectSessionVisibility, SessionId, SessionMeta,
 };
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
 use serde::{Deserialize, Serialize};
@@ -147,6 +148,25 @@ pub struct ProjectGitStatusResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProjectGitDiffSectionResponse {
+    pub label: String,
+    pub stat: String,
+    pub diff: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProjectGitReviewResponse {
+    pub kind: String,
+    pub branch: Option<String>,
+    pub worktree_path: String,
+    pub message: Option<String>,
+    pub changed_files: Vec<String>,
+    pub staged: Option<ProjectGitDiffSectionResponse>,
+    pub unstaged: Option<ProjectGitDiffSectionResponse>,
+    pub untracked: Option<ProjectGitDiffSectionResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProjectInstructionSummaryResponse {
     pub source_paths: Vec<String>,
     pub contents: Option<String>,
@@ -175,6 +195,31 @@ impl From<ProjectGitStatus> for ProjectGitStatusResponse {
             branch: status.branch,
             worktree_path: status.worktree_path,
             message: status.message,
+        }
+    }
+}
+
+impl From<ProjectGitDiffSection> for ProjectGitDiffSectionResponse {
+    fn from(section: ProjectGitDiffSection) -> Self {
+        Self {
+            label: section.label,
+            stat: section.stat,
+            diff: section.diff,
+        }
+    }
+}
+
+impl From<ProjectGitReview> for ProjectGitReviewResponse {
+    fn from(review: ProjectGitReview) -> Self {
+        Self {
+            kind: project_git_status_kind_to_string(review.kind),
+            branch: review.branch,
+            worktree_path: review.worktree_path,
+            message: review.message,
+            changed_files: review.changed_files,
+            staged: review.staged.map(ProjectGitDiffSectionResponse::from),
+            unstaged: review.unstaged.map(ProjectGitDiffSectionResponse::from),
+            untracked: review.untracked.map(ProjectGitDiffSectionResponse::from),
         }
     }
 }

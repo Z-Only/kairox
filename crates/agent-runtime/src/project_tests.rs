@@ -109,6 +109,76 @@ fn build_git_context_includes_branch_diff_drafts_and_blame() {
     assert!(context.contains("finish git context"));
 }
 
+#[test]
+fn get_git_review_includes_staged_unstaged_and_untracked_diffs() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    run_git(root, &["init"]);
+    run_git(root, &["config", "user.email", "tester@example.com"]);
+    run_git(root, &["config", "user.name", "Tester"]);
+    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    run_git(root, &["commit", "-m", "initial commit"]);
+    run_git(root, &["checkout", "-b", "feat/git-review"]);
+
+    std::fs::write(root.join("src.txt"), "original\nstaged\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    std::fs::write(root.join("src.txt"), "original\nstaged\nunstaged\n").unwrap();
+    std::fs::write(root.join("notes.txt"), "draft\n").unwrap();
+
+    let review = get_git_review(root.to_string_lossy().as_ref());
+
+    assert_eq!(review.kind, agent_core::ProjectGitStatusKind::Dirty);
+    assert_eq!(review.branch.as_deref(), Some("feat/git-review"));
+    assert!(review.changed_files.iter().any(|file| file == "src.txt"));
+    assert!(review.changed_files.iter().any(|file| file == "notes.txt"));
+
+    let staged = review.staged.expect("staged diff should be present");
+    assert_eq!(staged.label, "Staged changes");
+    assert!(staged.stat.contains("src.txt"));
+    assert!(staged.diff.contains("+staged"));
+
+    let unstaged = review.unstaged.expect("unstaged diff should be present");
+    assert_eq!(unstaged.label, "Unstaged changes");
+    assert!(unstaged.diff.contains("+unstaged"));
+
+    let untracked = review.untracked.expect("untracked diff should be present");
+    assert_eq!(untracked.label, "Untracked files");
+    assert!(untracked.diff.contains("+++ b/notes.txt"));
+    assert!(untracked.diff.contains("+draft"));
+}
+
+#[test]
+fn get_git_review_truncates_large_untracked_file_preview() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    run_git(root, &["init"]);
+    run_git(root, &["config", "user.email", "tester@example.com"]);
+    run_git(root, &["config", "user.name", "Tester"]);
+    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    run_git(root, &["commit", "-m", "initial commit"]);
+    std::fs::write(root.join("large.txt"), "x\n".repeat(40_000)).unwrap();
+
+    let review = get_git_review(root.to_string_lossy().as_ref());
+    let untracked = review.untracked.expect("untracked diff should be present");
+
+    assert!(untracked.stat.contains("preview truncated"));
+    assert!(untracked.diff.contains("[...truncated]"));
+    assert!(untracked.diff.len() < 12_000);
+}
+
+#[test]
+fn changed_files_preserves_unstaged_porcelain_leading_space() {
+    let status = " M README.md\n?? VIBE_REVIEW_NOTES.md\n";
+    let changed_files = changed_files_from_status(status);
+
+    assert_eq!(
+        changed_files,
+        vec!["README.md".to_string(), "VIBE_REVIEW_NOTES.md".to_string()]
+    );
+}
+
 fn run_git(root: &Path, args: &[&str]) {
     let output = std::process::Command::new("git")
         .arg("-C")

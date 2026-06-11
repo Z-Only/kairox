@@ -691,6 +691,55 @@ describe("project store — additional coverage", () => {
     });
   });
 
+  it("getSessionGitReview normalizes changed files and diff sections", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_session_git_review") {
+        return {
+          kind: "dirty",
+          branch: "feat/test",
+          worktree_path: "/tmp/worktree",
+          message: null,
+          changed_files: ["src/App.vue", "notes.txt"],
+          staged: {
+            label: "Staged changes",
+            stat: " src/App.vue | 1 +",
+            diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+          },
+          unstaged: null,
+          untracked: {
+            label: "Untracked files",
+            stat: " notes.txt | 1 +",
+            diff: "+++ b/notes.txt\n+draft"
+          }
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const result = await store.getSessionGitReview("s1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", { sessionId: "s1" });
+    expect(result).toEqual({
+      kind: "dirty",
+      branch: "feat/test",
+      worktreePath: "/tmp/worktree",
+      message: null,
+      changedFiles: ["src/App.vue", "notes.txt"],
+      staged: {
+        label: "Staged changes",
+        stat: " src/App.vue | 1 +",
+        diff: "--- a/src/App.vue\n+++ b/src/App.vue\n@@ -1 +1 @@\n-old\n+new"
+      },
+      unstaged: null,
+      untracked: {
+        label: "Untracked files",
+        stat: " notes.txt | 1 +",
+        diff: "+++ b/notes.txt\n+draft"
+      }
+    });
+  });
+
   it("getProjectInstructionSummary stores result and handles errors gracefully", async () => {
     mockedInvoke.mockRejectedValueOnce(new Error("ENOENT"));
     const store = useProjectStore();

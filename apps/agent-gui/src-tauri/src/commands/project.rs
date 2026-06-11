@@ -220,6 +220,34 @@ pub async fn get_session_git_status(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn get_project_git_review(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<ProjectGitReviewResponse, String> {
+    let review = state
+        .runtime
+        .get_project_git_review(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectGitReviewResponse::from(review))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_session_git_review(
+    state: State<'_, GuiState>,
+    session_id: String,
+) -> Result<ProjectGitReviewResponse, String> {
+    let review = state
+        .runtime
+        .get_session_git_review(SessionId::from_string(session_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectGitReviewResponse::from(review))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn init_project_git(
     state: State<'_, GuiState>,
     project_id: String,

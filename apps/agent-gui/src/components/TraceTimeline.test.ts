@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import type { TraceEntryData } from "../types/trace";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
@@ -132,6 +133,33 @@ describe("TraceTimeline", () => {
     const buttons = wrapper.findAll(".tab-group button");
     await buttons[2].trigger("click");
     expect(buttons[2].classes()).toContain("active");
+  });
+
+  it("switches to Changes tab and renders repository review", async () => {
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+    const workspaceUi = useWorkspaceUiStore();
+    workspaceUi.gitReview = {
+      kind: "dirty",
+      branch: "feat/review",
+      worktreePath: "/repo",
+      message: null,
+      changedFiles: ["README.md"],
+      staged: null,
+      unstaged: {
+        label: "Unstaged changes",
+        stat: " README.md | 1 +",
+        diff: "--- a/README.md\n+++ b/README.md\n+local agent edit"
+      },
+      untracked: null
+    };
+
+    await wrapper.get('[data-test="trace-tab-changes"]').trigger("click");
+
+    expect(workspaceUi.rightPanelTab).toBe("changes");
+    expect(wrapper.get('[data-test="trace-tab-changes"]').classes()).toContain("active");
+    expect(wrapper.get('[data-test="git-review-panel"]').text()).toContain("README.md");
+    expect(wrapper.get('[data-test="git-review-panel"]').text()).toContain("local agent edit");
   });
 
   it("cycles density when density buttons are clicked", async () => {
