@@ -423,9 +423,15 @@ fn read_text_preview(path: &Path) -> Result<(String, bool), std::io::Error> {
     file.by_ref()
         .take(UNTRACKED_PREVIEW_BYTE_LIMIT)
         .read_to_end(&mut bytes)?;
-    let text = std::str::from_utf8(&bytes)
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?
-        .to_string();
+    let text = match std::str::from_utf8(&bytes) {
+        Ok(text) => text.to_string(),
+        Err(error) if error.error_len().is_none() => {
+            String::from_utf8_lossy(&bytes[..error.valid_up_to()]).to_string()
+        }
+        Err(error) => {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, error));
+        }
+    };
     Ok((text, metadata.len() > UNTRACKED_PREVIEW_BYTE_LIMIT))
 }
 
