@@ -170,15 +170,17 @@ impl ContextAssembler {
                 .await
                 .unwrap_or_default();
             for hit in hits {
+                let (source, label) = match hit.source {
+                    WorkspaceDocumentSource::KnowledgeBase => {
+                        (ContextSource::KnowledgeBase, "Knowledge base context")
+                    }
+                    _ => (ContextSource::WorkspaceRetrieval, "Workspace context"),
+                };
                 let text = format!(
-                    "Workspace context: {}#{} (score {:.3})\n{}",
+                    "{label}: {}#{} (score {:.3})\n{}",
                     hit.path, hit.chunk_index, hit.score, hit.content
                 );
                 let n = self.count_tokens(&text);
-                let source = match hit.source {
-                    WorkspaceDocumentSource::KnowledgeBase => ContextSource::KnowledgeBase,
-                    _ => ContextSource::WorkspaceRetrieval,
-                };
                 sections.push((source, text, n));
             }
         }

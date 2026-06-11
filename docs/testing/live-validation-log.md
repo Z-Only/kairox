@@ -21,6 +21,64 @@ spot entries that need revalidation after related code changes.
 
 ## Entries
 
+### 2026-06-11 16:50 CST — GUI git review and knowledge-base context with `kairox-live`
+
+- Commit: `0b222ef3`
+- Model: `kairox-live` (`ali-idealab` / `gpt-5.4-0305-global`)
+- Scenario: In the real GUI/runtime path, started Dev App with pilot on port
+  `1452`, selected `kairox-live`, registered a temp dirty git project, opened
+  the new git review right sidebar, then configured a temp SQLite FTS knowledge
+  base for the same project and sent live turns that exercised the external
+  knowledge-base context path. The fixture project had staged, unstaged, and
+  untracked changes so the review panel could validate all three sections.
+- Method: `KAIROX_DEV_PORT=1452 KAIROX_DEV_STRICT_PORT=1 bun --filter agent-gui
+tauri dev --features pilot` from the main checkout. Pilot interaction used
+  `/tmp/tauri-pilot-dev.kairox.agent.dev1452.sock`. The `kairox-live` profile
+  was loaded from the user config with `has_api_key=true`; no credentials were
+  copied to temp files or logs. A temp project and KB lived under
+  `/tmp/kairox-live-validation-0611`, and project-level `.kairox/config.toml`
+  was used to load the KB without modifying user secrets.
+- Evidence: `tauri-pilot ping` connected with plugin/CLI `0.7.2`, and
+  `list_profiles_with_limits` showed `kairox-live` with
+  `provider="ali-idealab"`, `model_id="gpt-5.4-0305-global"`,
+  `context_window=200000`, `output_limit=16384`, and `has_api_key=true`. The
+  git review panel for session `ses_feb915f994364bf8abe96ab2f55532ea` rendered
+  branch `feat/live-git-review-0611`, `3 个文件`, `+5 -1`, and separate
+  `Staged changes`, `Unstaged changes`, and `Untracked files` sections for
+  `src.txt`, `notes.txt`, and `review-notes.txt`; pilot assertions found three
+  `[data-test="git-review-section"]` and three
+  `[data-test="git-review-file-toggle"]` elements. IPC
+  `get_session_git_review` returned `kind="dirty"`, `file_count=3`,
+  `additions=5`, `deletions=1`, staged `src.txt`, unstaged `notes.txt`, and
+  untracked `review-notes.txt`. Knowledge-base validation sessions
+  `ses_375d3bc20b084f8c92c3adec0b96faa7` and
+  `ses_c1ea1883a2d0460f8c042178eae9d054` exported `ContextAssembled` events
+  whose `usage.by_source` included `["knowledge_base", 64]` and
+  `["knowledge_base", 62]` respectively, proving the configured SQLite FTS KB
+  was retrieved and counted separately from workspace retrieval. The GUI showed
+  completed live turns with no JS errors; `tauri-pilot logs --level error`
+  reported `No logs captured`.
+- Result: Pass for the live GUI git review right-sidebar path and pass for
+  technical KB context injection/accounting with `kairox-live`. The live model
+  did not reliably use the retrieved KB text in its final answer, and one
+  natural-language retry returned `model returned an empty response`; because
+  the trace proved `knowledge_base` context was injected, this was recorded as a
+  prompt/salience optimization rather than a hard retrieval failure. A worker
+  subagent made knowledge-base hits more explicit in the assembled model context
+  by labeling them `Knowledge base context: ...` while leaving ordinary
+  workspace retrieval as `Workspace context: ...`; focused main-worktree
+  verification passed with `cargo test -p agent-memory context::assembler --
+--nocapture`, `cargo fmt --check`, `cargo clippy -p agent-memory
+--all-targets -- -D warnings`, and `git diff --check`. A post-fix Dev App run
+  on port `1453` started successfully and session
+  `ses_a13f55c91a1e4ec19985ca5df5218997` again exported `ContextAssembled`
+  with `["knowledge_base", 65]`, but the live provider returned
+  `model returned an empty response; check model availability, quota, or plan`
+  before producing assistant content. Cleanup removed both temporary projects
+  from the GUI project list, deleted `/tmp/kairox-live-validation-0611` and
+  `/tmp/kairox-live-validation-0611-postfix`, restored temporary local config
+  files, and left no listeners on ports `1452` or `1453`.
+
 ### 2026-06-05 10:33 CST — GUI builtin read/search/shell tools
 
 - Commit: `c6a431b0`
