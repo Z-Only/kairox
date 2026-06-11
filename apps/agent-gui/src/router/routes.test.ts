@@ -40,13 +40,14 @@ describe("routes", () => {
     expect(route.name).toBe("workbench");
   });
 
-  // --- Legacy redirect ---
+  it("does not keep a dedicated /marketplace compatibility route", () => {
+    expect(routes.some((r) => r.path === "/marketplace")).toBe(false);
+  });
 
-  it("redirects /marketplace to /settings", async () => {
+  it("treats /marketplace as an unknown path", async () => {
     const route = await navigateTo("/marketplace");
-    // /settings itself redirects to settings-general
-    expect(route.name).toBe("settings-general");
-    expect(route.path).toBe("/settings/general");
+    expect(route.name).toBe("workbench");
+    expect(route.path).toBe("/workbench");
   });
 
   // --- Workbench ---
