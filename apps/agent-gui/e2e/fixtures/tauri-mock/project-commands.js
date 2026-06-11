@@ -185,6 +185,9 @@ registerCommandHandlers({
     var reviewSessionId = args.sessionId || args.session_id;
     var reviewSession = getSession(reviewSessionId);
     if (!reviewSession) return Promise.reject(new Error("Session not found"));
+    if (!reviewSession.project_id || reviewSession.visibility === "draft_hidden") {
+      return Promise.reject(new Error("session is not bound to a project"));
+    }
     return Promise.resolve(
       makeProjectGitReviewFromStatus({
         kind: "not_initialized",

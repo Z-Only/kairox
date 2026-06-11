@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
 import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import type { ProjectGitDiffSectionInfo } from "@/stores/project";
 import DiffPreview from "@/components/chat/DiffPreview.vue";

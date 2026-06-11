@@ -169,6 +169,28 @@ fn get_git_review_truncates_large_untracked_file_preview() {
 }
 
 #[test]
+fn get_git_review_handles_untracked_preview_split_utf8_codepoint() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    run_git(root, &["init"]);
+    run_git(root, &["config", "user.email", "tester@example.com"]);
+    run_git(root, &["config", "user.name", "Tester"]);
+    std::fs::write(root.join("src.txt"), "original\n").unwrap();
+    run_git(root, &["add", "src.txt"]);
+    run_git(root, &["commit", "-m", "initial commit"]);
+
+    let prefix = "a".repeat(UNTRACKED_PREVIEW_BYTE_LIMIT as usize - 1);
+    std::fs::write(root.join("unicode.txt"), format!("{prefix}é\n")).unwrap();
+
+    let review = get_git_review(root.to_string_lossy().as_ref());
+    let untracked = review.untracked.expect("untracked diff should be present");
+
+    assert!(untracked.stat.contains("preview truncated"));
+    assert!(!untracked.stat.contains("binary or unreadable"));
+    assert!(untracked.diff.contains("[...truncated]"));
+}
+
+#[test]
 fn changed_files_preserves_unstaged_porcelain_leading_space() {
     let status = " M README.md\n?? VIBE_REVIEW_NOTES.md\n";
     let changed_files = changed_files_from_status(status);
