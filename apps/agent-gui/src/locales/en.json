@@ -296,7 +296,18 @@
     "queuedAttachments": "{count} file(s)",
     "emptyState": "Start a conversation",
     "projectDraftContext": "Project: {project}",
-    "copiedToClipboard": "Copied to clipboard"
+    "copiedToClipboard": "Copied to clipboard",
+    "gitReview": {
+      "action": "Review changes",
+      "title": "Repository changes",
+      "refresh": "Refresh changes",
+      "close": "Close changes",
+      "loading": "Loading changes…",
+      "failed": "Failed to load changes: {error}",
+      "changedFiles": "Files",
+      "clean": "No local changes",
+      "noContext": "Open repository changes from a project chat."
+    }
   },
   "context": {
     "title": "Context",
@@ -723,6 +734,7 @@
     "tabTrace": "Trace",
     "tabTasks": "Tasks",
     "tabMemory": "Memory",
+    "tabChanges": "Changes",
     "emptyTrace": "No trace events yet",
     "emptyFilteredTrace": "No matching trace events",
     "filterAll": "All",

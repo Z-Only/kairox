@@ -60,6 +60,27 @@ pub struct ProjectGitStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectGitDiffSection {
+    pub label: String,
+    pub stat: String,
+    pub diff: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectGitReview {
+    pub kind: ProjectGitStatusKind,
+    pub branch: Option<String>,
+    pub worktree_path: String,
+    pub message: Option<String>,
+    pub changed_files: Vec<String>,
+    pub staged: Option<ProjectGitDiffSection>,
+    pub unstaged: Option<ProjectGitDiffSection>,
+    pub untracked: Option<ProjectGitDiffSection>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProjectInstructionSummary {
     pub source_paths: Vec<String>,
     pub contents: Option<String>,
@@ -199,6 +220,26 @@ pub trait ProjectFacade: Send + Sync {
         &self,
         session_id: SessionId,
     ) -> crate::Result<ProjectGitStatus> {
+        let _ = session_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn get_project_git_review(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<ProjectGitReview> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn get_session_git_review(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<ProjectGitReview> {
         let _ = session_id;
         Err(crate::CoreError::InvalidState(
             "project support is not implemented".into(),

@@ -1,11 +1,15 @@
 use agent_core::{
-    CoreError, ProjectGitStatus, ProjectGitStatusKind, ProjectId, ProjectInstructionSummary,
-    ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta, WorkspaceId,
+    CoreError, ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind,
+    ProjectId, ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId,
+    SessionMeta, WorkspaceId,
 };
 use agent_store::{event_store::ProjectSessionMetaRow, ProjectRow};
 use std::ffi::OsStr;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+const UNTRACKED_PREVIEW_BYTE_LIMIT: u64 = 64 * 1024;
 
 const INSTRUCTION_FILE_PRIORITY: &[&str] = &[
     "AGENTS.md",
@@ -158,6 +162,49 @@ pub fn get_git_status(path: &str) -> ProjectGitStatus {
     }
 }
 
+pub fn get_git_review(path: &str) -> ProjectGitReview {
+    let status = get_git_status(path);
+    let root_path = Path::new(path);
+    if !matches!(
+        status.kind,
+        ProjectGitStatusKind::Clean | ProjectGitStatusKind::Dirty
+    ) {
+        return ProjectGitReview {
+            kind: status.kind,
+            branch: status.branch,
+            worktree_path: status.worktree_path,
+            message: status.message,
+            changed_files: Vec::new(),
+            staged: None,
+            unstaged: None,
+            untracked: None,
+        };
+    }
+
+    let porcelain = run_git_text(root_path, &["status", "--porcelain=v1"]).unwrap_or_default();
+    let changed_files = changed_files_from_status(&porcelain);
+    ProjectGitReview {
+        kind: status.kind,
+        branch: status.branch,
+        worktree_path: status.worktree_path,
+        message: status.message,
+        changed_files,
+        staged: git_diff_section(
+            root_path,
+            "Staged changes",
+            &["diff", "--cached", "--stat"],
+            &["diff", "--cached", "--no-ext-diff", "--unified=3", "--"],
+        ),
+        unstaged: git_diff_section(
+            root_path,
+            "Unstaged changes",
+            &["diff", "--stat"],
+            &["diff", "--no-ext-diff", "--unified=3", "--"],
+        ),
+        untracked: untracked_diff_section(root_path, &porcelain),
+    }
+}
+
 pub fn current_git_branch(root_path: &Path) -> Option<String> {
     if !is_git_worktree(root_path) {
         return None;
@@ -248,7 +295,11 @@ fn run_git_text(root_path: &Path, args: &[&str]) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    Some(
+        String::from_utf8_lossy(&output.stdout)
+            .trim_end_matches(&['\r', '\n'][..])
+            .to_string(),
+    )
 }
 
 fn changed_files_from_status(status: &str) -> Vec<String> {
@@ -273,20 +324,109 @@ fn changed_files_from_status(status: &str) -> Vec<String> {
 }
 
 fn diff_section(root_path: &Path, label: &str, stat_args: &[&str], diff_args: &[&str]) -> String {
+    let Some(section) = git_diff_section(root_path, label, stat_args, diff_args) else {
+        return String::new();
+    };
+
+    let mut parts = vec![format!("{label}:")];
+    if !section.stat.is_empty() {
+        parts.push(format!("Stat:\n{}", section.stat));
+    }
+    if !section.diff.is_empty() {
+        parts.push(format!("Diff:\n{}", section.diff));
+    }
+    parts.join("\n")
+}
+
+fn git_diff_section(
+    root_path: &Path,
+    label: &str,
+    stat_args: &[&str],
+    diff_args: &[&str],
+) -> Option<ProjectGitDiffSection> {
     let stat = run_git_text(root_path, stat_args).unwrap_or_default();
     let diff = run_git_text(root_path, diff_args).unwrap_or_default();
     if stat.is_empty() && diff.is_empty() {
-        return String::new();
+        return None;
     }
 
-    let mut parts = vec![format!("{label}:")];
-    if !stat.is_empty() {
-        parts.push(format!("Stat:\n{}", truncate_chars(&stat, 2_000)));
+    Some(ProjectGitDiffSection {
+        label: label.to_string(),
+        stat: truncate_chars(&stat, 2_000),
+        diff: truncate_chars(&diff, 10_000),
+    })
+}
+
+fn untracked_diff_section(root_path: &Path, status: &str) -> Option<ProjectGitDiffSection> {
+    let files: Vec<String> = status
+        .lines()
+        .filter_map(|line| line.strip_prefix("?? "))
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .take(8)
+        .map(ToString::to_string)
+        .collect();
+    if files.is_empty() {
+        return None;
     }
-    if !diff.is_empty() {
-        parts.push(format!("Diff:\n{}", truncate_chars(&diff, 6_000)));
+
+    let mut stat_lines = Vec::new();
+    let mut diff_parts = Vec::new();
+    for file in files {
+        let file_path = root_path.join(&file);
+        let Ok(metadata) = std::fs::metadata(&file_path) else {
+            continue;
+        };
+        if !metadata.is_file() {
+            continue;
+        }
+        let Ok((contents, truncated)) = read_text_preview(&file_path) else {
+            stat_lines.push(format!(" {file} | binary or unreadable"));
+            continue;
+        };
+        let mut lines: Vec<String> = contents.lines().map(ToString::to_string).collect();
+        if truncated {
+            lines.push("[...truncated]".into());
+        }
+        let stat_suffix = if truncated {
+            " + (preview truncated)"
+        } else {
+            " +"
+        };
+        stat_lines.push(format!(" {file} | {}{}", lines.len(), stat_suffix));
+        let mut part = vec![
+            format!("diff --git a/{file} b/{file}"),
+            "new file mode 100644".to_string(),
+            "--- /dev/null".to_string(),
+            format!("+++ b/{file}"),
+            format!("@@ -0,0 +1,{} @@", lines.len()),
+        ];
+        part.extend(lines.into_iter().map(|line| format!("+{line}")));
+        diff_parts.push(part.join("\n"));
     }
-    parts.join("\n")
+
+    if stat_lines.is_empty() && diff_parts.is_empty() {
+        return None;
+    }
+
+    Some(ProjectGitDiffSection {
+        label: "Untracked files".into(),
+        stat: truncate_chars(&stat_lines.join("\n"), 2_000),
+        diff: truncate_chars(&diff_parts.join("\n\n"), 10_000),
+    })
+}
+
+fn read_text_preview(path: &Path) -> Result<(String, bool), std::io::Error> {
+    let metadata = std::fs::metadata(path)?;
+    let mut file = std::fs::File::open(path)?;
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take(UNTRACKED_PREVIEW_BYTE_LIMIT)
+        .read_to_end(&mut bytes)?;
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?
+        .to_string();
+    Ok((text, metadata.len() > UNTRACKED_PREVIEW_BYTE_LIMIT))
 }
 
 fn draft_commit_message(

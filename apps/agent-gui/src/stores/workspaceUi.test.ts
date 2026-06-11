@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceUiStore } from "@/stores/workspaceUi";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+
+const mockedInvoke = vi.mocked(invoke);
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  vi.clearAllMocks();
 });
 
 describe("useWorkspaceUiStore", () => {
@@ -29,5 +35,61 @@ describe("useWorkspaceUiStore", () => {
     const store = useWorkspaceUiStore();
     store.moveSectionUp("sessions");
     expect(store.sectionOrder).toEqual(["sessions", "projects"]);
+  });
+
+  it("opens git review in the changes panel", async () => {
+    mockedInvoke.mockResolvedValueOnce({
+      kind: "dirty",
+      branch: "feat/review",
+      worktree_path: "/repo",
+      message: null,
+      changed_files: ["README.md"],
+      staged: null,
+      unstaged: {
+        label: "Unstaged changes",
+        stat: " README.md | 1 +",
+        diff: "+local agent edit"
+      },
+      untracked: null
+    });
+    const store = useWorkspaceUiStore();
+
+    await store.openGitReview({ sessionId: "ses_1", projectId: "project_1" });
+
+    expect(store.rightPanelTab).toBe("changes");
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", { sessionId: "ses_1" });
+    expect(store.gitReview?.changedFiles).toEqual(["README.md"]);
+    expect(store.gitReviewError).toBeNull();
+  });
+
+  it("falls back to project git review when the draft session is not bound", async () => {
+    mockedInvoke
+      .mockRejectedValueOnce(new Error("invalid state: session is not bound to a project"))
+      .mockResolvedValueOnce({
+        kind: "dirty",
+        branch: "main",
+        worktree_path: "/repo",
+        message: null,
+        changed_files: ["VIBE_REVIEW_NOTES.md"],
+        staged: null,
+        unstaged: null,
+        untracked: {
+          label: "Untracked files",
+          stat: " VIBE_REVIEW_NOTES.md | 1 +",
+          diff: "+new file from simulated agent"
+        }
+      });
+    const store = useWorkspaceUiStore();
+
+    await store.openGitReview({ sessionId: "ses_draft", projectId: "project_1" });
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_draft"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_project_git_review", {
+      projectId: "project_1"
+    });
+    expect(store.gitReview?.changedFiles).toEqual(["VIBE_REVIEW_NOTES.md"]);
+    expect(store.gitReviewError).toBeNull();
   });
 });

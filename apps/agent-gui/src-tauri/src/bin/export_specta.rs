@@ -24,9 +24,10 @@ use agent_gui_tauri::commands::{
     InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
     McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
     McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
-    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
-    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    ProjectGitDiffSectionResponse, ProjectGitReviewResponse, ProjectGitStatusResponse,
+    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse,
+    SessionInfoResponse, TaskSnapshotResponse, TrajectoryMetaResponse, TrajectoryStepResponse,
+    WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -71,6 +72,8 @@ fn main() {
             agent_gui_tauri::commands::list_project_branches,
             agent_gui_tauri::commands::get_project_git_status,
             agent_gui_tauri::commands::get_session_git_status,
+            agent_gui_tauri::commands::get_project_git_review,
+            agent_gui_tauri::commands::get_session_git_review,
             agent_gui_tauri::commands::init_project_git,
             agent_gui_tauri::commands::get_project_instruction_summary,
             agent_gui_tauri::commands::resolve_permission,
@@ -208,6 +211,8 @@ fn main() {
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitDiffSectionResponse>()
+        .typ::<ProjectGitReviewResponse>()
         .typ::<ProjectGitStatusResponse>()
         .typ::<ProjectInstructionSummaryResponse>()
         .typ::<MemoryEntryResponse>()

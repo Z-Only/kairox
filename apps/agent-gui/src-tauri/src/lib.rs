@@ -193,6 +193,8 @@ pub fn run() {
             crate::commands::list_project_branches,
             crate::commands::get_project_git_status,
             crate::commands::get_session_git_status,
+            crate::commands::get_project_git_review,
+            crate::commands::get_session_git_review,
             crate::commands::init_project_git,
             crate::commands::get_project_instruction_summary,
             crate::commands::resolve_permission,

@@ -2,6 +2,8 @@
 import type { ComponentPublicInstance } from "vue";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
+import { useUiStore } from "@/stores/ui";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import { useChatStream } from "@/composables/useChatStream";
 import { useToast } from "@/composables/useToast";
 import type { ChatPermissionStreamItem, ChatMessageStreamItem } from "@/types/chatStream";
@@ -15,6 +17,8 @@ import ChatMonitorItem from "@/components/chat/ChatMonitorItem.vue";
 const { t } = useI18n();
 const session = useSessionStore();
 const projectStore = useProjectStore();
+const ui = useUiStore();
+const workspaceUi = useWorkspaceUiStore();
 const toast = useToast();
 const scrollbar = ref<HTMLElement | null>(null);
 const composerRef = ref<InstanceType<typeof ChatComposer> | null>(null);
@@ -517,6 +521,23 @@ const sessionGitMeta = computed(() => {
   return gitMetaParts;
 });
 
+const canReviewGit = computed(() => {
+  const sessionInfo = currentSession.value;
+  return Boolean(sessionInfo?.project_id || sessionInfo?.worktree_path || currentProjectId.value);
+});
+
+async function openGitReview(): Promise<void> {
+  const sessionInfo = currentSession.value;
+  const projectId = currentProjectId.value;
+  if (!sessionInfo?.id && !projectId) return;
+
+  ui.setSidebarCollapsed("right", false);
+  await workspaceUi.openGitReview({
+    sessionId: sessionInfo?.id ?? null,
+    projectId
+  });
+}
+
 const workspacePath = computed(() => {
   const sessionInfo = currentSession.value;
   if (sessionInfo?.worktree_path) return sessionInfo.worktree_path;
@@ -735,6 +756,20 @@ watch(
       {{ session.lastSendError }}
     </div>
 
+    <div v-if="canReviewGit" class="composer-review-bar" data-test="composer-review-bar">
+      <button
+        type="button"
+        class="git-review-toggle"
+        data-test="git-review-toggle"
+        :aria-expanded="workspaceUi.rightPanelTab === 'changes' ? 'true' : 'false'"
+        :disabled="workspaceUi.gitReviewLoading"
+        @click="openGitReview"
+      >
+        <span aria-hidden="true">▤</span>
+        <span>{{ t("chat.gitReview.action") }}</span>
+      </button>
+    </div>
+
     <ChatComposer
       ref="composerRef"
       :workspace-path="workspacePath"
@@ -764,6 +799,38 @@ watch(
   margin: 0;
   font-size: var(--app-text-lg);
   font-weight: 720;
+}
+.composer-review-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 0;
+  border-top: 1px solid var(--app-border-color);
+  background: var(--app-card-color);
+}
+.git-review-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-panel-color);
+  color: var(--app-text-color);
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.git-review-toggle:hover,
+.git-review-toggle:focus-visible {
+  outline: none;
+  border-color: var(--app-primary-color);
+  color: var(--app-primary-color);
+}
+.git-review-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 /* ── Pinned user message (sticky header) ── */
 .pinned-user-message {

@@ -84,6 +84,7 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import { useTraceStore } from "@/stores/trace";
 import type { ContextUsage } from "@/types";
 import type { TraceEntryData } from "@/types/trace";
@@ -656,6 +657,148 @@ describe("ChatPanel", () => {
     expect(gitMeta.exists()).toBe(true);
     expect(gitMeta.text()).toBe("main");
     expect(wrapper.text()).not.toContain("/repo");
+  });
+
+  it("opens git review in the right sidebar for the current worktree session", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") return [];
+      if (command === "get_project_instruction_summary") {
+        return { source_paths: [], warning: null };
+      }
+      if (command === "get_session_git_review") {
+        return {
+          kind: "dirty",
+          branch: "feat/review",
+          worktree_path: "/repo/.kairox/worktrees/feat-review",
+          message: null,
+          changed_files: ["src/main.ts", "notes.txt"],
+          staged: null,
+          unstaged: {
+            label: "Unstaged changes",
+            stat: " src/main.ts | 2 +-",
+            diff: "--- a/src/main.ts\n+++ b/src/main.ts\n@@ -1 +1 @@\n-old\n+new"
+          },
+          untracked: {
+            label: "Untracked files",
+            stat: " notes.txt | 1 +",
+            diff: "+++ b/notes.txt\n+draft"
+          }
+        };
+      }
+      return undefined;
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project worktree session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo/.kairox/worktrees/feat-review",
+          branch: "feat/review",
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    await wrapper.find('[data-test="git-review-toggle"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_1"
+    });
+    const workspaceUi = useWorkspaceUiStore();
+    expect(workspaceUi.rightPanelTab).toBe("changes");
+    expect(workspaceUi.gitReview?.changedFiles).toEqual(["src/main.ts", "notes.txt"]);
+    expect(workspaceUi.gitReview?.unstaged?.label).toBe("Unstaged changes");
+    expect(wrapper.find('[data-test="git-review-panel"]').exists()).toBe(false);
+  });
+
+  it("falls back to project git review when a draft session is not bound", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") return [];
+      if (command === "get_project_instruction_summary") {
+        return { source_paths: [], warning: null };
+      }
+      if (command === "get_session_git_review") {
+        throw new Error("invalid state: session is not bound to a project");
+      }
+      if (command === "get_project_git_review") {
+        return {
+          kind: "dirty",
+          branch: "test/vibe-review",
+          worktree_path: "/repo",
+          message: null,
+          changed_files: ["README.md", "VIBE_REVIEW_NOTES.md"],
+          staged: null,
+          unstaged: {
+            label: "Unstaged changes",
+            stat: " README.md | 1 +",
+            diff: "--- a/README.md\n+++ b/README.md\n@@ -1 +1,2 @@\n readme\n+local agent edit"
+          },
+          untracked: {
+            label: "Untracked files",
+            stat: " VIBE_REVIEW_NOTES.md | 1 +",
+            diff: "+++ b/VIBE_REVIEW_NOTES.md\n+new file from simulated agent"
+          }
+        };
+      }
+      return undefined;
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project draft",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: null,
+          branch: "test/vibe-review",
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    await wrapper.find('[data-test="git-review-toggle"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_1"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_project_git_review", {
+      projectId: "project_1"
+    });
+    const workspaceUi = useWorkspaceUiStore();
+    expect(workspaceUi.rightPanelTab).toBe("changes");
+    expect(workspaceUi.gitReview?.changedFiles).toEqual(["README.md", "VIBE_REVIEW_NOTES.md"]);
+    expect(workspaceUi.gitReview?.unstaged?.diff).toContain("local agent edit");
+    expect(workspaceUi.gitReviewError).toBeNull();
   });
 
   it("shows worktree name and branch without exposing a worktree path", async () => {

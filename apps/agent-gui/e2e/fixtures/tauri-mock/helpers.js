@@ -46,6 +46,15 @@ function makeProjectGitStatus(project) {
   };
 }
 
+function makeProjectGitReviewFromStatus(status) {
+  return Object.assign({}, status, {
+    changed_files: [],
+    staged: null,
+    unstaged: null,
+    untracked: null
+  });
+}
+
 function getProjectSessionList(projectId) {
   return state.projectSessions.get(projectId) || [];
 }

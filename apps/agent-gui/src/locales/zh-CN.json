@@ -296,7 +296,18 @@
     "queuedAttachments": "{count} 个文件",
     "emptyState": "开始对话",
     "projectDraftContext": "项目：{project}",
-    "copiedToClipboard": "已复制到剪贴板"
+    "copiedToClipboard": "已复制到剪贴板",
+    "gitReview": {
+      "action": "查看变更",
+      "title": "仓库变更",
+      "refresh": "刷新变更",
+      "close": "关闭变更",
+      "loading": "正在加载变更…",
+      "failed": "加载变更失败：{error}",
+      "changedFiles": "文件",
+      "clean": "没有本地变更",
+      "noContext": "从项目对话中打开仓库变更。"
+    }
   },
   "context": {
     "title": "上下文",
@@ -822,6 +833,7 @@
     "tabTrace": "追踪",
     "tabTasks": "任务",
     "tabMemory": "记忆",
+    "tabChanges": "变更",
     "emptyTrace": "暂无追踪事件",
     "emptyFilteredTrace": "没有符合当前筛选的追踪事件",
     "filterAll": "全部",

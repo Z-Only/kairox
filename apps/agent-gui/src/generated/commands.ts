@@ -65,6 +65,14 @@ export const commands = {
     typedError<ProjectGitStatusResponse, string>(
       __TAURI_INVOKE("get_session_git_status", { sessionId })
     ),
+  getProjectGitReview: (projectId: string) =>
+    typedError<ProjectGitReviewResponse, string>(
+      __TAURI_INVOKE("get_project_git_review", { projectId })
+    ),
+  getSessionGitReview: (sessionId: string) =>
+    typedError<ProjectGitReviewResponse, string>(
+      __TAURI_INVOKE("get_session_git_review", { sessionId })
+    ),
   initProjectGit: (projectId: string) =>
     typedError<ProjectGitStatusResponse, string>(__TAURI_INVOKE("init_project_git", { projectId })),
   getProjectInstructionSummary: (projectId: string) =>
@@ -16459,6 +16467,23 @@ export type ProfileWithLimits = {
   /**  Snake-case `LimitSource`: "user_config" | "builtin_registry" | "runtime_probe" | "fallback". */
   limit_source: string;
   has_api_key: boolean;
+};
+
+export type ProjectGitDiffSectionResponse = {
+  label: string;
+  stat: string;
+  diff: string;
+};
+
+export type ProjectGitReviewResponse = {
+  kind: string;
+  branch: string | null;
+  worktree_path: string;
+  message: string | null;
+  changed_files: string[];
+  staged: ProjectGitDiffSectionResponse | null;
+  unstaged: ProjectGitDiffSectionResponse | null;
+  untracked: ProjectGitDiffSectionResponse | null;
 };
 
 export type ProjectGitStatusResponse = {

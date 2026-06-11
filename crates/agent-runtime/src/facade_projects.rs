@@ -1,7 +1,7 @@
 use crate::facade_runtime::LocalRuntime;
 use agent_core::{
-    ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectId, ProjectInstructionSummary,
-    ProjectMeta, SessionId, SessionMeta, WorkspaceId,
+    ProjectFacade, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
+    ProjectInstructionSummary, ProjectMeta, SessionId, SessionMeta, WorkspaceId,
 };
 use agent_store::EventStore;
 use async_trait::async_trait;
@@ -336,6 +336,33 @@ where
         Ok(crate::project::get_git_status(&binding.worktree_path))
     }
 
+    pub(crate) async fn get_project_git_review(
+        &self,
+        project_id: ProjectId,
+    ) -> agent_core::Result<ProjectGitReview> {
+        let project = self
+            .project_repository()?
+            .get_project(project_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        Ok(crate::project::get_git_review(&project.root_path))
+    }
+
+    pub(crate) async fn get_session_git_review(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<ProjectGitReview> {
+        let binding = self
+            .project_repository()?
+            .get_session_binding(session_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?
+            .ok_or_else(|| {
+                agent_core::CoreError::InvalidState("session is not bound to a project".into())
+            })?;
+        Ok(crate::project::get_git_review(&binding.worktree_path))
+    }
+
     pub(crate) async fn init_project_git(
         &self,
         project_id: ProjectId,
@@ -486,6 +513,20 @@ where
         session_id: SessionId,
     ) -> agent_core::Result<ProjectGitStatus> {
         LocalRuntime::get_session_git_status(self, session_id).await
+    }
+
+    async fn get_project_git_review(
+        &self,
+        project_id: ProjectId,
+    ) -> agent_core::Result<ProjectGitReview> {
+        LocalRuntime::get_project_git_review(self, project_id).await
+    }
+
+    async fn get_session_git_review(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<ProjectGitReview> {
+        LocalRuntime::get_session_git_review(self, session_id).await
     }
 
     async fn init_project_git(

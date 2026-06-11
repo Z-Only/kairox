@@ -34,10 +34,11 @@ pub use facade::{
     AttachmentInfo, AutonomousFacade, AutonomousTaskView, CatalogQuery, CatalogSourceView,
     CheckpointView, DeactivateSkillRequest, InstallOutcomeView, InstallRequest, InstalledEntry,
     InstructionsUpdateInput, InstructionsView, McpFacade, PermissionDecision, ProjectFacade,
-    ProjectGitStatus, ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta,
-    ProjectSessionBinding, ProjectSessionVisibility, SendMessageRequest, ServerEntry,
-    SessionFacade, SessionMeta, SkillDetail, SkillView, SkillsFacade, StartSessionRequest,
-    TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport, WorkspaceInfo,
+    ProjectGitDiffSection, ProjectGitReview, ProjectGitStatus, ProjectGitStatusKind,
+    ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
+    SendMessageRequest, ServerEntry, SessionFacade, SessionMeta, SkillDetail, SkillView,
+    SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport,
+    WorkspaceInfo,
 };
 pub use ids::{AgentId, AutonomousTaskId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

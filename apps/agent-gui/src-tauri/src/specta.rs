@@ -58,6 +58,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_project_branches,
             get_project_git_status,
             get_session_git_status,
+            get_project_git_review,
+            get_session_git_review,
             init_project_git,
             get_project_instruction_summary,
             resolve_permission,
@@ -196,6 +198,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitDiffSectionResponse>()
+        .typ::<ProjectGitReviewResponse>()
         .typ::<ProjectGitStatusResponse>()
         .typ::<ProjectInstructionSummaryResponse>()
         .typ::<MemoryEntryResponse>()
