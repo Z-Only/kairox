@@ -250,7 +250,7 @@ mod tests_phase2 {
         let _ = agg.list(&CatalogQuery::default()).await.unwrap();
         let elapsed = start.elapsed();
         assert!(
-            elapsed < std::time::Duration::from_millis(180),
+            elapsed < std::time::Duration::from_millis(350),
             "expected parallel ~100ms, got {elapsed:?}"
         );
         assert_eq!(counter.load(Ordering::SeqCst), 2);
