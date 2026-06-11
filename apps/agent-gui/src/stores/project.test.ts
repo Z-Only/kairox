@@ -808,6 +808,43 @@ describe("project store — additional coverage", () => {
     });
   });
 
+  it("getSessionGitReview fills defaults for legacy diff metadata", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_session_git_review") {
+        return {
+          kind: "dirty",
+          branch: "feat/legacy",
+          worktree_path: "/tmp/worktree",
+          message: null,
+          changed_files: ["README.md"],
+          staged: {
+            label: "Staged changes",
+            stat: " README.md | 1 +",
+            diff: "+legacy"
+          },
+          unstaged: null,
+          untracked: null
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const result = await store.getSessionGitReview("s1");
+
+    expect(result.fileCount).toBe(1);
+    expect(result.additions).toBe(0);
+    expect(result.deletions).toBe(0);
+    expect(result.staged).toEqual({
+      label: "Staged changes",
+      stat: " README.md | 1 +",
+      diff: "+legacy",
+      additions: 0,
+      deletions: 0,
+      files: []
+    });
+  });
+
   it("getProjectInstructionSummary stores result and handles errors gracefully", async () => {
     mockedInvoke.mockRejectedValueOnce(new Error("ENOENT"));
     const store = useProjectStore();

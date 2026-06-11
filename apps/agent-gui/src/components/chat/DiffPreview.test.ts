@@ -99,6 +99,9 @@ describe("DiffPreview", () => {
     await wrapper.setProps({ unmodifiedExpanded: true });
     expect(wrapper.text()).toContain("keep one");
     expect(wrapper.text()).toContain("keep two");
+
+    await wrapper.get('[data-test="diff-expanded-context"]').trigger("click");
+    expect(wrapper.emitted("toggle-unmodified")).toHaveLength(2);
   });
 
   it("does NOT colorize markdown-style headings starting with `--` or `++`", () => {
