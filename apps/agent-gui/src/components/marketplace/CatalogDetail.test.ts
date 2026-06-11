@@ -546,15 +546,15 @@ describe("CatalogDetail.vue", () => {
       const wrapper = mountDetail();
       await flushPromises();
 
-      const checkboxes = document.body.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-      expect(checkboxes.length).toBeGreaterThanOrEqual(2);
-
-      // Trust grant defaults to false (unchecked)
-      const trustCheckbox = checkboxes[0];
+      const trustCheckbox = document.body.querySelector<HTMLInputElement>(
+        '[data-test="catalog-trust-checkbox"]'
+      );
+      const autoStartCheckbox = document.body.querySelector<HTMLInputElement>(
+        '[data-test="catalog-auto-start-checkbox"]'
+      );
+      expect(trustCheckbox).not.toBeNull();
+      expect(autoStartCheckbox).not.toBeNull();
       expect(trustCheckbox.checked).toBe(false);
-
-      // Auto-start defaults to true (checked)
-      const autoStartCheckbox = checkboxes[1];
       expect(autoStartCheckbox.checked).toBe(true);
 
       wrapper.unmount();
