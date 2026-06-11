@@ -39,10 +39,13 @@ export default defineConfig({
       //   T3 (components, views)   — UI presentation layer
       // Aggregate (no glob) is the workspace floor.
       // Baseline: 2026-06-01 — floor(actual - 1), only raised.
+      // 2026-06-11 after deleting legacy modelProfiles store spec:
+      // all files stmts 91.84, br 85.11, fn 91.64, ln 92.92;
+      // raise global functions 90 → 91 and keep other floors unchanged.
       thresholds: {
         statements: 91,
         branches: 85,
-        functions: 90,
+        functions: 91,
         lines: 92,
         // T3 — components aggregate: stmts 90.68, br 85.86, fn 89.90, ln 91.27
         "src/components/**/*.{ts,vue}": {
