@@ -172,6 +172,18 @@ fn colon_model_without_alias_falls_through_as_chat_message() {
     );
 }
 
+#[test]
+fn colon_goal_input_sends_goal_command_text() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":goal fix flaky tests");
+
+    assert!(commands.iter().any(|command| matches!(
+        command,
+        Command::SendMessage { content, .. } if content == ":goal fix flaky tests"
+    )));
+}
+
 fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
     use agent_core::projection::SessionProjection;
     use agent_core::{SessionId, WorkspaceId};

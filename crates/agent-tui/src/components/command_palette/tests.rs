@@ -462,6 +462,24 @@ fn enter_emits_prefill_for_model() {
 }
 
 #[test]
+fn enter_emits_prefill_for_goal() {
+    let mut p = CommandPalette::new();
+    p.show();
+    for c in "goal".chars() {
+        let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+    }
+    let (effects, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+    assert!(commands.is_empty());
+    assert!(effects.iter().any(|e| matches!(
+        e,
+        CrossPanelEffect::PrefillChatInput(text) if text == ":goal "
+    )));
+    assert!(effects
+        .iter()
+        .any(|e| matches!(e, CrossPanelEffect::DismissCommandPalette)));
+}
+
+#[test]
 fn esc_dismisses_palette() {
     let mut p = CommandPalette::new();
     p.show();

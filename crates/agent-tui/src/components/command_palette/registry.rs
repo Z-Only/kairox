@@ -46,6 +46,7 @@ pub enum PaletteAction {
     /// Argument-taking slash command — prefill chat input with the slash
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
+    PrefillGoal,
     PrefillModel,
     PrefillAttach,
     PrefillDetachAll,
@@ -128,6 +129,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             ":model <alias>",
             "Switch the active model profile mid-session",
             PaletteAction::PrefillModel,
+        ),
+        PaletteEntry::static_entry(
+            "goal",
+            ":goal <objective>",
+            "Send a concrete objective for the agent to pursue",
+            PaletteAction::PrefillGoal,
         ),
         PaletteEntry::static_entry(
             "model-selector",
@@ -447,6 +454,7 @@ pub fn filter_entries<'a>(filter: &str, entries: &'a [PaletteEntry]) -> Vec<&'a 
 /// Slash prefix used to prefill chat input for argument-taking actions.
 pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
     match action {
+        PaletteAction::PrefillGoal => Some(":goal "),
         PaletteAction::PrefillModel => Some(":model "),
         PaletteAction::PrefillAttach => Some(":attach "),
         PaletteAction::PrefillDetachAll => Some(":detach"),

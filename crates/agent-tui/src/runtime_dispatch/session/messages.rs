@@ -35,12 +35,13 @@ pub(super) async fn send_message(
     content: String,
     attachments: Vec<AttachmentInfo>,
 ) {
+    let (content, display_content) = prepare_goal_message_for_dispatch(content);
     match runtime
         .send_message(SendMessageRequest {
             workspace_id,
             session_id: session_id.clone(),
             content,
-            display_content: None,
+            display_content,
             attachments,
         })
         .await
@@ -63,6 +64,21 @@ pub(super) async fn send_message(
             push_status_error(app, format!("[error: {e}]"));
         }
     }
+}
+
+fn prepare_goal_message_for_dispatch(content: String) -> (String, Option<String>) {
+    let Some(goal) = content
+        .strip_prefix(":goal ")
+        .map(str::trim)
+        .filter(|goal| !goal.is_empty())
+    else {
+        return (content, None);
+    };
+
+    let model_content = format!(
+        "# Goal\n\n{goal}\n\nWork toward this goal until it is complete. Track progress, verify concrete changes, and report blockers explicitly."
+    );
+    (model_content, Some(content))
 }
 
 pub(super) async fn send_queued_message_now(
@@ -187,3 +203,7 @@ pub(super) fn clear_session_projection(app: &mut App) {
     push_status_message(app, "cleared local conversation projection".to_string());
     app.state.render_scheduler.mark_dirty_immediate();
 }
+
+#[cfg(test)]
+#[path = "messages_tests.rs"]
+mod tests;

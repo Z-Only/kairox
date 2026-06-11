@@ -65,6 +65,13 @@ export function useCommandRegistry(
       insertText: "/model "
     },
     {
+      id: "goal",
+      label: "/goal",
+      descriptionKey: "chat.commands.goal.description",
+      context: "session-active",
+      insertText: "/goal "
+    },
+    {
       id: "help",
       label: "/help",
       descriptionKey: "chat.commands.help.description",

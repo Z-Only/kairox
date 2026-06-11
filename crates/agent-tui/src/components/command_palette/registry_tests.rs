@@ -141,6 +141,11 @@ fn prefill_text_returns_some_for_prefill_model() {
 }
 
 #[test]
+fn prefill_text_returns_some_for_goal() {
+    assert_eq!(prefill_text(&PaletteAction::PrefillGoal), Some(":goal "));
+}
+
+#[test]
 fn prefill_text_returns_some_for_prefill_attach() {
     assert_eq!(
         prefill_text(&PaletteAction::PrefillAttach),

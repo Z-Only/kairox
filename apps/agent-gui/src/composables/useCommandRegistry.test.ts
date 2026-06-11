@@ -73,6 +73,7 @@ describe("useCommandRegistry", () => {
         "clear",
         "compact",
         "model",
+        "goal",
         "help",
         "instructions",
         "hooks",
@@ -166,6 +167,7 @@ describe("useCommandRegistry", () => {
           "chat.commands.clear.description": "清空当前对话",
           "chat.commands.compact.description": "压缩上下文以节省 token",
           "chat.commands.model.description": "切换当前模型",
+          "chat.commands.goal.description": "设置明确目标",
           "chat.commands.help.description": "显示可用命令和技能",
           "chat.commands.instructions.description": "打开指令设置",
           "chat.commands.hooks.description": "打开钩子设置",
@@ -187,6 +189,7 @@ describe("useCommandRegistry", () => {
         "清空当前对话",
         "压缩上下文以节省 token",
         "切换当前模型",
+        "设置明确目标",
         "显示可用命令和技能",
         "打开指令设置",
         "打开钩子设置",
@@ -309,6 +312,19 @@ describe("useCommandRegistry", () => {
       if (modelItem?.kind === "command") {
         expect(modelItem.command.handler).toBeUndefined();
         expect(modelItem.command.insertText).toBe("/model ");
+      }
+    });
+
+    it("goal command has insertText instead of handler", () => {
+      const registry = useCommandRegistry();
+      registry.setFilter("goal");
+      const items = registry.allItems();
+      const goalItem = items.find((i) => i.kind === "command" && i.command.id === "goal");
+      expect(goalItem?.kind).toBe("command");
+      if (goalItem?.kind === "command") {
+        expect(goalItem.command.handler).toBeUndefined();
+        expect(goalItem.command.context).toBe("session-active");
+        expect(goalItem.command.insertText).toBe("/goal ");
       }
     });
 

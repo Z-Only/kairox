@@ -261,6 +261,9 @@
       "model": {
         "description": "Switch the active model - pick a profile below"
       },
+      "goal": {
+        "description": "Set a concrete objective for the next agent turn"
+      },
       "help": {
         "description": "Show available commands and skills"
       },
