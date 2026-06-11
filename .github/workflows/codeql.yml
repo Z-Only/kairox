@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    branches: [main]
+    types: [checks_requested]
   workflow_dispatch:
   schedule:
     - cron: "0 8 * * 1"
@@ -40,7 +43,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+          event_name="${{ github.event_name }}"
+          if [[ "$event_name" != "pull_request" && "$event_name" != "merge_group" ]]; then
             {
               echo "actions=true"
               echo "javascript_typescript=true"
@@ -49,9 +53,14 @@ jobs:
             exit 0
           fi
 
-          base="${{ github.event.pull_request.base.sha }}"
+          if [[ "$event_name" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.merge_group.base_sha }}"
+          fi
           head="${{ github.sha }}"
           git cat-file -e "$base^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$base"
+          git cat-file -e "$head^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$head"
           files="$(git diff --name-only "$base" "$head")"
 
           actions=false
@@ -60,7 +69,7 @@ jobs:
 
           while IFS= read -r file; do
             case "$file" in
-              .github/workflows/**)
+              .github/workflows/**|.github/actions/**)
                 actions=true
                 ;;
             esac
