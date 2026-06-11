@@ -11,7 +11,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { useCatalogStore } from "@/stores/catalog";
 import { useMcpStore } from "@/stores/mcp";
-import Marketplace from "../../views/MarketplaceView.vue";
+import MarketplacePane from "../MarketplacePane.vue";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
 import CatalogList from "./CatalogList.vue";
@@ -20,19 +20,18 @@ import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
 import installedListSource from "./InstalledList.vue?raw";
 
-// MarketplaceView calls `useI18n()` so mounting it through plain `mount()`
+// MarketplacePane calls `useI18n()` so mounting it through plain `mount()`
 // would fail with "Need to install with `app.use` function".
 // `mountWithPlugins` wires the shared i18n + Pinia + router stack the same
-// way every other view test does.
+// way other integration-style component tests do.
 // `reusePinia: true` keeps the Pinia instance created in `beforeEach` so
 // that `useCatalogStore()` calls in the test body and inside the component
 // reference the same store instance.
 function mountMarketplace() {
-  const mountOptions: MountWithPluginsOptions<typeof Marketplace> = {
-    reusePinia: true,
-    initialRoute: "/marketplace"
+  const mountOptions: MountWithPluginsOptions<typeof MarketplacePane> = {
+    reusePinia: true
   };
-  return mountWithPlugins(Marketplace, mountOptions).wrapper;
+  return mountWithPlugins(MarketplacePane, mountOptions).wrapper;
 }
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -664,10 +663,10 @@ describe("InstalledList.vue", () => {
     });
   });
 
-  it("audit anchors: exposes stable marketplace view pilot selector", async () => {
+  it("audit anchors: exposes stable marketplace pane pilot selector", async () => {
     const wrapper = mountMarketplace();
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.find('[data-test="view-marketplace"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="marketplace-source-filter"]').exists()).toBe(true);
   });
 });
