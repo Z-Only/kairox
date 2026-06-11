@@ -121,6 +121,7 @@ describe("CommandPalette", () => {
       "/clear",
       "/compact",
       "/model",
+      "/goal",
       "/help",
       "/instructions",
       "/hooks",
@@ -348,6 +349,7 @@ describe("CommandPalette", () => {
     expect(wrapper.find('[data-test="palette-item-clear"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="palette-item-compact"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="palette-item-model"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="palette-item-goal"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="palette-item-help"]').exists()).toBe(true);
   });
 });

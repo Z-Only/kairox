@@ -112,8 +112,9 @@ pub async fn send_message(
     let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
+        let (model_content, goal_display_content) = prepare_goal_message(content.clone());
         let enriched = match tokio::task::spawn_blocking({
-            let content = content.clone();
+            let content = model_content.clone();
             let attachments = attachments.clone();
             move || enrich_content_with_attachments(&content, &attachments)
         })
@@ -122,7 +123,7 @@ pub async fn send_message(
             Ok(enriched) => enriched,
             Err(e) => {
                 eprintln!("[commands] attachment enrichment failed: {e}");
-                content.clone()
+                model_content.clone()
             }
         };
 
@@ -131,7 +132,7 @@ pub async fn send_message(
                 workspace_id,
                 session_id,
                 content: enriched,
-                display_content: Some(content),
+                display_content: Some(goal_display_content.unwrap_or(content)),
                 attachments,
             })
             .await;
@@ -148,6 +149,21 @@ pub async fn send_message(
     });
 
     Ok(())
+}
+
+fn prepare_goal_message(content: String) -> (String, Option<String>) {
+    let Some(goal) = content
+        .strip_prefix("/goal ")
+        .map(str::trim)
+        .filter(|goal| !goal.is_empty())
+    else {
+        return (content, None);
+    };
+
+    let model_content = format!(
+        "# Goal\n\n{goal}\n\nWork toward this goal until it is complete. Track progress, verify concrete changes, and report blockers explicitly."
+    );
+    (model_content, Some(content))
 }
 
 const MAX_TEXT_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
@@ -354,5 +370,24 @@ mod chat_attachment_tests {
 
         let _ = std::fs::remove_file(&path);
         assert_eq!(enriched, "[image: large.png (file too large, >50MB)]");
+    }
+
+    #[test]
+    fn goal_command_prepares_model_content_and_display_content() {
+        let (model_content, display_content) =
+            prepare_goal_message("/goal ship the release".to_string());
+
+        assert!(model_content.contains("# Goal"));
+        assert!(model_content.contains("ship the release"));
+        assert!(model_content.contains("Track progress"));
+        assert_eq!(display_content.as_deref(), Some("/goal ship the release"));
+    }
+
+    #[test]
+    fn malformed_goal_command_is_left_unchanged() {
+        let (model_content, display_content) = prepare_goal_message("/goal   ".to_string());
+
+        assert_eq!(model_content, "/goal   ");
+        assert_eq!(display_content, None);
     }
 }

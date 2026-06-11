@@ -261,6 +261,9 @@
       "model": {
         "description": "切换当前模型 - 在下方选择配置"
       },
+      "goal": {
+        "description": "为下一次代理回合设置明确目标"
+      },
       "help": {
         "description": "显示可用命令和技能"
       },
