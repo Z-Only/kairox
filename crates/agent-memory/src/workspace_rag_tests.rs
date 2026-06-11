@@ -242,6 +242,134 @@ async fn sqlite_fts_knowledge_base_failed_upsert_preserves_existing_document() {
 }
 
 #[tokio::test]
+async fn sqlite_fts_knowledge_base_includes_global_documents_for_workspace_queries() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company_docs".into(),
+            ..SqliteFtsKnowledgeBaseConfig::default()
+        },
+    )
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "global-holidays".into(),
+        workspace_id: None,
+        title: Some("Global holidays".into()),
+        content: "The holiday escalation policy applies across every workspace.".into(),
+    })
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "beta-holidays".into(),
+        workspace_id: Some("ws-beta".into()),
+        title: Some("Beta holidays".into()),
+        content: "The beta-only holiday escalation policy stays scoped to beta.".into(),
+    })
+    .await
+    .unwrap();
+
+    let hits = kb
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "holiday escalation policy".into(),
+            limit: 4,
+            min_score: 0.0,
+            source: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].path, "kb://company-docs/global-holidays");
+    assert_eq!(hits[0].workspace_id, "ws-alpha");
+    assert!(hits[0].content.contains("Global holidays"));
+}
+
+#[tokio::test]
+async fn sqlite_fts_knowledge_base_respects_source_filter_and_zero_limit() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    let kb = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company_docs".into(),
+            ..SqliteFtsKnowledgeBaseConfig::default()
+        },
+    )
+    .await
+    .unwrap();
+    kb.upsert_document(KnowledgeBaseDocument {
+        id: "runbook".into(),
+        workspace_id: Some("ws-alpha".into()),
+        title: Some("Support runbook".into()),
+        content: "Support runbooks describe queue escalation.".into(),
+    })
+    .await
+    .unwrap();
+
+    let non_kb_hits = kb
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "queue escalation".into(),
+            limit: 4,
+            min_score: 0.0,
+            source: Some(WorkspaceDocumentSource::File),
+        })
+        .await
+        .unwrap();
+    assert!(non_kb_hits.is_empty());
+
+    let zero_limit_hits = kb
+        .retrieve(WorkspaceRetrievalQuery {
+            workspace_id: Some("ws-alpha".into()),
+            query: "queue escalation".into(),
+            limit: 0,
+            min_score: 0.0,
+            source: Some(WorkspaceDocumentSource::KnowledgeBase),
+        })
+        .await
+        .unwrap();
+    assert!(zero_limit_hits.is_empty());
+}
+
+#[tokio::test]
+async fn sqlite_fts_knowledge_base_rejects_invalid_identifiers() {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+
+    let result = SqliteFtsKnowledgeBase::new(
+        "company-docs",
+        pool,
+        SqliteFtsKnowledgeBaseConfig {
+            table: "company docs".into(),
+            ..SqliteFtsKnowledgeBaseConfig::default()
+        },
+    )
+    .await;
+
+    let Err(error) = result else {
+        panic!("invalid FTS table identifiers should be rejected");
+    };
+    assert!(error
+        .to_string()
+        .contains("invalid SQLite identifier: company docs"));
+}
+
+#[tokio::test]
 async fn composite_workspace_retriever_merges_and_sorts_hits() {
     let vector_index = Arc::new(test_index().await);
     vector_index
