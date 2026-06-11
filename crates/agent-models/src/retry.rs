@@ -1,5 +1,5 @@
 use crate::Result;
-use rand::Rng;
+use rand::RngExt;
 use std::future::Future;
 
 /// Configuration for retry with exponential backoff and jitter.
