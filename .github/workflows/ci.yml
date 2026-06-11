@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
+    branches: [main]
+    types: [checks_requested]
   workflow_dispatch:
 
 concurrency:
@@ -40,8 +43,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          event_name="${{ github.event_name }}"
+          if [[ "$event_name" == "pull_request" ]]; then
             base="${{ github.event.pull_request.base.sha }}"
+          elif [[ "$event_name" == "merge_group" ]]; then
+            base="${{ github.event.merge_group.base_sha }}"
+          elif [[ "$event_name" == "workflow_dispatch" ]]; then
+            git fetch --no-tags origin main:refs/remotes/origin/main
+            base="$(git merge-base origin/main "${{ github.sha }}" 2>/dev/null || true)"
           else
             base="${{ github.event.before }}"
           fi
@@ -74,7 +83,7 @@ jobs:
 
             while IFS= read -r file; do
               case "$file" in
-                .github/workflows/ci.yml)
+                .github/workflows/**|.github/actions/**)
                   rust=true
                   web=true
                   typegen=true
@@ -593,16 +602,13 @@ jobs:
         build-tui,
         build-gui,
         eval-smoke,
-        live-model-tests,
-        tauri-pilot-e2e,
-        tauri-pilot-live-e2e
+        tauri-pilot-e2e
       ]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
-        # Live model tests and tauri-pilot-live-e2e depend on external APIs
-        # (GitHub Models inference) that are frequently flaky. Their failure
-        # should not block merges — they are informational-only.
+        # Only merge-blocking jobs are aggregated here. Live GitHub Models jobs
+        # run independently as informational checks so they do not delay merges.
         run: |
           # Collect results from all required (non-flaky) jobs
           required_results=(
@@ -620,15 +626,8 @@ jobs:
             "${{ needs.tauri-pilot-e2e.result }}"
           )
           for result in "${required_results[@]}"; do
-            if [[ "$result" == "failure" ]]; then
-              echo "::error::Required CI job failed"
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "::error::Required CI job did not pass: $result"
               exit 1
             fi
           done
-          # Report flaky job status without blocking
-          if [[ "${{ needs.live-model-tests.result }}" == "failure" ]]; then
-            echo "::warning::Live model tests failed (external API flaky — non-blocking)"
-          fi
-          if [[ "${{ needs.tauri-pilot-live-e2e.result }}" == "failure" ]]; then
-            echo "::warning::Tauri pilot live E2E failed (external API flaky — non-blocking)"
-          fi
