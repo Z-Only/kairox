@@ -211,6 +211,7 @@ function toggleContext(key: string): void {
                 class="git-review-file-change__toggle"
                 data-test="git-review-file-toggle"
                 :aria-expanded="!isFileCollapsed(fileKey(section, file))"
+                :aria-label="t('chat.gitReview.toggleFile', { path: file.path })"
                 @click="toggleFile(fileKey(section, file))"
               >
                 <span class="git-review-file-change__chevron" aria-hidden="true">
