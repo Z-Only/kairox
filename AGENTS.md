@@ -319,7 +319,13 @@ Do NOT edit `version` in individual crate `Cargo.toml` files — they inherit fr
 
 ## Release flow
 
-Use `scripts/release.sh <version>` to publish a release:
+Use `.agents/skills/kairox-release-workflow/SKILL.md` for production releases.
+Releases are PR-first: prepare the release branch from latest `main`, merge the
+release PR, fast-forward local `main`, then create and push an annotated `v*`
+tag that peels to the merged `main` commit.
+
+`scripts/release.sh <version>` is retained for local/dry-run automation and
+legacy manual use:
 
 ```bash
 scripts/release.sh 0.7.0
@@ -327,14 +333,15 @@ scripts/release.sh 0.7.0
 
 The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with git-cliff, commits it, creates the tag, and pushes. Supports `--dry-run`, `--skip-checks`, `--skip-build`, and `--prerelease` options.
 
-### Manual release steps (if not using the script)
+### Manual release steps
 
 1. Bump version in all config files (see above)
-2. Commit the version bump: `git commit -m "chore(release): bump version to X.Y.Z"`
+2. Run `cargo generate-lockfile`
 3. Run `git cliff --tag vX.Y.Z -o CHANGELOG.md`
-4. Commit the changelog: `git commit -m "chore(release): update CHANGELOG for vX.Y.Z"`
+4. Commit the release files: `git commit -m "chore(release): prepare vX.Y.Z"`
 5. Open a release PR, wait for the `ci-success` gate to pass, and merge it to `main`
-6. Create and push the tag from the merged `main` commit: `git checkout main && git pull --ff-only origin main && git tag -fa vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z -f`
+6. Fast-forward local `main`: `git checkout main && git pull --ff-only origin main`
+7. Create and push the annotated tag from merged `main`: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
 
 **Always commit an updated `CHANGELOG.md` before merging and pushing the release tag.** The tag should point to a `main` commit that includes the changelog update.
 
@@ -347,7 +354,7 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 
 ## CI
 
-- **CI** (`ci.yml`) runs on push to `main` and on pull requests: format check, lint, cargo test, TUI build, GUI web build, type-sync, Playwright E2E, tauri-pilot desktop E2E, coverage tiers (Rust + Web), and live model smoke tests
+- **CI** (`ci.yml`) runs on push to `main`, pull requests, merge queue `merge_group`, and manual dispatch: format check, lint, cargo test, TUI build, GUI web build, type-sync, Playwright E2E, tauri-pilot desktop E2E, and coverage tiers (Rust + Web). Live GitHub Models checks run as informational `continue-on-error` jobs and are not part of the `ci-success` aggregate gate.
 - **Release Build** (`release-build.yml`) runs on `v*` tags: publishes release notes via git-cliff, builds TUI binaries for all platforms, builds Tauri desktop bundles for all platforms
 - **Pages** (`pages.yml`) deploys the VitePress site under `site/` to GitHub Pages on push to `main` matching `site/**`, `README.md`, `bun.lock`, `package.json`, `docs/assets/**`, or `.github/workflows/pages.yml`. Refetches the latest GitHub Release at build time to populate `site/.vitepress/cache/release.json` (banner only refreshes on the next Pages run after a tag is released). Tag pushes do NOT trigger Pages.
 - **Verify Build** (`verify-build.yml`) sanity-builds artifacts on PR
@@ -367,12 +374,12 @@ Floors below are the gates enforced today, calibrated against CI's actual LCOV o
 
 | Tier                     | Path patterns                                                                                                                            | functions | lines |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----- |
-| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 37        | 84    |
-| **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/`                                                         | 27        | 78    |
-| **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | 2         | 18    |
-| **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 72        | 92    |
-| **T4 Floor**             | `agent-tui/src/`, `agent-eval/src/`                                                                                                      | 37        | 62    |
-| Workspace overall        | `crates/`, `apps/agent-gui/src-tauri/src/`                                                                                               | 30        | 70    |
+| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 38        | 85    |
+| **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/`                                                         | 30        | 80    |
+| **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | 5         | 30    |
+| **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 58        | 78    |
+| **T4 Floor**             | `agent-tui/src/`, `agent-eval/src/`                                                                                                      | 35        | 63    |
+| Workspace overall        | `crates/`, `apps/agent-gui/src-tauri/src/`                                                                                               | 30        | 69    |
 
 Each group also enforces a `minFiles` floor to catch report truncation. Groups can opt into `allowPartial: true` to warn rather than fail when no files match (no group currently uses it after #509 — every workspace crate now appears in LCOV).
 
@@ -382,12 +389,12 @@ Each group also enforces a `minFiles` floor to catch report truncation. Groups c
 
 | Tier               | Glob                           | statements | branches | functions | lines |
 | ------------------ | ------------------------------ | ---------- | -------- | --------- | ----- |
-| Global             | aggregate                      | 80         | 72       | 76        | 80    |
-| **T1 Utils**       | `src/utils/**/*.ts`            | 92         | 90       | 95        | 92    |
-| **T2 Stores**      | `src/stores/**/*.ts`           | 80         | 68       | 80        | 82    |
-| **T2 Composables** | `src/composables/**/*.ts`      | 74         | 60       | 78        | 74    |
-| **T3 Components**  | `src/components/**/*.{ts,vue}` | 78         | 72       | 74        | 78    |
-| **T3 Views**       | `src/views/**/*.vue`           | 90         | 82       | 78        | 90    |
+| Global             | aggregate                      | 91         | 85       | 91        | 92    |
+| **T1 Utils**       | `src/utils/**/*.ts`            | 94         | 99       | 99        | 94    |
+| **T2 Stores**      | `src/stores/**/*.ts`           | 94         | 84       | 94        | 95    |
+| **T2 Composables** | `src/composables/**/*.ts`      | 92         | 85       | 94        | 94    |
+| **T3 Components**  | `src/components/**/*.{ts,vue}` | 89         | 84       | 88        | 90    |
+| **T3 Views**       | `src/views/**/*.vue`           | 94         | 89       | 92        | 94    |
 
 ### Local calibration
 
