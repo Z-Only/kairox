@@ -5,7 +5,6 @@ use agent_memory::MemoryStore;
 use agent_models::ModelRouter;
 use agent_runtime::ui_bootstrap::{
     build_knowledge_base_retrievers, load_config_with_profiles_overlay, load_ui_config,
-    load_user_ui_config,
 };
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -87,12 +86,10 @@ impl GuiState {
             .await
     }
 
-    /// Reload the user-level config, including profiles.toml overlay, without
-    /// discovering project-level `.kairox/config.toml` from the GUI cwd.
-    pub async fn refresh_user_config(&self) -> Result<(), String> {
-        let new_config = load_user_ui_config(&self.home_dir).config;
-        self.install_refreshed_config(new_config, &self.workspace_root)
-            .await
+    /// Reload the active GUI config source, including project-level
+    /// `.kairox/config.toml` from the GUI cwd and profiles.toml overlay.
+    pub async fn refresh_active_config(&self) -> Result<(), String> {
+        self.refresh_config().await
     }
 }
 
@@ -184,6 +181,22 @@ mod tests {
             } else {
                 std::env::remove_var("HOME");
             }
+        }
+    }
+
+    struct CwdGuard(std::path::PathBuf);
+
+    impl CwdGuard {
+        fn set(path: &std::path::Path) -> Self {
+            let previous = std::env::current_dir().expect("current dir should resolve");
+            std::env::set_current_dir(path).expect("cwd should be set");
+            Self(previous)
+        }
+    }
+
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).expect("cwd should be restored");
         }
     }
 
@@ -288,6 +301,79 @@ model_id = "fake"
             })
             .await
             .expect("refreshed profile should be routable");
+
+        fs::remove_dir_all(home_dir).ok();
+    }
+
+    #[tokio::test]
+    async fn refresh_config_keeps_profile_info_and_runtime_router_in_sync_for_alias_overrides() {
+        let _env_lock = HOME_ENV_LOCK.lock().await;
+        let home_dir = unique_home();
+        let config_dir = home_dir.join(".kairox");
+        let workspace_root = home_dir.join("workspace");
+        fs::create_dir_all(&config_dir).expect("config dir should be created");
+        fs::create_dir_all(workspace_root.join(".kairox"))
+            .expect("project config dir should be created");
+        fs::write(
+            config_dir.join("config.toml"),
+            r#"
+[profiles.kairox-live]
+provider = "anthropic"
+model_id = "glink/claude-opus-4-6[1m]"
+api_key_env = "ANTHROPIC_AUTH_TOKEN"
+"#,
+        )
+        .expect("user config should be written");
+        fs::write(
+            workspace_root.join(".kairox").join("config.toml"),
+            r#"
+[profiles.kairox-live]
+provider = "ali-idealab"
+model_id = "gpt-5.4-0305-global"
+"#,
+        )
+        .expect("project config should be written");
+
+        let initial_config = Config::defaults();
+        let router = initial_config.build_router();
+        let runtime = LocalRuntime::new(SqliteEventStore::in_memory().await.unwrap(), router)
+            .with_config(Arc::new(initial_config.clone()));
+        let mut state = GuiState::new(
+            runtime,
+            initial_config,
+            Arc::new(NoopMemoryStore) as Arc<dyn MemoryStore>,
+        );
+        state.home_dir = config_dir.clone();
+        state.workspace_root = workspace_root.clone();
+        let _home_guard = HomeEnvGuard::set(&home_dir);
+        let _cwd_guard = CwdGuard::set(&workspace_root);
+
+        state
+            .refresh_active_config()
+            .await
+            .expect("config command delegate should refresh");
+
+        let profile_info = state
+            .config
+            .read()
+            .unwrap()
+            .profile_info()
+            .into_iter()
+            .find(|profile| profile.alias == "kairox-live")
+            .expect("profile info should include project alias");
+        assert_eq!(profile_info.provider, "ali-idealab");
+        assert_eq!(profile_info.model_id, "gpt-5.4-0305-global");
+
+        let runtime_config = state.runtime.config();
+        let runtime_profile = runtime_config
+            .profiles
+            .iter()
+            .find(|(alias, _)| alias == "kairox-live")
+            .expect("runtime config should include project alias")
+            .1
+            .clone();
+        assert_eq!(runtime_profile.provider, "ali-idealab");
+        assert_eq!(runtime_profile.model_id, "gpt-5.4-0305-global");
 
         fs::remove_dir_all(home_dir).ok();
     }
