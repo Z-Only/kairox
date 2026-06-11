@@ -111,6 +111,9 @@ describe("GitReviewSidebarPanel", () => {
     expect(wrapper.get('[data-test="git-review-files"]').text()).toContain("+2 -1");
     expect(wrapper.get('[data-test="git-review-file-change"]').text()).toContain("src/App.vue");
     expect(wrapper.get('[data-test="git-review-file-change"]').text()).toContain("+2 -1");
+    expect(wrapper.get('[data-test="git-review-file-toggle"]').attributes("aria-label")).toBe(
+      "Toggle diff for src/App.vue"
+    );
     expect(wrapper.text()).toContain("-old");
     expect(wrapper.text()).toContain("+new");
     expect(wrapper.text()).not.toContain(" keep");

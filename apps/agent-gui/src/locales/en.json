@@ -306,6 +306,7 @@
       "failed": "Failed to load changes: {error}",
       "changedFiles": "Files",
       "fileCount": "{count} files",
+      "toggleFile": "Toggle diff for {path}",
       "showUnchangedLine": "Show {count} unchanged line",
       "showUnchangedLines": "Show {count} unchanged lines",
       "hideUnchangedLines": "Hide unchanged lines",
