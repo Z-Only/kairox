@@ -268,14 +268,14 @@ async function onInstall() {
         <div class="card-title">{{ t("marketplace.detail.options") }}</div>
         <div class="options-group">
           <label class="checkbox-label">
-            <input v-model="trustGrant" type="checkbox" />
+            <input v-model="trustGrant" type="checkbox" data-test="catalog-trust-checkbox" />
             {{ t("marketplace.detail.trustServer") }}
           </label>
           <span v-if="entry.trust === 'verified'" class="hint-verified text-tertiary">
             {{ t("marketplace.detail.verifiedTrustHint") }}
           </span>
           <label class="checkbox-label">
-            <input v-model="autoStart" type="checkbox" />
+            <input v-model="autoStart" type="checkbox" data-test="catalog-auto-start-checkbox" />
             {{ t("marketplace.detail.startAfterInstall") }}
           </label>
         </div>
