@@ -6608,8 +6608,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-pilot"
-version = "0.7.1"
-source = "git+https://github.com/mpiton/tauri-pilot?tag=v0.7.1#b5e529a04ec2677ab10327753d61f894cc16d6a1"
+version = "0.7.2"
+source = "git+https://github.com/mpiton/tauri-pilot?tag=v0.7.2#a6c5baa3f280fe75e75220be8e7689785a200d13"
 dependencies = [
  "core-foundation",
  "core-graphics 0.24.0",
@@ -8037,7 +8037,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
