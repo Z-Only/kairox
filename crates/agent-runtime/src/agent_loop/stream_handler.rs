@@ -13,6 +13,8 @@ use tokio_util::sync::CancellationToken;
 const EMPTY_MODEL_RESPONSE_ERROR: &str =
     "model returned an empty response; check model availability, quota, or plan";
 
+const MODEL_STREAM_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
+
 /// Output from processing a single model stream.
 pub(crate) struct StreamOutput {
     pub(crate) assistant_text: String,
@@ -38,7 +40,54 @@ where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    let stream_result = deps.model.stream(current_request.clone()).await;
+    process_model_stream_with_idle_timeout(
+        deps,
+        request,
+        cancel_token,
+        root_task_id,
+        current_request,
+        empty_response_fallback,
+        MODEL_STREAM_IDLE_TIMEOUT,
+    )
+    .await
+}
+
+async fn process_model_stream_with_idle_timeout<S, M>(
+    deps: &AgentLoopDeps<'_, S, M>,
+    request: &agent_core::SendMessageRequest,
+    cancel_token: &CancellationToken,
+    root_task_id: &TaskId,
+    current_request: &agent_models::ModelRequest,
+    empty_response_fallback: Option<&str>,
+    idle_timeout: std::time::Duration,
+) -> agent_core::Result<StreamOutput>
+where
+    S: EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    let stream_result = tokio::select! {
+        biased;
+        _ = cancel_token.cancelled() => {
+            return Ok(StreamOutput {
+                assistant_text: String::new(),
+                tool_calls: Vec::new(),
+            });
+        }
+        result = deps.model.stream(current_request.clone()) => result,
+        _ = tokio::time::sleep(idle_timeout) => {
+            let error_msg = model_stream_timeout_error(idle_timeout);
+            emit_model_request_failure(
+                &**deps.store,
+                deps.event_tx,
+                request,
+                root_task_id,
+                deps.task_graphs,
+                &error_msg,
+            )
+            .await;
+            return Err(agent_core::CoreError::InvalidState(error_msg));
+        }
+    };
 
     let mut stream = match stream_result {
         Ok(s) => s,
@@ -62,7 +111,21 @@ where
 
     loop {
         let event_result = tokio::select! {
+            biased;
             _ = cancel_token.cancelled() => break,
+            _ = tokio::time::sleep(idle_timeout) => {
+                let error_msg = model_stream_timeout_error(idle_timeout);
+                emit_model_request_failure(
+                    &**deps.store,
+                    deps.event_tx,
+                    request,
+                    root_task_id,
+                    deps.task_graphs,
+                    &error_msg,
+                )
+                .await;
+                return Err(agent_core::CoreError::InvalidState(error_msg));
+            }
             event = stream.next() => {
                 let Some(event_result) = event else {
                     break;
@@ -202,6 +265,18 @@ where
         assistant_text,
         tool_calls,
     })
+}
+
+fn model_stream_timeout_error(timeout: std::time::Duration) -> String {
+    let timeout_ms = timeout.as_millis();
+    if timeout_ms >= 1_000 && timeout_ms.is_multiple_of(1_000) {
+        format!(
+            "model stream timed out after {}s without producing an event",
+            timeout_ms / 1_000
+        )
+    } else {
+        format!("model stream timed out after {timeout_ms}ms without producing an event")
+    }
 }
 
 async fn emit_model_request_failure<S: EventStore + 'static>(

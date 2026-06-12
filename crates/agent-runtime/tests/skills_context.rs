@@ -370,6 +370,89 @@ async fn project_session_discovers_new_project_skill_for_next_turn() {
 }
 
 #[tokio::test]
+async fn project_session_discovers_agents_project_skill_for_next_turn() {
+    let gui_root = tempfile::tempdir().expect("gui root should be created");
+    let project_root = tempfile::tempdir().expect("project root should be created");
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let captured_requests = Arc::new(AsyncMutex::new(Vec::new()));
+    let model = RecordingModelClient::new(captured_requests.clone());
+    let runtime = LocalRuntime::new(store, model).with_skill_settings_roots(SkillSettingsRoots {
+        workspace_root: Some(gui_root.path().join(".kairox/skills")),
+        user_root: None,
+        builtin_root: None,
+        plugin_roots: Vec::new(),
+    });
+
+    let workspace = runtime
+        .open_workspace(gui_root.path().display().to_string())
+        .await
+        .expect("workspace should open");
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id.clone(),
+            project_root.path().display().to_string(),
+        )
+        .await
+        .expect("project should be added");
+    let session_id = runtime
+        .create_project_draft_session(project.project_id)
+        .await
+        .expect("project session should be created");
+
+    write_test_skill(
+        &project_root.path().join(".agents/skills"),
+        "kairox-dev-workflow",
+        "Kairox development workflow",
+        "Always create a worktree before editing project code.",
+    );
+
+    runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            session_id: session_id.clone(),
+            skill_id: "kairox-dev-workflow".into(),
+        })
+        .await
+        .expect("project skill activation should discover .agents skills");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "use the project skill".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .expect("send_message should complete");
+
+    let requests = captured_requests.lock().await;
+    let request = requests
+        .first()
+        .expect("model should receive one request after send_message");
+    let request_text = std::iter::once(request.system_prompt.as_deref().unwrap_or_default())
+        .chain(
+            request
+                .messages
+                .iter()
+                .map(|message| message.content.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        request_text.contains("<skill name=\"kairox-dev-workflow\" source=\"workspace\">"),
+        "expected .agents project skill block in model request, got:\n{request_text}"
+    );
+    assert!(
+        request_text.contains("Always create a worktree before editing project code."),
+        "expected .agents project skill body in model request, got:\n{request_text}"
+    );
+}
+
+#[tokio::test]
 async fn context_assembler_injects_active_skills_after_system_prompt() {
     let assembler = ContextAssembler::new_standalone();
     let bundle = assembler

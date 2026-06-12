@@ -1,13 +1,14 @@
 use super::*;
 use agent_config::Config;
-use agent_core::{DomainEvent, SendMessageRequest, SessionId, TaskId, WorkspaceId};
+use agent_core::{DomainEvent, EventPayload, SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use agent_models::{ModelClient, ModelError, ModelEvent, ModelRequest};
-use agent_store::SqliteEventStore;
+use agent_store::{EventStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy, ToolRegistry};
 use async_trait::async_trait;
 use futures::{stream, stream::BoxStream};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -69,6 +70,32 @@ impl ModelClient for FailingStreamClient {
         _request: ModelRequest,
     ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
         Err(ModelError::Connection(self.message.clone()))
+    }
+}
+
+#[derive(Debug)]
+struct HangingEventStreamClient;
+
+#[async_trait]
+impl ModelClient for HangingEventStreamClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        Ok(Box::pin(futures::stream::pending()))
+    }
+}
+
+#[derive(Debug)]
+struct HangingStreamStartClient;
+
+#[async_trait]
+impl ModelClient for HangingStreamStartClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        futures::future::pending().await
     }
 }
 
@@ -453,4 +480,102 @@ async fn stream_connection_failure_returns_error() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn stream_idle_timeout_fails_root_task() {
+    let harness = StreamTestHarness::new(HangingEventStreamClient).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let result = tokio::time::timeout(
+        Duration::from_millis(200),
+        process_model_stream_with_idle_timeout(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+            Duration::from_millis(50),
+        ),
+    )
+    .await
+    .expect("hanging stream should fail before the test timeout");
+
+    let err = match result {
+        Ok(_) => panic!("hanging stream should time out"),
+        Err(err) => err,
+    };
+    assert!(
+        err.to_string().contains("timed out"),
+        "timeout error should explain the stalled model stream, got: {err}"
+    );
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    assert!(
+        events.iter().any(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::AgentTaskFailed { task_id, error }
+                    if task_id == &root_task_id && error.contains("timed out")
+            )
+        }),
+        "root task should be marked failed on model stream timeout: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn stream_start_timeout_fails_root_task() {
+    let harness = StreamTestHarness::new(HangingStreamStartClient).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let result = tokio::time::timeout(
+        Duration::from_millis(200),
+        process_model_stream_with_idle_timeout(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+            Duration::from_millis(50),
+        ),
+    )
+    .await
+    .expect("hanging stream start should fail before the test timeout");
+
+    let err = match result {
+        Ok(_) => panic!("hanging stream start should time out"),
+        Err(err) => err,
+    };
+    assert!(
+        err.to_string().contains("timed out"),
+        "timeout error should explain the stalled model stream, got: {err}"
+    );
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    assert!(
+        events.iter().any(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::AgentTaskFailed { task_id, error }
+                    if task_id == &root_task_id && error.contains("timed out")
+            )
+        }),
+        "root task should be marked failed on model stream start timeout: {events:?}"
+    );
 }

@@ -59,6 +59,7 @@ pub fn build_default_skill_roots(home: &Path, workspace: &Path) -> Vec<SkillRoot
         ),
         SkillRoot::new(SkillSourceKind::User, home.join(".config/kairox/skills")),
         SkillRoot::new(SkillSourceKind::Workspace, workspace.join(".kairox/skills")),
+        SkillRoot::new(SkillSourceKind::Workspace, workspace.join(".agents/skills")),
     ]
 }
 
@@ -83,7 +84,7 @@ pub(crate) async fn discover_skill_registry_for_settings_roots(
     roots: SkillSettingsRoots,
     fallback: Option<Arc<dyn agent_skills::SkillRegistry>>,
 ) -> agent_core::Result<Option<Arc<dyn agent_skills::SkillRegistry>>> {
-    let skill_roots = crate::skill_settings::skill_roots(&roots);
+    let skill_roots = skill_discovery_roots_from_settings_roots(&roots);
     if skill_roots.is_empty() {
         return Ok(fallback);
     }
@@ -94,6 +95,28 @@ pub(crate) async fn discover_skill_registry_for_settings_roots(
             agent_core::CoreError::InvalidState(format!("skill discovery: {error}"))
         })?;
     Ok(Some(Arc::new(registry)))
+}
+
+fn skill_discovery_roots_from_settings_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
+    let mut skill_roots = crate::skill_settings::skill_roots(roots);
+    if let Some(root) = &roots.workspace_root {
+        if let Some(agents_root) = workspace_agents_skill_root_for_kairox_root(root) {
+            skill_roots.push(SkillRoot::new(SkillSourceKind::Workspace, agents_root));
+        }
+    }
+    skill_roots
+}
+
+fn workspace_agents_skill_root_for_kairox_root(root: &Path) -> Option<PathBuf> {
+    let skills_dir = root.file_name()?;
+    let config_dir = root.parent()?.file_name()?;
+    if skills_dir == "skills" && config_dir == ".kairox" {
+        root.parent()?
+            .parent()
+            .map(|workspace| workspace.join(".agents/skills"))
+    } else {
+        None
+    }
 }
 
 pub async fn build_plugin_skill_roots(

@@ -112,9 +112,24 @@ pub async fn send_message(
     let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
-        let (model_content, goal_display_content) = prepare_goal_message(content.clone());
+        let prepared =
+            match prepare_outbound_message(runtime.as_ref(), &workspace_id, &session_id, content)
+                .await
+            {
+                Ok(prepared) => prepared,
+                Err(e) => {
+                    eprintln!("[commands] send_message preparation failed: {e}");
+                    let payload = serde_json::json!({
+                        "type": "SendMessageError",
+                        "error": e,
+                        "session_id": session_id_str
+                    });
+                    let _ = app_handle.emit("session-error", &payload);
+                    return;
+                }
+            };
         let enriched = match tokio::task::spawn_blocking({
-            let content = model_content.clone();
+            let content = prepared.model_content.clone();
             let attachments = attachments.clone();
             move || enrich_content_with_attachments(&content, &attachments)
         })
@@ -123,7 +138,7 @@ pub async fn send_message(
             Ok(enriched) => enriched,
             Err(e) => {
                 eprintln!("[commands] attachment enrichment failed: {e}");
-                model_content.clone()
+                prepared.model_content.clone()
             }
         };
 
@@ -132,7 +147,7 @@ pub async fn send_message(
                 workspace_id,
                 session_id,
                 content: enriched,
-                display_content: Some(goal_display_content.unwrap_or(content)),
+                display_content: prepared.display_content,
                 attachments,
             })
             .await;
@@ -149,6 +164,93 @@ pub async fn send_message(
     });
 
     Ok(())
+}
+
+struct PreparedOutboundMessage {
+    model_content: String,
+    display_content: Option<String>,
+}
+
+async fn prepare_outbound_message<S, M>(
+    runtime: &agent_runtime::LocalRuntime<S, M>,
+    workspace_id: &agent_core::WorkspaceId,
+    session_id: &agent_core::SessionId,
+    content: String,
+) -> Result<PreparedOutboundMessage, String>
+where
+    S: agent_store::EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    let (model_content, display_content) = prepare_goal_message(content.clone());
+    if display_content.is_some() {
+        return Ok(PreparedOutboundMessage {
+            model_content,
+            display_content,
+        });
+    }
+
+    let Some(slash_skill) = parse_slash_skill_message(&content) else {
+        return Ok(PreparedOutboundMessage {
+            model_content,
+            display_content: Some(content),
+        });
+    };
+
+    let roots = runtime.skill_settings_roots_for_session(session_id).await;
+    let skill = runtime
+        .get_skill_with_roots(roots.clone(), slash_skill.skill_id.clone())
+        .await
+        .map_err(|error| error.to_string())?;
+    if skill.is_none() {
+        return Ok(PreparedOutboundMessage {
+            model_content,
+            display_content: Some(content),
+        });
+    }
+
+    runtime
+        .activate_skill_with_roots(
+            roots,
+            agent_core::ActivateSkillRequest {
+                workspace_id: workspace_id.clone(),
+                session_id: session_id.clone(),
+                skill_id: slash_skill.skill_id,
+            },
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(PreparedOutboundMessage {
+        model_content: slash_skill.task,
+        display_content: Some(content),
+    })
+}
+
+struct SlashSkillMessage {
+    skill_id: String,
+    task: String,
+}
+
+fn parse_slash_skill_message(content: &str) -> Option<SlashSkillMessage> {
+    let command = content.strip_prefix('/')?;
+    let (skill_id, task) = command.split_once(char::is_whitespace)?;
+    if skill_id.is_empty()
+        || !skill_id
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | ':'))
+    {
+        return None;
+    }
+
+    let task = task.trim();
+    if task.is_empty() {
+        return None;
+    }
+
+    Some(SlashSkillMessage {
+        skill_id: skill_id.to_string(),
+        task: task.to_string(),
+    })
 }
 
 fn prepare_goal_message(content: String) -> (String, Option<String>) {
@@ -289,6 +391,16 @@ mod chat_attachment_tests {
         std::env::temp_dir().join(unique)
     }
 
+    fn write_test_skill(root: &std::path::Path, id: &str) {
+        let skill_dir = root.join(id);
+        std::fs::create_dir_all(&skill_dir).expect("skill directory should be created");
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            format!("---\nname: {id}\ndescription: Test skill\n---\nSkill body.\n"),
+        )
+        .expect("skill file should be written");
+    }
+
     #[test]
     fn enriches_text_attachment_using_display_name_extension() {
         let path = temp_path("text-no-ext");
@@ -389,5 +501,125 @@ mod chat_attachment_tests {
 
         assert_eq!(model_content, "/goal   ");
         assert_eq!(display_content, None);
+    }
+
+    #[test]
+    fn slash_skill_message_parses_skill_id_and_task() {
+        let parsed = parse_slash_skill_message("/kairox-dev-workflow   GUI project task").unwrap();
+
+        assert_eq!(parsed.skill_id, "kairox-dev-workflow");
+        assert_eq!(parsed.task, "GUI project task");
+    }
+
+    #[test]
+    fn slash_skill_message_rejects_paths_and_missing_task() {
+        assert!(parse_slash_skill_message("/Users/chanyu/project").is_none());
+        assert!(parse_slash_skill_message("/kairox-dev-workflow   ").is_none());
+    }
+
+    #[tokio::test]
+    async fn slash_skill_message_activates_skill_and_sends_task_body() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        write_test_skill(
+            &workspace_root.path().join(".agents/skills"),
+            "kairox-dev-workflow",
+        );
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let runtime = agent_runtime::LocalRuntime::new(
+            store,
+            agent_models::FakeModelClient::new(vec!["ok".into()]),
+        )
+        .with_skill_settings_roots(agent_runtime::skill_settings::SkillSettingsRoots {
+            workspace_root: Some(workspace_root.path().join(".kairox/skills")),
+            user_root: None,
+            builtin_root: None,
+            plugin_roots: Vec::new(),
+        });
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+
+        let prepared = prepare_outbound_message(
+            &runtime,
+            &workspace.workspace_id,
+            &session_id,
+            "/kairox-dev-workflow GUI项目对话创建后自动切换".to_string(),
+        )
+        .await
+        .expect("message should prepare");
+
+        assert_eq!(prepared.model_content, "GUI项目对话创建后自动切换");
+        assert_eq!(
+            prepared.display_content.as_deref(),
+            Some("/kairox-dev-workflow GUI项目对话创建后自动切换")
+        );
+
+        let trace = runtime
+            .get_trace(session_id)
+            .await
+            .expect("trace should load");
+        assert!(trace.iter().any(|entry| matches!(
+            &entry.event.payload,
+            agent_core::EventPayload::SkillActivated { skill_id, .. }
+                if skill_id == "kairox-dev-workflow"
+        )));
+    }
+
+    #[tokio::test]
+    async fn unknown_slash_message_is_sent_unchanged() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let runtime = agent_runtime::LocalRuntime::new(
+            store,
+            agent_models::FakeModelClient::new(vec!["ok".into()]),
+        )
+        .with_skill_settings_roots(agent_runtime::skill_settings::SkillSettingsRoots {
+            workspace_root: Some(workspace_root.path().join(".kairox/skills")),
+            user_root: None,
+            builtin_root: None,
+            plugin_roots: Vec::new(),
+        });
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+
+        let prepared = prepare_outbound_message(
+            &runtime,
+            &workspace.workspace_id,
+            &session_id,
+            "/not-a-skill keep this exact text".to_string(),
+        )
+        .await
+        .expect("message should prepare");
+
+        assert_eq!(prepared.model_content, "/not-a-skill keep this exact text");
+        assert_eq!(
+            prepared.display_content.as_deref(),
+            Some("/not-a-skill keep this exact text")
+        );
     }
 }

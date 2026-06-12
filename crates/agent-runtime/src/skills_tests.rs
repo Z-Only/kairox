@@ -10,13 +10,15 @@ fn skill_roots_use_user_and_workspace_locations() {
     let workspace = PathBuf::from("/workspace/project");
     let roots = build_default_skill_roots(&home, &workspace);
 
-    assert_eq!(roots.len(), 3);
+    assert_eq!(roots.len(), 4);
     assert_eq!(roots[0].kind, SkillSourceKind::Builtin);
     assert_eq!(roots[0].path, home.join(".kairox/builtin-skills"));
     assert_eq!(roots[1].kind, SkillSourceKind::User);
     assert_eq!(roots[1].path, home.join(".config/kairox/skills"));
     assert_eq!(roots[2].kind, SkillSourceKind::Workspace);
     assert_eq!(roots[2].path, workspace.join(".kairox/skills"));
+    assert_eq!(roots[3].kind, SkillSourceKind::Workspace);
+    assert_eq!(roots[3].path, workspace.join(".agents/skills"));
 }
 
 #[test]
