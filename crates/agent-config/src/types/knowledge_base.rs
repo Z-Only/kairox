@@ -75,3 +75,7 @@ impl Default for KnowledgeBaseConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "knowledge_base_tests.rs"]
+mod tests;

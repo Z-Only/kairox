@@ -64,3 +64,7 @@ impl DapServerConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "lsp_tests.rs"]
+mod tests;
