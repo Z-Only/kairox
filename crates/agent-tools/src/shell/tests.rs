@@ -552,10 +552,7 @@ fn docker_subcommand_boundaries() {
     assert_eq!(classify_command("docker", &["rmi"]), CommandRisk::Write);
     assert_eq!(classify_command("docker", &["stop"]), CommandRisk::Write);
     assert_eq!(classify_command("docker", &["kill"]), CommandRisk::Write);
-    assert_eq!(
-        classify_command("docker", &["compose"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("docker", &["compose"]), CommandRisk::Write);
 
     // Destructive subcommands
     assert_eq!(
@@ -569,10 +566,7 @@ fn docker_subcommand_boundaries() {
 
     // Base Write (docker itself is a Write command, non-matching sub falls to base)
     assert_eq!(classify_command("docker", &["ps"]), CommandRisk::Write);
-    assert_eq!(
-        classify_command("docker", &["images"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("docker", &["images"]), CommandRisk::Write);
 }
 
 #[test]
@@ -590,10 +584,7 @@ fn bun_subcommand_boundaries() {
         classify_command("bun", &["run", "test"]),
         CommandRisk::ReadOnly
     );
-    assert_eq!(
-        classify_command("bun", &["test"]),
-        CommandRisk::ReadOnly
-    );
+    assert_eq!(classify_command("bun", &["test"]), CommandRisk::ReadOnly);
 }
 
 #[test]
@@ -602,18 +593,9 @@ fn cargo_subcommand_boundaries() {
     assert_eq!(classify_command("cargo", &["publish"]), CommandRisk::Write);
 
     // ReadOnly (base program, no subcommand match)
-    assert_eq!(
-        classify_command("cargo", &["build"]),
-        CommandRisk::ReadOnly
-    );
-    assert_eq!(
-        classify_command("cargo", &["test"]),
-        CommandRisk::ReadOnly
-    );
-    assert_eq!(
-        classify_command("cargo", &["check"]),
-        CommandRisk::ReadOnly
-    );
+    assert_eq!(classify_command("cargo", &["build"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("cargo", &["test"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("cargo", &["check"]), CommandRisk::ReadOnly);
     assert_eq!(
         classify_command("cargo", &["clippy"]),
         CommandRisk::ReadOnly
@@ -623,23 +605,11 @@ fn cargo_subcommand_boundaries() {
 #[test]
 fn kubectl_subcommand_boundaries() {
     // Write subcommands
-    assert_eq!(
-        classify_command("kubectl", &["delete"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("kubectl", &["apply"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("kubectl", &["create"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("kubectl", &["delete"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["apply"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["create"]), CommandRisk::Write);
     assert_eq!(classify_command("kubectl", &["edit"]), CommandRisk::Write);
-    assert_eq!(
-        classify_command("kubectl", &["patch"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("kubectl", &["patch"]), CommandRisk::Write);
 
     // Base Write (kubectl itself is a Write command)
     assert_eq!(classify_command("kubectl", &["get"]), CommandRisk::Write);
@@ -652,22 +622,10 @@ fn kubectl_subcommand_boundaries() {
 #[test]
 fn helm_subcommand_boundaries() {
     // Write subcommands
-    assert_eq!(
-        classify_command("helm", &["install"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("helm", &["upgrade"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("helm", &["delete"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("helm", &["rollback"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("helm", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["upgrade"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["delete"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["rollback"]), CommandRisk::Write);
 
     // Base Write (helm itself is a Write command)
     assert_eq!(classify_command("helm", &["list"]), CommandRisk::Write);
@@ -675,18 +633,9 @@ fn helm_subcommand_boundaries() {
 
 #[test]
 fn pip_subcommand_boundaries() {
-    assert_eq!(
-        classify_command("pip", &["install"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("pip", &["uninstall"]),
-        CommandRisk::Write
-    );
-    assert_eq!(
-        classify_command("pip3", &["install"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("pip", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("pip", &["uninstall"]), CommandRisk::Write);
+    assert_eq!(classify_command("pip3", &["install"]), CommandRisk::Write);
     // pip with non-matching subcommand → ReadOnly (base)
     assert_eq!(classify_command("pip", &["list"]), CommandRisk::ReadOnly);
     assert_eq!(classify_command("pip", &["show"]), CommandRisk::ReadOnly);
@@ -695,10 +644,7 @@ fn pip_subcommand_boundaries() {
 #[test]
 fn npm_subcommand_boundaries() {
     assert_eq!(classify_command("npm", &["install"]), CommandRisk::Write);
-    assert_eq!(
-        classify_command("npm", &["uninstall"]),
-        CommandRisk::Write
-    );
+    assert_eq!(classify_command("npm", &["uninstall"]), CommandRisk::Write);
     assert_eq!(classify_command("npm", &["publish"]), CommandRisk::Write);
     assert_eq!(classify_command("npm", &["update"]), CommandRisk::Write);
 
