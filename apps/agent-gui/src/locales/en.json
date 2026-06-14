@@ -144,7 +144,11 @@
     "updateDownloading": "Downloading…",
     "updateUpToDate": "Up to date",
     "updateLastCheck": "Last checked: {time}",
-    "updateCheckFailed": "Check failed: {error}"
+    "updateCheckFailed": "Check failed: {error}",
+    "archiveSearchAria": "Search archived sessions",
+    "archiveSearchPlaceholder": "Search archived sessions",
+    "archiveSortAria": "Archived session sort",
+    "archiveFilterEmpty": "No archived sessions match your search."
   },
   "notifications": {
     "sessionError": "Session error",

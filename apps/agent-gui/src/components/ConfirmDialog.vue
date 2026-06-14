@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { provide, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { confirmDialogKey, type ConfirmOptions, type ConfirmAPI } from "@/composables/useConfirm";
 
+const { t } = useI18n();
 const open = ref(false);
 const currentOptions = ref<ConfirmOptions>({
   message: "",
   title: "",
-  confirmText: "Confirm",
-  cancelText: "Cancel",
+  confirmText: "",
+  cancelText: "",
   type: "info"
 });
 
@@ -17,8 +19,8 @@ function confirm(options: ConfirmOptions): Promise<boolean> {
   currentOptions.value = {
     title: options.title ?? "",
     message: options.message,
-    confirmText: options.confirmText ?? "Confirm",
-    cancelText: options.cancelText ?? "Cancel",
+    confirmText: options.confirmText ?? t("common.confirm"),
+    cancelText: options.cancelText ?? t("common.cancel"),
     type: options.type ?? "info"
   };
   open.value = true;
