@@ -488,3 +488,354 @@ fn normalize_path_stays_within_root() {
     let normalized = normalize_path(&candidate);
     assert!(normalized.starts_with("/tmp/workspace"));
 }
+
+// ── Hunk drift search tests ──────────────────────────────────────
+
+#[test]
+fn locate_hunk_drift_finds_content_at_offset() {
+    // File has 5 padding lines then the target content.
+    // Hunk claims old_start=1 but content actually starts at line 6 (0-based offset 5).
+    let mut lines: Vec<String> = (0..5).map(|i| format!("padding_{}", i)).collect();
+    lines.push("target_a".to_string());
+    lines.push("target_b".to_string());
+    lines.push("target_c".to_string());
+
+    let hunk = make_hunk(
+        1, // declared at line 1 but really at offset 5
+        vec![
+            PatchLine::Context("target_a".to_string()),
+            PatchLine::Remove("target_b".to_string()),
+            PatchLine::Context("target_c".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let offset = locate_hunk(&lines, &hunk).unwrap();
+    assert_eq!(offset, 5);
+}
+
+#[test]
+fn locate_hunk_drift_within_max_range() {
+    // Content is 15 lines away from declared position (within MAX_HUNK_LINE_DRIFT=200).
+    let mut lines: Vec<String> = (0..15).map(|i| format!("filler_{}", i)).collect();
+    lines.push("alpha".to_string());
+    lines.push("beta".to_string());
+
+    let hunk = make_hunk(
+        1, // declared at line 1
+        vec![
+            PatchLine::Context("alpha".to_string()),
+            PatchLine::Remove("beta".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let offset = locate_hunk(&lines, &hunk).unwrap();
+    assert_eq!(offset, 15);
+}
+
+#[test]
+fn locate_hunk_exact_match_preferred_over_drift() {
+    // When content matches at declared position, drift search is skipped.
+    let lines = vec![
+        "line_a".to_string(),
+        "line_b".to_string(),
+        "line_c".to_string(),
+    ];
+
+    let hunk = make_hunk(
+        1,
+        vec![
+            PatchLine::Context("line_a".to_string()),
+            PatchLine::Remove("line_b".to_string()),
+            PatchLine::Context("line_c".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let offset = locate_hunk(&lines, &hunk).unwrap();
+    assert_eq!(offset, 0); // exact match at declared position
+}
+
+// ── Multiple hunks offset accumulation ───────────────────────────
+
+#[test]
+fn multi_hunk_offset_accumulates_correctly() {
+    use super::hunk::{apply_hunk_at, locate_hunk};
+    // File: line1, line2, line3, line4, line5
+    let mut lines: Vec<String> = (1..=5).map(|i| format!("line{}", i)).collect();
+
+    // First hunk: remove line3 (between line2 and line4 context)
+    let hunk1 = make_hunk(
+        2,
+        vec![
+            PatchLine::Context("line2".to_string()),
+            PatchLine::Remove("line3".to_string()),
+            PatchLine::Context("line4".to_string()),
+        ],
+    );
+
+    let offset1 = locate_hunk(&lines, &hunk1).unwrap();
+    assert_eq!(offset1, 1);
+    apply_hunk_at(&mut lines, &hunk1, offset1);
+    // Now: line1, line2, line4, line5
+
+    // Second hunk: replace line5
+    let hunk2 = make_hunk(
+        4, // declared at original line 4
+        vec![
+            PatchLine::Context("line4".to_string()),
+            PatchLine::Remove("line5".to_string()),
+            PatchLine::Add("LINE5".to_string()),
+        ],
+    );
+
+    // After hunk1 removed a line, line4 is now at offset 2 (drift needed)
+    let offset2 = locate_hunk(&lines, &hunk2).unwrap();
+    assert_eq!(offset2, 2);
+    apply_hunk_at(&mut lines, &hunk2, offset2);
+    assert_eq!(lines, vec!["line1", "line2", "line4", "LINE5"]);
+}
+
+// ── Hunk at file boundary ────────────────────────────────────────
+
+#[test]
+fn locate_hunk_at_first_line() {
+    let lines = vec!["first".to_string(), "second".to_string()];
+    let hunk = make_hunk(
+        1,
+        vec![
+            PatchLine::Remove("first".to_string()),
+            PatchLine::Add("FIRST".to_string()),
+            PatchLine::Context("second".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let offset = locate_hunk(&lines, &hunk).unwrap();
+    assert_eq!(offset, 0);
+}
+
+#[test]
+fn locate_hunk_at_last_line() {
+    let lines = vec![
+        "first".to_string(),
+        "second".to_string(),
+        "last".to_string(),
+    ];
+    let hunk = make_hunk(
+        3,
+        vec![
+            PatchLine::Context("last".to_string()),
+            PatchLine::Add("appended".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let offset = locate_hunk(&lines, &hunk).unwrap();
+    assert_eq!(offset, 2);
+}
+
+#[test]
+fn locate_hunk_empty_file_fails() {
+    let lines: Vec<String> = vec![];
+    let hunk = make_hunk(
+        1,
+        vec![
+            PatchLine::Context("something".to_string()),
+            PatchLine::Remove("else".to_string()),
+        ],
+    );
+
+    use super::hunk::locate_hunk;
+    let result = locate_hunk(&lines, &hunk);
+    assert!(result.is_err());
+}
+
+// ── Context-only hunk ────────────────────────────────────────────
+
+#[test]
+fn context_only_hunk_validates_successfully() {
+    let lines = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
+    let hunk = make_hunk(
+        1,
+        vec![
+            PatchLine::Context("aaa".to_string()),
+            PatchLine::Context("bbb".to_string()),
+            PatchLine::Context("ccc".to_string()),
+        ],
+    );
+    assert!(apply_hunk_validate(&lines, &hunk).is_ok());
+}
+
+#[test]
+fn context_only_hunk_apply_leaves_file_unchanged() {
+    let mut lines = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
+    let hunk = make_hunk(
+        1,
+        vec![
+            PatchLine::Context("aaa".to_string()),
+            PatchLine::Context("bbb".to_string()),
+            PatchLine::Context("ccc".to_string()),
+        ],
+    );
+    apply_hunk(&mut lines, &hunk);
+    assert_eq!(lines, vec!["aaa", "bbb", "ccc"]);
+}
+
+// ── Path normalization tests (extended) ──────────────────────────
+
+#[test]
+fn normalize_path_strips_single_dot() {
+    let p = std::path::Path::new("src/./main.rs");
+    let normalized = normalize_path(p);
+    assert_eq!(normalized, std::path::PathBuf::from("src/main.rs"));
+}
+
+#[test]
+fn normalize_path_resolves_parent_and_dot_components() {
+    // b/./src/../src/main.rs → b/src/main.rs (the .. cancels the first src)
+    let p = std::path::Path::new("b/./src/../src/main.rs");
+    let normalized = normalize_path(p);
+    assert_eq!(normalized, std::path::PathBuf::from("b/src/main.rs"));
+}
+
+#[test]
+fn normalize_path_multiple_parent_dirs() {
+    let p = std::path::Path::new("a/b/c/../../d/e");
+    let normalized = normalize_path(p);
+    assert_eq!(normalized, std::path::PathBuf::from("a/d/e"));
+}
+
+#[test]
+fn normalize_path_preserves_simple_path() {
+    let p = std::path::Path::new("src/lib.rs");
+    let normalized = normalize_path(p);
+    assert_eq!(normalized, std::path::PathBuf::from("src/lib.rs"));
+}
+
+#[test]
+fn normalize_path_handles_paths_with_spaces() {
+    let p = std::path::Path::new("src/my module/file name.rs");
+    let normalized = normalize_path(p);
+    assert_eq!(
+        normalized,
+        std::path::PathBuf::from("src/my module/file name.rs")
+    );
+}
+
+#[test]
+fn normalize_path_handles_deeply_nested_dots() {
+    // a/b/c/./d/../e → a/b/c/e
+    let p = std::path::Path::new("a/b/c/./d/../e");
+    let normalized = normalize_path(p);
+    assert_eq!(normalized, std::path::PathBuf::from("a/b/c/e"));
+}
+
+// ── Integration: /dev/null paths (new/delete) ────────────────────
+
+#[tokio::test]
+async fn patch_apply_tool_deletes_file_with_dev_null() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("to_delete.rs");
+    tokio::fs::write(&file_path, "fn old() {}\n").await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/to_delete.rs
++++ /dev/null
+@@ -1,1 +0,0 @@
+-fn old() {}
+";
+    let result = tool.invoke(make_invocation(diff)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+    assert!(!file_path.exists());
+}
+
+#[tokio::test]
+async fn patch_apply_tool_creates_file_in_subdirectory() {
+    let dir = tempfile::tempdir().unwrap();
+    tokio::fs::create_dir_all(dir.path().join("nested/dir"))
+        .await
+        .unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- /dev/null
++++ b/nested/dir/new.rs
+@@ -0,0 +1,3 @@
++fn new_func() {
++    // created
++}
+";
+    let result = tool.invoke(make_invocation(diff)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+
+    let new_file = dir.path().join("nested/dir/new.rs");
+    assert!(new_file.exists());
+    let content = tokio::fs::read_to_string(&new_file).await.unwrap();
+    assert!(content.contains("fn new_func()"));
+    assert!(content.contains("// created"));
+}
+
+// ── Integration: hunk drift with larger offset ───────────────────
+
+#[tokio::test]
+async fn patch_apply_tool_drift_at_line_10_content_at_15() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("drift_big.txt");
+
+    // Build file: 14 filler lines then target content at lines 15-17
+    let mut content = String::new();
+    for i in 0..14 {
+        content.push_str(&format!("filler_{}\n", i));
+    }
+    content.push_str("target_x\n");
+    content.push_str("target_y\n");
+    content.push_str("target_z\n");
+
+    tokio::fs::write(&file_path, &content).await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    // Declare hunk at line 10 but actual content is at line 15
+    let diff = "\
+--- a/drift_big.txt
++++ b/drift_big.txt
+@@ -10,3 +10,3 @@
+ target_x
+-target_y
++TARGET_Y
+ target_z
+";
+    let result = tool.invoke(make_invocation(diff)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+
+    let final_content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert!(final_content.contains("TARGET_Y"));
+    assert!(!final_content.contains("target_y"));
+}
+
+// ── Integration: path with spaces ────────────────────────────────
+
+#[tokio::test]
+async fn patch_apply_tool_handles_path_with_spaces() {
+    let dir = tempfile::tempdir().unwrap();
+    let space_dir = dir.path().join("my project");
+    tokio::fs::create_dir_all(&space_dir).await.unwrap();
+    let file_path = space_dir.join("file name.rs");
+    tokio::fs::write(&file_path, "old_content\n").await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/my project/file name.rs
++++ b/my project/file name.rs
+@@ -1,1 +1,1 @@
+-old_content
++new_content
+";
+    let result = tool.invoke(make_invocation(diff)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+
+    let final_content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(final_content, "new_content\n");
+}
