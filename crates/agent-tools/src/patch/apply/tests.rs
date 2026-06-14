@@ -656,11 +656,7 @@ fn locate_hunk_empty_file_fails() {
 
 #[test]
 fn context_only_hunk_validates_successfully() {
-    let lines = vec![
-        "aaa".to_string(),
-        "bbb".to_string(),
-        "ccc".to_string(),
-    ];
+    let lines = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
     let hunk = make_hunk(
         1,
         vec![
@@ -674,11 +670,7 @@ fn context_only_hunk_validates_successfully() {
 
 #[test]
 fn context_only_hunk_apply_leaves_file_unchanged() {
-    let mut lines = vec![
-        "aaa".to_string(),
-        "bbb".to_string(),
-        "ccc".to_string(),
-    ];
+    let mut lines = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
     let hunk = make_hunk(
         1,
         vec![
