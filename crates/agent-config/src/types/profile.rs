@@ -90,7 +90,7 @@ pub struct ProfileInfo {
     #[serde(default)]
     pub model_display: String,
     #[serde(default)]
-    pub context_window: Option<u64>,
+    pub context_window: Option<u32>,
     #[serde(default)]
     pub supports_vision: bool,
     #[serde(default)]

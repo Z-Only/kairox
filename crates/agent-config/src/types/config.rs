@@ -356,7 +356,7 @@ impl Config {
                     supports_reasoning: profile_supports_reasoning(def),
                     provider_display: def.provider.clone(),
                     model_display: def.model_id.clone(),
-                    context_window: def.context_window,
+                    context_window: def.context_window.map(|v| v as u32),
                     supports_vision: def.supports_vision.unwrap_or(false),
                     supports_tools: def.supports_tools.unwrap_or(false),
                 }
