@@ -90,6 +90,7 @@ fn context_policy_default_threshold() {
     assert!((policy.auto_compact_threshold - 0.85).abs() < f32::EPSILON);
     assert!(policy.compactor_profile.is_none());
     assert!(policy.max_tool_definition_tokens.is_none());
+    assert!(policy.max_iterations.is_none());
 }
 
 #[test]
@@ -98,11 +99,13 @@ fn context_policy_deserializes_from_toml() {
         auto_compact_threshold = 0.7
         compactor_profile = "summarizer"
         max_tool_definition_tokens = 4096
+        max_iterations = 50
     "#;
     let policy: ContextPolicy = toml::from_str(toml_str).unwrap();
     assert!((policy.auto_compact_threshold - 0.7).abs() < f32::EPSILON);
     assert_eq!(policy.compactor_profile.as_deref(), Some("summarizer"));
     assert_eq!(policy.max_tool_definition_tokens, Some(4096));
+    assert_eq!(policy.max_iterations, Some(50));
 }
 
 #[test]
@@ -111,4 +114,5 @@ fn context_policy_deserializes_empty_as_defaults() {
     assert!((policy.auto_compact_threshold - 0.85).abs() < f32::EPSILON);
     assert!(policy.compactor_profile.is_none());
     assert!(policy.max_tool_definition_tokens.is_none());
+    assert!(policy.max_iterations.is_none());
 }

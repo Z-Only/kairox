@@ -86,6 +86,10 @@ pub struct ContextPolicy {
     /// lowest-priority tools first.
     #[serde(default)]
     pub max_tool_definition_tokens: Option<u64>,
+    /// Maximum number of agent loop iterations per turn. Overrides the
+    /// compile-time default (`MAX_AGENT_LOOP_ITERATIONS`) when set.
+    #[serde(default)]
+    pub max_iterations: Option<usize>,
 }
 
 pub(crate) fn default_auto_compact_threshold() -> f32 {
@@ -98,6 +102,7 @@ impl Default for ContextPolicy {
             auto_compact_threshold: default_auto_compact_threshold(),
             compactor_profile: None,
             max_tool_definition_tokens: None,
+            max_iterations: None,
         }
     }
 }
