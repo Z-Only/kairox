@@ -16418,6 +16418,9 @@ export type ProfileInfo = {
   supports_reasoning: boolean;
   provider_display?: string;
   model_display?: string;
+  context_window?: number | null;
+  supports_vision?: boolean;
+  supports_tools?: boolean;
 };
 
 export type ProfileSettingsInput = {
