@@ -1,11 +1,13 @@
 import { defineComponent, h, inject, nextTick } from "vue";
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
+import { createI18n } from "vue-i18n";
 
 import ConfirmDialog from "./ConfirmDialog.vue";
 import confirmDialogSource from "./ConfirmDialog.vue?raw";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { confirmDialogKey, type ConfirmAPI } from "@/composables/useConfirm";
+import en from "@/locales/en.json";
 
 /**
  * Helper: mount ConfirmDialog with a child component that injects the
@@ -20,9 +22,16 @@ function mountWithConsumer() {
     }
   });
 
+  const i18n = createI18n({
+    legacy: false,
+    locale: "en",
+    messages: { en }
+  });
+
   const wrapper = mount(ConfirmDialog, {
     slots: { default: () => h(Consumer) },
     global: {
+      plugins: [i18n],
       stubs: {
         KxModal: {
           template: `<div v-if="open" data-test="confirm-dialog"><slot /><slot name="footer" /></div>`,

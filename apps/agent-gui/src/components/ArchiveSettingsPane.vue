@@ -220,19 +220,19 @@ onMounted(() => {
     </SettingsState>
 
     <template v-else>
-      <SettingsFilterBar aria-label="Search archived sessions" data-test="archive-filters">
+      <SettingsFilterBar :aria-label="t('settings.archiveSearchAria')" data-test="archive-filters">
         <div class="settings-filter-bar__row">
           <KxInput
             v-model="archiveSearchQuery"
             type="search"
             size="compact"
-            aria-label="Search archived sessions"
-            placeholder="Search archived sessions"
+            :aria-label="t('settings.archiveSearchAria')"
+            :placeholder="t('settings.archiveSearchPlaceholder')"
             data-test="archive-search-input"
           />
           <KxSelect
             :model-value="archiveSortMode"
-            aria-label="Archived session sort"
+            :aria-label="t('settings.archiveSortAria')"
             data-test="archive-sort-select"
             size="compact"
             @update:model-value="setArchiveSortMode"
@@ -249,7 +249,7 @@ onMounted(() => {
         tone="empty"
         data-test="archive-filter-empty"
       >
-        No archived sessions match your search.
+        {{ t("settings.archiveFilterEmpty") }}
       </SettingsState>
 
       <SettingsCardList

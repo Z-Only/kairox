@@ -144,7 +144,11 @@
     "updateDownloading": "下载中…",
     "updateUpToDate": "已是最新版本",
     "updateLastCheck": "上次检查：{time}",
-    "updateCheckFailed": "检查失败：{error}"
+    "updateCheckFailed": "检查失败：{error}",
+    "archiveSearchAria": "搜索归档会话",
+    "archiveSearchPlaceholder": "搜索归档会话",
+    "archiveSortAria": "归档会话排序",
+    "archiveFilterEmpty": "没有符合搜索条件的归档会话。"
   },
   "notifications": {
     "sessionError": "会话错误",
