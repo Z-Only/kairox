@@ -111,7 +111,7 @@ pub async fn test_model_connectivity(
             .map_err(|e| e.to_string())?
             .config
     } else {
-        state.config.read().map_err(|e| e.to_string())?.clone()
+        agent_runtime::ui_bootstrap::load_user_ui_config(&state.home_dir).config
     };
     let profile = config
         .profiles
