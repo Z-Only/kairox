@@ -268,8 +268,13 @@ where
             break;
         }
 
-        // Guard: max iterations
-        if iterations >= super::MAX_AGENT_LOOP_ITERATIONS {
+        // Guard: max iterations (config override > compile-time default)
+        let max_iterations_limit = deps
+            .config
+            .context
+            .max_iterations
+            .unwrap_or(super::MAX_AGENT_LOOP_ITERATIONS);
+        if iterations >= max_iterations_limit {
             let event = DomainEvent::new(
                 request.workspace_id.clone(),
                 request.session_id.clone(),
