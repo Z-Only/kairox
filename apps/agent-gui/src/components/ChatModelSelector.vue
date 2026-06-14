@@ -2,6 +2,15 @@
 import { DEFAULT_REASONING_EFFORTS, formatProfileDisplay } from "@/stores/session";
 import type { ProfileInfo } from "@/types";
 
+function formatContextWindow(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    const m = tokens / 1_000_000;
+    return m % 1 === 0 ? `${m}M` : `${m.toFixed(1)}M`;
+  }
+  const k = tokens / 1_000;
+  return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
+}
+
 const props = defineProps<{
   modelOptions: ProfileInfo[];
   currentProfile: string;
@@ -194,6 +203,41 @@ watch(
                   {{ profile.alias }}
                   <span v-if="profile.alias === selectedModelAlias">
                     · {{ t("chat.currentModel") }}</span
+                  >
+                </span>
+                <span
+                  v-if="
+                    profile.context_window ||
+                    profile.supports_vision ||
+                    profile.supports_tools ||
+                    profile.supports_reasoning
+                  "
+                  class="chat-model-badges"
+                  data-test="chat-model-badges"
+                >
+                  <span
+                    v-if="profile.context_window"
+                    class="chat-model-badge chat-model-badge--context"
+                    data-test="badge-context"
+                    >{{ formatContextWindow(profile.context_window) }}</span
+                  >
+                  <span
+                    v-if="profile.supports_vision"
+                    class="chat-model-badge chat-model-badge--vision"
+                    data-test="badge-vision"
+                    >Vision</span
+                  >
+                  <span
+                    v-if="profile.supports_tools"
+                    class="chat-model-badge chat-model-badge--tools"
+                    data-test="badge-tools"
+                    >Tools</span
+                  >
+                  <span
+                    v-if="profile.supports_reasoning"
+                    class="chat-model-badge chat-model-badge--reasoning"
+                    data-test="badge-reasoning"
+                    >Reasoning</span
                   >
                 </span>
               </button>
@@ -410,5 +454,36 @@ watch(
     opacity: 1;
     transform: scale(1);
   }
+}
+.chat-model-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+.chat-model-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.chat-model-badge--context {
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
+  color: var(--app-primary-color);
+}
+.chat-model-badge--vision {
+  background: color-mix(in srgb, #8b5cf6 12%, transparent);
+  color: #8b5cf6;
+}
+.chat-model-badge--tools {
+  background: color-mix(in srgb, #0891b2 12%, transparent);
+  color: #0891b2;
+}
+.chat-model-badge--reasoning {
+  background: color-mix(in srgb, #d97706 12%, transparent);
+  color: #d97706;
 }
 </style>

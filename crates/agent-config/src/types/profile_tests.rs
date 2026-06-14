@@ -194,6 +194,9 @@ fn profile_info_serde_roundtrip() {
         supports_reasoning: true,
         provider_display: "Anthropic".into(),
         model_display: "Claude Sonnet 4".into(),
+        context_window: Some(200000),
+        supports_vision: true,
+        supports_tools: true,
     };
     let json = serde_json::to_string(&info).expect("serialize ProfileInfo");
     let back: ProfileInfo = serde_json::from_str(&json).expect("deserialize ProfileInfo");
@@ -203,6 +206,28 @@ fn profile_info_serde_roundtrip() {
     assert!(back.has_api_key);
     assert!(back.supports_reasoning);
     assert!(!back.local);
+    assert_eq!(back.context_window, Some(200000));
+    assert!(back.supports_vision);
+    assert!(back.supports_tools);
+}
+
+#[test]
+fn profile_info_defaults_for_missing_capability_fields() {
+    // Simulate deserializing a ProfileInfo without the new fields (backwards compat)
+    let json = r#"{
+        "alias": "legacy",
+        "provider": "openai",
+        "model_id": "gpt-4",
+        "local": false,
+        "has_api_key": true,
+        "supports_reasoning": false,
+        "provider_display": "OpenAI",
+        "model_display": "GPT-4"
+    }"#;
+    let info: ProfileInfo = serde_json::from_str(json).expect("deserialize without new fields");
+    assert_eq!(info.context_window, None);
+    assert!(!info.supports_vision);
+    assert!(!info.supports_tools);
 }
 
 // ── ConfigSource ────────────────────────────────────────────────────

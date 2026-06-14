@@ -89,6 +89,12 @@ pub struct ProfileInfo {
     pub provider_display: String,
     #[serde(default)]
     pub model_display: String,
+    #[serde(default)]
+    pub context_window: Option<u64>,
+    #[serde(default)]
+    pub supports_vision: bool,
+    #[serde(default)]
+    pub supports_tools: bool,
 }
 
 /// Where the configuration was loaded from.

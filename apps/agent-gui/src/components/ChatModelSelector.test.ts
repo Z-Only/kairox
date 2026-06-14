@@ -6,12 +6,14 @@ import type { ProfileInfo } from "@/types";
 
 function profile(overrides: Partial<ProfileInfo> & Pick<ProfileInfo, "alias">): ProfileInfo {
   return {
-    alias: overrides.alias,
     provider: "openai",
     model_id: overrides.alias,
     local: false,
     has_api_key: true,
     supports_reasoning: false,
+    supports_vision: false,
+    supports_tools: false,
+    context_window: null,
     ...overrides
   };
 }
@@ -208,5 +210,100 @@ describe("ChatModelSelector", () => {
     await wrapper.find('[data-test="chat-reasoning-custom-apply"]').trigger("click");
 
     expect(wrapper.emitted("selectModel")).toEqual([["smart", "reasoning-max"]]);
+  });
+
+  describe("capability badges", () => {
+    it("renders context window badge formatted as K/M", async () => {
+      const options = [
+        profile({ alias: "large", context_window: 200000, model_display: "Large Model" }),
+        profile({ alias: "small", context_window: 8000, model_display: "Small Model" })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "large" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      const badges = wrapper.findAll('[data-test="badge-context"]');
+      expect(badges).toHaveLength(2);
+      expect(badges[0].text()).toBe("200K");
+      expect(badges[1].text()).toBe("8K");
+    });
+
+    it("renders context window as M for million-token models", async () => {
+      const options = [
+        profile({ alias: "mega", context_window: 1000000, model_display: "Mega Model" })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "mega" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      const badge = wrapper.find('[data-test="badge-context"]');
+      expect(badge.text()).toBe("1M");
+    });
+
+    it("renders vision badge when supports_vision is true", async () => {
+      const options = [
+        profile({ alias: "vis", supports_vision: true, model_display: "Vision Model" })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "vis" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      expect(wrapper.find('[data-test="badge-vision"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="badge-vision"]').text()).toBe("Vision");
+    });
+
+    it("renders tools badge when supports_tools is true", async () => {
+      const options = [
+        profile({ alias: "tooled", supports_tools: true, model_display: "Tool Model" })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "tooled" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      expect(wrapper.find('[data-test="badge-tools"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="badge-tools"]').text()).toBe("Tools");
+    });
+
+    it("renders reasoning badge when supports_reasoning is true", async () => {
+      const options = [
+        profile({ alias: "thinker", supports_reasoning: true, model_display: "Reasoning Model" })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "thinker" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      expect(wrapper.find('[data-test="badge-reasoning"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="badge-reasoning"]').text()).toBe("Reasoning");
+    });
+
+    it("does not render badges section when no capabilities are present", async () => {
+      const options = [profile({ alias: "plain", model_display: "Plain Model" })];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "plain" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      expect(wrapper.find('[data-test="chat-model-badges"]').exists()).toBe(false);
+    });
+
+    it("renders multiple badges for a fully-capable model", async () => {
+      const options = [
+        profile({
+          alias: "full",
+          context_window: 128000,
+          supports_vision: true,
+          supports_tools: true,
+          supports_reasoning: true,
+          model_display: "Full Model"
+        })
+      ];
+      const wrapper = mountSelector({ modelOptions: options, currentProfile: "full" });
+
+      await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+      expect(wrapper.find('[data-test="badge-context"]').text()).toBe("128K");
+      expect(wrapper.find('[data-test="badge-vision"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="badge-tools"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="badge-reasoning"]').exists()).toBe(true);
+    });
   });
 });
