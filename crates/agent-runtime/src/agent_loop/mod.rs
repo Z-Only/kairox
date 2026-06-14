@@ -72,4 +72,4 @@ Guidelines:\n\
 the information naturally in your response.\n\
 ";
 
-pub const MAX_AGENT_LOOP_ITERATIONS: usize = 20;
+pub const MAX_AGENT_LOOP_ITERATIONS: usize = 100;

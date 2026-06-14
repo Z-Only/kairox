@@ -32,6 +32,7 @@ async fn fixture_runtime_with_history(
         auto_compact_threshold: 1.0,
         compactor_profile: None,
         max_tool_definition_tokens: None,
+        max_iterations: None,
     };
     let runtime = Arc::new(LocalRuntime::new(store, model).with_config(Arc::new(config)));
 

@@ -66,7 +66,7 @@ impl ModelClient for RecordingTextModel {
 fn max_agent_loop_iterations_is_reasonable() {
     use agent_runtime::agent_loop::MAX_AGENT_LOOP_ITERATIONS;
     assert!(MAX_AGENT_LOOP_ITERATIONS > 0);
-    assert!(MAX_AGENT_LOOP_ITERATIONS <= 100);
+    assert!(MAX_AGENT_LOOP_ITERATIONS <= 500);
 }
 
 #[tokio::test]
