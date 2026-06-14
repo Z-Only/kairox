@@ -376,3 +376,352 @@ fn parse_command_whitespace_only() {
     assert_eq!(program, "");
     assert!(args.is_empty());
 }
+
+// ── Edge-case: piped commands ────────────────────────────────────────
+
+#[test]
+fn parse_pipe_is_treated_as_single_token_stream() {
+    // parse_command only splits program+args; pipe chars are just args
+    let (program, args) = parse_command("ls | grep foo");
+    assert_eq!(program, "ls");
+    assert_eq!(args, vec!["|", "grep", "foo"]);
+}
+
+#[test]
+fn parse_multi_pipe() {
+    let (program, args) = parse_command("cat file.txt | sort | uniq -c");
+    assert_eq!(program, "cat");
+    assert_eq!(args, vec!["file.txt", "|", "sort", "|", "uniq", "-c"]);
+}
+
+// ── Edge-case: redirections ──────────────────────────────────────────
+
+#[test]
+fn parse_output_redirection() {
+    let (program, args) = parse_command("echo foo > file.txt");
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["foo", ">", "file.txt"]);
+}
+
+#[test]
+fn parse_append_redirection() {
+    let (program, args) = parse_command("echo bar >> log.txt");
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["bar", ">>", "log.txt"]);
+}
+
+#[test]
+fn parse_input_redirection() {
+    let (program, args) = parse_command("wc -l < input.txt");
+    assert_eq!(program, "wc");
+    assert_eq!(args, vec!["-l", "<", "input.txt"]);
+}
+
+// ── Edge-case: quoted arguments with spaces ──────────────────────────
+
+#[test]
+fn parse_git_commit_multi_word_message() {
+    let (program, args) = parse_command(r#"git commit -m "multi word message""#);
+    assert_eq!(program, "git");
+    assert_eq!(args, vec!["commit", "-m", "multi word message"]);
+}
+
+#[test]
+fn parse_nested_quotes_single_in_double() {
+    let (program, args) = parse_command(r#"echo "it's a test""#);
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["it's a test"]);
+}
+
+#[test]
+fn parse_nested_quotes_double_in_single() {
+    let (program, args) = parse_command(r#"echo 'say "hello"'"#);
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec![r#"say "hello""#]);
+}
+
+#[test]
+fn parse_escaped_quote_inside_double_quotes() {
+    let (program, args) = parse_command(r#"echo "she said \"hi\"""#);
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec![r#"she said "hi""#]);
+}
+
+// ── Edge-case: subshell/compound commands ────────────────────────────
+
+#[test]
+fn parse_subshell_parens_are_tokens() {
+    // Parentheses aren't special to our tokenizer; treated as part of tokens
+    let (program, args) = parse_command("(cd dir && rm -rf .)");
+    // The opening paren sticks to the first token
+    assert_eq!(program, "(cd");
+    assert_eq!(args, vec!["dir", "&&", "rm", "-rf", ".)"]);
+}
+
+#[test]
+fn parse_and_operator() {
+    let (program, args) = parse_command("mkdir foo && cd foo");
+    assert_eq!(program, "mkdir");
+    assert_eq!(args, vec!["foo", "&&", "cd", "foo"]);
+}
+
+#[test]
+fn parse_semicolon_separator() {
+    let (program, args) = parse_command("echo a; echo b");
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["a;", "echo", "b"]);
+}
+
+// ── Edge-case: classify unknown/exotic commands ──────────────────────
+
+#[test]
+fn classify_custom_script_is_unknown() {
+    assert_eq!(
+        classify_command("my-custom-script", &[]),
+        CommandRisk::Unknown
+    );
+}
+
+#[test]
+fn classify_path_based_binary_is_unknown() {
+    assert_eq!(
+        classify_command("/usr/local/bin/exotic", &["--flag"]),
+        CommandRisk::Unknown
+    );
+}
+
+#[test]
+fn classify_dot_slash_script_is_unknown() {
+    assert_eq!(
+        classify_command("./build.sh", &["--release"]),
+        CommandRisk::Unknown
+    );
+}
+
+// ── Edge-case: empty/whitespace classify ─────────────────────────────
+
+#[test]
+fn classify_empty_program_is_unknown() {
+    assert_eq!(classify_command("", &[]), CommandRisk::Unknown);
+}
+
+#[test]
+fn classify_whitespace_program_is_unknown() {
+    // After trim, whitespace-only becomes empty → Unknown
+    assert_eq!(classify_command("   ", &[]), CommandRisk::Unknown);
+}
+
+// ── Edge-case: subcommand detection boundaries ───────────────────────
+
+#[test]
+fn git_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("git", &["push"]), CommandRisk::Write);
+    assert_eq!(classify_command("git", &["commit"]), CommandRisk::Write);
+    assert_eq!(classify_command("git", &["merge"]), CommandRisk::Write);
+    assert_eq!(classify_command("git", &["rebase"]), CommandRisk::Write);
+    assert_eq!(classify_command("git", &["reset"]), CommandRisk::Write);
+    assert_eq!(
+        classify_command("git", &["cherry-pick"]),
+        CommandRisk::Write
+    );
+    assert_eq!(classify_command("git", &["tag"]), CommandRisk::Write);
+    assert_eq!(classify_command("git", &["stash"]), CommandRisk::Write);
+
+    // Destructive subcommands
+    assert_eq!(
+        classify_command("git", &["clean"]),
+        CommandRisk::Destructive
+    );
+
+    // ReadOnly (base program, no subcommand match)
+    assert_eq!(classify_command("git", &["log"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("git", &["diff"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("git", &["status"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("git", &["show"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("git", &["blame"]), CommandRisk::ReadOnly);
+}
+
+#[test]
+fn docker_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("docker", &["build"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["run"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["push"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["rm"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["rmi"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["stop"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["kill"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["compose"]), CommandRisk::Write);
+
+    // Destructive subcommands
+    assert_eq!(
+        classify_command("docker", &["system"]),
+        CommandRisk::Destructive
+    );
+    assert_eq!(
+        classify_command("docker", &["volume"]),
+        CommandRisk::Destructive
+    );
+
+    // Base Write (docker itself is a Write command, non-matching sub falls to base)
+    assert_eq!(classify_command("docker", &["ps"]), CommandRisk::Write);
+    assert_eq!(classify_command("docker", &["images"]), CommandRisk::Write);
+}
+
+#[test]
+fn bun_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("bun", &["add"]), CommandRisk::Write);
+    assert_eq!(classify_command("bun", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("bun", &["remove"]), CommandRisk::Write);
+    assert_eq!(classify_command("bun", &["update"]), CommandRisk::Write);
+    assert_eq!(classify_command("bun", &["publish"]), CommandRisk::Write);
+    assert_eq!(classify_command("bun", &["pm"]), CommandRisk::Write);
+
+    // ReadOnly (base program, no subcommand match)
+    assert_eq!(
+        classify_command("bun", &["run", "test"]),
+        CommandRisk::ReadOnly
+    );
+    assert_eq!(classify_command("bun", &["test"]), CommandRisk::ReadOnly);
+}
+
+#[test]
+fn cargo_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("cargo", &["publish"]), CommandRisk::Write);
+
+    // ReadOnly (base program, no subcommand match)
+    assert_eq!(classify_command("cargo", &["build"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("cargo", &["test"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("cargo", &["check"]), CommandRisk::ReadOnly);
+    assert_eq!(
+        classify_command("cargo", &["clippy"]),
+        CommandRisk::ReadOnly
+    );
+}
+
+#[test]
+fn kubectl_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("kubectl", &["delete"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["apply"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["create"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["edit"]), CommandRisk::Write);
+    assert_eq!(classify_command("kubectl", &["patch"]), CommandRisk::Write);
+
+    // Base Write (kubectl itself is a Write command)
+    assert_eq!(classify_command("kubectl", &["get"]), CommandRisk::Write);
+    assert_eq!(
+        classify_command("kubectl", &["describe"]),
+        CommandRisk::Write
+    );
+}
+
+#[test]
+fn helm_subcommand_boundaries() {
+    // Write subcommands
+    assert_eq!(classify_command("helm", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["upgrade"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["delete"]), CommandRisk::Write);
+    assert_eq!(classify_command("helm", &["rollback"]), CommandRisk::Write);
+
+    // Base Write (helm itself is a Write command)
+    assert_eq!(classify_command("helm", &["list"]), CommandRisk::Write);
+}
+
+#[test]
+fn pip_subcommand_boundaries() {
+    assert_eq!(classify_command("pip", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("pip", &["uninstall"]), CommandRisk::Write);
+    assert_eq!(classify_command("pip3", &["install"]), CommandRisk::Write);
+    // pip with non-matching subcommand → ReadOnly (base)
+    assert_eq!(classify_command("pip", &["list"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("pip", &["show"]), CommandRisk::ReadOnly);
+}
+
+#[test]
+fn npm_subcommand_boundaries() {
+    assert_eq!(classify_command("npm", &["install"]), CommandRisk::Write);
+    assert_eq!(classify_command("npm", &["uninstall"]), CommandRisk::Write);
+    assert_eq!(classify_command("npm", &["publish"]), CommandRisk::Write);
+    assert_eq!(classify_command("npm", &["update"]), CommandRisk::Write);
+
+    // Non-matching → ReadOnly (base)
+    assert_eq!(classify_command("npm", &["list"]), CommandRisk::ReadOnly);
+    assert_eq!(classify_command("npm", &["info"]), CommandRisk::ReadOnly);
+}
+
+// ── Edge-case: extra args after subcommand don't change risk ─────────
+
+#[test]
+fn subcommand_with_extra_args_still_classified_correctly() {
+    assert_eq!(
+        classify_command("git", &["push", "origin", "main", "--force"]),
+        CommandRisk::Write
+    );
+    assert_eq!(
+        classify_command("docker", &["system", "prune", "-a"]),
+        CommandRisk::Destructive
+    );
+    assert_eq!(
+        classify_command("kubectl", &["delete", "pod", "my-pod"]),
+        CommandRisk::Write
+    );
+}
+
+// ── Edge-case: parse_command with complex real-world commands ─────────
+
+#[test]
+fn parse_command_with_equals_in_arg() {
+    let (program, args) = parse_command("cargo test --features=full");
+    assert_eq!(program, "cargo");
+    assert_eq!(args, vec!["test", "--features=full"]);
+}
+
+#[test]
+fn parse_command_with_env_var_prefix() {
+    // Env var assignment before command — tokenizer doesn't interpret = specially
+    let (program, args) = parse_command("RUST_LOG=debug cargo test");
+    assert_eq!(program, "RUST_LOG=debug");
+    assert_eq!(args, vec!["cargo", "test"]);
+}
+
+#[test]
+fn parse_command_with_dollar_in_double_quotes() {
+    // $var inside double quotes — backslash-dollar is escaped
+    let (program, args) = parse_command(r#"echo "price is \$5""#);
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["price is $5"]);
+}
+
+#[test]
+fn parse_command_with_backtick_in_double_quotes() {
+    // Escaped backtick
+    let (program, args) = parse_command(r#"echo "use \`cmd\`""#);
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec!["use `cmd`"]);
+}
+
+#[test]
+fn parse_command_trailing_backslash() {
+    // Trailing backslash at end of input
+    let (program, args) = parse_command(r"echo hello\");
+    assert_eq!(program, "echo");
+    assert_eq!(args, vec![r"hello\"]);
+}
+
+#[test]
+fn parse_command_multiple_spaces_between_args() {
+    let (program, args) = parse_command("ls    -la    /tmp");
+    assert_eq!(program, "ls");
+    assert_eq!(args, vec!["-la", "/tmp"]);
+}
+
+#[test]
+fn parse_command_tab_separated() {
+    let (program, args) = parse_command("ls\t-la\t/tmp");
+    assert_eq!(program, "ls");
+    assert_eq!(args, vec!["-la", "/tmp"]);
+}
