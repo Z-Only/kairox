@@ -50,6 +50,12 @@ reqwest = { version = "0.13", features = ["json", "stream", "rustls"], default-f
 eventsource-stream = "0.2.3"
 lsp-types = "0.97"
 tracing = "0.1.44"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+  "env-filter",
+  "fmt",
+  "registry",
+  "std"
+] }
 rand = "0.10"
 wiremock = "0.6.5"
 async-stream = "0.3.6"

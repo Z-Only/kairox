@@ -2,6 +2,7 @@ mod app_state;
 pub mod commands;
 mod event_forwarder;
 pub mod specta;
+mod tracing_init;
 
 #[cfg(test)]
 use agent_config::Config;
@@ -33,6 +34,8 @@ pub fn run() {
     use std::sync::{Arc, Mutex};
     use tauri::Manager;
 
+    tracing_init::init();
+
     let _specta_builder = specta::create_specta();
     let runtime_instance_guard = Arc::new(Mutex::new(None));
     let runtime_instance_guard_for_setup = Arc::clone(&runtime_instance_guard);
@@ -56,7 +59,7 @@ pub fn run() {
             let cwd = std::env::current_dir().expect("Cannot get current dir");
             let instance_registry = RuntimeInstanceRegistry::new(&db_dir);
             if let Err(error) = instance_registry.prune_stale() {
-                eprintln!("Runtime instance registry warning: {error}");
+                tracing::warn!("Runtime instance registry warning: {error}");
             }
             let runtime_instance_guard = instance_registry
                 .register(RuntimeInstanceRegistration {
@@ -67,13 +70,13 @@ pub fn run() {
                 .map_err(Box::<dyn std::error::Error>::from)?;
             match instance_registry.list_other_instances() {
                 Ok(records) if !records.is_empty() => {
-                    eprintln!(
+                    tracing::warn!(
                         "Other Kairox instances: {}",
                         format_runtime_instance_summary(&records)
                     );
                 }
                 Ok(_) => {}
-                Err(error) => eprintln!("Runtime instance registry warning: {error}"),
+                Err(error) => tracing::warn!("Runtime instance registry warning: {error}"),
             }
             *runtime_instance_guard_for_setup
                 .lock()
@@ -88,31 +91,31 @@ pub fn run() {
             tauri::async_runtime::block_on(async move {
                 let db_url = sqlite_database_url(&db_dir, "kairox-gui.sqlite");
 
-                eprintln!("Database: {}", db_url);
+                tracing::info!("Database: {}", db_url);
 
                 let config_load = load_ui_config(&db_dir);
                 for warning in &config_load.warnings {
-                    eprintln!("{warning}");
+                    tracing::warn!("{warning}");
                 }
                 let catalog_load = load_catalog_sources(&db_dir);
                 for warning in &catalog_load.warnings {
-                    eprintln!("{warning}");
+                    tracing::warn!("{warning}");
                 }
                 let config = config_load.config;
-                eprintln!("Available model profiles: {:?}", config.profile_names());
-                eprintln!("Default profile: {}", config.default_profile());
-                eprintln!(
+                tracing::info!("Available model profiles: {:?}", config.profile_names());
+                tracing::info!("Default profile: {}", config.default_profile());
+                tracing::info!(
                     "Default policy: approval={} sandbox={}",
                     ApprovalPolicy::default(),
                     SandboxPolicy::default().kind_str()
                 );
-                eprintln!(
+                tracing::info!(
                     "Catalog sources: {} (enabled: {})",
                     catalog_load.sources.len(),
                     catalog_load.sources.iter().filter(|s| s.enabled).count()
                 );
                 let mcp_server_defs = config.mcp_server_defs();
-                eprintln!("MCP server definitions: {}", mcp_server_defs.len());
+                tracing::info!("MCP server definitions: {}", mcp_server_defs.len());
                 let runtime_bootstrap = build_ui_runtime(UiRuntimeOptions::new(
                     home_dir,
                     db_dir.clone(),
@@ -150,10 +153,10 @@ pub fn run() {
                                 .await
                             {
                                 Ok(count) if count > 0 => {
-                                    eprintln!("[cleanup] Removed {count} expired session(s)")
+                                    tracing::info!("[cleanup] Removed {count} expired session(s)")
                                 }
                                 Ok(_) => {}
-                                Err(e) => eprintln!("[cleanup] Failed: {e}"),
+                                Err(e) => tracing::warn!("[cleanup] Failed: {e}"),
                             }
                         }
                     });
@@ -341,7 +344,7 @@ pub fn run() {
                 .take();
             if let Some(guard) = guard {
                 if let Err(error) = guard.cleanup() {
-                    eprintln!("Runtime instance registry warning: {error}");
+                    tracing::warn!("Runtime instance registry warning: {error}");
                 }
             }
         }
@@ -382,6 +385,23 @@ mod tests {
         let config = Config::defaults();
         let default = config.default_profile();
         assert!(!default.is_empty());
+    }
+
+    #[test]
+    fn human_readable_log_timestamp_uses_local_offset() {
+        use chrono::{FixedOffset, TimeZone, Timelike};
+
+        let timestamp = FixedOffset::east_opt(8 * 60 * 60)
+            .expect("offset should be valid")
+            .with_ymd_and_hms(2026, 6, 15, 12, 34, 56)
+            .unwrap()
+            .with_nanosecond(789_000_000)
+            .unwrap();
+
+        let formatted = crate::tracing_init::format_human_log_timestamp(timestamp);
+
+        assert_eq!(formatted, "2026-06-15T12:34:56.789+08:00");
+        assert!(!formatted.ends_with('Z'));
     }
 }
 

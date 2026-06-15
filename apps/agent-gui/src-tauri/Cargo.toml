@@ -34,6 +34,7 @@ agent-memory = { path = "../../../crates/agent-memory", features = ["specta"] }
 agent-tools = { path = "../../../crates/agent-tools" }
 agent-mcp = { path = "../../../crates/agent-mcp", features = ["specta"] }
 base64 = "0.22"
+chrono.workspace = true
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -45,6 +46,8 @@ specta-typescript = "0.0.12"
 tauri = { version = "2", features = ["protocol-asset", "devtools"] }
 tauri-plugin-dialog = "2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 tokio = { workspace = true, features = [
   "macros",
   "rt-multi-thread",
