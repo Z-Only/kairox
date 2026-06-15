@@ -44,3 +44,7 @@ pub(super) fn truncate_bytes(data: &[u8], limit: usize) -> (Vec<u8>, bool) {
         (data[..limit].to_vec(), true)
     }
 }
+
+#[cfg(test)]
+#[path = "sandbox_tests.rs"]
+mod tests;
