@@ -90,10 +90,20 @@ pub struct ContextPolicy {
     /// compile-time default (`MAX_AGENT_LOOP_ITERATIONS`) when set.
     #[serde(default)]
     pub max_iterations: Option<usize>,
+    /// Maximum idle time, in seconds, to wait for a model stream to produce
+    /// its next event before failing the active turn.
+    #[serde(default = "default_model_stream_idle_timeout_secs")]
+    pub model_stream_idle_timeout_secs: Option<u64>,
 }
 
 pub(crate) fn default_auto_compact_threshold() -> f32 {
     0.85
+}
+
+pub const DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_SECS: u64 = 90;
+
+pub fn default_model_stream_idle_timeout_secs() -> Option<u64> {
+    Some(DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_SECS)
 }
 
 impl Default for ContextPolicy {
@@ -103,6 +113,7 @@ impl Default for ContextPolicy {
             compactor_profile: None,
             max_tool_definition_tokens: None,
             max_iterations: None,
+            model_stream_idle_timeout_secs: default_model_stream_idle_timeout_secs(),
         }
     }
 }
