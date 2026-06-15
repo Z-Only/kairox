@@ -701,3 +701,29 @@ async fn stream_start_timeout_retries_before_failing_turn() {
         "recoverable stream start timeout should not fail the root task: {events:?}"
     );
 }
+
+#[test]
+fn model_stream_timeout_log_classification_distinguishes_retry_from_final() {
+    let retrying = ModelStreamProgress::retrying(
+        "stream_start",
+        0,
+        0,
+        "none",
+        1,
+        MODEL_STREAM_START_IDLE_RETRIES,
+    );
+    assert!(retrying.is_retrying());
+    assert_eq!(retrying.retry_attempt(), 1);
+    assert_eq!(
+        model_stream_timeout_log_message(retrying),
+        "model stream start idle timeout; retrying"
+    );
+
+    let final_timeout = ModelStreamProgress::new("stream_start", 0, 0, "none");
+    assert!(!final_timeout.is_retrying());
+    assert_eq!(final_timeout.retry_attempt(), 0);
+    assert_eq!(
+        model_stream_timeout_log_message(final_timeout),
+        "model stream idle timeout"
+    );
+}

@@ -20,7 +20,7 @@ impl Tool for FsWriteTool {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             tool_id: "fs.write".into(),
-            description: "Write content to a file within the workspace (atomic, with backup)"
+            description: "Write content to a file within the workspace (atomic; optional backup)"
                 .into(),
             required_capability: "filesystem.write".into(),
             parameters: serde_json::json!({
@@ -37,6 +37,10 @@ impl Tool for FsWriteTool {
                     "create_dirs": {
                         "type": "boolean",
                         "description": "Whether to create parent directories if they don't exist (default: true)"
+                    },
+                    "backup": {
+                        "type": "boolean",
+                        "description": "Whether to write <filename>.bak before overwriting an existing file (default: false)"
                     }
                 },
                 "required": ["path", "content"]
@@ -63,6 +67,11 @@ impl Tool for FsWriteTool {
             .get("create_dirs")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
+        let backup_existing = invocation
+            .arguments
+            .get("backup")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         let path = resolve_workspace_write_path(&self.workspace_root, relative_path)?;
 
@@ -73,8 +82,7 @@ impl Tool for FsWriteTool {
             }
         }
 
-        // Backup existing file
-        if path.exists() {
+        if backup_existing && path.exists() {
             let backup = {
                 let file_name = path
                     .file_name()
