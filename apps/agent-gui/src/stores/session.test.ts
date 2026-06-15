@@ -9,6 +9,7 @@ import {
 import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import { traceState } from "@/composables/useTraceStore";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -295,8 +296,24 @@ describe("filterOrdinarySessions", () => {
 describe("project session metadata", () => {
   it("starts an ordinary placeholder session without creating backend state", async () => {
     const session = useSessionStore();
+    const workspaceUi = useWorkspaceUiStore();
     session.currentSessionId = "regular-1";
     session.projection.messages = [{ role: "user", content: "stale" }];
+    workspaceUi.gitReviewContext = { sessionId: "regular-1", projectId: null };
+    workspaceUi.gitReview = {
+      kind: "ok",
+      branch: "main",
+      worktreePath: "/repo",
+      message: null,
+      changedFiles: ["README.md"],
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
+      staged: null,
+      unstaged: null,
+      untracked: null
+    };
+    workspaceUi.gitReviewError = "stale error";
     traceState.entries.push({
       id: "ctx-stale",
       kind: "tool",
@@ -314,6 +331,9 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo).toBeNull();
     expect(session.composerDraftKey).toBe("new-session:ordinary");
     expect(session.projection.messages).toEqual([]);
+    expect(workspaceUi.gitReviewContext).toBeNull();
+    expect(workspaceUi.gitReview).toBeNull();
+    expect(workspaceUi.gitReviewError).toBeNull();
     expect(traceState.entries).toEqual([]);
     expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
       kind: "ordinary-draft",
