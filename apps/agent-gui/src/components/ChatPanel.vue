@@ -36,7 +36,7 @@ function handleMessageEdit(content: string) {
 // When a user message scrolls above the visible area and no later user
 // message is yet visible, pin that message as a compact sticky header so
 // the user always knows what prompt is being answered.
-const pinnedUserMessage = ref<string | null>(null);
+const pinnedUserMessage = ref<ChatMessageStreamItem | null>(null);
 let userMessageObserver: IntersectionObserver | null = null;
 const userMessageElements = new Map<string, HTMLElement>();
 const visibleUserMessageIds = ref<Set<string>>(new Set());
@@ -93,7 +93,7 @@ function recomputePinnedMessage() {
   // No user message is visible — find the closest one above the viewport.
   const container = scrollbar.value;
   if (!container) {
-    pinnedUserMessage.value = messages[messages.length - 1]?.content ?? null;
+    pinnedUserMessage.value = messages[messages.length - 1] ?? null;
     return;
   }
   const containerTop = container.getBoundingClientRect().top;
@@ -114,7 +114,14 @@ function recomputePinnedMessage() {
     }
   }
   // If all messages are below the viewport (scrolled to very top), don't pin.
-  pinnedUserMessage.value = closestMessage?.content ?? null;
+  pinnedUserMessage.value = closestMessage;
+}
+
+function jumpToPinnedUserMessage(): void {
+  const pinned = pinnedUserMessage.value;
+  if (!pinned) return;
+  const target = userMessageElements.get(pinned.id);
+  target?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setupUserMessageObserver() {
@@ -606,10 +613,18 @@ watch(
     </header>
 
     <!-- Sticky pinned user message when scrolled out of view -->
-    <div v-if="pinnedUserMessage" class="pinned-user-message" data-test="pinned-user-message">
+    <button
+      v-if="pinnedUserMessage"
+      type="button"
+      class="pinned-user-message"
+      data-test="pinned-user-message"
+      :aria-label="t('chat.pinnedUserMessageJump')"
+      :title="t('chat.pinnedUserMessageJump')"
+      @click="jumpToPinnedUserMessage"
+    >
       <span class="pinned-user-message-label">📌</span>
-      <span class="pinned-user-message-text">{{ pinnedUserMessage }}</span>
-    </div>
+      <span class="pinned-user-message-text">{{ pinnedUserMessage.content }}</span>
+    </button>
 
     <div ref="scrollbar" class="message-list" data-test="message-list">
       <div class="message-list-inner">
@@ -837,12 +852,25 @@ watch(
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   padding: 6px 16px;
+  border: 0;
   border-bottom: 1px solid var(--app-border-color);
   background: color-mix(in srgb, var(--app-primary-color) 8%, var(--app-card-color));
+  color: inherit;
+  font: inherit;
   font-size: 13px;
   line-height: 1.4;
+  text-align: left;
   overflow: hidden;
+  cursor: pointer;
+}
+.pinned-user-message:hover {
+  background: color-mix(in srgb, var(--app-primary-color) 12%, var(--app-card-color));
+}
+.pinned-user-message:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: -2px;
 }
 .pinned-user-message-label {
   flex-shrink: 0;
