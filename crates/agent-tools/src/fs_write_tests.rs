@@ -83,7 +83,7 @@ async fn write_file_no_create_dirs_when_false() {
 }
 
 #[tokio::test]
-async fn write_file_backs_up_existing() {
+async fn write_file_does_not_back_up_existing_by_default() {
     let dir = temp_workspace();
     std::fs::write(dir.path().join("data.txt"), "original").unwrap();
 
@@ -103,7 +103,33 @@ async fn write_file_backs_up_existing() {
         std::fs::read_to_string(dir.path().join("data.txt")).unwrap(),
         "updated"
     );
-    // Backup
+    assert!(
+        !dir.path().join("data.txt.bak").exists(),
+        "default fs.write must not leave persistent .bak artifacts"
+    );
+}
+
+#[tokio::test]
+async fn write_file_backs_up_existing_when_requested() {
+    let dir = temp_workspace();
+    std::fs::write(dir.path().join("data.txt"), "original").unwrap();
+
+    let tool = FsWriteTool::new(dir.path().to_path_buf());
+    let invocation = make_invocation(
+        "fs.write",
+        serde_json::json!({
+            "path": "data.txt",
+            "content": "updated",
+            "backup": true
+        }),
+    );
+    let output = tool.invoke(invocation).await.unwrap();
+    assert_eq!(output.text, "Written 7 bytes to data.txt");
+
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("data.txt")).unwrap(),
+        "updated"
+    );
     assert_eq!(
         std::fs::read_to_string(dir.path().join("data.txt.bak")).unwrap(),
         "original"
@@ -152,7 +178,7 @@ async fn write_file_missing_content_returns_error() {
 }
 
 #[tokio::test]
-async fn write_overwrites_previous_backup() {
+async fn write_overwrites_previous_backup_when_requested() {
     let dir = temp_workspace();
     // First version
     std::fs::write(dir.path().join("log.txt"), "v1").unwrap();
@@ -160,7 +186,7 @@ async fn write_overwrites_previous_backup() {
     let tool = FsWriteTool::new(dir.path().to_path_buf());
     let invocation = make_invocation(
         "fs.write",
-        serde_json::json!({ "path": "log.txt", "content": "v2" }),
+        serde_json::json!({ "path": "log.txt", "content": "v2", "backup": true }),
     );
     tool.invoke(invocation).await.unwrap();
     assert_eq!(
@@ -171,7 +197,7 @@ async fn write_overwrites_previous_backup() {
     // Write v3 → backup is now "v2"
     let invocation = make_invocation(
         "fs.write",
-        serde_json::json!({ "path": "log.txt", "content": "v3" }),
+        serde_json::json!({ "path": "log.txt", "content": "v3", "backup": true }),
     );
     tool.invoke(invocation).await.unwrap();
     assert_eq!(
