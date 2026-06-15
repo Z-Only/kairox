@@ -143,7 +143,8 @@ describe("useChatComposer", () => {
 
     await composer.sendMessage();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "hello",
       attachments: [{ path: "/repo/src/main.rs", name: "main.rs", mime_type: "text/x-rust" }]
     });
@@ -165,7 +166,8 @@ describe("useChatComposer", () => {
 
     await composer.sendMessage();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "keep this draft",
       attachments: [
         { path: "/repo/src/main.rs", name: "main.rs", mime_type: "text/x-rust" },
@@ -259,7 +261,8 @@ describe("useChatComposer", () => {
     await vi.runAllTimersAsync();
 
     expect(invokeFn).toHaveBeenCalledTimes(1);
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "first queued",
       attachments: []
     });
@@ -280,7 +283,8 @@ describe("useChatComposer", () => {
     session.compacting = false;
     await vi.runAllTimersAsync();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "queued during compaction",
       attachments: []
     });
@@ -295,7 +299,8 @@ describe("useChatComposer", () => {
     await composer.sendMessage();
     await composer.sendQueuedMessageNow(composer.queuedMessages.value[0].id);
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "correction",
       attachments: []
     });
@@ -361,7 +366,7 @@ describe("useChatComposer", () => {
     composer.clearQueuedMessages();
 
     expect(composer.queuedMessages.value).toEqual([]);
-    expect(invokeFn).not.toHaveBeenCalledWith("send_message", expect.anything());
+    expect(invokeFn).not.toHaveBeenCalledWith("send_message_to_session", expect.anything());
   });
 
   it("saves the outgoing session draft before loading the next session draft", async () => {
@@ -416,7 +421,8 @@ describe("useChatComposer", () => {
     await composer.sendMessage();
 
     expect(session.ensureSessionForSend).toHaveBeenCalled();
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_new",
       content: "hello from placeholder",
       attachments: []
     });
@@ -489,7 +495,8 @@ describe("useChatComposer", () => {
     await vi.runAllTimersAsync();
 
     expect(invokeFn).toHaveBeenCalledTimes(2);
-    expect(invokeFn).toHaveBeenLastCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenLastCalledWith("send_message_to_session", {
+      sessionId: "ses_new",
       content: "queued follow up",
       attachments: []
     });
@@ -516,7 +523,8 @@ describe("useChatComposer", () => {
 
     await composer.sendMessage();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_new",
       content: "hello from project placeholder",
       attachments: []
     });
@@ -535,7 +543,8 @@ describe("useChatComposer", () => {
 
     await composer.sendMessage();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "hello from bootstrap session",
       attachments: []
     });
@@ -566,7 +575,8 @@ describe("useChatComposer", () => {
     await composer.sendMessage();
     await vi.runAllTimersAsync();
 
-    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+    expect(invokeFn).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_new",
       content: "read this",
       attachments: [{ path: "/repo/docs/notes.md", name: "notes.md", mime_type: "text/markdown" }]
     });

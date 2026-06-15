@@ -349,13 +349,17 @@ test("keeps draft and attachments when sending with an attachment fails", async 
     const internals = (window as any).__TAURI_INTERNALS__;
     const invoke = internals.invoke.bind(internals);
     internals.invoke = (cmd: string, args: unknown, options: unknown) => {
-      if (cmd === "send_message") {
+      if (cmd === "send_message_to_session") {
         return Promise.reject(new Error("mock IPC failure"));
       }
       return invoke(cmd, args, options);
     };
     try {
-      await internals.invoke("send_message", { content: "probe", attachments: [] });
+      await internals.invoke("send_message_to_session", {
+        sessionId: mock.state.currentSessionId,
+        content: "probe",
+        attachments: []
+      });
       return "resolved";
     } catch (error) {
       return String(error);

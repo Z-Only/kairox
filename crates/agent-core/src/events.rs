@@ -146,6 +146,15 @@ pub enum EventPayload {
         model_profile: String,
         model_id: String,
     },
+    ModelStreamStatus {
+        phase: String,
+        retrying: bool,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        retry_attempt: usize,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        max_retries: usize,
+        message: String,
+    },
     ModelTokenDelta {
         delta: String,
     },
@@ -474,6 +483,7 @@ impl EventPayload {
             Self::CompactionSummary { .. } => "CompactionSummary",
             Self::ModelProfileSwitched { .. } => "ModelProfileSwitched",
             Self::ModelRequestStarted { .. } => "ModelRequestStarted",
+            Self::ModelStreamStatus { .. } => "ModelStreamStatus",
             Self::ModelTokenDelta { .. } => "ModelTokenDelta",
             Self::ModelToolCallRequested { .. } => "ModelToolCallRequested",
             Self::PermissionRequested { .. } => "PermissionRequested",

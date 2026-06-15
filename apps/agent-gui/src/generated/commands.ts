@@ -20,6 +20,10 @@ export const commands = {
     typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
   sendMessage: (content: string, attachments: AttachmentInfo[]) =>
     typedError<null, string>(__TAURI_INVOKE("send_message", { content, attachments })),
+  sendMessageToSession: (sessionId: string, content: string, attachments: AttachmentInfo[]) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("send_message_to_session", { sessionId, content, attachments })
+    ),
   /**  Returns a structured trace export envelope for diagnostics and replay tools. */
   exportTrace: (sessionId: string) =>
     typedError<TraceExport_Serialize, string>(__TAURI_INVOKE("export_trace", { sessionId })),
@@ -733,6 +737,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -750,6 +755,7 @@ export type EventPayload_Deserialize =
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -757,6 +763,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -829,6 +837,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -846,6 +855,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -853,6 +863,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -928,6 +940,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -945,6 +958,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -952,6 +966,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1029,6 +1045,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1047,6 +1064,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -1054,6 +1072,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
@@ -1123,6 +1143,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1141,6 +1162,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -1148,6 +1170,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1219,6 +1243,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1237,6 +1262,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -1244,6 +1270,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1318,6 +1346,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1336,12 +1365,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1417,6 +1449,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1435,6 +1468,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -1442,6 +1476,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1511,6 +1547,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1529,6 +1566,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -1536,6 +1574,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1612,6 +1652,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1630,11 +1671,14 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1713,6 +1757,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1731,11 +1776,14 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1827,6 +1875,7 @@ export type EventPayload_Deserialize =
       key?: never;
       languages?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -1844,12 +1893,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -1921,12 +1973,119 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
       missing?: never;
       mode?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "ModelStreamStatus";
+      phase: string;
+      retrying: boolean;
+      retry_attempt: number;
+      max_retries: number;
+      message: string;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
@@ -2015,6 +2174,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2033,6 +2193,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2040,6 +2201,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2112,6 +2275,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2130,6 +2294,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2137,6 +2302,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2207,6 +2374,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2225,11 +2393,14 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2301,6 +2472,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2319,12 +2491,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2397,6 +2572,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2415,11 +2591,14 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2491,6 +2670,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2509,6 +2689,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2516,6 +2697,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2593,6 +2776,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2610,6 +2794,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2617,6 +2802,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2685,6 +2872,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2703,6 +2891,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2710,6 +2899,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2780,6 +2971,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2797,6 +2989,7 @@ export type EventPayload_Deserialize =
       parent_task_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2804,6 +2997,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2876,6 +3071,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -2893,6 +3089,7 @@ export type EventPayload_Deserialize =
       parent_task_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -2900,6 +3097,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -2976,6 +3175,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -2993,6 +3193,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3000,6 +3201,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       screenshot_id?: never;
@@ -3075,6 +3278,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -3092,6 +3296,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3099,6 +3304,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       screenshot_id?: never;
@@ -3170,6 +3377,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -3187,12 +3395,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3264,6 +3475,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message_id?: never;
@@ -3281,6 +3493,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3288,6 +3501,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3358,6 +3573,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3375,6 +3591,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3382,6 +3599,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3454,6 +3673,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3472,6 +3692,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3479,6 +3700,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3549,6 +3772,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3567,6 +3791,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3574,6 +3799,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3645,6 +3872,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3662,6 +3890,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3669,6 +3898,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3739,6 +3970,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3757,12 +3989,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -3833,6 +4068,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3851,6 +4087,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3858,6 +4095,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
@@ -3927,6 +4166,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -3945,6 +4185,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -3952,6 +4193,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4023,6 +4266,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4041,6 +4285,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4048,6 +4293,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4119,6 +4366,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4137,6 +4385,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4144,6 +4393,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4215,6 +4466,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4233,12 +4485,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4311,6 +4566,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4328,6 +4584,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4335,6 +4592,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4404,6 +4663,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4421,6 +4681,7 @@ export type EventPayload_Deserialize =
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4428,6 +4689,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4505,6 +4768,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4522,6 +4786,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4529,6 +4794,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4599,6 +4866,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4616,6 +4884,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4623,6 +4892,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4693,6 +4964,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4710,12 +4982,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4787,6 +5062,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4805,6 +5081,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4812,6 +5089,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4883,6 +5162,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4901,6 +5181,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -4908,6 +5189,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -4978,6 +5261,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -4996,6 +5280,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5003,6 +5288,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5073,6 +5360,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5091,6 +5379,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5098,6 +5387,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5169,6 +5460,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5187,6 +5479,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5194,6 +5487,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5263,6 +5558,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5281,6 +5577,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5288,6 +5585,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5358,6 +5657,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5376,6 +5676,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5383,6 +5684,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5454,6 +5757,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5472,6 +5776,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5479,6 +5784,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5549,6 +5856,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5567,6 +5875,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5574,6 +5883,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5644,6 +5955,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5662,6 +5974,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5669,6 +5982,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5739,6 +6054,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5757,6 +6073,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5764,6 +6081,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5834,6 +6153,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5852,6 +6172,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5859,6 +6180,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -5929,6 +6252,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -5946,6 +6270,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -5953,6 +6278,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6025,6 +6352,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6043,6 +6371,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6050,6 +6379,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6120,6 +6451,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6138,6 +6470,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6145,6 +6478,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6220,6 +6555,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6238,6 +6574,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6245,6 +6582,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6321,6 +6660,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6337,6 +6677,7 @@ export type EventPayload_Deserialize =
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6344,6 +6685,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6414,6 +6757,7 @@ export type EventPayload_Deserialize =
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6431,6 +6775,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6438,6 +6783,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6510,6 +6857,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6527,12 +6875,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6604,6 +6955,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6621,6 +6973,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6628,6 +6981,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6699,6 +7054,7 @@ export type EventPayload_Deserialize =
       key?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6717,6 +7073,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6724,6 +7081,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6794,6 +7153,7 @@ export type EventPayload_Deserialize =
       key?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6812,6 +7172,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6819,6 +7180,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6890,6 +7253,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -6908,6 +7272,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -6915,6 +7280,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -6985,6 +7352,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7003,6 +7371,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7010,6 +7379,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7081,6 +7452,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7099,12 +7471,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7176,6 +7551,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7194,6 +7570,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7201,6 +7578,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7270,6 +7649,7 @@ export type EventPayload_Deserialize =
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7288,6 +7668,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7295,6 +7676,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7366,6 +7749,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7384,6 +7768,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7391,6 +7776,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7467,6 +7854,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7484,6 +7872,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7491,6 +7880,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7565,6 +7956,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7582,6 +7974,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7589,6 +7982,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7664,6 +8059,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7681,6 +8077,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7688,6 +8085,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       role?: never;
       scope?: never;
       screenshot_id?: never;
@@ -7763,6 +8162,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7781,6 +8181,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7788,6 +8189,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       role?: never;
       scope?: never;
       screenshot_id?: never;
@@ -7860,6 +8263,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -7877,6 +8281,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7884,6 +8289,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -7960,6 +8367,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -7978,6 +8386,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -7985,6 +8394,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8059,6 +8470,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8077,6 +8489,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8084,6 +8497,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8153,6 +8568,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8171,6 +8587,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8178,6 +8595,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8248,6 +8667,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8266,12 +8686,15 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8343,6 +8766,7 @@ export type EventPayload_Deserialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8361,6 +8785,7 @@ export type EventPayload_Deserialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8368,6 +8793,8 @@ export type EventPayload_Deserialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8442,6 +8869,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8459,6 +8887,7 @@ export type EventPayload_Serialize =
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8466,6 +8895,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8538,6 +8969,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8555,6 +8987,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8562,6 +8995,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8637,6 +9072,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8654,6 +9090,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8661,6 +9098,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8738,6 +9177,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8756,6 +9196,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8763,6 +9204,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
@@ -8832,6 +9275,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8850,6 +9294,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8857,6 +9302,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -8928,6 +9375,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -8946,6 +9394,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -8953,6 +9402,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9027,6 +9478,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9045,12 +9497,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9126,6 +9581,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9144,6 +9600,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -9151,6 +9608,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9220,6 +9679,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9238,6 +9698,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -9245,6 +9706,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9321,6 +9784,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9339,11 +9803,14 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9422,6 +9889,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9440,11 +9908,14 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9536,6 +10007,7 @@ export type EventPayload_Serialize =
       key?: never;
       languages?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9553,12 +10025,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9630,12 +10105,119 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
       missing?: never;
       mode?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "ModelStreamStatus";
+      phase: string;
+      retrying: boolean;
+      retry_attempt: number;
+      max_retries: number;
+      message: string;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
@@ -9724,6 +10306,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9742,6 +10325,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -9749,6 +10333,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9821,6 +10407,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9839,6 +10426,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -9846,6 +10434,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -9916,6 +10506,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -9934,11 +10525,14 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10010,6 +10604,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10028,12 +10623,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10106,6 +10704,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10124,11 +10723,14 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10200,6 +10802,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10218,6 +10821,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10225,6 +10829,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10302,6 +10908,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10319,6 +10926,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10326,6 +10934,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10394,6 +11004,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10412,6 +11023,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10419,6 +11031,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10489,6 +11103,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10506,6 +11121,7 @@ export type EventPayload_Serialize =
       parent_task_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10513,6 +11129,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10585,6 +11203,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -10602,6 +11221,7 @@ export type EventPayload_Serialize =
       parent_task_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10609,6 +11229,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10685,6 +11307,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -10702,6 +11325,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10709,6 +11333,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       screenshot_id?: never;
@@ -10784,6 +11410,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -10801,6 +11428,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10808,6 +11436,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       screenshot_id?: never;
@@ -10879,6 +11509,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       message?: never;
       message_id?: never;
@@ -10896,12 +11527,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -10973,6 +11607,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message_id?: never;
@@ -10990,6 +11625,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -10997,6 +11633,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11067,6 +11705,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11084,6 +11723,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11091,6 +11731,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11163,6 +11805,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11181,6 +11824,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11188,6 +11832,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11258,6 +11904,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11276,6 +11923,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11283,6 +11931,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11354,6 +12004,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11371,6 +12022,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11378,6 +12030,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11448,6 +12102,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11466,12 +12121,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11542,6 +12200,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11560,6 +12219,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11567,6 +12227,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
@@ -11636,6 +12298,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11654,6 +12317,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11661,6 +12325,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11732,6 +12398,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11750,6 +12417,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11757,6 +12425,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11828,6 +12498,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11846,6 +12517,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -11853,6 +12525,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -11924,6 +12598,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -11942,12 +12617,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12020,6 +12698,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12037,6 +12716,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12044,6 +12724,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12113,6 +12795,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12130,6 +12813,7 @@ export type EventPayload_Serialize =
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12137,6 +12821,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12214,6 +12900,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12231,6 +12918,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12238,6 +12926,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12308,6 +12998,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12325,6 +13016,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12332,6 +13024,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12402,6 +13096,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12419,12 +13114,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12496,6 +13194,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12514,6 +13213,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12521,6 +13221,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12592,6 +13294,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12610,6 +13313,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12617,6 +13321,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12687,6 +13393,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12705,6 +13412,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12712,6 +13420,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12782,6 +13492,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12800,6 +13511,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12807,6 +13519,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12878,6 +13592,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12896,6 +13611,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12903,6 +13619,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -12972,6 +13690,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -12990,6 +13709,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -12997,6 +13717,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13067,6 +13789,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13085,6 +13808,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13092,6 +13816,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13163,6 +13889,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13181,6 +13908,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13188,6 +13916,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13258,6 +13988,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13276,6 +14007,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13283,6 +14015,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13353,6 +14087,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13371,6 +14106,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13378,6 +14114,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13448,6 +14186,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13466,6 +14205,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13473,6 +14213,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13543,6 +14285,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13561,6 +14304,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13568,6 +14312,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13638,6 +14384,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13655,6 +14402,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13662,6 +14410,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13734,6 +14484,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13752,6 +14503,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13759,6 +14511,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13829,6 +14583,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13847,6 +14602,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13854,6 +14610,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -13929,6 +14687,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -13947,6 +14706,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -13954,6 +14714,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14030,6 +14792,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14046,6 +14809,7 @@ export type EventPayload_Serialize =
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14053,6 +14817,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14123,6 +14889,7 @@ export type EventPayload_Serialize =
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14140,6 +14907,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14147,6 +14915,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14219,6 +14989,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14236,12 +15007,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14313,6 +15087,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14330,6 +15105,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14337,6 +15113,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14408,6 +15186,7 @@ export type EventPayload_Serialize =
       key?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14426,6 +15205,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14433,6 +15213,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14503,6 +15285,7 @@ export type EventPayload_Serialize =
       key?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14521,6 +15304,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14528,6 +15312,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14599,6 +15385,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14617,6 +15404,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14624,6 +15412,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14694,6 +15484,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14712,6 +15503,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14719,6 +15511,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14790,6 +15584,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14808,12 +15603,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14885,6 +15683,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14903,6 +15702,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -14910,6 +15710,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -14979,6 +15781,7 @@ export type EventPayload_Serialize =
       key?: never;
       languages?: never;
       limit_source?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -14997,6 +15800,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15004,6 +15808,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15075,6 +15881,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15093,6 +15900,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15100,6 +15908,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15176,6 +15986,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15193,6 +16004,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15200,6 +16012,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15274,6 +16088,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15291,6 +16106,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15298,6 +16114,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15373,6 +16191,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15390,6 +16209,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15397,6 +16217,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       role?: never;
       scope?: never;
       screenshot_id?: never;
@@ -15472,6 +16294,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15490,6 +16313,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15497,6 +16321,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       role?: never;
       scope?: never;
       screenshot_id?: never;
@@ -15569,6 +16395,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       memory_id?: never;
       message?: never;
       message_id?: never;
@@ -15586,6 +16413,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15593,6 +16421,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15669,6 +16499,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15687,6 +16518,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15694,6 +16526,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15768,6 +16602,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15786,6 +16621,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15793,6 +16629,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15862,6 +16700,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15880,6 +16719,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -15887,6 +16727,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -15957,6 +16799,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -15975,12 +16818,15 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;
@@ -16052,6 +16898,7 @@ export type EventPayload_Serialize =
       languages?: never;
       limit_source?: never;
       line?: never;
+      max_retries?: never;
       max_sessions?: never;
       memory_id?: never;
       message?: never;
@@ -16070,6 +16917,7 @@ export type EventPayload_Serialize =
       patch_id?: never;
       path?: never;
       persistent?: never;
+      phase?: never;
       preview?: never;
       program?: never;
       ratio?: never;
@@ -16077,6 +16925,8 @@ export type EventPayload_Serialize =
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
       review_id?: never;
       role?: never;
       scope?: never;

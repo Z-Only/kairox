@@ -342,7 +342,9 @@ export function useChatComposer(options: UseChatComposerOptions) {
     if (!session.currentSessionId) {
       throw new Error("No active session");
     }
-    await invokeFn("send_message", {
+    const sessionId = session.currentSessionId;
+    await invokeFn("send_message_to_session", {
+      sessionId,
       content,
       attachments: attachmentPayload(attachmentsToSend)
     });

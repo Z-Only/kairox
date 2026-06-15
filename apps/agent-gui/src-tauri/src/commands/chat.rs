@@ -109,8 +109,66 @@ pub async fn send_message(
         current.clone().ok_or("No active session")?
     };
 
-    let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
+    spawn_send_message_task(
+        runtime,
+        workspace_id,
+        session_id,
+        content,
+        attachments,
+        app_handle,
+        false,
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn send_message_to_session(
+    session_id: String,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+    state: State<'_, GuiState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = SessionId::from_string(session_id);
+    state
+        .runtime
+        .ensure_session_accepts_turn(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let runtime = state.runtime.clone();
+    spawn_send_message_task(
+        runtime,
+        workspace_id,
+        session_id,
+        content,
+        attachments,
+        app_handle,
+        true,
+    );
+
+    Ok(())
+}
+
+fn spawn_send_message_task(
+    runtime: std::sync::Arc<
+        agent_runtime::LocalRuntime<agent_store::SqliteEventStore, agent_models::ModelRouter>,
+    >,
+    workspace_id: agent_core::WorkspaceId,
+    session_id: agent_core::SessionId,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+    app_handle: tauri::AppHandle,
+    strict: bool,
+) {
+    let session_id_str = session_id.to_string();
     tokio::spawn(async move {
         let prepared =
             match prepare_outbound_message(runtime.as_ref(), &workspace_id, &session_id, content)
@@ -142,15 +200,18 @@ pub async fn send_message(
             }
         };
 
-        let result = runtime
-            .send_message(agent_core::SendMessageRequest {
-                workspace_id,
-                session_id,
-                content: enriched,
-                display_content: prepared.display_content,
-                attachments,
-            })
-            .await;
+        let request = agent_core::SendMessageRequest {
+            workspace_id,
+            session_id,
+            content: enriched,
+            display_content: prepared.display_content,
+            attachments,
+        };
+        let result = if strict {
+            runtime.send_message_strict(request).await
+        } else {
+            runtime.send_message(request).await
+        };
 
         if let Err(e) = result {
             eprintln!("[commands] send_message failed: {e}");
@@ -162,8 +223,6 @@ pub async fn send_message(
             let _ = app_handle.emit("session-error", &payload);
         }
     });
-
-    Ok(())
 }
 
 struct PreparedOutboundMessage {

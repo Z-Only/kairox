@@ -40,6 +40,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             initialize_workspace,
             start_session,
             send_message,
+            send_message_to_session,
             export_trace,
             list_sessions,
             // Project workspace commands
