@@ -7,6 +7,7 @@ use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy, ToolRegistry}
 use async_trait::async_trait;
 use futures::{stream, stream::BoxStream};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -99,6 +100,28 @@ impl ModelClient for HangingStreamStartClient {
     }
 }
 
+#[derive(Debug)]
+struct StartTimeoutOnceClient {
+    calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl ModelClient for StartTimeoutOnceClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            futures::future::pending().await
+        } else {
+            Ok(Box::pin(stream::iter(vec![
+                Ok(ModelEvent::TokenDelta("recovered".into())),
+                Ok(ModelEvent::Completed { usage: None }),
+            ])))
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test harness
 // ---------------------------------------------------------------------------
@@ -158,6 +181,13 @@ impl<M: ModelClient + 'static> StreamTestHarness<M> {
             workspace_scoped: None,
             trajectory_store: None,
         }
+    }
+
+    fn set_model_stream_idle_timeout_secs(&mut self, timeout_secs: u64) {
+        Arc::get_mut(&mut self.config)
+            .expect("test harness config should not be shared")
+            .context
+            .model_stream_idle_timeout_secs = Some(timeout_secs);
     }
 
     fn deps(&self) -> AgentLoopDeps<'_, SqliteEventStore, M> {
@@ -532,6 +562,51 @@ async fn stream_idle_timeout_fails_root_task() {
 }
 
 #[tokio::test]
+async fn process_model_stream_uses_configured_idle_timeout() {
+    let mut harness = StreamTestHarness::new(HangingEventStreamClient).await;
+    harness.set_model_stream_idle_timeout_secs(1);
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let result = tokio::time::timeout(
+        Duration::from_millis(1_500),
+        process_model_stream(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+        ),
+    )
+    .await
+    .expect("configured stream idle timeout should fail before the test timeout");
+
+    let err = match result {
+        Ok(_) => panic!("hanging stream should time out"),
+        Err(err) => err,
+    };
+    assert!(
+        err.to_string().contains("timed out after 1s"),
+        "timeout error should use configured duration, got: {err}"
+    );
+    assert!(
+        err.to_string().contains("phase=stream_event"),
+        "timeout error should include stall phase, got: {err}"
+    );
+    assert!(
+        err.to_string().contains("last_event=stream_opened"),
+        "timeout error should include last model event kind, got: {err}"
+    );
+    assert!(
+        err.to_string().contains("tool_results=0"),
+        "timeout error should include request tool result count, got: {err}"
+    );
+}
+
+#[tokio::test]
 async fn stream_start_timeout_fails_root_task() {
     let harness = StreamTestHarness::new(HangingStreamStartClient).await;
     let deps = harness.deps();
@@ -577,5 +652,52 @@ async fn stream_start_timeout_fails_root_task() {
             )
         }),
         "root task should be marked failed on model stream start timeout: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn stream_start_timeout_retries_before_failing_turn() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let harness = StreamTestHarness::new(StartTimeoutOnceClient {
+        calls: calls.clone(),
+    })
+    .await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = tokio::time::timeout(
+        Duration::from_millis(200),
+        process_model_stream_with_idle_timeout(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+            Duration::from_millis(25),
+        ),
+    )
+    .await
+    .expect("stream start retry should recover before the test timeout")
+    .expect("second stream attempt should succeed");
+
+    assert_eq!(output.assistant_text, "recovered");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    assert!(
+        !events.iter().any(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::AgentTaskFailed { task_id, .. } if task_id == &root_task_id
+            )
+        }),
+        "recoverable stream start timeout should not fail the root task: {events:?}"
     );
 }

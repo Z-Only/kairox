@@ -91,6 +91,7 @@ fn context_policy_default_threshold() {
     assert!(policy.compactor_profile.is_none());
     assert!(policy.max_tool_definition_tokens.is_none());
     assert!(policy.max_iterations.is_none());
+    assert_eq!(policy.model_stream_idle_timeout_secs, Some(90));
 }
 
 #[test]
@@ -100,12 +101,14 @@ fn context_policy_deserializes_from_toml() {
         compactor_profile = "summarizer"
         max_tool_definition_tokens = 4096
         max_iterations = 50
+        model_stream_idle_timeout_secs = 120
     "#;
     let policy: ContextPolicy = toml::from_str(toml_str).unwrap();
     assert!((policy.auto_compact_threshold - 0.7).abs() < f32::EPSILON);
     assert_eq!(policy.compactor_profile.as_deref(), Some("summarizer"));
     assert_eq!(policy.max_tool_definition_tokens, Some(4096));
     assert_eq!(policy.max_iterations, Some(50));
+    assert_eq!(policy.model_stream_idle_timeout_secs, Some(120));
 }
 
 #[test]
@@ -115,4 +118,5 @@ fn context_policy_deserializes_empty_as_defaults() {
     assert!(policy.compactor_profile.is_none());
     assert!(policy.max_tool_definition_tokens.is_none());
     assert!(policy.max_iterations.is_none());
+    assert_eq!(policy.model_stream_idle_timeout_secs, Some(90));
 }

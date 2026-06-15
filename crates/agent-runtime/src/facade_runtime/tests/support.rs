@@ -373,6 +373,7 @@ pub(super) fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Co
             compactor_profile: None,
             max_tool_definition_tokens: None,
             max_iterations: None,
+            model_stream_idle_timeout_secs: agent_config::default_model_stream_idle_timeout_secs(),
         },
         disabled_mcp_servers: vec![],
         instructions: None,

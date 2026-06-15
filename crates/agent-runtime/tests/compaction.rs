@@ -33,6 +33,7 @@ async fn fixture_runtime_with_history(
         compactor_profile: None,
         max_tool_definition_tokens: None,
         max_iterations: None,
+        model_stream_idle_timeout_secs: agent_config::default_model_stream_idle_timeout_secs(),
     };
     let runtime = Arc::new(LocalRuntime::new(store, model).with_config(Arc::new(config)));
 
