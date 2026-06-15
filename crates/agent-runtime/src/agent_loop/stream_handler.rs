@@ -18,6 +18,7 @@ const MODEL_STREAM_START_IDLE_RETRIES: usize = 1;
 pub(crate) struct StreamOutput {
     pub(crate) assistant_text: String,
     pub(crate) tool_calls: Vec<ToolCall>,
+    pub(crate) empty_response_fallback_used: bool,
 }
 
 enum StreamStartResult {
@@ -162,6 +163,7 @@ where
                 return Ok(StreamOutput {
                     assistant_text: String::new(),
                     tool_calls: Vec::new(),
+                    empty_response_fallback_used: false,
                 });
             }
             result = deps.model.stream(current_request.clone()) => match result {
@@ -186,31 +188,49 @@ where
             StreamStartResult::Timeout(_error_msg)
                 if stream_start_attempt < MODEL_STREAM_START_IDLE_RETRIES =>
             {
+                let progress = ModelStreamProgress::retrying(
+                    "stream_start",
+                    0,
+                    0,
+                    "none",
+                    stream_start_attempt + 1,
+                    MODEL_STREAM_START_IDLE_RETRIES,
+                );
                 log_model_stream_timeout(
                     request,
                     root_task_id,
                     current_request,
                     idle_timeout,
-                    ModelStreamProgress::retrying(
-                        "stream_start",
-                        0,
-                        0,
-                        "none",
-                        stream_start_attempt + 1,
-                        MODEL_STREAM_START_IDLE_RETRIES,
-                    ),
+                    progress,
                 );
+                emit_model_stream_status(
+                    &**deps.store,
+                    deps.event_tx,
+                    request,
+                    progress,
+                    model_stream_timeout_log_message(progress),
+                )
+                .await?;
                 stream_start_attempt += 1;
                 continue;
             }
             StreamStartResult::Timeout(error_msg) => {
+                let progress = ModelStreamProgress::new("stream_start", 0, 0, "none");
                 log_model_stream_timeout(
                     request,
                     root_task_id,
                     current_request,
                     idle_timeout,
-                    ModelStreamProgress::new("stream_start", 0, 0, "none"),
+                    progress,
                 );
+                emit_model_stream_status(
+                    &**deps.store,
+                    deps.event_tx,
+                    request,
+                    progress,
+                    model_stream_timeout_log_message(progress),
+                )
+                .await?;
                 emit_model_request_failure(
                     &**deps.store,
                     deps.event_tx,
@@ -278,18 +298,27 @@ where
                     tool_calls.len(),
                     last_event_kind,
                 );
+                let progress = ModelStreamProgress::new(
+                    "stream_event",
+                    assistant_text.len(),
+                    tool_calls.len(),
+                    last_event_kind,
+                );
                 log_model_stream_timeout(
                     request,
                     root_task_id,
                     current_request,
                     idle_timeout,
-                    ModelStreamProgress::new(
-                        "stream_event",
-                        assistant_text.len(),
-                        tool_calls.len(),
-                        last_event_kind,
-                    ),
+                    progress,
                 );
+                emit_model_stream_status(
+                    &**deps.store,
+                    deps.event_tx,
+                    request,
+                    progress,
+                    model_stream_timeout_log_message(progress),
+                )
+                .await?;
                 emit_model_request_failure(
                     &**deps.store,
                     deps.event_tx,
@@ -495,6 +524,7 @@ where
             return Ok(StreamOutput {
                 assistant_text: fallback.to_string(),
                 tool_calls,
+                empty_response_fallback_used: true,
             });
         }
 
@@ -515,6 +545,7 @@ where
     Ok(StreamOutput {
         assistant_text,
         tool_calls,
+        empty_response_fallback_used: false,
     })
 }
 
@@ -752,6 +783,29 @@ async fn emit_model_request_failure<S: EventStore + 'static>(
         },
     );
     let _ = append_and_broadcast(store, event_tx, &root_fail).await;
+}
+
+async fn emit_model_stream_status<S: EventStore + 'static>(
+    store: &S,
+    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
+    request: &agent_core::SendMessageRequest,
+    progress: ModelStreamProgress,
+    message: &'static str,
+) -> agent_core::Result<()> {
+    let event = DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::ModelStreamStatus {
+            phase: progress.phase.to_string(),
+            retrying: progress.is_retrying(),
+            retry_attempt: progress.retry_attempt(),
+            max_retries: progress.max_retries(),
+            message: message.to_string(),
+        },
+    );
+    append_and_broadcast(store, event_tx, &event).await
 }
 
 #[cfg(test)]

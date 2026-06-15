@@ -111,7 +111,8 @@ describe("composer textarea chrome", () => {
     await wrapper.find('[data-test="send-button"]').trigger("click");
     await flushPromises();
 
-    expect(mockedInvoke).toHaveBeenCalledWith("send_message", {
+    expect(mockedInvoke).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "post-turn click draft",
       attachments: []
     });
@@ -624,7 +625,8 @@ describe("conversation queue", () => {
     );
 
     await wrapper.find('[data-test="queued-message-guide"]').trigger("click");
-    expect(mockedInvoke).toHaveBeenCalledWith("send_message", {
+    expect(mockedInvoke).toHaveBeenCalledWith("send_message_to_session", {
+      sessionId: "ses_1",
       content: "queued again",
       attachments: []
     });

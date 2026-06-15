@@ -313,6 +313,7 @@ where
         let StreamOutput {
             assistant_text,
             tool_calls,
+            empty_response_fallback_used,
         } = process_model_stream(
             &deps,
             request,
@@ -365,6 +366,41 @@ where
 
         // No tool calls → turn complete
         if tool_calls.is_empty() {
+            if empty_response_fallback_used {
+                let reason = "model returned no final text after tool execution";
+                fail_root_task(
+                    &**deps.store,
+                    deps.event_tx,
+                    deps.task_graphs,
+                    request,
+                    &root_task_id,
+                    reason,
+                )
+                .await;
+                complete_trajectory(
+                    deps.trajectory_store,
+                    deps.store,
+                    deps.event_tx,
+                    request,
+                    &trajectory_id,
+                    &trajectory_step_counter,
+                    agent_core::TrajectoryOutcome::Failed,
+                )
+                .await;
+                run_lifecycle_hooks(
+                    deps.config,
+                    agent_config::HookEvent::Stop,
+                    "failed",
+                    deps.root_path.as_deref(),
+                    serde_json::json!({
+                        "workspace_id": request.workspace_id.as_str(),
+                        "session_id": request.session_id.as_str(),
+                        "reason": reason,
+                    }),
+                )
+                .await;
+                break;
+            }
             complete_root_task(
                 &**deps.store,
                 deps.event_tx,

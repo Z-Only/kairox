@@ -62,6 +62,23 @@ impl TurnExecutor for FailingTurnExecutor {
     }
 }
 
+struct StubbornTurnExecutor {
+    started: Arc<tokio::sync::Notify>,
+}
+
+#[async_trait::async_trait]
+impl TurnExecutor for StubbornTurnExecutor {
+    async fn execute_turn(
+        &self,
+        _request: SendMessageRequest,
+        _cancellation: CancellationToken,
+    ) -> agent_core::Result<()> {
+        self.started.notify_one();
+        futures::future::pending::<()>().await;
+        Ok(())
+    }
+}
+
 struct MockTaskControlExecutor;
 
 #[async_trait::async_trait]
@@ -197,6 +214,32 @@ async fn cancel_running_turn() {
     assert!(result.is_ok());
 
     // After the turn finishes the actor should go back to Idle.
+    wait_for_state(&handle, &ExecutionState::Idle).await;
+    handle.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn cancel_force_aborts_stubborn_turn() {
+    let handle = SessionActorHandle::spawn();
+    let started = Arc::new(tokio::sync::Notify::new());
+    let executor: Arc<dyn TurnExecutor> = Arc::new(StubbornTurnExecutor {
+        started: started.clone(),
+    });
+
+    let turn_handle = {
+        let handle = handle.clone();
+        let executor = executor.clone();
+        tokio::spawn(async move { handle.run_turn(make_request(), executor).await })
+    };
+
+    started.notified().await;
+    handle.cancel("user request".into()).await.unwrap();
+
+    let result = tokio::time::timeout(std::time::Duration::from_millis(500), turn_handle)
+        .await
+        .expect("stubborn turn should be force-aborted after cancellation")
+        .unwrap();
+    assert!(result.is_err());
     wait_for_state(&handle, &ExecutionState::Idle).await;
     handle.shutdown().await.unwrap();
 }

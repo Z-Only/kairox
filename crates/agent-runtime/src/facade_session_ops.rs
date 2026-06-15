@@ -1,4 +1,5 @@
 use super::LocalRuntime;
+use crate::execution_runtime::ExecutionState;
 use crate::facade_turn_executor::LocalRuntimeTurnExecutor;
 use agent_core::facade::SessionFacade;
 use agent_core::{
@@ -10,6 +11,104 @@ use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::sync::Arc;
+
+impl<S, M> LocalRuntime<S, M>
+where
+    S: EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    pub async fn send_message_strict(&self, request: SendMessageRequest) -> agent_core::Result<()> {
+        self.send_message_with_policy(request, true).await
+    }
+
+    pub async fn ensure_session_accepts_turn(
+        &self,
+        session_id: &SessionId,
+    ) -> agent_core::Result<()> {
+        self.ensure_session_can_send(session_id, true).await
+    }
+
+    async fn send_message_with_policy(
+        &self,
+        request: SendMessageRequest,
+        reject_active_execution: bool,
+    ) -> agent_core::Result<()> {
+        self.ensure_session_can_send(&request.session_id, reject_active_execution)
+            .await?;
+        self.mark_project_session_visible_for_request(&request)
+            .await?;
+
+        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
+        self.session_execution.run_turn(request, executor).await
+    }
+
+    async fn ensure_session_can_send(
+        &self,
+        session_id: &SessionId,
+        reject_active_execution: bool,
+    ) -> agent_core::Result<()> {
+        {
+            let states = self.session_states.lock().await;
+            if let Some(entry) = states.get(&session_id.to_string()) {
+                if entry.compacting {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: session_id.to_string(),
+                        reason: "context compaction in progress".into(),
+                    });
+                }
+            }
+        }
+
+        if reject_active_execution {
+            match self.session_execution.session_state(session_id).await {
+                Some(ExecutionState::Running { turn_id }) => {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: session_id.to_string(),
+                        reason: format!("session execution running ({turn_id})"),
+                    });
+                }
+                Some(ExecutionState::Cancelling { turn_id }) => {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: session_id.to_string(),
+                        reason: format!("session execution cancelling ({turn_id})"),
+                    });
+                }
+                Some(ExecutionState::Idle | ExecutionState::Stopped) | None => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn mark_project_session_visible_for_request(
+        &self,
+        request: &SendMessageRequest,
+    ) -> agent_core::Result<()> {
+        if let Ok(repository) = self.project_repository() {
+            if let Ok(Some(_binding)) = repository
+                .get_session_binding(request.session_id.as_str())
+                .await
+            {
+                let visibility = repository
+                    .get_session_visibility(request.session_id.as_str())
+                    .await
+                    .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+                if visibility.as_deref() == Some("draft_hidden") {
+                    self.mark_session_visible(
+                        &request.session_id,
+                        request
+                            .display_content
+                            .clone()
+                            .unwrap_or_else(|| request.content.clone()),
+                    )
+                    .await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl<S, M> SessionFacade for LocalRuntime<S, M>
@@ -79,44 +178,7 @@ where
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
-        // Reject sends while a compaction is in flight (P2 busy gate).
-        // The state is cleared by `compaction::compact_session` on exit.
-        {
-            let states = self.session_states.lock().await;
-            if let Some(entry) = states.get(&request.session_id.to_string()) {
-                if entry.compacting {
-                    return Err(agent_core::CoreError::SessionBusy {
-                        session_id: request.session_id.to_string(),
-                        reason: "context compaction in progress".into(),
-                    });
-                }
-            }
-        }
-
-        if let Ok(repository) = self.project_repository() {
-            if let Ok(Some(_binding)) = repository
-                .get_session_binding(request.session_id.as_str())
-                .await
-            {
-                let visibility = repository
-                    .get_session_visibility(request.session_id.as_str())
-                    .await
-                    .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-                if visibility.as_deref() == Some("draft_hidden") {
-                    self.mark_session_visible(
-                        &request.session_id,
-                        request
-                            .display_content
-                            .clone()
-                            .unwrap_or_else(|| request.content.clone()),
-                    )
-                    .await?;
-                }
-            }
-        }
-
-        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
-        self.session_execution.run_turn(request, executor).await
+        self.send_message_with_policy(request, false).await
     }
 
     async fn decide_permission(&self, decision: PermissionDecision) -> agent_core::Result<()> {

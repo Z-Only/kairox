@@ -93,6 +93,13 @@ fn every_event_payload_variant_has_event_type() {
             model_profile: "fast".into(),
             model_id: "gpt-4.1-mini".into(),
         },
+        EventPayload::ModelStreamStatus {
+            phase: "stream_start".into(),
+            retrying: true,
+            retry_attempt: 1,
+            max_retries: 1,
+            message: "model stream start idle timeout; retrying".into(),
+        },
         EventPayload::ModelTokenDelta {
             delta: "Hello".into(),
         },
@@ -360,6 +367,13 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::ModelRequestStarted {
             model_profile: "fast".into(),
             model_id: "gpt-4.1-mini".into(),
+        },
+        EventPayload::ModelStreamStatus {
+            phase: "stream_start".into(),
+            retrying: true,
+            retry_attempt: 1,
+            max_retries: 1,
+            message: "model stream start idle timeout; retrying".into(),
         },
         EventPayload::ModelTokenDelta {
             delta: "Hello".into(),

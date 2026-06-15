@@ -380,6 +380,31 @@ async fn stream_empty_response_returns_empty_model_error() {
 }
 
 #[tokio::test]
+async fn stream_empty_response_fallback_marks_output() {
+    let model = ScriptedModelClient::from_ok_events(vec![ModelEvent::Completed { usage: None }]);
+    let harness = StreamTestHarness::new(model).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = process_model_stream(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        Some("I completed the requested tool call, but the model returned no final text."),
+    )
+    .await
+    .expect("fallback should produce an assistant message");
+
+    assert!(output.empty_response_fallback_used);
+    assert!(output.tool_calls.is_empty());
+    assert!(output.assistant_text.contains("no final text"));
+}
+
+#[tokio::test]
 async fn stream_cancellation_exits_early() {
     // Use a lazy stream that yields a pending future, ensuring the select!
     // branch can observe the cancellation before the stream produces items.
@@ -699,6 +724,52 @@ async fn stream_start_timeout_retries_before_failing_turn() {
             )
         }),
         "recoverable stream start timeout should not fail the root task: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn stream_start_retry_emits_event() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let harness = StreamTestHarness::new(StartTimeoutOnceClient {
+        calls: calls.clone(),
+    })
+    .await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    process_model_stream_with_idle_timeout(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        None,
+        Duration::from_millis(25),
+    )
+    .await
+    .expect("second stream attempt should succeed");
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    assert!(
+        events.iter().any(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::ModelStreamStatus {
+                    phase,
+                    retrying: true,
+                    retry_attempt: 1,
+                    max_retries: 1,
+                    message,
+                } if phase == "stream_start" && message.contains("retrying")
+            )
+        }),
+        "stream start retry should be visible in session events: {events:?}"
     );
 }
 

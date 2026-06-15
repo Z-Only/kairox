@@ -19,6 +19,9 @@ pub(crate) enum ActorMessage {
         reason: String,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
+    ForceAbort {
+        turn_id: String,
+    },
     RetryTask {
         workspace_id: WorkspaceId,
         session_id: SessionId,
@@ -116,7 +119,7 @@ pub(crate) struct SessionActorHandle {
 impl SessionActorHandle {
     pub(crate) fn spawn() -> Self {
         let (sender, receiver) = mpsc::channel(ACTOR_CHANNEL_CAPACITY);
-        tokio::spawn(SessionExecutionActor::new(receiver).run());
+        tokio::spawn(SessionExecutionActor::new(receiver, sender.clone()).run());
         Self { sender }
     }
 
@@ -218,15 +221,17 @@ impl SessionActorHandle {
 
 struct SessionExecutionActor {
     receiver: mpsc::Receiver<ActorMessage>,
+    sender: mpsc::Sender<ActorMessage>,
     state: ExecutionState,
     running: Option<RunningTurn>,
     pending: VecDeque<PendingCommand>,
 }
 
 impl SessionExecutionActor {
-    fn new(receiver: mpsc::Receiver<ActorMessage>) -> Self {
+    fn new(receiver: mpsc::Receiver<ActorMessage>, sender: mpsc::Sender<ActorMessage>) -> Self {
         Self {
             receiver,
+            sender,
             state: ExecutionState::Idle,
             running: None,
             pending: VecDeque::new(),
@@ -277,6 +282,10 @@ impl SessionExecutionActor {
             }
             ActorMessage::Cancel { reason, reply } => {
                 self.handle_cancel(reason, reply);
+                true
+            }
+            ActorMessage::ForceAbort { turn_id } => {
+                self.handle_force_abort(turn_id).await;
                 true
             }
             ActorMessage::RetryTask {
@@ -415,9 +424,32 @@ impl SessionExecutionActor {
             self.state = ExecutionState::Cancelling {
                 turn_id: active.turn_id.clone(),
             };
+            schedule_force_abort(self.sender.clone(), active.turn_id.clone());
         }
         self.reject_pending_cancelled(&reason);
         let _ = reply.send(Ok(()));
+    }
+
+    async fn handle_force_abort(&mut self, turn_id: String) {
+        let should_abort = matches!(
+            &self.state,
+            ExecutionState::Cancelling { turn_id: active_turn_id } if active_turn_id == &turn_id
+        );
+        if !should_abort {
+            return;
+        }
+
+        if let Some(active) = self.running.take() {
+            active.cancellation.cancel();
+            active.join.abort();
+            let _ = active.reply.send(Err(actor_cancelled(
+                "force aborted after cancellation grace period",
+            )));
+        }
+
+        if self.state != ExecutionState::Stopped {
+            self.drain_pending_until_running().await;
+        }
     }
 
     fn reject_pending_cancelled(&mut self, reason: &str) {
@@ -465,6 +497,23 @@ fn actor_stopped() -> CoreError {
 
 fn actor_cancelled(reason: &str) -> CoreError {
     CoreError::InvalidState(format!("session execution cancelled: {reason}"))
+}
+
+fn schedule_force_abort(sender: mpsc::Sender<ActorMessage>, turn_id: String) {
+    tokio::spawn(async move {
+        tokio::time::sleep(cancel_force_abort_grace()).await;
+        let _ = sender.send(ActorMessage::ForceAbort { turn_id }).await;
+    });
+}
+
+#[cfg(test)]
+fn cancel_force_abort_grace() -> std::time::Duration {
+    std::time::Duration::from_millis(50)
+}
+
+#[cfg(not(test))]
+fn cancel_force_abort_grace() -> std::time::Duration {
+    std::time::Duration::from_secs(5)
 }
 
 #[cfg(test)]

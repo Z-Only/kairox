@@ -10,6 +10,86 @@
 
 /* ---- session commands ---- */
 
+function handleSendMessage(args) {
+  var sessionId = args.sessionId || args.session_id || state.currentSessionId;
+  if (!sessionId) return Promise.reject(new Error("No active session"));
+  var content = args.content;
+  state.sentMessages.push({
+    sessionId: sessionId,
+    content: content,
+    attachments: args.attachments || []
+  });
+  getProjection(sessionId);
+  var trace = getTrace(sessionId);
+  // UserMessageAdded
+  var userMsgId = nextId("msg");
+  var userEvent = makeEvent(sessionId, {
+    type: "UserMessageAdded",
+    message_id: userMsgId,
+    content: content
+  });
+  trace.push(userEvent);
+  emitEvent("session-event", userEvent);
+  // Simulate agent response asynchronously
+  var responseDelayScale = state.responseDelayScale || 1;
+  setTimeout(function () {
+    var ctxEvent = makeEvent(sessionId, {
+      type: "ContextAssembled",
+      usage: {
+        total_tokens: 50000,
+        budget_tokens: 100000,
+        context_window: 128000,
+        output_reservation: 28000,
+        by_source: [
+          ["system", 25000],
+          ["history", 25000]
+        ],
+        estimator: "cl100k_base",
+        corrected_by_real_usage: false
+      }
+    });
+    trace.push(ctxEvent);
+    emitEvent("session-event", ctxEvent);
+    var modelEvent = makeEvent(sessionId, {
+      type: "ModelRequestStarted",
+      model_profile: state.currentProfile,
+      model_id: "gpt-4o-mini"
+    });
+    trace.push(modelEvent);
+    emitEvent("session-event", modelEvent);
+    var tokens = ["Hello! ", "I'm a mock ", "assistant."];
+    var delay = 50;
+    for (var i = 0; i < tokens.length; i++) {
+      (function (token, d) {
+        setTimeout(function () {
+          var deltaEvent = makeEvent(sessionId, {
+            type: "ModelTokenDelta",
+            delta: token
+          });
+          trace.push(deltaEvent);
+          emitEvent("session-event", deltaEvent);
+        }, d * responseDelayScale);
+      })(tokens[i], delay);
+      delay += 100;
+    }
+    setTimeout(
+      function () {
+        var assistantMsgId = nextId("msg");
+        var fullContent = "Hello! I'm a mock assistant.";
+        var completedEvent = makeEvent(sessionId, {
+          type: "AssistantMessageCompleted",
+          message_id: assistantMsgId,
+          content: fullContent
+        });
+        trace.push(completedEvent);
+        emitEvent("session-event", completedEvent);
+      },
+      (delay + 50) * responseDelayScale
+    );
+  }, 30 * responseDelayScale);
+  return Promise.resolve(undefined);
+}
+
 registerCommandHandlers({
   start_session: function (args) {
     var profile = args.profile || "fast";
@@ -43,83 +123,10 @@ registerCommandHandlers({
     return Promise.resolve(session);
   },
   send_message: function (args) {
-    var sessionId = state.currentSessionId;
-    if (!sessionId) return Promise.reject(new Error("No active session"));
-    var content = args.content;
-    state.sentMessages.push({
-      sessionId: sessionId,
-      content: content,
-      attachments: args.attachments || []
-    });
-    var projection = getProjection(sessionId);
-    var trace = getTrace(sessionId);
-    // UserMessageAdded
-    var userMsgId = nextId("msg");
-    var userEvent = makeEvent(sessionId, {
-      type: "UserMessageAdded",
-      message_id: userMsgId,
-      content: content
-    });
-    trace.push(userEvent);
-    emitEvent("session-event", userEvent);
-    // Simulate agent response asynchronously
-    var responseDelayScale = state.responseDelayScale || 1;
-    setTimeout(function () {
-      var ctxEvent = makeEvent(sessionId, {
-        type: "ContextAssembled",
-        usage: {
-          total_tokens: 50000,
-          budget_tokens: 100000,
-          context_window: 128000,
-          output_reservation: 28000,
-          by_source: [
-            ["system", 25000],
-            ["history", 25000]
-          ],
-          estimator: "cl100k_base",
-          corrected_by_real_usage: false
-        }
-      });
-      trace.push(ctxEvent);
-      emitEvent("session-event", ctxEvent);
-      var modelEvent = makeEvent(sessionId, {
-        type: "ModelRequestStarted",
-        model_profile: state.currentProfile,
-        model_id: "gpt-4o-mini"
-      });
-      trace.push(modelEvent);
-      emitEvent("session-event", modelEvent);
-      var tokens = ["Hello! ", "I'm a mock ", "assistant."];
-      var delay = 50;
-      for (var i = 0; i < tokens.length; i++) {
-        (function (token, d) {
-          setTimeout(function () {
-            var deltaEvent = makeEvent(sessionId, {
-              type: "ModelTokenDelta",
-              delta: token
-            });
-            trace.push(deltaEvent);
-            emitEvent("session-event", deltaEvent);
-          }, d * responseDelayScale);
-        })(tokens[i], delay);
-        delay += 100;
-      }
-      setTimeout(
-        function () {
-          var assistantMsgId = nextId("msg");
-          var fullContent = "Hello! I'm a mock assistant.";
-          var completedEvent = makeEvent(sessionId, {
-            type: "AssistantMessageCompleted",
-            message_id: assistantMsgId,
-            content: fullContent
-          });
-          trace.push(completedEvent);
-          emitEvent("session-event", completedEvent);
-        },
-        (delay + 50) * responseDelayScale
-      );
-    }, 30 * responseDelayScale);
-    return Promise.resolve(undefined);
+    return handleSendMessage(args);
+  },
+  send_message_to_session: function (args) {
+    return handleSendMessage(args);
   },
   switch_session: function (args) {
     var sessionId = args.sessionId || args.session_id;
