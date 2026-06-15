@@ -7,6 +7,8 @@ fn default_config_has_expected_values() {
     assert_eq!(config.api_key_env, "ANTHROPIC_API_KEY");
     assert_eq!(config.default_model, "claude-sonnet-4-20250514");
     assert_eq!(config.max_tokens, 16_384);
+    assert_eq!(config.connect_timeout_secs, 15);
+    assert!(config.request_timeout_secs.is_none());
     assert!(config.headers.is_empty());
     assert!(config.capability_overrides.is_none());
     assert!(config.temperature.is_none());
@@ -72,6 +74,8 @@ fn serde_round_trip() {
     let config = AnthropicConfig {
         temperature: Some(0.7),
         top_k: Some(40),
+        connect_timeout_secs: 10,
+        request_timeout_secs: Some(900),
         extra_params: Some(serde_json::json!({"foo": "bar"})),
         ..AnthropicConfig::default()
     };

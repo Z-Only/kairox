@@ -5,6 +5,8 @@ fn profile(provider: &str, model_id: &str, ctx: Option<u64>, out: Option<u64>) -
         provider: provider.into(),
         model_id: model_id.into(),
         base_url: None,
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: None,
         context_window: ctx,

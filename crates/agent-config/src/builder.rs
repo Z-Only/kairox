@@ -283,36 +283,7 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
             };
             Box::new(OpenAiCompatibleClient::new(config))
         }
-        "anthropic" => {
-            let base_url = def
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "https://api.anthropic.com".to_string());
-            let api_key_env = resolve_api_key_env(alias, def);
-
-            let headers = profile_headers(def);
-
-            let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
-                let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());
-                serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null)
-            });
-
-            let config = AnthropicConfig {
-                base_url,
-                api_key_env,
-                default_model: def.model_id.clone(),
-                max_tokens: def
-                    .output_limit
-                    .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
-                headers,
-                capability_overrides: None,
-                temperature: def.temperature,
-                top_p: def.top_p,
-                top_k: def.top_k,
-                extra_params,
-            };
-            Box::new(AnthropicClient::new(config))
-        }
+        "anthropic" => Box::new(AnthropicClient::new(build_anthropic_config(alias, def))),
         "ollama" => {
             let config = OllamaConfig {
                 base_url: def
@@ -334,6 +305,38 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
             Box::new(FakeModelClient::new(vec![response]))
         }
         _ => unreachable!("provider_family always returns a known family"),
+    }
+}
+
+fn build_anthropic_config(alias: &str, def: &ProfileDef) -> AnthropicConfig {
+    let base_url = def
+        .base_url
+        .clone()
+        .unwrap_or_else(|| "https://api.anthropic.com".to_string());
+    let api_key_env = resolve_api_key_env(alias, def);
+    let headers = profile_headers(def);
+    let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
+        let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());
+        serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null)
+    });
+
+    AnthropicConfig {
+        base_url,
+        api_key_env,
+        default_model: def.model_id.clone(),
+        max_tokens: def
+            .output_limit
+            .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
+        connect_timeout_secs: def
+            .connect_timeout_secs
+            .unwrap_or_else(agent_models::anthropic::config::default_connect_timeout_secs),
+        request_timeout_secs: def.request_timeout_secs,
+        headers,
+        capability_overrides: None,
+        temperature: def.temperature,
+        top_p: def.top_p,
+        top_k: def.top_k,
+        extra_params,
     }
 }
 

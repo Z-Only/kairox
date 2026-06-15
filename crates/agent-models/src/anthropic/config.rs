@@ -11,6 +11,10 @@ pub struct AnthropicConfig {
     pub api_key_env: String,
     pub default_model: String,
     pub max_tokens: u64,
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default)]
+    pub request_timeout_secs: Option<u64>,
     #[serde(default)]
     pub headers: Vec<(String, String)>,
     #[serde(default)]
@@ -25,6 +29,10 @@ pub struct AnthropicConfig {
     pub extra_params: Option<serde_json::Value>,
 }
 
+pub fn default_connect_timeout_secs() -> u64 {
+    15
+}
+
 impl Default for AnthropicConfig {
     fn default() -> Self {
         Self {
@@ -32,6 +40,8 @@ impl Default for AnthropicConfig {
             api_key_env: "ANTHROPIC_API_KEY".into(),
             default_model: "claude-sonnet-4-20250514".into(),
             max_tokens: 16_384,
+            connect_timeout_secs: default_connect_timeout_secs(),
+            request_timeout_secs: None,
             headers: Vec::new(),
             capability_overrides: None,
             temperature: None,

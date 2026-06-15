@@ -8,6 +8,15 @@ pub struct ProfileDef {
     pub model_id: String,
     #[serde(default)]
     pub base_url: Option<String>,
+    /// Optional HTTP connect timeout in seconds for model clients that support it.
+    #[serde(default)]
+    pub connect_timeout_secs: Option<u64>,
+    /// Optional total HTTP request timeout in seconds.
+    ///
+    /// Streaming model clients should generally leave this unset so long
+    /// responses are governed by runtime stream idle timeout instead.
+    #[serde(default)]
+    pub request_timeout_secs: Option<u64>,
     /// Direct API key value. Takes priority over `api_key_env`.
     #[serde(default)]
     pub api_key: Option<String>,

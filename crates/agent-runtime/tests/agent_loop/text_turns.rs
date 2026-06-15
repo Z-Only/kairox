@@ -117,6 +117,8 @@ async fn reasoning_capable_profile_does_not_default_effort() {
             provider: "ali-mo".into(),
             model_id: "claude-opus-4-6".into(),
             base_url: Some("https://example.invalid".into()),
+            connect_timeout_secs: None,
+            request_timeout_secs: None,
             api_key: Some("test-key".into()),
             api_key_env: None,
             context_window: Some(200_000),

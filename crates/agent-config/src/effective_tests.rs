@@ -97,6 +97,8 @@ fn effective_settings_views_map_source_disabled_and_direct_api_keys() {
             provider: "openai_compatible".to_string(),
             model_id: "gpt-4.1".to_string(),
             base_url: Some("https://api.openai.com/v1".to_string()),
+            connect_timeout_secs: None,
+            request_timeout_secs: None,
             api_key: Some("sk-direct".to_string()),
             api_key_env: Some("KAIROX_DIRECT_KEY_SHOULD_NOT_BE_READ".to_string()),
             context_window: Some(128_000),
