@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
+
+const mockTraceState = vi.hoisted(() => ({ entries: [] as Array<Record<string, unknown>> }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -10,9 +12,13 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 vi.mock("../composables/useTraceStore", () => ({
   applyTraceEvent: vi.fn(),
-  clearTrace: vi.fn()
+  clearTrace: vi.fn(() => {
+    mockTraceState.entries = [];
+  }),
+  traceState: mockTraceState
 }));
 
+import { traceState } from "../composables/useTraceStore";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useWorkspaceUiStore } from "@/stores/workspaceUi";
@@ -23,6 +29,10 @@ import {
 } from "./SessionsSidebar.test-utils";
 
 installSidebarTestEnv();
+
+beforeEach(() => {
+  traceState.entries = [];
+});
 
 describe("SessionsSidebar", () => {
   it("keeps project-bound sessions inside expanded projects and out of the regular session list", async () => {
@@ -230,5 +240,149 @@ describe("SessionsSidebar", () => {
     expect(wrapper.find('[data-test="project-session-archive-action-session-1"]').exists()).toBe(
       true
     );
+  });
+
+  it("clears the active project session and route after archiving it", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        }
+      ],
+      list_project_sessions: [
+        {
+          id: "project-session-1",
+          title: "Project task",
+          profile: "fast",
+          project_id: "project-1",
+          worktree_path: "/tmp/demo",
+          branch: "main",
+          visibility: null
+        }
+      ]
+    });
+    const { wrapper, router } = await mountSidebar();
+    const sessionStore = useSessionStore();
+    const workspaceUi = useWorkspaceUiStore();
+    sessionStore.currentSessionId = "project-session-1";
+    sessionStore.projection.messages = [{ role: "user", content: "stale" }];
+    workspaceUi.gitReviewContext = { sessionId: "project-session-1", projectId: "project-1" };
+    workspaceUi.gitReview = {
+      branch: "main",
+      changedFiles: ["stale.rs"],
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
+      staged: null,
+      unstaged: null,
+      untracked: null
+    } as never;
+    workspaceUi.gitReviewError = "stale error";
+    traceState.entries.push({
+      id: "ctx-stale",
+      kind: "tool",
+      status: "completed",
+      toolId: "context",
+      title: "Context assembled",
+      startedAt: Date.now(),
+      expanded: false
+    });
+    await router.push("/workbench/project-session-1");
+    await router.isReady();
+    await flushPromises();
+
+    await wrapper
+      .get('[data-test="project-session-archive-action-project-session-1"]')
+      .trigger("click");
+    await flushPromises();
+    await wrapper
+      .get('[data-test="project-session-archive-action-project-session-1"]')
+      .trigger("click");
+    await flushPromises();
+    await router.isReady();
+
+    expect(sessionStore.currentSessionId).toBeNull();
+    expect(sessionStore.composerDraftKey).toBe("new-session:ordinary");
+    expect(sessionStore.projection.messages).toEqual([]);
+    expect(traceState.entries).toEqual([]);
+    expect(workspaceUi.gitReviewContext).toBeNull();
+    expect(workspaceUi.gitReview).toBeNull();
+    expect(workspaceUi.gitReviewError).toBeNull();
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
+  });
+
+  it("clears the active project session and route after deleting its project", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        }
+      ],
+      list_project_sessions: [
+        {
+          id: "project-session-1",
+          title: "Project task",
+          profile: "fast",
+          project_id: "project-1",
+          worktree_path: "/tmp/demo",
+          branch: "main",
+          visibility: null
+        }
+      ]
+    });
+    const { wrapper, router } = await mountSidebar();
+    const sessionStore = useSessionStore();
+    const workspaceUi = useWorkspaceUiStore();
+    sessionStore.currentSessionId = "project-session-1";
+    sessionStore.projection.messages = [{ role: "user", content: "stale" }];
+    workspaceUi.gitReviewContext = { sessionId: "project-session-1", projectId: "project-1" };
+    workspaceUi.gitReview = {
+      branch: "main",
+      changedFiles: ["stale.rs"],
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
+      staged: null,
+      unstaged: null,
+      untracked: null
+    } as never;
+    workspaceUi.gitReviewError = "stale error";
+    traceState.entries.push({
+      id: "ctx-stale",
+      kind: "tool",
+      status: "completed",
+      toolId: "context",
+      title: "Context assembled",
+      startedAt: Date.now(),
+      expanded: false
+    });
+    await router.push("/workbench/project-session-1");
+    await router.isReady();
+    await flushPromises();
+
+    await wrapper.get('[data-test="project-delete-btn"]').trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-test="project-delete-confirm"]').trigger("click");
+    await flushPromises();
+    await router.isReady();
+
+    expect(sessionStore.currentSessionId).toBeNull();
+    expect(sessionStore.composerDraftKey).toBe("new-session:ordinary");
+    expect(sessionStore.projection.messages).toEqual([]);
+    expect(traceState.entries).toEqual([]);
+    expect(workspaceUi.gitReviewContext).toBeNull();
+    expect(workspaceUi.gitReview).toBeNull();
+    expect(workspaceUi.gitReviewError).toBeNull();
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
   });
 });

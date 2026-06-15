@@ -28,6 +28,16 @@ export function useSidebarActions() {
     pendingArchiveProjectSessionId.value = null;
   }
 
+  async function switchToOrdinaryDraftIfActive(wasActive: boolean) {
+    if (!wasActive) return;
+    try {
+      await session.startOrdinaryDraftSession();
+      await router.replace({ name: "workbench" });
+    } catch (e) {
+      console.error("Failed to open a new draft after deleting the active selection:", e);
+    }
+  }
+
   async function switchToSession(sessionId: string) {
     if (sessionId === activeSessionId.value) return;
     resetDeleteConfirmation();
@@ -54,7 +64,9 @@ export function useSidebarActions() {
       pendingDeleteProjectId.value = null;
       return;
     }
+    const wasActive = activeSessionId.value === sessionId || session.currentSessionId === sessionId;
     await session.deleteSession(sessionId);
+    await switchToOrdinaryDraftIfActive(wasActive);
     pendingDeleteSessionId.value = null;
   }
 
@@ -118,8 +130,10 @@ export function useSidebarActions() {
       pendingDeleteProjectId.value = null;
       return;
     }
+    const wasActive = activeSessionId.value === sessionId || session.currentSessionId === sessionId;
     try {
       await projects.archiveProjectSession(sessionId);
+      await switchToOrdinaryDraftIfActive(wasActive);
     } catch (e) {
       console.error("Failed to archive project session:", e);
     }
@@ -144,7 +158,9 @@ export function useSidebarActions() {
       pendingDeleteSessionId.value = null;
       return;
     }
+    const wasActiveProject = session.currentSessionInfo?.project_id === projectId;
     await projects.removeProject(projectId);
+    await switchToOrdinaryDraftIfActive(wasActiveProject);
     pendingDeleteProjectId.value = null;
   }
 

@@ -6,15 +6,17 @@ import type { ProjectInfo, ProjectSessionInfo } from "@/stores/project";
 // ---------------------------------------------------------------------------
 
 const mockRouterPush = vi.fn();
+const mockRouterReplace = vi.fn();
 const routeParams: { sessionId?: string | string[] } = { sessionId: "active_1" };
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ params: routeParams }),
-  useRouter: () => ({ push: mockRouterPush })
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace })
 }));
 
 const sessionStore = {
   currentSessionId: "fallback_1" as string | null,
+  currentSessionInfo: null as { project_id?: string | null } | null,
   startOrdinaryDraftSession: vi.fn(),
   deleteSession: vi.fn(),
   switchProjectSession: vi.fn(),
@@ -92,6 +94,7 @@ describe("useSidebarActions", () => {
     vi.clearAllMocks();
     routeParams.sessionId = "active_1";
     sessionStore.currentSessionId = "fallback_1";
+    sessionStore.currentSessionInfo = null;
     projectStore.sessionsByProject = new Map();
     projectStore.activeProjects = [];
   });
@@ -224,6 +227,19 @@ describe("useSidebarActions", () => {
       await actions.requestDeleteSession("ses_del");
       expect(sessionStore.deleteSession).toHaveBeenCalledWith("ses_del");
       expect(actions.pendingDeleteSessionId.value).toBeNull();
+    });
+
+    it("starts an ordinary draft and clears the route when deleting the active ordinary session", async () => {
+      routeParams.sessionId = "ses_active";
+      sessionStore.currentSessionId = "ses_active";
+      const actions = useSidebarActions();
+
+      await actions.requestDeleteSession("ses_active");
+      await actions.requestDeleteSession("ses_active");
+
+      expect(sessionStore.deleteSession).toHaveBeenCalledWith("ses_active");
+      expect(sessionStore.startOrdinaryDraftSession).toHaveBeenCalledOnce();
+      expect(mockRouterReplace).toHaveBeenCalledWith({ name: "workbench" });
     });
 
     it("resets to new id when requesting delete of a different session", async () => {
@@ -384,6 +400,19 @@ describe("useSidebarActions", () => {
       expect(actions.pendingArchiveProjectSessionId.value).toBeNull();
     });
 
+    it("starts an ordinary draft and clears the route when archiving the active project session", async () => {
+      routeParams.sessionId = "ps_active";
+      sessionStore.currentSessionId = "ps_active";
+      const actions = useSidebarActions();
+
+      await actions.requestArchiveProjectSession("ps_active");
+      await actions.requestArchiveProjectSession("ps_active");
+
+      expect(projectStore.archiveProjectSession).toHaveBeenCalledWith("ps_active");
+      expect(sessionStore.startOrdinaryDraftSession).toHaveBeenCalledOnce();
+      expect(mockRouterReplace).toHaveBeenCalledWith({ name: "workbench" });
+    });
+
     it("clears other pending states when requesting archive", async () => {
       const actions = useSidebarActions();
       actions.pendingDeleteSessionId.value = "ses";
@@ -451,6 +480,20 @@ describe("useSidebarActions", () => {
       await actions.requestDeleteProject("proj_del");
       expect(projectStore.removeProject).toHaveBeenCalledWith("proj_del");
       expect(actions.pendingDeleteProjectId.value).toBeNull();
+    });
+
+    it("starts an ordinary draft and clears the route when deleting the active project", async () => {
+      routeParams.sessionId = "ps_active";
+      sessionStore.currentSessionId = "ps_active";
+      sessionStore.currentSessionInfo = { project_id: "proj_del" };
+      const actions = useSidebarActions();
+
+      await actions.requestDeleteProject("proj_del");
+      await actions.requestDeleteProject("proj_del");
+
+      expect(projectStore.removeProject).toHaveBeenCalledWith("proj_del");
+      expect(sessionStore.startOrdinaryDraftSession).toHaveBeenCalledOnce();
+      expect(mockRouterReplace).toHaveBeenCalledWith({ name: "workbench" });
     });
   });
 

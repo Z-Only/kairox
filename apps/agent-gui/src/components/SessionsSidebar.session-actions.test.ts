@@ -16,6 +16,7 @@ vi.mock("../composables/useTraceStore", () => ({
 import sidebarActionsSource from "@/composables/sidebar/useSidebarActions.ts?raw";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { useSessionStore } from "@/stores/session";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import { installSidebarTestEnv, mockedInvoke, mountSidebar } from "./SessionsSidebar.test-utils";
 
 installSidebarTestEnv();
@@ -82,6 +83,49 @@ describe("SessionsSidebar", () => {
     await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
     await flushPromises();
     expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+  });
+
+  it("opens an ordinary draft after archiving the active regular session even when another session remains", async () => {
+    const { wrapper, router } = await mountSidebar();
+    const session = useSessionStore();
+    const workspaceUi = useWorkspaceUiStore();
+    session.sessions = [
+      { id: "s1", title: "Session 1", profile: "fast" },
+      { id: "s2", title: "Session 2", profile: "fast" }
+    ] as never[];
+    session.currentSessionId = "s2";
+    session.projection.messages = [{ role: "user", content: "stale" }];
+    workspaceUi.gitReviewContext = { sessionId: "s2", projectId: null };
+    workspaceUi.gitReview = {
+      branch: "main",
+      changedFiles: ["stale.rs"],
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
+      staged: null,
+      unstaged: null,
+      untracked: null
+    } as never;
+    workspaceUi.gitReviewError = "stale error";
+    await router.push("/workbench/s2");
+    await router.isReady();
+    await flushPromises();
+
+    const archiveButtons = wrapper.findAll('[data-test="session-archive-btn"]');
+    await archiveButtons[1].trigger("click");
+    await flushPromises();
+    await archiveButtons[1].trigger("click");
+    await flushPromises();
+    await router.isReady();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s2" });
+    expect(session.currentSessionId).toBeNull();
+    expect(session.composerDraftKey).toBe("new-session:ordinary");
+    expect(session.projection.messages).toEqual([]);
+    expect(workspaceUi.gitReviewContext).toBeNull();
+    expect(workspaceUi.gitReview).toBeNull();
+    expect(workspaceUi.gitReviewError).toBeNull();
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
   });
 
   it("waits for session deletion before continuing after confirmation", () => {

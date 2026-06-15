@@ -43,6 +43,13 @@ export const useWorkspaceUiStore = defineStore("workspaceUi", () => {
     rightPanelTab.value = tab;
   }
 
+  function clearGitReview(): void {
+    gitReviewContext.value = null;
+    gitReview.value = null;
+    gitReviewError.value = null;
+    gitReviewLoading.value = false;
+  }
+
   async function refreshGitReview(): Promise<void> {
     const context = gitReviewContext.value;
     if (!context?.sessionId && !context?.projectId) return;
@@ -85,6 +92,7 @@ export const useWorkspaceUiStore = defineStore("workspaceUi", () => {
     gitReviewError,
     moveSectionUp,
     setRightPanelTab,
+    clearGitReview,
     refreshGitReview,
     openGitReview
   };

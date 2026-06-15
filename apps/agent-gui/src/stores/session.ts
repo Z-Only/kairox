@@ -16,6 +16,7 @@ import { useUiStore } from "@/stores/ui";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
+import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 import { clearTrace } from "@/composables/useTraceStore";
 import {
   emptyProjection,
@@ -554,6 +555,7 @@ export const useSessionStore = defineStore("session", () => {
     resetProjection();
     clearTrace();
     useTaskGraphStore().clearTaskGraph();
+    useWorkspaceUiStore().clearGitReview();
     rememberPendingDraft();
   }
 

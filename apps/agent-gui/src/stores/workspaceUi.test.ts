@@ -123,4 +123,33 @@ describe("useWorkspaceUiStore", () => {
     expect(store.gitReview?.changedFiles).toEqual(["VIBE_REVIEW_NOTES.md"]);
     expect(store.gitReviewError).toBeNull();
   });
+
+  it("clears cached git review data", () => {
+    const store = useWorkspaceUiStore();
+    store.rightPanelTab = "changes";
+    store.gitReviewContext = { sessionId: "ses_1", projectId: "project_1" };
+    store.gitReview = {
+      kind: "dirty",
+      branch: "main",
+      worktreePath: "/repo",
+      message: null,
+      fileCount: 1,
+      additions: 1,
+      deletions: 0,
+      changedFiles: ["README.md"],
+      staged: null,
+      unstaged: null,
+      untracked: null
+    };
+    store.gitReviewLoading = true;
+    store.gitReviewError = "stale error";
+
+    store.clearGitReview();
+
+    expect(store.gitReviewContext).toBeNull();
+    expect(store.gitReview).toBeNull();
+    expect(store.gitReviewLoading).toBe(false);
+    expect(store.gitReviewError).toBeNull();
+    expect(store.rightPanelTab).toBe("changes");
+  });
 });
