@@ -141,6 +141,8 @@ fn config_parse_profile_with_all_optional_fields() {
 provider = "openai_compatible"
 model_id = "gpt-4"
 base_url = "https://api.openai.com/v1"
+connect_timeout_secs = 7
+request_timeout_secs = 900
 temperature = 0.7
 top_p = 0.9
 top_k = 50
@@ -163,6 +165,8 @@ response_format = { type = "json_object" }
     assert_eq!(alias, "full");
     assert_eq!(def.provider, "openai_compatible");
     assert_eq!(def.model_id, "gpt-4");
+    assert_eq!(def.connect_timeout_secs, Some(7));
+    assert_eq!(def.request_timeout_secs, Some(900));
     assert!((def.temperature.unwrap() - 0.7).abs() < 1e-6);
     assert!((def.top_p.unwrap() - 0.9).abs() < 1e-6);
     assert_eq!(def.top_k, Some(50));

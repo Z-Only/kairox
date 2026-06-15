@@ -14,10 +14,14 @@ pub struct AnthropicClient {
 
 impl AnthropicClient {
     pub fn new(config: AnthropicConfig) -> Self {
-        let http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(300))
-            .build()
-            .expect("failed to build reqwest client");
+        let mut builder = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(config.connect_timeout_secs));
+
+        if let Some(timeout_secs) = config.request_timeout_secs {
+            builder = builder.timeout(std::time::Duration::from_secs(timeout_secs));
+        }
+
+        let http = builder.build().expect("failed to build reqwest client");
         Self { config, http }
     }
 

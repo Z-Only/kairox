@@ -8,6 +8,10 @@ struct ProfileToml {
     #[serde(default)]
     base_url: Option<String>,
     #[serde(default)]
+    connect_timeout_secs: Option<u64>,
+    #[serde(default)]
+    request_timeout_secs: Option<u64>,
+    #[serde(default)]
     api_key: Option<String>,
     #[serde(default)]
     api_key_env: Option<String>,
@@ -62,6 +66,8 @@ pub(super) fn parse_profiles(
             provider: profile_toml.provider,
             model_id: profile_toml.model_id,
             base_url: profile_toml.base_url,
+            connect_timeout_secs: profile_toml.connect_timeout_secs,
+            request_timeout_secs: profile_toml.request_timeout_secs,
             api_key: profile_toml.api_key,
             api_key_env: profile_toml.api_key_env,
             context_window: profile_toml.context_window,

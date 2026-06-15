@@ -34,6 +34,8 @@ fn profile_def(
         provider: "fake".into(),
         model_id: "fake".into(),
         base_url: None,
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: None,
         context_window: Some(4096),

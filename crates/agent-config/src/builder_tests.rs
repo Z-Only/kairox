@@ -56,6 +56,8 @@ fn build_profile_sets_capabilities_per_provider() {
         provider: "anthropic".into(),
         model_id: "claude-sonnet-4-20250514".into(),
         base_url: Some("https://api.anthropic.com".into()),
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: Some("ANTHROPIC_API_KEY".into()),
         context_window: Some(200_000),
@@ -85,6 +87,8 @@ fn build_profile_sets_capabilities_per_provider() {
         provider: "ollama".into(),
         model_id: "devstral".into(),
         base_url: Some("http://localhost:11434".into()),
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: None,
         context_window: Some(128_000),
@@ -166,6 +170,18 @@ fn custom_anthropic_gateway_does_not_infer_reasoning_controls() {
 }
 
 #[test]
+fn anthropic_profile_propagates_timeout_settings() {
+    let mut def = test_profile("anthropic", Some("https://api.anthropic.com"));
+    def.connect_timeout_secs = Some(7);
+    def.request_timeout_secs = Some(900);
+
+    let config = build_anthropic_config("fast", &def);
+
+    assert_eq!(config.connect_timeout_secs, 7);
+    assert_eq!(config.request_timeout_secs, Some(900));
+}
+
+#[test]
 fn custom_anthropic_gateway_can_enable_reasoning_controls_explicitly() {
     let mut def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
     def.supports_reasoning = Some(true);
@@ -219,6 +235,8 @@ fn capability_overrides_from_profile_def() {
         provider: "deepseek".into(),
         model_id: "deepseek-chat".into(),
         base_url: Some("https://api.deepseek.com/v1".into()),
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: Some("DEEPSEEK_API_KEY".into()),
         context_window: Some(128_000),
@@ -275,6 +293,8 @@ fn test_profile(provider: &str, base_url: Option<&str>) -> ProfileDef {
         provider: provider.into(),
         model_id: "claude-opus-4-6".into(),
         base_url: base_url.map(str::to_string),
+        connect_timeout_secs: None,
+        request_timeout_secs: None,
         api_key: None,
         api_key_env: None,
         context_window: Some(200_000),
