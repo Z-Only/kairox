@@ -490,6 +490,105 @@ describe("ChatPanel", () => {
     expect(gitMeta.text()).not.toContain("worktree");
   });
 
+  it("scrolls to the pinned user message when the sticky header is clicked", async () => {
+    const observerCallbacks: Array<IntersectionObserverCallback> = [];
+    const originalIntersectionObserver = globalThis.IntersectionObserver;
+    class ControlledIntersectionObserver implements IntersectionObserver {
+      readonly root: Element | Document | null = null;
+      readonly rootMargin = "";
+      readonly thresholds = [0.01];
+
+      constructor(callback: IntersectionObserverCallback) {
+        observerCallbacks.push(callback);
+      }
+
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+    }
+    globalThis.IntersectionObserver =
+      ControlledIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    const scrollIntoViewSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewSpy as Element["scrollIntoView"];
+
+    try {
+      const wrapper = mountChatPanel((session) => {
+        session.projection.messages = [
+          { role: "user", content: "first prompt" },
+          { role: "assistant", content: "first answer" },
+          { role: "user", content: "second prompt" },
+          { role: "assistant", content: "second answer" }
+        ];
+      });
+      await flushPromises();
+
+      const messageList = wrapper.find('[data-test="message-list"]').element as HTMLElement;
+      vi.spyOn(messageList, "getBoundingClientRect").mockReturnValue({
+        top: 100,
+        bottom: 500,
+        left: 0,
+        right: 800,
+        width: 800,
+        height: 400,
+        x: 0,
+        y: 100,
+        toJSON: () => ({})
+      });
+
+      const userMessages = wrapper.findAll('[data-test="chat-message"][data-role="user"]');
+      expect(userMessages).toHaveLength(2);
+      vi.spyOn(userMessages[0].element, "getBoundingClientRect").mockReturnValue({
+        top: 20,
+        bottom: 80,
+        left: 0,
+        right: 400,
+        width: 400,
+        height: 60,
+        x: 0,
+        y: 20,
+        toJSON: () => ({})
+      });
+      vi.spyOn(userMessages[1].element, "getBoundingClientRect").mockReturnValue({
+        top: 520,
+        bottom: 580,
+        left: 0,
+        right: 400,
+        width: 400,
+        height: 60,
+        x: 0,
+        y: 520,
+        toJSON: () => ({})
+      });
+
+      expect(observerCallbacks.length).toBeGreaterThan(0);
+      observerCallbacks[0](
+        userMessages.map((message) => ({
+          target: message.element,
+          isIntersecting: false
+        })) as IntersectionObserverEntry[],
+        {} as IntersectionObserver
+      );
+      await flushPromises();
+
+      const pinned = wrapper.find('[data-test="pinned-user-message"]');
+      expect(pinned.exists()).toBe(true);
+      expect(pinned.text()).toContain("first prompt");
+
+      await pinned.trigger("click");
+
+      expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+      globalThis.IntersectionObserver = originalIntersectionObserver;
+    }
+  });
+
   it("shows only the branch as git metadata for a main project workspace", async () => {
     const wrapper = mountChatPanel((session) => {
       session.sessions = [

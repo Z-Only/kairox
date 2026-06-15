@@ -304,6 +304,7 @@
     "emptyState": "开始对话",
     "projectDraftContext": "项目：{project}",
     "copiedToClipboard": "已复制到剪贴板",
+    "pinnedUserMessageJump": "跳转到这条消息",
     "gitReview": {
       "action": "查看变更",
       "title": "仓库变更",

@@ -304,6 +304,7 @@
     "emptyState": "Start a conversation",
     "projectDraftContext": "Project: {project}",
     "copiedToClipboard": "Copied to clipboard",
+    "pinnedUserMessageJump": "Jump to this message",
     "gitReview": {
       "action": "Review changes",
       "title": "Repository changes",
