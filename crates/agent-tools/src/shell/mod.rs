@@ -20,7 +20,13 @@ mod tests;
 
 pub use exec::ShellExecTool;
 pub use parse::parse_command;
-pub use risk::{classify_command, CommandRisk};
+pub use risk::{
+    classify_command, CommandRisk, BUN_WRITE_SUBCOMMANDS, CARGO_WRITE_SUBCOMMANDS,
+    DESTRUCTIVE_COMMANDS, DOCKER_DESTRUCTIVE_SUBCOMMANDS, DOCKER_WRITE_SUBCOMMANDS,
+    GIT_DESTRUCTIVE_SUBCOMMANDS, GIT_WRITE_SUBCOMMANDS, HELM_WRITE_SUBCOMMANDS,
+    KUBECTL_WRITE_SUBCOMMANDS, NPM_WRITE_SUBCOMMANDS, PIP_WRITE_SUBCOMMANDS, READONLY_COMMANDS,
+    WRITE_COMMANDS,
+};
 
 // Tool IDs are exposed at `crate::shell::*` because sibling tool modules
 // (`patch`, `search`) reference them directly. Keeping them here preserves

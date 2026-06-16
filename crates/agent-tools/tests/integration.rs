@@ -1,7 +1,10 @@
 use agent_tools::permission::{PermissionEngine, PermissionOutcome, ToolRisk};
 use agent_tools::policy::{ApprovalPolicy, SandboxPolicy};
 use agent_tools::registry::{Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRegistry};
-use agent_tools::{FsListTool, FsReadTool, FsWriteTool, ShellExecTool};
+use agent_tools::{
+    FsListTool, FsReadTool, FsWriteTool, ShellExecTool, DESTRUCTIVE_COMMANDS,
+    DOCKER_DESTRUCTIVE_SUBCOMMANDS, GIT_WRITE_SUBCOMMANDS, READONLY_COMMANDS, WRITE_COMMANDS,
+};
 
 fn ws_default() -> SandboxPolicy {
     SandboxPolicy::WorkspaceWrite {
@@ -219,6 +222,15 @@ async fn shell_tool_executes_trivial_command() {
         output.text
     );
     assert!(!output.truncated);
+}
+
+#[test]
+fn shell_risk_command_lists_are_reusable_from_public_api() {
+    assert!(READONLY_COMMANDS.contains(&"git"));
+    assert!(WRITE_COMMANDS.contains(&"docker"));
+    assert!(DESTRUCTIVE_COMMANDS.contains(&"rm"));
+    assert!(GIT_WRITE_SUBCOMMANDS.contains(&"rebase"));
+    assert!(DOCKER_DESTRUCTIVE_SUBCOMMANDS.contains(&"volume"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

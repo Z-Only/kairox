@@ -12,7 +12,7 @@ pub enum CommandRisk {
     Unknown,
 }
 
-const READONLY_COMMANDS: &[&str] = &[
+pub const READONLY_COMMANDS: [&str; 53] = [
     "ls", "cat", "head", "tail", "grep", "egrep", "rg", "find", "wc", "sort", "uniq", "diff",
     "echo", "pwd", "which", "whoami", "env", "printenv", "stat", "file", "du", "df", "free",
     "uptime", "ps", "curl", "wget", "git", "gh", "cargo", "rustc", "node", "python3", "python",
@@ -20,48 +20,59 @@ const READONLY_COMMANDS: &[&str] = &[
     "true", "false", "date", "uname", "hostname", "id", "arch",
 ];
 
-const WRITE_COMMANDS: &[&str] = &[
+pub const WRITE_COMMANDS: [&str; 11] = [
     "cp", "mv", "mkdir", "touch", "chmod", "chown", "ln", "tee", "docker", "kubectl", "helm",
 ];
 
-const DESTRUCTIVE_COMMANDS: &[&str] = &["rm", "sudo", "su", "mkfs", "dd", "format"];
+pub const DESTRUCTIVE_COMMANDS: [&str; 6] = ["rm", "sudo", "su", "mkfs", "dd", "format"];
+
+pub const GIT_WRITE_SUBCOMMANDS: [&str; 10] = [
+    "push",
+    "commit",
+    "merge",
+    "rebase",
+    "reset",
+    "checkout",
+    "branch",
+    "tag",
+    "stash",
+    "cherry-pick",
+];
+
+pub const BUN_WRITE_SUBCOMMANDS: [&str; 6] =
+    ["add", "install", "remove", "update", "publish", "pm"];
+pub const NPM_WRITE_SUBCOMMANDS: [&str; 4] = ["install", "uninstall", "publish", "update"];
+pub const PIP_WRITE_SUBCOMMANDS: [&str; 2] = ["install", "uninstall"];
+pub const CARGO_WRITE_SUBCOMMANDS: [&str; 1] = ["publish"];
+
+pub const DOCKER_WRITE_SUBCOMMANDS: [&str; 8] = [
+    "rm", "rmi", "stop", "kill", "build", "run", "push", "compose",
+];
+
+pub const KUBECTL_WRITE_SUBCOMMANDS: [&str; 5] = ["delete", "apply", "create", "edit", "patch"];
+pub const HELM_WRITE_SUBCOMMANDS: [&str; 4] = ["install", "upgrade", "delete", "rollback"];
+
+pub const GIT_DESTRUCTIVE_SUBCOMMANDS: [&str; 1] = ["clean"];
+pub const DOCKER_DESTRUCTIVE_SUBCOMMANDS: [&str; 2] = ["system", "volume"];
 
 fn is_write_subcommand(program: &str, sub: &str) -> bool {
     match program {
-        "git" => matches!(
-            sub,
-            "push"
-                | "commit"
-                | "merge"
-                | "rebase"
-                | "reset"
-                | "checkout"
-                | "branch"
-                | "tag"
-                | "stash"
-                | "cherry-pick"
-        ),
-        "bun" => matches!(
-            sub,
-            "add" | "install" | "remove" | "update" | "publish" | "pm"
-        ),
-        "npm" => matches!(sub, "install" | "uninstall" | "publish" | "update"),
-        "pip" | "pip3" => matches!(sub, "install" | "uninstall"),
-        "cargo" => matches!(sub, "publish"),
-        "docker" => matches!(
-            sub,
-            "rm" | "rmi" | "stop" | "kill" | "build" | "run" | "push" | "compose"
-        ),
-        "kubectl" => matches!(sub, "delete" | "apply" | "create" | "edit" | "patch"),
-        "helm" => matches!(sub, "install" | "upgrade" | "delete" | "rollback"),
+        "git" => GIT_WRITE_SUBCOMMANDS.contains(&sub),
+        "bun" => BUN_WRITE_SUBCOMMANDS.contains(&sub),
+        "npm" => NPM_WRITE_SUBCOMMANDS.contains(&sub),
+        "pip" | "pip3" => PIP_WRITE_SUBCOMMANDS.contains(&sub),
+        "cargo" => CARGO_WRITE_SUBCOMMANDS.contains(&sub),
+        "docker" => DOCKER_WRITE_SUBCOMMANDS.contains(&sub),
+        "kubectl" => KUBECTL_WRITE_SUBCOMMANDS.contains(&sub),
+        "helm" => HELM_WRITE_SUBCOMMANDS.contains(&sub),
         _ => false,
     }
 }
 
 fn is_destructive_subcommand(program: &str, sub: &str, _args: &[&str]) -> bool {
     match program {
-        "git" => matches!(sub, "clean"),
-        "docker" => matches!(sub, "system" | "volume"),
+        "git" => GIT_DESTRUCTIVE_SUBCOMMANDS.contains(&sub),
+        "docker" => DOCKER_DESTRUCTIVE_SUBCOMMANDS.contains(&sub),
         _ => false,
     }
 }
