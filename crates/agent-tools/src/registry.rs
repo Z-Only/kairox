@@ -41,6 +41,9 @@ pub struct ImageAttachment {
 pub struct ToolOutput {
     pub text: String,
     pub truncated: bool,
+    /// Process exit status when a tool wraps a command-like subprocess.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
     /// Image attachments produced by the tool (e.g. screenshots).
     /// Tools that don't produce images leave this empty.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

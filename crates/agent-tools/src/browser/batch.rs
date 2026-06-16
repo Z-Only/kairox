@@ -129,6 +129,7 @@ impl Tool for BrowserBatchTool {
         Ok(ToolOutput {
             text,
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }

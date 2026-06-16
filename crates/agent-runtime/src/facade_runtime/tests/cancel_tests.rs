@@ -106,6 +106,7 @@ impl Tool for WriteRiskTool {
         Ok(ToolOutput {
             text: "write-risk executed".into(),
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }

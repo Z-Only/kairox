@@ -291,3 +291,21 @@ fn list_command_prints_live_vibe_coding_scenario_ids() {
         ]
     );
 }
+
+#[test]
+fn live_vibe_coding_risk_command_has_fmt_post_run_gate() {
+    let fixture = fixture_path("live-vibe-coding.jsonl");
+    let scenarios = agent_eval::load_scenarios(&fixture).expect("live fixture should parse");
+    let scenario = scenarios
+        .iter()
+        .find(|scenario| scenario.id == "vibe-coding-risk-command-const-arrays")
+        .expect("risk command scenario should exist");
+    let first_command = scenario
+        .expected
+        .post_run_commands
+        .first()
+        .expect("risk command scenario should have post-run commands");
+
+    assert_eq!(first_command.program, "cargo");
+    assert_eq!(first_command.args, ["fmt", "--all", "--check"]);
+}

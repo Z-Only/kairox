@@ -157,6 +157,35 @@ pub async fn send_message_to_session(
     Ok(())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn send_message_to_session_and_wait(
+    session_id: String,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = SessionId::from_string(session_id);
+    let runtime = state.runtime.clone();
+    let request = build_send_message_request(
+        runtime.as_ref(),
+        workspace_id,
+        session_id,
+        content,
+        attachments,
+    )
+    .await?;
+
+    runtime
+        .send_message_queued(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn spawn_send_message_task(
     runtime: std::sync::Arc<
         agent_runtime::LocalRuntime<agent_store::SqliteEventStore, agent_models::ModelRouter>,
@@ -170,45 +199,29 @@ fn spawn_send_message_task(
 ) {
     let session_id_str = session_id.to_string();
     tokio::spawn(async move {
-        let prepared =
-            match prepare_outbound_message(runtime.as_ref(), &workspace_id, &session_id, content)
-                .await
-            {
-                Ok(prepared) => prepared,
-                Err(e) => {
-                    eprintln!("[commands] send_message preparation failed: {e}");
-                    let payload = serde_json::json!({
-                        "type": "SendMessageError",
-                        "error": e,
-                        "session_id": session_id_str
-                    });
-                    let _ = app_handle.emit("session-error", &payload);
-                    return;
-                }
-            };
-        let enriched = match tokio::task::spawn_blocking({
-            let content = prepared.model_content.clone();
-            let attachments = attachments.clone();
-            move || enrich_content_with_attachments(&content, &attachments)
-        })
-        .await
-        {
-            Ok(enriched) => enriched,
-            Err(e) => {
-                eprintln!("[commands] attachment enrichment failed: {e}");
-                prepared.model_content.clone()
-            }
-        };
-
-        let request = agent_core::SendMessageRequest {
+        let request = match build_send_message_request(
+            runtime.as_ref(),
             workspace_id,
             session_id,
-            content: enriched,
-            display_content: prepared.display_content,
+            content,
             attachments,
+        )
+        .await
+        {
+            Ok(request) => request,
+            Err(e) => {
+                eprintln!("[commands] send_message preparation failed: {e}");
+                let payload = serde_json::json!({
+                    "type": "SendMessageError",
+                    "error": e,
+                    "session_id": session_id_str
+                });
+                let _ = app_handle.emit("session-error", &payload);
+                return;
+            }
         };
         let result = if strict {
-            runtime.send_message_strict(request).await
+            runtime.send_message_queued(request).await
         } else {
             runtime.send_message(request).await
         };
@@ -223,6 +236,41 @@ fn spawn_send_message_task(
             let _ = app_handle.emit("session-error", &payload);
         }
     });
+}
+
+async fn build_send_message_request<S, M>(
+    runtime: &agent_runtime::LocalRuntime<S, M>,
+    workspace_id: agent_core::WorkspaceId,
+    session_id: agent_core::SessionId,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+) -> Result<agent_core::SendMessageRequest, String>
+where
+    S: agent_store::EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    let prepared = prepare_outbound_message(runtime, &workspace_id, &session_id, content).await?;
+    let enriched = match tokio::task::spawn_blocking({
+        let content = prepared.model_content.clone();
+        let attachments = attachments.clone();
+        move || enrich_content_with_attachments(&content, &attachments)
+    })
+    .await
+    {
+        Ok(enriched) => enriched,
+        Err(e) => {
+            eprintln!("[commands] attachment enrichment failed: {e}");
+            prepared.model_content.clone()
+        }
+    };
+
+    Ok(agent_core::SendMessageRequest {
+        workspace_id,
+        session_id,
+        content: enriched,
+        display_content: prepared.display_content,
+        attachments,
+    })
 }
 
 struct PreparedOutboundMessage {
@@ -458,6 +506,11 @@ mod chat_attachment_tests {
             format!("---\nname: {id}\ndescription: Test skill\n---\nSkill body.\n"),
         )
         .expect("skill file should be written");
+    }
+
+    #[test]
+    fn send_message_to_session_and_wait_command_is_compiled() {
+        let _command = send_message_to_session_and_wait;
     }
 
     #[test]

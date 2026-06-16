@@ -57,6 +57,7 @@ impl Tool for FsWriteTool {
         Ok(ToolOutput {
             text: format!("wrote: {}", invocation.arguments),
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }
