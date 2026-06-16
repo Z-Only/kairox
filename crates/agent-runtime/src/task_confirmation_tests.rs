@@ -167,6 +167,99 @@ async fn request_task_confirmation_emits_event_and_waits_for_decision() {
 }
 
 #[tokio::test]
+async fn request_task_confirmation_rejects_duplicate_pending_request_id() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (event_tx, _) = tokio::sync::broadcast::channel(8);
+    let pending = Arc::new(Mutex::new(HashMap::new()));
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let request_id = "clarify_1".to_string();
+
+    let first_request = TaskConfirmationRequest {
+        request_id: request_id.clone(),
+        prompt: "Which scope should I use?".into(),
+        options: vec![TaskConfirmationOption {
+            id: "tests".into(),
+            label: "Tests only".into(),
+            description: None,
+        }],
+        allow_multiple: false,
+        allow_custom: true,
+    };
+
+    let pending_clone = pending.clone();
+    let first_task = tokio::spawn(async move {
+        request_task_confirmation(
+            &store,
+            &event_tx,
+            &pending_clone,
+            &workspace_id,
+            &session_id,
+            first_request,
+        )
+        .await
+    });
+
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    assert!(pending.lock().await.contains_key(&request_id));
+
+    let duplicate_request = TaskConfirmationRequest {
+        request_id: request_id.clone(),
+        prompt: "Duplicate request id?".into(),
+        options: vec![TaskConfirmationOption {
+            id: "runtime".into(),
+            label: "Runtime fix".into(),
+            description: None,
+        }],
+        allow_multiple: false,
+        allow_custom: true,
+    };
+
+    let duplicate_store = SqliteEventStore::in_memory().await.unwrap();
+    let (duplicate_event_tx, _) = tokio::sync::broadcast::channel(8);
+    let duplicate_workspace_id = WorkspaceId::new();
+    let duplicate_session_id = SessionId::new();
+    let error = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        request_task_confirmation(
+            &duplicate_store,
+            &duplicate_event_tx,
+            &pending,
+            &duplicate_workspace_id,
+            &duplicate_session_id,
+            duplicate_request,
+        ),
+    )
+    .await
+    .expect("duplicate request should return without waiting")
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("task confirmation request already pending"),
+        "unexpected error: {error}"
+    );
+    assert!(
+        pending.lock().await.contains_key(&request_id),
+        "duplicate requests must not release the original pending request"
+    );
+
+    resolve_task_confirmation(
+        &pending,
+        TaskConfirmationDecision {
+            request_id,
+            selected_option_ids: vec!["tests".into()],
+            custom_response: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let output = first_task.await.unwrap().unwrap();
+    assert!(output.contains("selected_option_ids=[\"tests\"]"));
+}
+
+#[tokio::test]
 async fn resolve_task_confirmation_rejects_unknown_option_and_keeps_request_pending() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let (event_tx, _) = tokio::sync::broadcast::channel(8);

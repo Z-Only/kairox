@@ -159,16 +159,25 @@ pub async fn request_task_confirmation<S: EventStore>(
     request: TaskConfirmationRequest,
 ) -> agent_core::Result<String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    pending_confirmations.lock().await.insert(
-        request.request_id.clone(),
-        PendingTaskConfirmation {
-            session_id: session_id.clone(),
-            options: request.options.clone(),
-            allow_multiple: request.allow_multiple,
-            allow_custom: request.allow_custom,
-            reply: tx,
-        },
-    );
+    {
+        let mut pending_confirmations = pending_confirmations.lock().await;
+        if pending_confirmations.contains_key(&request.request_id) {
+            return Err(invalid_state(format!(
+                "task confirmation request already pending: {}",
+                request.request_id
+            )));
+        }
+        pending_confirmations.insert(
+            request.request_id.clone(),
+            PendingTaskConfirmation {
+                session_id: session_id.clone(),
+                options: request.options.clone(),
+                allow_multiple: request.allow_multiple,
+                allow_custom: request.allow_custom,
+                reply: tx,
+            },
+        );
+    }
 
     let request_event = DomainEvent::new(
         workspace_id.clone(),
