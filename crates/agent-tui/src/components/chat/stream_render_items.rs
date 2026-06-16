@@ -15,7 +15,7 @@ use crate::components::theme;
 
 use super::stream::{
     ChatStreamItem, CompactionItemStatus, MessageRole, MonitorItemStatus, PermissionKind,
-    ToolCallStatus,
+    TaskConfirmationStatus, ToolCallStatus,
 };
 
 pub fn append_message(lines: &mut Vec<Line>, role: MessageRole, content: &str) {
@@ -101,6 +101,107 @@ pub fn append_permission(
         ),
         Span::styled(
             " to allow / deny / deny-all",
+            Style::default()
+                .fg(theme::MUTED)
+                .add_modifier(Modifier::DIM),
+        ),
+    ]));
+    lines.push(Line::from(Span::styled(
+        "╰".to_string() + &"─".repeat(62),
+        border_style,
+    )));
+}
+
+pub fn append_task_confirmation(
+    lines: &mut Vec<Line>,
+    item: &ChatStreamItem,
+    selected_option_ids: &[String],
+) {
+    let (prompt, options, allow_multiple, allow_custom, status) = match item {
+        ChatStreamItem::TaskConfirmation {
+            prompt,
+            options,
+            allow_multiple,
+            allow_custom,
+            status,
+            ..
+        } => (
+            prompt.as_str(),
+            options.as_slice(),
+            *allow_multiple,
+            *allow_custom,
+            *status,
+        ),
+        _ => return,
+    };
+    if status != TaskConfirmationStatus::Pending {
+        return;
+    }
+
+    let border_style = Style::default()
+        .fg(theme::WARNING)
+        .add_modifier(Modifier::BOLD);
+    lines.push(Line::from(Span::styled(
+        "╭─ Clarification needed ".to_string() + &"─".repeat(38),
+        border_style,
+    )));
+    for (i, prompt_line) in prompt.split('\n').enumerate() {
+        let prefix = if i == 0 { "prompt: " } else { "        " };
+        lines.push(Line::from(vec![
+            Span::styled("│ ", border_style),
+            Span::styled(
+                prefix,
+                Style::default()
+                    .fg(theme::MUTED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(prompt_line.to_string(), Style::default().fg(Color::White)),
+        ]));
+    }
+    for (idx, option) in options.iter().enumerate() {
+        let selected = selected_option_ids.iter().any(|id| id == &option.id);
+        let marker = if allow_multiple {
+            if selected {
+                "[x]"
+            } else {
+                "[ ]"
+            }
+        } else if selected {
+            "(*)"
+        } else {
+            "( )"
+        };
+        lines.push(Line::from(vec![
+            Span::styled("│ ", border_style),
+            Span::styled(
+                format!("{} {marker} ", idx + 1),
+                Style::default()
+                    .fg(theme::WARNING)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(option.label.clone(), Style::default().fg(Color::White)),
+        ]));
+        if let Some(description) = &option.description {
+            lines.push(Line::from(vec![
+                Span::styled("│     ", border_style),
+                Span::styled(description.clone(), theme::muted()),
+            ]));
+        }
+    }
+    let selection_hint = if allow_multiple {
+        "press 1-9 to toggle options"
+    } else {
+        "press 1-9 to choose an option"
+    };
+    let custom_hint = if allow_custom {
+        "; type custom text; Enter submits"
+    } else {
+        "; Enter submits"
+    };
+    lines.push(Line::from(vec![
+        Span::styled("│ ", border_style),
+        Span::styled(
+            format!("{selection_hint}{custom_hint}"),
             Style::default()
                 .fg(theme::MUTED)
                 .add_modifier(Modifier::DIM),

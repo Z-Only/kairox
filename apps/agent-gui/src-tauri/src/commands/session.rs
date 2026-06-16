@@ -120,6 +120,19 @@ pub async fn resolve_permission(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn resolve_task_confirmation(
+    state: State<'_, GuiState>,
+    decision: TaskConfirmationDecision,
+) -> Result<(), String> {
+    state
+        .runtime
+        .resolve_task_confirmation(decision)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn query_memories(
     state: State<'_, GuiState>,
     scope: Option<String>,

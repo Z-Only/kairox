@@ -60,6 +60,10 @@ pub(crate) async fn dispatch(
             messages::decide_permission(runtime, app, request_id, approved).await;
         }
 
+        Command::DecideTaskConfirmation { decision } => {
+            messages::decide_task_confirmation(runtime, app, decision).await;
+        }
+
         Command::CancelSession {
             workspace_id,
             session_id,

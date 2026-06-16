@@ -203,6 +203,7 @@ struct TestHarness {
     workspace_id: WorkspaceId,
     session_id: SessionId,
     pending_permissions: crate::permission::PendingPermissionsMap,
+    pending_task_confirmations: crate::task_confirmation::PendingTaskConfirmationsMap,
     task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
     root_task_id: TaskId,
     config: agent_config::Config,
@@ -240,6 +241,7 @@ impl TestHarness {
             workspace_id: WorkspaceId::new(),
             session_id,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
+            pending_task_confirmations: Arc::new(Mutex::new(HashMap::new())),
             task_graphs: Arc::new(Mutex::new(task_graphs_map)),
             root_task_id,
             config: agent_config::Config::defaults(),
@@ -269,6 +271,7 @@ impl TestHarness {
             &self.workspace_id,
             &self.session_id,
             &self.pending_permissions,
+            &self.pending_task_confirmations,
             &self.task_graphs,
             &self.root_task_id,
             &self.config,
@@ -290,6 +293,87 @@ impl TestHarness {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn task_confirmation_tool_emits_request_and_returns_user_response() {
+    let harness = TestHarness::new().await;
+    let mut rx = harness.event_tx.subscribe();
+    let calls = vec![ToolCall {
+        id: "call-clarify".into(),
+        name: "task_confirmation.request".into(),
+        arguments: serde_json::json!({
+            "prompt": "Which scope should I use?",
+            "options": [
+                {
+                    "id": "tests",
+                    "label": "Tests only",
+                    "description": "Add failing tests first"
+                },
+                {
+                    "id": "full",
+                    "label": "Full implementation"
+                }
+            ],
+            "allow_multiple": true,
+            "allow_custom": true
+        }),
+    }];
+
+    let pending = harness.pending_task_confirmations.clone();
+    let exec = tokio::spawn(async move { harness.execute_simple(&calls).await });
+
+    let requested = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        loop {
+            let event = rx.recv().await.unwrap();
+            if matches!(
+                event.payload,
+                agent_core::EventPayload::TaskConfirmationRequested { .. }
+            ) {
+                break event;
+            }
+        }
+    })
+    .await
+    .expect("task confirmation request should be emitted");
+
+    let request_id = match requested.payload {
+        agent_core::EventPayload::TaskConfirmationRequested {
+            request_id,
+            prompt,
+            options,
+            allow_multiple,
+            allow_custom,
+        } => {
+            assert_eq!(prompt, "Which scope should I use?");
+            assert_eq!(options.len(), 2);
+            assert!(allow_multiple);
+            assert!(allow_custom);
+            request_id
+        }
+        other => panic!("expected TaskConfirmationRequested, got {other:?}"),
+    };
+
+    crate::task_confirmation::resolve_task_confirmation(
+        &pending,
+        agent_core::TaskConfirmationDecision {
+            request_id,
+            selected_option_ids: vec!["tests".into()],
+            custom_response: Some("Also update TUI".into()),
+        },
+    )
+    .await
+    .unwrap();
+
+    let result = exec.await.unwrap().unwrap();
+    assert_eq!(result.tool_results.len(), 1);
+    assert_eq!(result.tool_results[0].0, "call-clarify");
+    assert!(result.tool_results[0]
+        .1
+        .contains("selected_option_ids=[\"tests\"]"));
+    assert!(result.tool_results[0]
+        .1
+        .contains("custom_response=Also update TUI"));
+}
 
 #[tokio::test]
 async fn tool_not_found() {

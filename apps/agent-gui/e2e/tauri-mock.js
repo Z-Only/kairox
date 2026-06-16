@@ -51,6 +51,35 @@ function installMock() {
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
     },
+    simulateTaskConfirmationRequest: function (prompt, options, allowMultiple, allowCustom) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      var requestId = nextId("tcr");
+      var normalizedOptions = options || [
+        {
+          id: "default",
+          label: "Default option",
+          description: null
+        }
+      ];
+      state.taskConfirmationRequests.set(requestId, {
+        prompt: prompt,
+        options: normalizedOptions,
+        allow_multiple: Boolean(allowMultiple),
+        allow_custom: Boolean(allowCustom)
+      });
+      var event = makeEvent(sessionId, {
+        type: "TaskConfirmationRequested",
+        request_id: requestId,
+        prompt: prompt,
+        options: normalizedOptions,
+        allow_multiple: Boolean(allowMultiple),
+        allow_custom: Boolean(allowCustom)
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+      return requestId;
+    },
     simulateMemoryProposal: function (scope, key, content) {
       var sessionId = state.currentSessionId;
       if (!sessionId) return;
@@ -306,6 +335,7 @@ function installMock() {
       state.responseDelayScale = 1;
       state.memories = [];
       state.permissionRequests.clear();
+      state.taskConfirmationRequests.clear();
       state.agents.clear();
       state.nextOpenDialogResult = null;
       state.drafts.clear();

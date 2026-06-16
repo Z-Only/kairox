@@ -70,6 +70,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             reject_memory,
             delete_memory,
             list_workspaces,
+            resolve_task_confirmation,
             rename_session,
             delete_session,
             permanently_delete_session,

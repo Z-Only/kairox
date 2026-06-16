@@ -27,6 +27,9 @@ pub enum Command {
         request_id: String,
         approved: bool,
     },
+    DecideTaskConfirmation {
+        decision: agent_core::TaskConfirmationDecision,
+    },
     /// Trust an MCP server so future tool calls from it are auto-approved.
     TrustMcpServer {
         server_id: String,

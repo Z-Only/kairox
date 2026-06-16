@@ -535,6 +535,7 @@ where
             &request.workspace_id,
             &request.session_id,
             deps.pending_permissions,
+            deps.pending_task_confirmations,
             deps.task_graphs,
             &root_task_id,
             deps.config,

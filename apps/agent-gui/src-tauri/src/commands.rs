@@ -10,7 +10,7 @@ use agent_core::facade::{
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitDiffSection, ProjectGitFileChange, ProjectGitReview,
     ProjectGitStatus, ProjectGitStatusKind, ProjectId, ProjectInstructionSummary, ProjectMeta,
-    ProjectSessionVisibility, SessionId, SessionMeta,
+    ProjectSessionVisibility, SessionId, SessionMeta, TaskConfirmationDecision,
 };
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
 use serde::{Deserialize, Serialize};

@@ -436,8 +436,37 @@ impl Component for ChatPanel {
                 };
             }
             CrossPanelEffect::ShowPermissionPrompt(_) => {}
+            CrossPanelEffect::ShowTaskConfirmationPrompt(req) => {
+                let saved_input = self.input_content.clone();
+                let saved_cursor = self.input_cursor;
+                self.input_state = InputState::TaskConfirmationWait {
+                    request_id: req.request_id.clone(),
+                    prompt: req.prompt.clone(),
+                    options: req.options.clone(),
+                    allow_multiple: req.allow_multiple,
+                    allow_custom: req.allow_custom,
+                    selected_option_ids: Vec::new(),
+                    saved_input,
+                    saved_cursor,
+                };
+                self.input_content.clear();
+                self.input_cursor = 0;
+                self.input_history_index = None;
+            }
             CrossPanelEffect::DismissPermissionPrompt => {
                 if matches!(self.input_state, InputState::PermissionWait { .. }) {
+                    self.input_state = InputState::Normal;
+                }
+            }
+            CrossPanelEffect::DismissTaskConfirmationPrompt => {
+                if let InputState::TaskConfirmationWait {
+                    saved_input,
+                    saved_cursor,
+                    ..
+                } = &self.input_state
+                {
+                    self.input_content = saved_input.clone();
+                    self.input_cursor = (*saved_cursor).min(self.input_content.len());
                     self.input_state = InputState::Normal;
                 }
             }

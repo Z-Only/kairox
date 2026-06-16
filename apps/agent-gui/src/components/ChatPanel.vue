@@ -11,6 +11,7 @@ import ChatComposer from "@/components/ChatComposer.vue";
 import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
 import ChatPermissionItem from "@/components/chat/ChatPermissionItem.vue";
+import ChatTaskConfirmationItem from "@/components/chat/ChatTaskConfirmationItem.vue";
 import ChatCompactionItem from "@/components/chat/ChatCompactionItem.vue";
 import ChatMonitorItem from "@/components/chat/ChatMonitorItem.vue";
 
@@ -695,6 +696,15 @@ watch(
               :reason="item.reason"
               :scope="item.scope"
               :content="item.content"
+              :raw-event="item.rawEvent"
+            />
+            <ChatTaskConfirmationItem
+              v-else-if="item.kind === 'task_confirmation'"
+              :id="item.id"
+              :prompt="item.prompt"
+              :options="item.options"
+              :allow-multiple="item.allowMultiple"
+              :allow-custom="item.allowCustom"
               :raw-event="item.rawEvent"
             />
             <ChatCompactionItem v-else-if="item.kind === 'compaction'" :status="item.status" />

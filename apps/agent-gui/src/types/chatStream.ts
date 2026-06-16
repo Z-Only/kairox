@@ -11,11 +11,13 @@
  * `apps/agent-gui/src/composables/useChatStream.ts`.
  */
 import type { ProjectedRole, CompactionStatus } from "@/types";
+import type { TaskConfirmationOption } from "@/types/trace";
 
 export type ChatStreamItem =
   | ChatMessageStreamItem
   | ChatToolCallStreamItem
   | ChatPermissionStreamItem
+  | ChatTaskConfirmationStreamItem
   | ChatPermissionGroupStreamItem
   | ChatCompactionStreamItem
   | ChatMonitorStreamItem
@@ -67,6 +69,17 @@ export interface ChatPermissionStreamItem {
    *   - `"memory"` → derived from a trace entry with `kind === "memory"`
    */
   variant: "tool" | "memory";
+}
+
+export interface ChatTaskConfirmationStreamItem {
+  kind: "task_confirmation";
+  /** Trace entry id — equals the request id accepted by `resolve_task_confirmation`. */
+  id: string;
+  prompt: string;
+  options: TaskConfirmationOption[];
+  allowMultiple: boolean;
+  allowCustom: boolean;
+  rawEvent?: string;
 }
 
 /**

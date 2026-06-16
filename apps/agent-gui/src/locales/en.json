@@ -938,6 +938,13 @@
       },
       "grouped": "{count} pending permissions"
     },
+    "taskConfirmation": {
+      "title": "Clarification needed",
+      "customLabel": "Custom response",
+      "customPlaceholder": "Add context or choose another option",
+      "submit": "Submit",
+      "submitting": "Submitting..."
+    },
     "toolCall": {
       "expand": "Expand",
       "collapse": "Collapse",

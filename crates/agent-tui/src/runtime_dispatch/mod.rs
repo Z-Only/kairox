@@ -28,6 +28,7 @@ pub async fn dispatch_commands(
             | Command::SendQueuedMessageNow { .. }
             | Command::ApplyQueueAction(_)
             | Command::DecidePermission { .. }
+            | Command::DecideTaskConfirmation { .. }
             | Command::CancelSession { .. }
             | Command::RetryTask { .. }
             | Command::CancelTask { .. }

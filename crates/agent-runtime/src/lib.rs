@@ -41,6 +41,7 @@ pub mod skill_package;
 pub mod skill_settings;
 pub mod skill_sources_toml;
 pub mod skills;
+pub mod task_confirmation;
 pub mod task_graph;
 pub mod ui_bootstrap;
 

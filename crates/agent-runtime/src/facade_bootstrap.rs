@@ -570,6 +570,17 @@ where
     ) -> agent_core::Result<()> {
         crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
     }
+
+    pub async fn resolve_task_confirmation(
+        &self,
+        decision: agent_core::TaskConfirmationDecision,
+    ) -> agent_core::Result<()> {
+        crate::task_confirmation::resolve_task_confirmation(
+            &self.pending_task_confirmations,
+            decision,
+        )
+        .await
+    }
 }
 
 fn memory_scope_label(scope: &agent_memory::MemoryScope) -> &'static str {

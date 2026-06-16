@@ -197,6 +197,8 @@ impl SessionProjection {
             | EventPayload::PermissionRequested { .. }
             | EventPayload::PermissionGranted { .. }
             | EventPayload::PermissionDenied { .. }
+            | EventPayload::TaskConfirmationRequested { .. }
+            | EventPayload::TaskConfirmationResolved { .. }
             | EventPayload::ToolInvocationStarted { .. }
             | EventPayload::ToolInvocationCompleted { .. }
             | EventPayload::ToolInvocationFailed { .. }

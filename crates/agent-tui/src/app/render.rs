@@ -100,6 +100,7 @@ impl App {
             &self.state.current_session,
             &self.domain_events,
             self.chat.expanded_tool_calls(),
+            &self.chat.input_state,
         );
         chat_chunk_idx += 1;
         if has_queue {
@@ -226,24 +227,45 @@ impl App {
             InputMode::SingleLine => "│ ",
             InputMode::MultiLine => "│M ",
         };
-        let display_content = if let InputState::PermissionWait { pending_prompt, .. } =
-            &self.chat.input_state
-        {
-            format!("[permission] {}", pending_prompt)
-        } else {
-            let mut content = format!("{}{}", mode_label, self.chat.input_content);
-            let attachment_labels =
-                crate::components::chat::format_attachment_labels(&self.chat.pending_attachments);
-            if !attachment_labels.is_empty() {
-                if !self.chat.input_content.is_empty() {
-                    content.push(' ');
+        let display_content = match &self.chat.input_state {
+            InputState::PermissionWait { pending_prompt, .. } => {
+                format!("[permission] {}", pending_prompt)
+            }
+            InputState::TaskConfirmationWait {
+                allow_custom,
+                selected_option_ids,
+                ..
+            } => {
+                let prefix = if *allow_custom {
+                    "│? "
+                } else {
+                    "│? select "
+                };
+                let mut content = format!("{prefix}{}", self.chat.input_content);
+                if !selected_option_ids.is_empty() {
+                    if !self.chat.input_content.is_empty() {
+                        content.push(' ');
+                    }
+                    content.push_str(&format!("[selected: {}]", selected_option_ids.join(", ")));
                 }
-                content.push_str(&attachment_labels);
+                content
             }
-            if self.state.render_scheduler.is_streaming() {
-                content.push('▌');
+            InputState::Normal => {
+                let mut content = format!("{}{}", mode_label, self.chat.input_content);
+                let attachment_labels = crate::components::chat::format_attachment_labels(
+                    &self.chat.pending_attachments,
+                );
+                if !attachment_labels.is_empty() {
+                    if !self.chat.input_content.is_empty() {
+                        content.push(' ');
+                    }
+                    content.push_str(&attachment_labels);
+                }
+                if self.state.render_scheduler.is_streaming() {
+                    content.push('▌');
+                }
+                content
             }
-            content
         };
 
         let input_line = Line::from(vec![

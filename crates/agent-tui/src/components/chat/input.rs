@@ -40,6 +40,10 @@ impl ChatPanel {
         let mut effects = Vec::new();
         let mut commands = Vec::new();
 
+        if self.apply_task_confirmation_key_action(action.clone(), &mut effects, &mut commands) {
+            return (effects, commands);
+        }
+
         match action {
             KeyAction::SendInput
                 if !self.input_content.is_empty() || !self.pending_attachments.is_empty() =>
@@ -399,6 +403,143 @@ impl ChatPanel {
             });
             effects.push(CrossPanelEffect::DismissPermissionPrompt);
         }
+    }
+
+    fn apply_task_confirmation_key_action(
+        &mut self,
+        action: KeyAction,
+        effects: &mut Vec<CrossPanelEffect>,
+        commands: &mut Vec<Command>,
+    ) -> bool {
+        if !matches!(self.input_state, InputState::TaskConfirmationWait { .. }) {
+            return false;
+        }
+
+        match action {
+            KeyAction::SendInput => {
+                self.submit_pending_task_confirmation(effects, commands);
+            }
+            KeyAction::InputCharacter(c)
+                if !self.toggle_task_confirmation_option_by_digit(c)
+                    && self.task_confirmation_allows_custom() =>
+            {
+                self.input_content.insert(self.input_cursor, c);
+                self.input_cursor += c.len_utf8();
+            }
+            KeyAction::InputBackspace
+                if self.input_cursor > 0 && self.task_confirmation_allows_custom() =>
+            {
+                let prev = prev_char_boundary(&self.input_content, self.input_cursor);
+                self.input_content.drain(prev..self.input_cursor);
+                self.input_cursor = prev;
+            }
+            KeyAction::InputNewline
+                if self.input_mode == InputMode::MultiLine
+                    && self.task_confirmation_allows_custom() =>
+            {
+                self.input_content.insert(self.input_cursor, '\n');
+                self.input_cursor += 1;
+            }
+            KeyAction::ToggleInputMode => {
+                self.input_mode = match self.input_mode {
+                    InputMode::SingleLine => InputMode::MultiLine,
+                    InputMode::MultiLine => InputMode::SingleLine,
+                };
+            }
+            KeyAction::InputPaste(text) if self.task_confirmation_allows_custom() => {
+                for c in text.chars() {
+                    self.input_content.insert(self.input_cursor, c);
+                    self.input_cursor += c.len_utf8();
+                }
+            }
+            _ => {}
+        }
+        true
+    }
+
+    fn toggle_task_confirmation_option_by_digit(&mut self, c: char) -> bool {
+        let Some(index) = c
+            .to_digit(10)
+            .and_then(|n| n.checked_sub(1))
+            .map(|n| n as usize)
+        else {
+            return false;
+        };
+        let InputState::TaskConfirmationWait {
+            options,
+            allow_multiple,
+            selected_option_ids,
+            ..
+        } = &mut self.input_state
+        else {
+            return false;
+        };
+        let Some(option) = options.get(index) else {
+            return false;
+        };
+        if *allow_multiple {
+            if selected_option_ids.iter().any(|id| id == &option.id) {
+                selected_option_ids.retain(|id| id != &option.id);
+            } else {
+                selected_option_ids.push(option.id.clone());
+            }
+        } else {
+            selected_option_ids.clear();
+            selected_option_ids.push(option.id.clone());
+        }
+        true
+    }
+
+    fn task_confirmation_allows_custom(&self) -> bool {
+        matches!(
+            self.input_state,
+            InputState::TaskConfirmationWait {
+                allow_custom: true,
+                ..
+            }
+        )
+    }
+
+    fn submit_pending_task_confirmation(
+        &mut self,
+        effects: &mut Vec<CrossPanelEffect>,
+        commands: &mut Vec<Command>,
+    ) {
+        let InputState::TaskConfirmationWait {
+            request_id,
+            allow_custom,
+            selected_option_ids,
+            saved_input,
+            saved_cursor,
+            ..
+        } = &self.input_state
+        else {
+            return;
+        };
+
+        let custom_response = if *allow_custom {
+            let trimmed = self.input_content.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        } else {
+            None
+        };
+        if selected_option_ids.is_empty() && custom_response.is_none() {
+            return;
+        }
+
+        let decision = agent_core::TaskConfirmationDecision {
+            request_id: request_id.clone(),
+            selected_option_ids: selected_option_ids.clone(),
+            custom_response,
+        };
+        let restored_input = saved_input.clone();
+        let restored_cursor = (*saved_cursor).min(restored_input.len());
+
+        self.input_state = InputState::Normal;
+        self.input_content = restored_input;
+        self.input_cursor = restored_cursor;
+        commands.push(Command::DecideTaskConfirmation { decision });
+        effects.push(CrossPanelEffect::DismissTaskConfirmationPrompt);
     }
 
     fn clear_input(&mut self) {

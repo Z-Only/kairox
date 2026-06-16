@@ -1,6 +1,6 @@
 use agent_core::{
     AttachmentInfo, ProjectGitStatus, ProjectId, ProjectInstructionSummary,
-    ProjectSessionVisibility, SessionId,
+    ProjectSessionVisibility, SessionId, TaskConfirmationOption,
 };
 
 use super::FocusTarget;
@@ -201,6 +201,15 @@ pub struct PermissionRequest {
     pub tool_id: String,
     pub tool_preview: String,
     pub risk_level: RiskLevel,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskConfirmationRequest {
+    pub request_id: String,
+    pub prompt: String,
+    pub options: Vec<TaskConfirmationOption>,
+    pub allow_multiple: bool,
+    pub allow_custom: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

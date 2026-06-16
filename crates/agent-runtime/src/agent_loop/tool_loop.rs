@@ -37,6 +37,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     workspace_id: &WorkspaceId,
     session_id: &SessionId,
     pending_permissions: &crate::permission::PendingPermissionsMap,
+    pending_task_confirmations: &crate::task_confirmation::PendingTaskConfirmationsMap,
     task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
     root_task_id: &TaskId,
     config: &agent_config::Config,
@@ -51,6 +52,82 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
 
     // Process tool calls through permission and execution
     for tc in tool_calls {
+        if tc.name == crate::task_confirmation::TASK_CONFIRMATION_TOOL {
+            let tool_start = std::time::Instant::now();
+            let start_event = DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::ToolInvocationStarted {
+                    invocation_id: tc.id.clone(),
+                    tool_id: tc.name.clone(),
+                },
+            );
+            append_and_broadcast(&**store, event_tx, &start_event).await?;
+
+            let result = match crate::task_confirmation::parse_tool_request(&tc.id, &tc.arguments) {
+                Ok(request) => {
+                    tokio::select! {
+                        biased;
+                        _ = turn_cancellation.cancelled() => {
+                            Err(agent_core::CoreError::InvalidState("cancelled by user".into()))
+                        }
+                        result = crate::task_confirmation::request_task_confirmation(
+                            &**store,
+                            event_tx,
+                            pending_task_confirmations,
+                            workspace_id,
+                            session_id,
+                            request,
+                        ) => result,
+                    }
+                }
+                Err(error) => Err(error),
+            };
+
+            let completion_event = match &result {
+                Ok(output) => DomainEvent::new(
+                    workspace_id.clone(),
+                    session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::FullTrace,
+                    EventPayload::ToolInvocationCompleted {
+                        invocation_id: tc.id.clone(),
+                        tool_id: tc.name.clone(),
+                        output_preview: output.chars().take(500).collect(),
+                        exit_code: None,
+                        duration_ms: tool_start.elapsed().as_millis() as u64,
+                        truncated: false,
+                        images: vec![],
+                    },
+                ),
+                Err(error) => DomainEvent::new(
+                    workspace_id.clone(),
+                    session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::FullTrace,
+                    EventPayload::ToolInvocationFailed {
+                        invocation_id: tc.id.clone(),
+                        tool_id: tc.name.clone(),
+                        error: error.to_string(),
+                    },
+                ),
+            };
+            append_and_broadcast(&**store, event_tx, &completion_event).await?;
+
+            let result_text = match result {
+                Ok(output) => output,
+                Err(error) => format!(
+                    "tool_id={}\nresult=Error: {}",
+                    crate::task_confirmation::TASK_CONFIRMATION_TOOL,
+                    error
+                ),
+            };
+            tool_results.push((tc.id.clone(), result_text));
+            continue;
+        }
+
         let preview = format!("{}({})", tc.name, tc.arguments);
         let risk_invocation = ToolInvocation {
             tool_id: tc.name.clone(),
