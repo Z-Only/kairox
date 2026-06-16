@@ -34,6 +34,15 @@ function installMock() {
   // Expose for test hooks
   window.__KAIROX_MOCK__ = {
     state: state,
+    commandCalls: function (command) {
+      return state.commandInvocations
+        .filter(function (call) {
+          return call.command === command;
+        })
+        .map(function (call) {
+          return clone(call);
+        });
+    },
     simulatePermissionRequest: function (toolId, preview) {
       var sessionId = state.currentSessionId;
       if (!sessionId) return;

@@ -26,6 +26,7 @@ const state = {
   currentSandboxPolicy: '{"kind":"workspace_write"}',
   sentMessages: [],
   responseDelayScale: 1,
+  commandInvocations: [],
   memories: [],
   permissionRequests: new Map(),
   taskConfirmationRequests: new Map(),
