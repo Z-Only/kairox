@@ -81,6 +81,37 @@ describe("SubagentPanel", () => {
     expect(wrapper.get('[data-test="subagent-card-agent_worker_1"]').text()).toContain("Running");
   });
 
+  it("falls back to the task assigned_agent_id when the agent task id is stale", () => {
+    const agents = useAgentsStore();
+    const taskGraph = useTaskGraphStore();
+    agents.applyAgentEvent({
+      type: "AgentSpawned",
+      agent_id: "agent_worker_stale",
+      role: "Worker",
+      task_id: "stale_task_id"
+    });
+    taskGraph.setTaskGraph(
+      [
+        makeTask("task_current", {
+          title: "Recovered from projection",
+          role: "Worker",
+          state: "Blocked",
+          assigned_agent_id: "agent_worker_stale"
+        })
+      ],
+      "ses_1"
+    );
+
+    const wrapper = mountPanel();
+
+    expect(wrapper.get('[data-test="subagent-card-agent_worker_stale"]').text()).toContain(
+      "Recovered from projection"
+    );
+    expect(wrapper.get('[data-test="subagent-card-agent_worker_stale"]').text()).toContain(
+      "Blocked"
+    );
+  });
+
   it("filters attention agents with failed or blocked bound tasks", async () => {
     const agents = useAgentsStore();
     const taskGraph = useTaskGraphStore();
@@ -120,6 +151,58 @@ describe("SubagentPanel", () => {
     expect(wrapper.text()).toContain("Review failure");
     expect(wrapper.text()).not.toContain("Healthy task");
     expect(wrapper.text()).toContain("Model failed");
+  });
+
+  it("filters done agents from idle agents and terminal bound tasks", async () => {
+    const agents = useAgentsStore();
+    const taskGraph = useTaskGraphStore();
+    agents.applyAgentEvent({
+      type: "AgentSpawned",
+      agent_id: "agent_idle",
+      role: "Planner",
+      task_id: "planning"
+    });
+    agents.applyAgentEvent({ type: "AgentIdle", agent_id: "agent_idle" });
+    agents.applyAgentEvent({
+      type: "AgentSpawned",
+      agent_id: "agent_completed",
+      role: "Worker",
+      task_id: "completed"
+    });
+    agents.applyAgentEvent({
+      type: "AgentSpawned",
+      agent_id: "agent_running",
+      role: "Worker",
+      task_id: "running"
+    });
+    taskGraph.setTaskGraph(
+      [
+        makeTask("planning", {
+          title: "Planning finished",
+          role: "Planner",
+          state: "Ready",
+          assigned_agent_id: "agent_idle"
+        }),
+        makeTask("completed", {
+          title: "Worker finished",
+          state: "Completed",
+          assigned_agent_id: "agent_completed"
+        }),
+        makeTask("running", {
+          title: "Worker still running",
+          state: "Running",
+          assigned_agent_id: "agent_running"
+        })
+      ],
+      "ses_1"
+    );
+
+    const wrapper = mountPanel();
+    await wrapper.get('[data-test="subagent-filter-done"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Planning finished");
+    expect(wrapper.text()).toContain("Worker finished");
+    expect(wrapper.text()).not.toContain("Worker still running");
   });
 
   it("calls retry and cancel task actions for the bound task", async () => {

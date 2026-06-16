@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ChatTaskConfirmationItem from "@/components/chat/ChatTaskConfirmationItem.vue";
 
@@ -83,6 +84,51 @@ describe("ChatTaskConfirmationItem", () => {
 
     expect(submit.element.disabled).toBe(true);
     await wrapper.find('[data-test="task-confirmation-custom"]').setValue("Different option");
+    expect(submit.element.disabled).toBe(false);
+  });
+
+  it("shows invoke errors and allows retry", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("backend unavailable"));
+    mockedInvoke.mockResolvedValueOnce(undefined);
+    const wrapper = mountItem(baseProps);
+
+    await wrapper.find('[data-test="task-confirmation-option-small"]').setValue(true);
+    const submit = wrapper.get<HTMLButtonElement>('[data-test="task-confirmation-submit"]');
+    await submit.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="task-confirmation-error"]').text()).toContain(
+      "backend unavailable"
+    );
+    expect(submit.element.disabled).toBe(false);
+
+    await submit.trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    expect(wrapper.find('[data-test="task-confirmation-error"]').exists()).toBe(false);
+  });
+
+  it("ignores duplicate submits while resolution is pending", async () => {
+    let resolveInvoke!: () => void;
+    mockedInvoke.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveInvoke = resolve;
+      })
+    );
+    const wrapper = mountItem(baseProps);
+
+    await wrapper.find('[data-test="task-confirmation-option-small"]').setValue(true);
+    const submit = wrapper.get<HTMLButtonElement>('[data-test="task-confirmation-submit"]');
+    await submit.trigger("click");
+    await submit.trigger("click");
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+    expect(submit.element.disabled).toBe(true);
+
+    resolveInvoke();
+    await flushPromises();
+
     expect(submit.element.disabled).toBe(false);
   });
 });
