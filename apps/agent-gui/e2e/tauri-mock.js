@@ -341,6 +341,7 @@ function installMock() {
       state.projections.clear();
       state.traces.clear();
       state.sentMessages = [];
+      state.commandInvocations = [];
       state.responseDelayScale = 1;
       state.memories = [];
       state.permissionRequests.clear();

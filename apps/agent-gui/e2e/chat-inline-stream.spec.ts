@@ -179,3 +179,77 @@ test("D. compaction item is visible while running and after completion", async (
   await expect(compactionItem).toHaveAttribute("data-status", "completed");
   await expect(compactionItem.locator('[data-test="chat-compaction-bar"]')).toHaveCount(0);
 });
+
+test("E. structured task confirmation resolves selected options and custom text", async ({
+  page
+}) => {
+  await waitForSessionReady(page);
+
+  const requestId = await page.evaluate(() => {
+    const mock = (window as any).__KAIROX_MOCK__;
+    return mock.simulateTaskConfirmationRequest(
+      "Pick the regression coverage to add",
+      [
+        {
+          id: "browser",
+          label: "Browser flow",
+          description: "Exercise the chat stream with the Tauri mock"
+        },
+        {
+          id: "unit",
+          label: "Unit mapping",
+          description: "Assert the composable mapping only"
+        },
+        {
+          id: "skip",
+          label: "Skip coverage",
+          description: null
+        }
+      ],
+      true,
+      true
+    );
+  });
+
+  const card = page.getByTestId("chat-task-confirmation-item");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Pick the regression coverage to add");
+  await expect(card).toContainText("Browser flow");
+  await expect(card).toContainText("Exercise the chat stream with the Tauri mock");
+  await expect(card).toContainText("Unit mapping");
+  await expect(card.getByTestId("task-confirmation-custom")).toBeVisible();
+
+  await card.getByTestId("task-confirmation-option-browser").check();
+  await card.getByTestId("task-confirmation-option-unit").check();
+  await card.getByTestId("task-confirmation-custom").fill("Keep it test-only and narrow.");
+  await card.getByTestId("task-confirmation-submit").click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const mock = (window as any).__KAIROX_MOCK__;
+        return mock.commandCalls("resolve_task_confirmation").at(-1) ?? null;
+      })
+    )
+    .toEqual({
+      command: "resolve_task_confirmation",
+      args: {
+        decision: {
+          request_id: requestId,
+          selected_option_ids: ["browser", "unit"],
+          custom_response: "Keep it test-only and narrow."
+        }
+      }
+    });
+
+  await expect
+    .poll(() =>
+      page.evaluate((id) => {
+        const mock = (window as any).__KAIROX_MOCK__;
+        return mock.state.taskConfirmationRequests.has(id);
+      }, requestId)
+    )
+    .toBe(false);
+
+  await expect(card).toHaveCount(0);
+});
