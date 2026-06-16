@@ -18,6 +18,7 @@ function registerCommandHandlers(handlers) {
 
 function invoke(cmd, args) {
   args = args || {};
+  state.commandInvocations.push({ command: cmd, args: clone(args) });
   var handler = commandHandlers.get(cmd);
   if (!handler) {
     console.warn("[tauri-mock] Unknown invoke: " + cmd, args);
