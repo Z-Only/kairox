@@ -137,6 +137,19 @@ describe("TraceTimeline", () => {
     expect(buttons[2].classes()).toContain("active");
   });
 
+  it("switches to Subagents tab and renders the subagent panel", async () => {
+    const wrapper = mountTimeline();
+    await wrapper.get('[data-test="trace-tab-subagents"]').trigger("click");
+    expect(useWorkspaceUiStore().rightPanelTab).toBe("subagents");
+    expect(wrapper.get('[data-test="subagent-panel"]').exists()).toBe(true);
+  });
+
+  it("keeps right sidebar tabs within the sidebar when they need multiple rows", () => {
+    expect(traceTimelineSource).toMatch(/\.trace-header\s*\{[^}]*align-items:\s*flex-start;/s);
+    expect(traceTimelineSource).toMatch(/\.tab-group\s*\{[^}]*flex-wrap:\s*wrap;/s);
+    expect(traceTimelineSource).toMatch(/\.tab-group\s*\{[^}]*max-width:\s*100%;/s);
+  });
+
   it("switches to Changes tab and renders repository review", async () => {
     const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
