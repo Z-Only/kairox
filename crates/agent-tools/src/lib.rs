@@ -38,7 +38,13 @@ pub use registry::{
     ToolProvider, ToolRegistry,
 };
 pub use search::{glob_matches, RipgrepSearchTool, SearchEngine, SearchResult, SearchResults};
-pub use shell::{classify_command, parse_command, CommandRisk, ShellExecTool};
+pub use shell::{
+    classify_command, parse_command, CommandRisk, ShellExecTool, BUN_WRITE_SUBCOMMANDS,
+    CARGO_WRITE_SUBCOMMANDS, DESTRUCTIVE_COMMANDS, DOCKER_DESTRUCTIVE_SUBCOMMANDS,
+    DOCKER_WRITE_SUBCOMMANDS, GIT_DESTRUCTIVE_SUBCOMMANDS, GIT_WRITE_SUBCOMMANDS,
+    HELM_WRITE_SUBCOMMANDS, KUBECTL_WRITE_SUBCOMMANDS, NPM_WRITE_SUBCOMMANDS,
+    PIP_WRITE_SUBCOMMANDS, READONLY_COMMANDS, WRITE_COMMANDS,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ToolError {
