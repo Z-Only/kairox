@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.0] - 2026-06-16
+
+### 🚀 Features
+
+- **runtime**: increase agent loop max iterations to 100 (#1016)
+- **gui**: show model capabilities as badges in model selector dropdown (#1015)
+- **gui**: initialize local tracing logs
+- add structured task confirmations (#1033)
+- **gui**: add subagent sidebar (#1034)
+
+### 🐛 Bug Fixes
+
+- **runtime**: unblock project skill turns (#1012)
+- **gui**: use user-scoped config for Test Chat in User tab (#1014)
+- **gui**: extract hardcoded strings to i18n (#1019)
+- **gui**: jump to pinned chat message (#1020)
+- **models**: relax anthropic stream timeout (#1021)
+- **gui**: clear deleted session selection (#1022)
+- **runtime**: recover model stream start stalls (#1024)
+- reduce tool artifacts and timeout noise (#1025)
+- **runtime**: harden session turn observability
+- **runtime**: queue strict follow-up turns (#1029)
+- **eval**: pin vibe coding project commit (#1030)
+- **runtime**: harden vibe coding automation (#1031)
+
+### 📚 Documentation
+
+- record gui verification campaign (#1011)
+
+### 🧪 Testing
+
+- **config**: cover lsp and knowledge base types (#1013)
+- **tools**: cover shell risk/parse edge cases (#1017)
+- **tools**: cover patch hunk drift and path normalization (#1018)
+- **tools**: add unit tests for shell sandbox module (#1023)
+- **eval**: add risk command const regression (#1028)
+
+### 🧹 Refactor
+
+- **tools**: expose shell risk command lists (#1032)
+
 ## [0.40.0] - 2026-06-11
 
 ### 🚀 Features

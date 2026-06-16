@@ -51,6 +51,7 @@ Built-in `agent-tools` IDs are `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `
 - Playwright E2E lives in `apps/agent-gui/e2e/*.spec.ts` with `installTauriMock(page)` and domain mock fragments under `e2e/fixtures/tauri-mock/`; real desktop tauri-pilot scenarios live in `apps/agent-gui/e2e-pilot/*.toml`
 - Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `event_forwarder.rs` + `useTauriEvents.ts` (filters by session)
 - When adding Rust `EventPayload` variants or command/domain types, run `just gen-types`; do not manually edit generated bindings
+- Runtime structured confirmations use reserved tool id `task_confirmation.request`; GUI resolution goes through `resolve_task_confirmation`, and other consumers use `SessionFacade::decide_task_confirmation`
 
 ## Vue conventions
 - Vue 3 Composition API (`<script setup lang="ts">`)
