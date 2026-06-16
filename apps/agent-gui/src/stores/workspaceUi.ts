@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useProjectStore, type ProjectGitReviewInfo } from "@/stores/project";
 
 export type SidebarSection = "projects" | "sessions";
-export type RightPanelTab = "trace" | "tasks" | "memory" | "changes" | "trajectory";
+export type RightPanelTab = "trace" | "tasks" | "memory" | "subagents" | "changes" | "trajectory";
 
 export interface GitReviewContext {
   sessionId?: string | null;

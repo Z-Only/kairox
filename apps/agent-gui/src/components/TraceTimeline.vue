@@ -2,6 +2,7 @@
 import { useI18n } from "vue-i18n";
 import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
+import SubagentPanel from "./SubagentPanel.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
 import TrajectoryViewer from "./TrajectoryViewer.vue";
 import GitReviewSidebarPanel from "./GitReviewSidebarPanel.vue";
@@ -133,6 +134,15 @@ const visibleTraceEntries = computed(() =>
         </KxButton>
         <KxButton
           size="sm"
+          :variant="rightPanelTab === 'subagents' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'subagents' }"
+          data-test="trace-tab-subagents"
+          @click="rightPanelTab = 'subagents'"
+        >
+          {{ t("trace.tabSubagents") }}
+        </KxButton>
+        <KxButton
+          size="sm"
           :variant="rightPanelTab === 'changes' ? 'primary' : 'default'"
           :class="{ active: rightPanelTab === 'changes' }"
           data-test="trace-tab-changes"
@@ -229,6 +239,7 @@ const visibleTraceEntries = computed(() =>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
+    <SubagentPanel v-if="rightPanelTab === 'subagents'" />
     <GitReviewSidebarPanel v-if="rightPanelTab === 'changes'" />
     <TrajectoryViewer v-if="rightPanelTab === 'trajectory'" />
   </section>
@@ -247,7 +258,7 @@ const visibleTraceEntries = computed(() =>
 .trace-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   min-height: 36px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color);
@@ -255,7 +266,10 @@ const visibleTraceEntries = computed(() =>
 }
 .tab-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  max-width: 100%;
+  min-width: 0;
 }
 .trace-entries {
   box-sizing: border-box;

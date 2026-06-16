@@ -19,6 +19,12 @@ describe("useWorkspaceUiStore", () => {
     expect(store.archiveOpen).toBe(false);
   });
 
+  it("accepts subagents as a right panel tab", () => {
+    const store = useWorkspaceUiStore();
+    store.setRightPanelTab("subagents");
+    expect(store.rightPanelTab).toBe("subagents");
+  });
+
   it("moveSectionUp returns early when the section is already at the top", () => {
     const store = useWorkspaceUiStore();
     store.moveSectionUp("projects");

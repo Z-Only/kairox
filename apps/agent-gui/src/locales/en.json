@@ -746,6 +746,7 @@
   "trace": {
     "tabTrace": "Trace",
     "tabTasks": "Tasks",
+    "tabSubagents": "Subagents",
     "tabMemory": "Memory",
     "tabChanges": "Changes",
     "emptyTrace": "No trace events yet",
@@ -775,6 +776,21 @@
     "searchPlaceholder": "Search tasks",
     "empty": "No tasks yet",
     "emptyFiltered": "No matching tasks"
+  },
+  "subagents": {
+    "summary": "{total} subagents · {running} running · {attention} need attention",
+    "filterAll": "All",
+    "filterRunning": "Running",
+    "filterAttention": "Needs attention",
+    "filterDone": "Done",
+    "filtersAria": "Subagent filters",
+    "empty": "No subagents yet",
+    "emptyFiltered": "No matching subagents",
+    "task": "Task",
+    "noTask": "No task",
+    "error": "Error",
+    "retry": "Retry",
+    "cancel": "Cancel"
   },
   "trajectory": {
     "noSession": "No active session",
