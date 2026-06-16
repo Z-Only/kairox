@@ -325,6 +325,7 @@ impl Tool for DapToolInstance {
         Ok(ToolOutput {
             text,
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }

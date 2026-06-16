@@ -205,7 +205,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                         invocation_id: tc.id.clone(),
                         tool_id: tc.name.clone(),
                         output_preview: output.text.chars().take(500).collect(),
-                        exit_code: None,
+                        exit_code: output.exit_code,
                         duration_ms: tool_start.elapsed().as_millis() as u64,
                         truncated: output.truncated,
                         images: output

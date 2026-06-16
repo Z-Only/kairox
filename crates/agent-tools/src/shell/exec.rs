@@ -120,6 +120,7 @@ impl Tool for ShellExecTool {
                     Ok(ToolOutput {
                         text: String::from_utf8_lossy(&text).to_string(),
                         truncated,
+                        exit_code: Some(0),
                         images: vec![],
                     })
                 } else {
@@ -134,6 +135,7 @@ impl Tool for ShellExecTool {
                             if truncated { " [truncated]" } else { "" }
                         ),
                         truncated,
+                        exit_code: Some(exit_code),
                         images: vec![],
                     })
                 }

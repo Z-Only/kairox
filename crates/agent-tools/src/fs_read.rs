@@ -51,6 +51,7 @@ impl Tool for FsReadTool {
         Ok(ToolOutput {
             text,
             truncated,
+            exit_code: None,
             images: vec![],
         })
     }

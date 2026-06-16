@@ -28,6 +28,7 @@ impl FakeTool {
             result: std::sync::Mutex::new(Some(Ok(ToolOutput {
                 text: output.to_string(),
                 truncated: false,
+                exit_code: None,
                 images: vec![],
             }))),
         }
@@ -39,6 +40,7 @@ impl FakeTool {
             result: std::sync::Mutex::new(Some(Ok(ToolOutput {
                 text: output.to_string(),
                 truncated: false,
+                exit_code: None,
                 images,
             }))),
         }
@@ -102,6 +104,7 @@ impl Tool for WriteRiskFakeTool {
         Ok(ToolOutput {
             text: "should not reach here".to_string(),
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }

@@ -228,7 +228,7 @@ where
                     deps.event_tx,
                     request,
                     progress,
-                    model_stream_timeout_log_message(progress),
+                    error_msg.clone(),
                 )
                 .await?;
                 emit_model_request_failure(
@@ -316,7 +316,7 @@ where
                     deps.event_tx,
                     request,
                     progress,
-                    model_stream_timeout_log_message(progress),
+                    error_msg.clone(),
                 )
                 .await?;
                 emit_model_request_failure(
@@ -417,12 +417,17 @@ where
                     "model stream completed event"
                 );
                 if let Some(u) = real_usage {
+                    let usage_only_progress =
+                        assistant_text.is_empty() && tool_calls.is_empty() && u.output_tokens == 0;
                     let mut states = deps.session_states.lock().await;
                     if let Some(entry) = states.get_mut(request.session_id.as_str()) {
                         let estimated = entry.last_estimated_tokens;
                         if estimated > 0 {
                             entry.usage_corrector.update(u.input_tokens, estimated);
                         }
+                    }
+                    if usage_only_progress {
+                        continue;
                     }
                 }
                 let display_content = if assistant_text.is_empty() {
@@ -443,6 +448,7 @@ where
                     );
                     append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
                 }
+                break;
             }
             Ok(agent_models::ModelEvent::Failed { message }) => {
                 last_event_kind = "failed";
@@ -790,7 +796,7 @@ async fn emit_model_stream_status<S: EventStore + 'static>(
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     request: &agent_core::SendMessageRequest,
     progress: ModelStreamProgress,
-    message: &'static str,
+    message: impl Into<String>,
 ) -> agent_core::Result<()> {
     let event = DomainEvent::new(
         request.workspace_id.clone(),
@@ -802,7 +808,7 @@ async fn emit_model_stream_status<S: EventStore + 'static>(
             retrying: progress.is_retrying(),
             retry_attempt: progress.retry_attempt(),
             max_retries: progress.max_retries(),
-            message: message.to_string(),
+            message: message.into(),
         },
     );
     append_and_broadcast(store, event_tx, &event).await

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+use agent_core::{AppFacade, EventPayload, SendMessageRequest, StartSessionRequest};
 use agent_models::{ModelClient, ModelEvent, ModelMessage, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -17,6 +17,8 @@ use futures::stream::BoxStream;
 use tokio::sync::Notify;
 
 use crate::EchoTool;
+
+const SHELL_TOOL_ID: &str = "shell.exec";
 
 /// A fake model that returns a tool call on the first request,
 /// then a text response on the second request with tool results.
@@ -91,6 +93,45 @@ impl ModelClient for EmptyAfterToolModelClient {
             ]
         } else {
             vec![Ok(ModelEvent::Completed { usage: None })]
+        };
+        Ok(Box::pin(futures::stream::iter(events)))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ShellToolCallingModelClient {
+    call_count: Arc<AtomicUsize>,
+}
+
+impl ShellToolCallingModelClient {
+    fn new() -> Self {
+        Self {
+            call_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelClient for ShellToolCallingModelClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let count = self.call_count.fetch_add(1, Ordering::SeqCst);
+        let events: Vec<agent_models::Result<ModelEvent>> = if count == 0 {
+            vec![
+                Ok(ModelEvent::ToolCallRequested {
+                    tool_call_id: "shell_call_1".into(),
+                    tool_id: SHELL_TOOL_ID.into(),
+                    arguments: serde_json::json!({"command": "echo shell-ok"}),
+                }),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        } else {
+            vec![
+                Ok(ModelEvent::TokenDelta("Done".into())),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
         };
         Ok(Box::pin(futures::stream::iter(events)))
     }
@@ -247,6 +288,64 @@ async fn agent_loop_completes_when_model_returns_empty_after_successful_tool_cal
     assert!(assistant
         .content
         .contains("completed the requested tool call"));
+}
+
+#[tokio::test]
+async fn tool_invocation_completed_records_shell_exit_code() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = ShellToolCallingModelClient::new();
+    let mut runtime = LocalRuntime::new(store, model);
+    runtime = runtime.with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
+
+    let workspace_dir = tempfile::tempdir().unwrap();
+    runtime
+        .tool_registry()
+        .lock()
+        .await
+        .register(Box::new(agent_tools::ShellExecTool::new(
+            workspace_dir.path().to_path_buf(),
+        )));
+
+    let workspace = runtime
+        .open_workspace(workspace_dir.path().to_string_lossy().to_string())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "test".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "run shell".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let exit_code = trace.iter().find_map(|entry| match &entry.event.payload {
+        EventPayload::ToolInvocationCompleted {
+            tool_id, exit_code, ..
+        } if tool_id == SHELL_TOOL_ID => *exit_code,
+        _ => None,
+    });
+
+    assert_eq!(exit_code, Some(0), "trace should include shell exit code");
 }
 
 /// A model client that records the request messages on the second call so we
@@ -450,6 +549,7 @@ impl Tool for SlowTool {
         Ok(ToolOutput {
             text: "slow completed".into(),
             truncated: false,
+            exit_code: None,
             images: vec![],
         })
     }

@@ -124,6 +124,7 @@ async fn shell_exec_readonly_command_succeeds() {
     let result = tool.invoke(invocation).await.unwrap();
     assert!(result.text.contains("hello"));
     assert!(!result.truncated);
+    assert_eq!(result.exit_code, Some(0));
 }
 
 #[tokio::test]
@@ -163,6 +164,11 @@ async fn shell_exec_captures_stderr_on_failure() {
     let invocation = make_invocation("ls nonexistent_dir_xyz");
     let result = tool.invoke(invocation).await.unwrap();
     assert!(result.text.starts_with("exit code"));
+    assert!(
+        matches!(result.exit_code, Some(code) if code != 0),
+        "failed shell command should record a non-zero exit code, got {:?}",
+        result.exit_code
+    );
     assert!(
         result.text.contains("nonexistent_dir_xyz"),
         "stderr should mention the missing path: got '{}'",

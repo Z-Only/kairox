@@ -24,6 +24,14 @@ export const commands = {
     typedError<null, string>(
       __TAURI_INVOKE("send_message_to_session", { sessionId, content, attachments })
     ),
+  sendMessageToSessionAndWait: (
+    sessionId: string,
+    content: string,
+    attachments: AttachmentInfo[]
+  ) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("send_message_to_session_and_wait", { sessionId, content, attachments })
+    ),
   /**  Returns a structured trace export envelope for diagnostics and replay tools. */
   exportTrace: (sessionId: string) =>
     typedError<TraceExport_Serialize, string>(__TAURI_INVOKE("export_trace", { sessionId })),

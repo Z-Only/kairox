@@ -27,6 +27,7 @@ mod registry_tests {
             Ok(ToolOutput {
                 text: format!("echo: {}", invocation.arguments),
                 truncated: false,
+                exit_code: None,
                 images: vec![],
             })
         }
@@ -92,6 +93,7 @@ mod registry_tests {
                 Ok(ToolOutput {
                     text: "wrote".into(),
                     truncated: false,
+                    exit_code: None,
                     images: vec![],
                 })
             }

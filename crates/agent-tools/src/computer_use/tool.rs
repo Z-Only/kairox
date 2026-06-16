@@ -89,6 +89,7 @@ impl Tool for ComputerUseTool {
         Ok(ToolOutput {
             text,
             truncated: false,
+            exit_code: None,
             images,
         })
     }

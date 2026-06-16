@@ -18,6 +18,10 @@ where
     M: agent_models::ModelClient + 'static,
 {
     pub async fn send_message_strict(&self, request: SendMessageRequest) -> agent_core::Result<()> {
+        self.send_message_queued(request).await
+    }
+
+    pub async fn send_message_queued(&self, request: SendMessageRequest) -> agent_core::Result<()> {
         self.send_message_with_policy(request, true).await
     }
 

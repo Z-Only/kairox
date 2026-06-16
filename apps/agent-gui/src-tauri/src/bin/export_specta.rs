@@ -55,6 +55,7 @@ fn main() {
             agent_gui_tauri::commands::start_session,
             agent_gui_tauri::commands::send_message,
             agent_gui_tauri::commands::send_message_to_session,
+            agent_gui_tauri::commands::send_message_to_session_and_wait,
             agent_gui_tauri::commands::export_trace,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands

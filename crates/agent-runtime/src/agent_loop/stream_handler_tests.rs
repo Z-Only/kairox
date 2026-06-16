@@ -1,7 +1,7 @@
 use super::*;
 use agent_config::Config;
 use agent_core::{DomainEvent, EventPayload, SendMessageRequest, SessionId, TaskId, WorkspaceId};
-use agent_models::{ModelClient, ModelError, ModelEvent, ModelRequest};
+use agent_models::{ModelClient, ModelError, ModelEvent, ModelRequest, ToolCall};
 use agent_store::{EventStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy, ToolRegistry};
 use async_trait::async_trait;
@@ -84,6 +84,26 @@ impl ModelClient for HangingEventStreamClient {
         _request: ModelRequest,
     ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
         Ok(Box::pin(futures::stream::pending()))
+    }
+}
+
+#[derive(Debug)]
+struct CompletedThenHangingEventStreamClient;
+
+#[async_trait]
+impl ModelClient for CompletedThenHangingEventStreamClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let stream = futures::stream::unfold(0, |state| async move {
+            match state {
+                0 => Some((Ok(ModelEvent::TokenDelta("done".into())), 1)),
+                1 => Some((Ok(ModelEvent::Completed { usage: None }), 2)),
+                _ => futures::future::pending().await,
+            }
+        });
+        Ok(Box::pin(stream))
     }
 }
 
@@ -380,6 +400,34 @@ async fn stream_empty_response_returns_empty_model_error() {
 }
 
 #[tokio::test]
+async fn completed_model_event_ends_stream_without_waiting_for_eof() {
+    let harness = StreamTestHarness::new(CompletedThenHangingEventStreamClient).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = tokio::time::timeout(
+        Duration::from_millis(250),
+        process_model_stream_with_idle_timeout(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+            Duration::from_millis(100),
+        ),
+    )
+    .await
+    .expect("completed stream should finish before the test timeout")
+    .expect("completed stream should succeed");
+
+    assert_eq!(output.assistant_text, "done");
+    assert!(output.tool_calls.is_empty());
+}
+
+#[tokio::test]
 async fn stream_empty_response_fallback_marks_output() {
     let model = ScriptedModelClient::from_ok_events(vec![ModelEvent::Completed { usage: None }]);
     let harness = StreamTestHarness::new(model).await;
@@ -628,6 +676,61 @@ async fn process_model_stream_uses_configured_idle_timeout() {
     assert!(
         err.to_string().contains("tool_results=0"),
         "timeout error should include request tool result count, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn stream_event_timeout_status_includes_request_stats() {
+    let harness = StreamTestHarness::new(HangingEventStreamClient).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+    let model_request = ModelRequest::user_text("fake", "test")
+        .add_assistant_with_tools(
+            "",
+            vec![ToolCall {
+                id: "call_1".into(),
+                name: "shell.exec".into(),
+                arguments: serde_json::json!({"command": "echo hi"}),
+            }],
+        )
+        .add_tool_result("call_1", "hi");
+
+    let result = process_model_stream_with_idle_timeout(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &model_request,
+        None,
+        Duration::from_millis(25),
+    )
+    .await;
+
+    assert!(result.is_err(), "hanging stream should time out");
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    let message = events
+        .iter()
+        .find_map(|event| match &event.payload {
+            EventPayload::ModelStreamStatus { phase, message, .. } if phase == "stream_event" => {
+                Some(message.as_str())
+            }
+            _ => None,
+        })
+        .expect("stream timeout should emit ModelStreamStatus");
+
+    assert!(
+        message.contains("tool_results=1"),
+        "timeout status should include tool result count, got: {message}"
+    );
+    assert!(
+        message.contains("assistant_tool_messages=1"),
+        "timeout status should include assistant tool-call message count, got: {message}"
     );
 }
 

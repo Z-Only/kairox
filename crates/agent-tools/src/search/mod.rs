@@ -203,6 +203,7 @@ impl Tool for RipgrepSearchTool {
         Ok(ToolOutput {
             text,
             truncated: search_results.truncated,
+            exit_code: None,
             images: vec![],
         })
     }
