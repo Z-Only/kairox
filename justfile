@@ -295,8 +295,9 @@ eval-live profile="":
         --enable-mcp
 
 # Run a live vibe-coding eval in a disposable Kairox worktree.
-# The detached HEAD worktree is the programming project under test, so
-# scenarios can safely ask agents to edit the current commit's repository.
+# By default the programming project is pinned to the pre-regression baseline
+# commit 4371a71d068e94da1016b632ea2db2378a0582b2, not the current HEAD.
+# Override KAIROX_EVAL_PROJECT_COMMIT only for ad hoc local experiments.
 # Defaults to the stable live-model profile used for local model quality checks.
 # Override the profile via: just eval-vibe-coding <profile>
 eval-vibe-coding profile="kairox-live":
@@ -307,12 +308,14 @@ eval-vibe-coding profile="kairox-live":
     KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
     KAIROX_EVAL_TMP="$(mktemp -d)"
     KAIROX_EVAL_WS="$KAIROX_EVAL_TMP/kairox-vibe-worktree"
+    KAIROX_EVAL_PROJECT_COMMIT="${KAIROX_EVAL_PROJECT_COMMIT:-4371a71d068e94da1016b632ea2db2378a0582b2}"
     cleanup() {
         git worktree remove --force "$KAIROX_EVAL_WS" >/dev/null 2>&1 || true
         rm -rf "$KAIROX_EVAL_TMP"
     }
     trap cleanup EXIT
-    git worktree add --detach "$KAIROX_EVAL_WS" HEAD
+    git cat-file -e "$KAIROX_EVAL_PROJECT_COMMIT^{commit}"
+    git worktree add --detach "$KAIROX_EVAL_WS" "$KAIROX_EVAL_PROJECT_COMMIT"
     mkdir -p target/eval-vibe-coding
     "$KAIROX_EVAL_BIN" \
         run \
