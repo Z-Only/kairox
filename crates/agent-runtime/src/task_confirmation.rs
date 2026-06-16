@@ -5,7 +5,7 @@ use agent_core::{
 };
 use agent_store::EventStore;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -15,6 +15,9 @@ pub type PendingTaskConfirmationsMap = Arc<Mutex<HashMap<String, PendingTaskConf
 
 pub struct PendingTaskConfirmation {
     session_id: SessionId,
+    options: Vec<TaskConfirmationOption>,
+    allow_multiple: bool,
+    allow_custom: bool,
     reply: tokio::sync::oneshot::Sender<TaskConfirmationDecision>,
 }
 
@@ -102,6 +105,7 @@ pub fn parse_tool_request(
             "task confirmation prompt cannot be empty".into(),
         ));
     }
+    validate_request_options(&args.options, args.allow_custom)?;
     Ok(TaskConfirmationRequest {
         request_id: request_id.into(),
         prompt: args.prompt,
@@ -109,6 +113,41 @@ pub fn parse_tool_request(
         allow_multiple: args.allow_multiple,
         allow_custom: args.allow_custom,
     })
+}
+
+fn invalid_state(message: impl Into<String>) -> agent_core::CoreError {
+    agent_core::CoreError::InvalidState(message.into())
+}
+
+fn validate_request_options(
+    options: &[TaskConfirmationOption],
+    allow_custom: bool,
+) -> agent_core::Result<()> {
+    if options.is_empty() && !allow_custom {
+        return Err(invalid_state(
+            "task confirmation requires at least one response path",
+        ));
+    }
+
+    let mut option_ids = HashSet::new();
+    for option in options {
+        let option_id = option.id.trim();
+        if option_id.is_empty() {
+            return Err(invalid_state("task confirmation option id cannot be empty"));
+        }
+        if option.label.trim().is_empty() {
+            return Err(invalid_state(
+                "task confirmation option label cannot be empty",
+            ));
+        }
+        if !option_ids.insert(option_id) {
+            return Err(invalid_state(format!(
+                "duplicate task confirmation option id: {option_id}"
+            )));
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn request_task_confirmation<S: EventStore>(
@@ -124,6 +163,9 @@ pub async fn request_task_confirmation<S: EventStore>(
         request.request_id.clone(),
         PendingTaskConfirmation {
             session_id: session_id.clone(),
+            options: request.options.clone(),
+            allow_multiple: request.allow_multiple,
+            allow_custom: request.allow_custom,
             reply: tx,
         },
     );
@@ -178,13 +220,68 @@ pub async fn resolve_task_confirmation(
     pending_confirmations: &PendingTaskConfirmationsMap,
     decision: TaskConfirmationDecision,
 ) -> agent_core::Result<()> {
-    if let Some(pending) = pending_confirmations
-        .lock()
-        .await
-        .remove(&decision.request_id)
-    {
+    let pending = {
+        let mut pending_confirmations = pending_confirmations.lock().await;
+        let Some(pending) = pending_confirmations.get(&decision.request_id) else {
+            return Ok(());
+        };
+        validate_decision(pending, &decision)?;
+        pending_confirmations.remove(&decision.request_id)
+    };
+    if let Some(pending) = pending {
         let _ = pending.reply.send(decision);
     }
+    Ok(())
+}
+
+fn validate_decision(
+    pending: &PendingTaskConfirmation,
+    decision: &TaskConfirmationDecision,
+) -> agent_core::Result<()> {
+    let has_custom_response = decision
+        .custom_response
+        .as_deref()
+        .is_some_and(|response| !response.trim().is_empty());
+    if has_custom_response && !pending.allow_custom {
+        return Err(invalid_state(
+            "task confirmation request does not allow custom response",
+        ));
+    }
+    if decision.selected_option_ids.len() > 1 && !pending.allow_multiple {
+        return Err(invalid_state(
+            "task confirmation request does not allow multiple selected options",
+        ));
+    }
+    if decision.selected_option_ids.is_empty() && !has_custom_response {
+        return Err(invalid_state(
+            "task confirmation decision must select an option or provide custom response",
+        ));
+    }
+
+    let valid_option_ids = pending
+        .options
+        .iter()
+        .map(|option| option.id.as_str())
+        .collect::<HashSet<_>>();
+    let mut selected_option_ids = HashSet::new();
+    for selected_id in &decision.selected_option_ids {
+        if selected_id.trim().is_empty() {
+            return Err(invalid_state(
+                "task confirmation selected option id cannot be empty",
+            ));
+        }
+        if !selected_option_ids.insert(selected_id.as_str()) {
+            return Err(invalid_state(format!(
+                "duplicate task confirmation selected option id: {selected_id}"
+            )));
+        }
+        if !valid_option_ids.contains(selected_id.as_str()) {
+            return Err(invalid_state(format!(
+                "unknown task confirmation option id: {selected_id}"
+            )));
+        }
+    }
+
     Ok(())
 }
 
