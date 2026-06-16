@@ -61,19 +61,16 @@ where
 
         if reject_active_execution {
             match self.session_execution.session_state(session_id).await {
-                Some(ExecutionState::Running { turn_id }) => {
-                    return Err(agent_core::CoreError::SessionBusy {
-                        session_id: session_id.to_string(),
-                        reason: format!("session execution running ({turn_id})"),
-                    });
-                }
                 Some(ExecutionState::Cancelling { turn_id }) => {
                     return Err(agent_core::CoreError::SessionBusy {
                         session_id: session_id.to_string(),
                         reason: format!("session execution cancelling ({turn_id})"),
                     });
                 }
-                Some(ExecutionState::Idle | ExecutionState::Stopped) | None => {}
+                Some(
+                    ExecutionState::Idle | ExecutionState::Running { .. } | ExecutionState::Stopped,
+                )
+                | None => {}
             }
         }
 
