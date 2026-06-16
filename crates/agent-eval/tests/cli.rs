@@ -283,5 +283,11 @@ fn list_command_prints_filtered_scenario_ids() {
 fn list_command_prints_live_vibe_coding_scenario_ids() {
     let fixture = fixture_path("live-vibe-coding.jsonl");
     let ids = run_list_cli(&fixture, ["--tag", "vibe-coding", "--format", "json"]);
-    assert_eq!(ids, vec!["vibe-coding-rust-kata"]);
+    assert_eq!(
+        ids,
+        vec![
+            "vibe-coding-rust-kata",
+            "vibe-coding-risk-command-const-arrays"
+        ]
+    );
 }
