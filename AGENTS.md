@@ -96,6 +96,8 @@ The GUI follows this pattern:
 3. Vue frontend calls `invoke("command_name", { args })` via `@tauri-apps/api`
 4. Events flow Rust→Vue via `event_forwarder.rs` (using `subscribe_all()`) → `app_handle.emit()` → `useTauriEvents.ts` listener (filters by `currentSessionId`)
 
+Structured task confirmations use the reserved runtime tool id `task_confirmation.request`, emit `TaskConfirmationRequested` / `TaskConfirmationResolved`, and resolve through the GUI `resolve_task_confirmation` IPC command or `SessionFacade::decide_task_confirmation`.
+
 ### Permission system
 
 The legacy `PermissionMode` enum has been removed end-to-end (`feat(runtime,store,tools,tui,gui)!` in v0.31.0). Tool execution is now driven by two orthogonal policies in `agent-tools/src/policy/`:
@@ -169,6 +171,7 @@ kairox/
 │       │   │               #   PermissionPrompt, chat/* stream items, MemoryBrowser,
 │       │   │               #   McpServerManager, McpStatusIndicator, SessionsSidebar,
 │       │   │               #   StatusBar, ToastContainer, ConfirmDialog, TraceEntry,
+│       │   │               #   SubagentPanel, chat/ChatTaskConfirmationItem,
 │       │   │               #   CommandPalette, ContextMeter, TrajectoryViewer,
 │       │   │               #   ModelSettingsPane, AgentSettingsPane, AutonomousSettingsPane,
 │       │   │               #   HooksSettingsPane, PluginSettingsPane, SkillSettingsPane,

@@ -31,6 +31,8 @@
 | agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces                                                                                                         | `commands.rs` → Pinia stores                                                                                     |
 
 > Built-in tools shipped by `agent-tools`: `shell.exec` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch.apply` (`PatchApplyTool`), `search.ripgrep` (`RipgrepSearchTool`), `monitor.start`, `monitor.list`, `monitor.stop` (`MonitorStartTool`, `MonitorListTool`, `MonitorStopTool`), `browser.action` (`BrowserTool`), `browser.batch` (`BrowserBatchTool`), and `computer.use` (`ComputerUseTool`). Dynamic tools come from MCP servers via `McpToolAdapter` and from LSP/DAP servers via `LspToolProvider`/`DapToolProvider`.
+>
+> The runtime also exposes a reserved structured-confirmation tool id, `task_confirmation.request`, which emits `TaskConfirmationRequested` / `TaskConfirmationResolved` events. The GUI resolves it through the `resolve_task_confirmation` IPC command; other consumers use `SessionFacade::decide_task_confirmation`.
 
 ## Before starting work
 
