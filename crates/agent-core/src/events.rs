@@ -47,6 +47,19 @@ pub struct ImageAttachment {
     pub label: Option<String>,
 }
 
+/// One selectable option in a structured task confirmation prompt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct TaskConfirmationOption {
+    /// Stable option id returned by the UI when selected.
+    pub id: String,
+    /// Short display label.
+    pub label: String,
+    /// Optional supporting copy shown below the label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
 /// Why a background monitor process was stopped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -173,6 +186,19 @@ pub enum EventPayload {
     PermissionDenied {
         request_id: String,
         reason: String,
+    },
+    TaskConfirmationRequested {
+        request_id: String,
+        prompt: String,
+        options: Vec<TaskConfirmationOption>,
+        allow_multiple: bool,
+        allow_custom: bool,
+    },
+    TaskConfirmationResolved {
+        request_id: String,
+        selected_option_ids: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        custom_response: Option<String>,
     },
     ToolInvocationStarted {
         invocation_id: String,
@@ -489,6 +515,8 @@ impl EventPayload {
             Self::PermissionRequested { .. } => "PermissionRequested",
             Self::PermissionGranted { .. } => "PermissionGranted",
             Self::PermissionDenied { .. } => "PermissionDenied",
+            Self::TaskConfirmationRequested { .. } => "TaskConfirmationRequested",
+            Self::TaskConfirmationResolved { .. } => "TaskConfirmationResolved",
             Self::ToolInvocationStarted { .. } => "ToolInvocationStarted",
             Self::ToolInvocationCompleted { .. } => "ToolInvocationCompleted",
             Self::ToolInvocationFailed { .. } => "ToolInvocationFailed",

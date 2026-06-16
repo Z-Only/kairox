@@ -380,6 +380,26 @@ registerCommandHandlers({
     state.permissionRequests.delete(requestId);
     return Promise.resolve(undefined);
   },
+  resolve_task_confirmation: function (args) {
+    var decision = args.decision || args;
+    var requestId = decision.requestId || decision.request_id;
+    var request = state.taskConfirmationRequests.get(requestId);
+    if (!request)
+      return Promise.reject(new Error("Task confirmation request " + requestId + " not found"));
+    var sessionId = state.currentSessionId;
+    if (sessionId) {
+      var event = makeEvent(sessionId, {
+        type: "TaskConfirmationResolved",
+        request_id: requestId,
+        selected_option_ids: decision.selectedOptionIds || decision.selected_option_ids || [],
+        custom_response: decision.customResponse || decision.custom_response || null
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+    }
+    state.taskConfirmationRequests.delete(requestId);
+    return Promise.resolve(undefined);
+  },
   retry_task: function (args) {
     var taskId = args.taskId || args.task_id;
     var sessionId = state.currentSessionId;

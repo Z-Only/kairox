@@ -1,8 +1,8 @@
 //! Integration test: every EventPayload variant round-trips through JSON serde.
 
 use agent_core::{
-    AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId,
-    WorkspaceId,
+    AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SessionId,
+    TaskConfirmationOption, TaskId, WorkspaceId,
 };
 use chrono::TimeZone;
 
@@ -167,6 +167,45 @@ fn permission_denied_roundtrips() {
         reason: "destructive operation".into(),
     });
     assert_eq!(roundtrip(&event), event);
+}
+
+#[test]
+fn task_confirmation_requested_roundtrips() {
+    let event = make_event(EventPayload::TaskConfirmationRequested {
+        request_id: "clarify_1".into(),
+        prompt: "Which scope should I use?".into(),
+        options: vec![
+            TaskConfirmationOption {
+                id: "tests".into(),
+                label: "Tests only".into(),
+                description: Some("Add failing tests before code changes".into()),
+            },
+            TaskConfirmationOption {
+                id: "full".into(),
+                label: "Full implementation".into(),
+                description: None,
+            },
+        ],
+        allow_multiple: true,
+        allow_custom: true,
+    });
+    let decoded = roundtrip(&event);
+
+    assert_eq!(decoded.event_type, "TaskConfirmationRequested");
+    assert_eq!(decoded, event);
+}
+
+#[test]
+fn task_confirmation_resolved_roundtrips() {
+    let event = make_event(EventPayload::TaskConfirmationResolved {
+        request_id: "clarify_1".into(),
+        selected_option_ids: vec!["tests".into()],
+        custom_response: Some("Also update the TUI".into()),
+    });
+    let decoded = roundtrip(&event);
+
+    assert_eq!(decoded.event_type, "TaskConfirmationResolved");
+    assert_eq!(decoded, event);
 }
 
 #[test]

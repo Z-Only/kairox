@@ -28,6 +28,7 @@ const state = {
   responseDelayScale: 1,
   memories: [],
   permissionRequests: new Map(),
+  taskConfirmationRequests: new Map(),
   agents: new Map(),
   nextOpenDialogResult: null,
   /** Tauri v2 event system: eventName → Map<eventId, handler> */

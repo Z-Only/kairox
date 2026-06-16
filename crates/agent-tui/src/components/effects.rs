@@ -4,7 +4,7 @@ use super::{
     AgentOverlaySnapshot, CommandPaletteSnapshot, FocusTarget, HelpOverlaySnapshot,
     McpConnectivityEntry, McpOverlaySnapshot, McpPromptEntry, McpResourceEntry, McpToolEntry,
     ModelOverlaySnapshot, ModelProfileTestResult, MonitorOverlaySnapshot, PermissionRequest,
-    PluginOverlaySnapshot, SessionInfo, SkillOverlaySnapshot, StatusInfo,
+    PluginOverlaySnapshot, SessionInfo, SkillOverlaySnapshot, StatusInfo, TaskConfirmationRequest,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,11 +12,13 @@ use super::{
 pub enum CrossPanelEffect {
     SwitchFocus(FocusTarget),
     ShowPermissionPrompt(PermissionRequest),
+    ShowTaskConfirmationPrompt(TaskConfirmationRequest),
     ResolvePermissionPrompt {
         request_id: String,
         approved: bool,
     },
     DismissPermissionPrompt,
+    DismissTaskConfirmationPrompt,
     UpdateSessionList(Vec<SessionInfo>),
     SetStatus(StatusInfo),
     NavigateToSession(SessionId),

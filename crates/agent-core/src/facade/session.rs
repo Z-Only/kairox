@@ -62,6 +62,17 @@ pub struct PermissionDecision {
     pub reason: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+/// User response to a structured task confirmation request.
+pub struct TaskConfirmationDecision {
+    pub request_id: String,
+    #[serde(default)]
+    pub selected_option_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_response: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 /// A single trace entry wrapping a domain event, used for trace panel display.
 ///
@@ -161,6 +172,13 @@ pub trait SessionFacade: Send + Sync {
     async fn start_session(&self, request: StartSessionRequest) -> crate::Result<SessionId>;
     async fn send_message(&self, request: SendMessageRequest) -> crate::Result<()>;
     async fn decide_permission(&self, decision: PermissionDecision) -> crate::Result<()>;
+    async fn decide_task_confirmation(
+        &self,
+        decision: TaskConfirmationDecision,
+    ) -> crate::Result<()> {
+        let _ = decision;
+        Ok(())
+    }
     async fn cancel_session(
         &self,
         workspace_id: WorkspaceId,

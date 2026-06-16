@@ -163,6 +163,16 @@ pub(super) async fn decide_permission(
     }
 }
 
+pub(super) async fn decide_task_confirmation(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+    decision: agent_core::TaskConfirmationDecision,
+) {
+    if let Err(e) = runtime.resolve_task_confirmation(decision).await {
+        push_status_error(app, format!("[task confirmation error: {e}]"));
+    }
+}
+
 pub(super) async fn cancel_session(
     runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
     app: &mut App,

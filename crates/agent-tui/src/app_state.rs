@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use agent_core::projection::SessionProjection;
-use agent_core::{ConfigScope, ProjectId};
+use agent_core::{ConfigScope, ProjectId, TaskConfirmationOption};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
@@ -26,6 +26,16 @@ pub enum InputState {
     PermissionWait {
         request_id: String,
         pending_prompt: String,
+    },
+    TaskConfirmationWait {
+        request_id: String,
+        prompt: String,
+        options: Vec<TaskConfirmationOption>,
+        allow_multiple: bool,
+        allow_custom: bool,
+        selected_option_ids: Vec<String>,
+        saved_input: String,
+        saved_cursor: usize,
     },
 }
 

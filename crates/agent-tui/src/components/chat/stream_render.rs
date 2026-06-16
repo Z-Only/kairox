@@ -37,6 +37,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::app_state::InputState;
 use agent_core::events::{DomainEvent, EventPayload};
 use agent_core::projection::SessionProjection;
 use ratatui::layout::Rect;
@@ -47,10 +48,11 @@ use ratatui::Frame;
 
 use super::stream::{
     fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, PermissionStatus,
+    TaskConfirmationStatus,
 };
 use super::stream_render_items::{
     append_compaction, append_compaction_skipped, append_message, append_monitor,
-    append_permission, append_tool_call,
+    append_permission, append_task_confirmation, append_tool_call,
 };
 
 /// Render the entire unified chat-stream feed into `area`.
@@ -68,6 +70,7 @@ pub fn render_chat_stream(
     projection: &SessionProjection,
     events: &[DomainEvent],
     expanded_tool_calls: &HashSet<String>,
+    input_state: &InputState,
 ) {
     let items = fold_stream(projection, events);
     let exit_codes = build_exit_code_map(events);
@@ -100,6 +103,13 @@ pub fn render_chat_stream(
                 if matches!(status, PermissionStatus::Pending) {
                     let tool_id_lookup = permission_tool_ids.get(item.id()).map(String::as_str);
                     append_permission(&mut lines, item, tool_id_lookup);
+                }
+            }
+            ChatStreamItem::TaskConfirmation { status, .. } => {
+                if matches!(status, TaskConfirmationStatus::Pending) {
+                    let selected =
+                        task_confirmation_selection(input_state, item.id()).unwrap_or(&[]);
+                    append_task_confirmation(&mut lines, item, selected);
                 }
             }
             ChatStreamItem::ToolCall { .. } => {
@@ -140,6 +150,20 @@ pub fn render_chat_stream(
 
     let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
     frame.render_widget(paragraph, area);
+}
+
+fn task_confirmation_selection<'a>(
+    input_state: &'a InputState,
+    request_id: &str,
+) -> Option<&'a [String]> {
+    match input_state {
+        InputState::TaskConfirmationWait {
+            request_id: active_id,
+            selected_option_ids,
+            ..
+        } if active_id == request_id => Some(selected_option_ids.as_slice()),
+        _ => None,
+    }
 }
 
 // ---------------------------------------------------------------------------

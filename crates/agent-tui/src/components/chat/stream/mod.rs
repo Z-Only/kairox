@@ -51,6 +51,8 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
     let mut tool_call_index: HashMap<String, usize> = HashMap::new();
     // request_id (tool permission) or memory_id (memory permission) -> index.
     let mut permission_index: HashMap<String, usize> = HashMap::new();
+    // request_id -> index for structured task confirmations.
+    let mut task_confirmation_index: HashMap<String, usize> = HashMap::new();
     // summary_id -> index for the matching Compaction item (set on Completed,
     // used later by CompactionSummary to fill in `summary`).
     let mut compaction_index: HashMap<String, usize> = HashMap::new();
@@ -226,6 +228,46 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
                 if let Some(idx) = permission_index.get(request_id).copied() {
                     if let ChatStreamItem::Permission { status, .. } = &mut items[idx] {
                         *status = PermissionStatus::Denied;
+                    }
+                }
+            }
+            EventPayload::TaskConfirmationRequested {
+                request_id,
+                prompt,
+                options,
+                allow_multiple,
+                allow_custom,
+            } => {
+                let idx = items.len();
+                items.push(ChatStreamItem::TaskConfirmation {
+                    id: request_id.clone(),
+                    prompt: prompt.clone(),
+                    options: options.clone(),
+                    allow_multiple: *allow_multiple,
+                    allow_custom: *allow_custom,
+                    status: TaskConfirmationStatus::Pending,
+                    selected_option_ids: Vec::new(),
+                    custom_response: None,
+                    timestamp_ms,
+                });
+                task_confirmation_index.insert(request_id.clone(), idx);
+            }
+            EventPayload::TaskConfirmationResolved {
+                request_id,
+                selected_option_ids,
+                custom_response,
+            } => {
+                if let Some(idx) = task_confirmation_index.get(request_id).copied() {
+                    if let ChatStreamItem::TaskConfirmation {
+                        status,
+                        selected_option_ids: selected,
+                        custom_response: custom,
+                        ..
+                    } = &mut items[idx]
+                    {
+                        *status = TaskConfirmationStatus::Resolved;
+                        *selected = selected_option_ids.clone();
+                        *custom = custom_response.clone();
                     }
                 }
             }

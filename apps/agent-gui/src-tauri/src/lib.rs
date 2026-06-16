@@ -203,6 +203,7 @@ pub fn run() {
             crate::commands::init_project_git,
             crate::commands::get_project_instruction_summary,
             crate::commands::resolve_permission,
+            crate::commands::resolve_task_confirmation,
             crate::commands::query_memories,
             crate::commands::accept_memory,
             crate::commands::reject_memory,

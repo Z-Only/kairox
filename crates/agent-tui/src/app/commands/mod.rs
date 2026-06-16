@@ -42,6 +42,7 @@ pub async fn dispatch_commands<F>(
             | Command::SendQueuedMessageNow { .. }
             | Command::ApplyQueueAction(_)
             | Command::DecidePermission { .. }
+            | Command::DecideTaskConfirmation { .. }
             | Command::TrustMcpServer { .. }
             | Command::RevokeMcpTrust { .. }
             | Command::StartMcpServer { .. }

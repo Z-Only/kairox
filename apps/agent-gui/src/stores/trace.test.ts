@@ -472,6 +472,68 @@ describe("trace store", () => {
   });
 
   // -----------------------------------------------------------
+  // applyTraceEvent — Task confirmation lifecycle
+  // -----------------------------------------------------------
+  describe("Task confirmation lifecycle", () => {
+    it("TaskConfirmationRequested adds a pending task confirmation entry", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "TaskConfirmationRequested",
+          request_id: "confirm-1",
+          prompt: "Choose an implementation path",
+          options: [
+            { id: "small", label: "Small fix", description: "Keep scope tight" },
+            { id: "broad", label: "Broad refactor", description: null }
+          ],
+          allow_multiple: true,
+          allow_custom: true
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      const entry = trace.entries[0];
+      expect(entry.id).toBe("confirm-1");
+      expect(entry.kind).toBe("task_confirmation");
+      expect(entry.status).toBe("pending");
+      expect(entry.title).toBe("Choose an implementation path");
+      expect(entry.options).toEqual([
+        { id: "small", label: "Small fix", description: "Keep scope tight" },
+        { id: "broad", label: "Broad refactor", description: null }
+      ]);
+      expect(entry.allowMultiple).toBe(true);
+      expect(entry.allowCustom).toBe(true);
+    });
+
+    it("TaskConfirmationResolved marks the entry completed and stores the response", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "TaskConfirmationRequested",
+          request_id: "confirm-2",
+          prompt: "Pick",
+          options: [{ id: "a", label: "A", description: null }],
+          allow_multiple: false,
+          allow_custom: true
+        } as DomainEvent["payload"])
+      );
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "TaskConfirmationResolved",
+          request_id: "confirm-2",
+          selected_option_ids: ["a"],
+          custom_response: "extra constraint"
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries[0].status).toBe("completed");
+      expect(trace.entries[0].selectedOptionIds).toEqual(["a"]);
+      expect(trace.entries[0].customResponse).toBe("extra constraint");
+    });
+  });
+
+  // -----------------------------------------------------------
   // applyTraceEvent — Memory lifecycle
   // -----------------------------------------------------------
   describe("Memory lifecycle", () => {

@@ -79,6 +79,7 @@ fn main() {
             agent_gui_tauri::commands::init_project_git,
             agent_gui_tauri::commands::get_project_instruction_summary,
             agent_gui_tauri::commands::resolve_permission,
+            agent_gui_tauri::commands::resolve_task_confirmation,
             agent_gui_tauri::commands::query_memories,
             agent_gui_tauri::commands::accept_memory,
             agent_gui_tauri::commands::reject_memory,

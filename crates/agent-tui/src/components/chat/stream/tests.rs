@@ -1,5 +1,6 @@
 use super::*;
 use agent_core::events::{CompactionReason, MonitorStopReason};
+use agent_core::TaskConfirmationOption;
 use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
 use chrono::{Duration as ChronoDuration, TimeZone, Utc};
 
@@ -103,6 +104,72 @@ fn monitor_started_creates_running_item() {
             assert_eq!(description, "watch build");
             assert_eq!(*status, MonitorItemStatus::Running);
             assert!(last_line.is_none());
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn task_confirmation_requested_and_resolved_updates_stream_item() {
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::TaskConfirmationRequested {
+                request_id: "confirm-1".into(),
+                prompt: "Choose path".into(),
+                options: vec![
+                    TaskConfirmationOption {
+                        id: "small".into(),
+                        label: "Small fix".into(),
+                        description: Some("one module".into()),
+                    },
+                    TaskConfirmationOption {
+                        id: "broad".into(),
+                        label: "Broad pass".into(),
+                        description: None,
+                    },
+                ],
+                allow_multiple: true,
+                allow_custom: true,
+            },
+        ),
+        make_event_at(
+            200,
+            EventPayload::TaskConfirmationResolved {
+                request_id: "confirm-1".into(),
+                selected_option_ids: vec!["small".into()],
+                custom_response: Some("keep API stable".into()),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+    let items = fold_stream(&projection, &events);
+
+    let confirmations: Vec<_> = items
+        .iter()
+        .filter(|item| matches!(item, ChatStreamItem::TaskConfirmation { .. }))
+        .collect();
+    assert_eq!(confirmations.len(), 1);
+    match confirmations[0] {
+        ChatStreamItem::TaskConfirmation {
+            id,
+            prompt,
+            options,
+            allow_multiple,
+            allow_custom,
+            status,
+            selected_option_ids,
+            custom_response,
+            ..
+        } => {
+            assert_eq!(id, "confirm-1");
+            assert_eq!(prompt, "Choose path");
+            assert_eq!(options[0].id, "small");
+            assert!(*allow_multiple);
+            assert!(*allow_custom);
+            assert_eq!(*status, TaskConfirmationStatus::Resolved);
+            assert_eq!(selected_option_ids, &vec!["small".to_string()]);
+            assert_eq!(custom_response.as_deref(), Some("keep API stable"));
         }
         _ => unreachable!(),
     }

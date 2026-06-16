@@ -153,6 +153,7 @@ struct StreamTestHarness<M: ModelClient + 'static> {
     tool_registry: Arc<Mutex<ToolRegistry>>,
     permission_engine: Arc<Mutex<PermissionEngine>>,
     pending: crate::permission::PendingPermissionsMap,
+    pending_task_confirmations: crate::task_confirmation::PendingTaskConfirmationsMap,
     task_graphs: Arc<Mutex<HashMap<String, crate::task_graph::TaskGraph>>>,
     config: Arc<Config>,
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
@@ -179,6 +180,8 @@ impl<M: ModelClient + 'static> StreamTestHarness<M> {
         )));
         let pending: crate::permission::PendingPermissionsMap =
             Arc::new(Mutex::new(HashMap::new()));
+        let pending_task_confirmations: crate::task_confirmation::PendingTaskConfirmationsMap =
+            Arc::new(Mutex::new(HashMap::new()));
         let task_graphs = Arc::new(Mutex::new(HashMap::new()));
         let config = Arc::new(Config::defaults());
         let session_states = Arc::new(Mutex::new(HashMap::new()));
@@ -190,6 +193,7 @@ impl<M: ModelClient + 'static> StreamTestHarness<M> {
             tool_registry,
             permission_engine,
             pending,
+            pending_task_confirmations,
             task_graphs,
             config,
             session_states,
@@ -218,6 +222,7 @@ impl<M: ModelClient + 'static> StreamTestHarness<M> {
             tool_registry: &self.tool_registry,
             permission_engine: &self.permission_engine,
             pending_permissions: &self.pending,
+            pending_task_confirmations: &self.pending_task_confirmations,
             memory_store: &self.memory_store,
             workspace_rag_index: &self.workspace_rag_index,
             knowledge_base_retrievers: &self.knowledge_base_retrievers,

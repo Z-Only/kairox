@@ -28,6 +28,7 @@ pub use effective::EffectiveItem;
 pub use error::CoreError;
 pub use events::{
     CompactionReason, CompactionSkipReason, DomainEvent, EventPayload, PrivacyClassification,
+    TaskConfirmationOption,
 };
 pub use facade::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
@@ -37,8 +38,8 @@ pub use facade::{
     ProjectGitDiffSection, ProjectGitFileChange, ProjectGitReview, ProjectGitStatus,
     ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding,
     ProjectSessionVisibility, SendMessageRequest, ServerEntry, SessionFacade, SessionMeta,
-    SkillDetail, SkillView, SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot,
-    TraceEntry, TraceExport, WorkspaceInfo,
+    SkillDetail, SkillView, SkillsFacade, StartSessionRequest, TaskConfirmationDecision,
+    TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport, WorkspaceInfo,
 };
 pub use ids::{AgentId, AutonomousTaskId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

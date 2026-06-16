@@ -3,6 +3,7 @@ use agent_core::{DomainEvent, EventPayload};
 
 use crate::components::{
     CrossPanelEffect, FocusTarget, PermissionRequest, RiskLevel, SessionState,
+    TaskConfirmationRequest,
 };
 
 use super::App;
@@ -109,6 +110,34 @@ impl App {
                 });
                 effects.push(CrossPanelEffect::DismissPermissionPrompt);
                 sync_permission_focus_after_dispatch = true;
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::TaskConfirmationRequested {
+                request_id,
+                prompt,
+                options,
+                allow_multiple,
+                allow_custom,
+            } => {
+                effects.push(CrossPanelEffect::ShowTaskConfirmationPrompt(
+                    TaskConfirmationRequest {
+                        request_id: request_id.clone(),
+                        prompt: prompt.clone(),
+                        options: options.clone(),
+                        allow_multiple: *allow_multiple,
+                        allow_custom: *allow_custom,
+                    },
+                ));
+                if let Some(session) = self.current_session_mut() {
+                    session.state = SessionState::AwaitingPermission;
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::TaskConfirmationResolved { .. } => {
+                effects.push(CrossPanelEffect::DismissTaskConfirmationPrompt);
+                if let Some(session) = self.current_session_mut() {
+                    session.state = SessionState::Active;
+                }
                 self.state.render_scheduler.mark_dirty();
             }
             EventPayload::SessionInitialized { model_profile } => {

@@ -4,7 +4,7 @@ use crate::facade_turn_executor::LocalRuntimeTurnExecutor;
 use agent_core::facade::SessionFacade;
 use agent_core::{
     AgentStatusInfo, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
-    StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
+    StartSessionRequest, TaskConfirmationDecision, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
 use agent_store::EventStore;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
@@ -188,6 +188,17 @@ where
             .await
     }
 
+    async fn decide_task_confirmation(
+        &self,
+        decision: TaskConfirmationDecision,
+    ) -> agent_core::Result<()> {
+        crate::task_confirmation::resolve_task_confirmation(
+            &self.pending_task_confirmations,
+            decision,
+        )
+        .await
+    }
+
     async fn cancel_session(
         &self,
         workspace_id: WorkspaceId,
@@ -201,6 +212,12 @@ where
             .await?;
         crate::permission::deny_pending_permissions_for_session(
             &self.pending_permissions,
+            &session_id,
+            "cancelled by user",
+        )
+        .await?;
+        crate::task_confirmation::deny_pending_confirmations_for_session(
+            &self.pending_task_confirmations,
             &session_id,
             "cancelled by user",
         )

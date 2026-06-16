@@ -27,6 +27,7 @@ import type {
   ChatMonitorStreamItem,
   ChatPermissionGroupStreamItem,
   ChatPermissionStreamItem,
+  ChatTaskConfirmationStreamItem,
   ChatStreamItem,
   ChatToolCallStreamItem
 } from "@/types/chatStream";
@@ -210,6 +211,9 @@ function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
       // from the inline chat stream — accept/deny is a one-shot action.
       if (entry.status !== "pending") return null;
       return buildPermissionItem(entry, "tool");
+    case "task_confirmation":
+      if (entry.status !== "pending") return null;
+      return buildTaskConfirmationItem(entry);
     case "memory":
       if (entry.status !== "pending") return null;
       return buildPermissionItem(entry, "memory");
@@ -283,6 +287,19 @@ function buildPermissionItem(
   if (entry.reason !== undefined) item.reason = entry.reason;
   if (entry.scope !== undefined) item.scope = entry.scope;
   if (entry.content !== undefined) item.content = entry.content;
+  if (entry.rawEvent !== undefined) item.rawEvent = entry.rawEvent;
+  return item;
+}
+
+function buildTaskConfirmationItem(entry: TraceEntryData): ChatTaskConfirmationStreamItem {
+  const item: ChatTaskConfirmationStreamItem = {
+    kind: "task_confirmation",
+    id: entry.id,
+    prompt: entry.title,
+    options: entry.options ?? [],
+    allowMultiple: entry.allowMultiple ?? false,
+    allowCustom: entry.allowCustom ?? true
+  };
   if (entry.rawEvent !== undefined) item.rawEvent = entry.rawEvent;
   return item;
 }

@@ -938,6 +938,13 @@
       },
       "grouped": "{count} 项待授权操作"
     },
+    "taskConfirmation": {
+      "title": "需要确认",
+      "customLabel": "自定义回复",
+      "customPlaceholder": "补充上下文或填写其他选项",
+      "submit": "提交",
+      "submitting": "提交中..."
+    },
     "toolCall": {
       "expand": "展开",
       "collapse": "收起",

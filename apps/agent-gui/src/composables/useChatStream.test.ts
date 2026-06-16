@@ -8,6 +8,7 @@ import type {
   ChatMonitorStreamItem,
   ChatPermissionGroupStreamItem,
   ChatPermissionStreamItem,
+  ChatTaskConfirmationStreamItem,
   ChatToolCallStreamItem
 } from "@/types/chatStream";
 
@@ -42,6 +43,22 @@ function memoryEntry(overrides: Partial<TraceEntryData> & { id: string }): Trace
     title: "mem",
     startedAt: 0,
     expanded: true,
+    ...overrides
+  };
+}
+
+function taskConfirmationEntry(
+  overrides: Partial<TraceEntryData> & { id: string }
+): TraceEntryData {
+  return {
+    kind: "task_confirmation",
+    status: "pending",
+    title: "Pick an approach",
+    startedAt: 0,
+    expanded: true,
+    options: [],
+    allowMultiple: false,
+    allowCustom: true,
     ...overrides
   };
 }
@@ -177,6 +194,56 @@ describe("buildChatStream", () => {
       content: "remember this",
       reason: "user request"
     });
+  });
+
+  it("maps pending task confirmation trace entries to inline confirmation items", () => {
+    const entries: TraceEntryData[] = [
+      taskConfirmationEntry({
+        id: "confirm-1",
+        title: "Which path should I take?",
+        options: [
+          { id: "small", label: "Small fix", description: "Touch one module" },
+          { id: "broad", label: "Broad pass", description: null }
+        ],
+        allowMultiple: true,
+        allowCustom: true,
+        rawEvent: '{"type":"TaskConfirmationRequested"}'
+      })
+    ];
+
+    const result = buildChatStream([], entries, idle);
+
+    expect(result).toEqual<ChatTaskConfirmationStreamItem[]>([
+      {
+        kind: "task_confirmation",
+        id: "confirm-1",
+        prompt: "Which path should I take?",
+        options: [
+          { id: "small", label: "Small fix", description: "Touch one module" },
+          { id: "broad", label: "Broad pass", description: null }
+        ],
+        allowMultiple: true,
+        allowCustom: true,
+        rawEvent: '{"type":"TaskConfirmationRequested"}'
+      }
+    ]);
+  });
+
+  it("filters resolved task confirmations out of the inline chat stream", () => {
+    const result = buildChatStream(
+      [],
+      [
+        taskConfirmationEntry({
+          id: "confirm-done",
+          status: "completed",
+          selectedOptionIds: ["small"],
+          customResponse: "ship it"
+        })
+      ],
+      idle
+    );
+
+    expect(result).toEqual([]);
   });
 
   it("skips trace entries whose kind is not tool / permission / memory", () => {

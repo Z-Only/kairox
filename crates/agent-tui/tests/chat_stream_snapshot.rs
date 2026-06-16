@@ -21,6 +21,7 @@ use std::collections::HashSet;
 use agent_core::events::{CompactionReason, CompactionSkipReason, EventPayload, MonitorStopReason};
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
+use agent_tui::app_state::InputState;
 use agent_tui::components::chat::render_chat_stream;
 use chrono::{Duration as ChronoDuration, TimeZone, Utc};
 use ratatui::backend::TestBackend;
@@ -59,7 +60,14 @@ fn render_to_string(
     let mut terminal = Terminal::new(backend).expect("terminal");
     terminal
         .draw(|frame| {
-            render_chat_stream(frame.area(), frame, projection, events, expanded);
+            render_chat_stream(
+                frame.area(),
+                frame,
+                projection,
+                events,
+                expanded,
+                &InputState::Normal,
+            );
         })
         .expect("render_chat_stream should not panic");
     terminal.backend().to_string()

@@ -5,6 +5,7 @@
 
 use agent_core::events::{CompactionSkipReason, MonitorStopReason};
 use agent_core::projection::ProjectedRole;
+use agent_core::TaskConfirmationOption;
 
 /// Role of a [`ChatStreamItem::Message`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +58,12 @@ pub enum PermissionStatus {
     Pending,
     Accepted,
     Denied,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskConfirmationStatus {
+    Pending,
+    Resolved,
 }
 
 /// Lifecycle status for a [`ChatStreamItem::Compaction`].
@@ -122,6 +129,17 @@ pub enum ChatStreamItem {
         status: PermissionStatus,
         timestamp_ms: i64,
     },
+    TaskConfirmation {
+        id: String,
+        prompt: String,
+        options: Vec<TaskConfirmationOption>,
+        allow_multiple: bool,
+        allow_custom: bool,
+        status: TaskConfirmationStatus,
+        selected_option_ids: Vec<String>,
+        custom_response: Option<String>,
+        timestamp_ms: i64,
+    },
     Compaction {
         id: String,
         status: CompactionItemStatus,
@@ -169,6 +187,7 @@ impl ChatStreamItem {
             Self::Message { timestamp_ms, .. } => *timestamp_ms,
             Self::ToolCall { timestamp_ms, .. } => *timestamp_ms,
             Self::Permission { timestamp_ms, .. } => *timestamp_ms,
+            Self::TaskConfirmation { timestamp_ms, .. } => *timestamp_ms,
             Self::Compaction { timestamp_ms, .. } => *timestamp_ms,
             Self::CompactionSkipped { timestamp_ms, .. } => *timestamp_ms,
             Self::Monitor { timestamp_ms, .. } => *timestamp_ms,
@@ -183,6 +202,7 @@ impl ChatStreamItem {
             Self::Message { id, .. } => id,
             Self::ToolCall { id, .. } => id,
             Self::Permission { id, .. } => id,
+            Self::TaskConfirmation { id, .. } => id,
             Self::Compaction { id, .. } => id,
             Self::CompactionSkipped { id, .. } => id,
             Self::Monitor { id, .. } => id,

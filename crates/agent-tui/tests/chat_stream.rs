@@ -408,6 +408,7 @@ fn chronological_interleaving_across_item_kinds() {
             ChatStreamItem::Message { .. } => "message",
             ChatStreamItem::ToolCall { .. } => "tool_call",
             ChatStreamItem::Permission { .. } => "permission",
+            ChatStreamItem::TaskConfirmation { .. } => "task_confirmation",
             ChatStreamItem::Compaction { .. } => "compaction",
             ChatStreamItem::CompactionSkipped { .. } => "compaction_skipped",
             ChatStreamItem::Monitor { .. } => "monitor",

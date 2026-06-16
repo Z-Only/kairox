@@ -40,6 +40,8 @@ where
     pub(crate) tool_registry: &'a Arc<Mutex<ToolRegistry>>,
     pub(crate) permission_engine: &'a Arc<Mutex<PermissionEngine>>,
     pub(crate) pending_permissions: &'a crate::permission::PendingPermissionsMap,
+    pub(crate) pending_task_confirmations:
+        &'a crate::task_confirmation::PendingTaskConfirmationsMap,
     pub(crate) memory_store: &'a Option<Arc<dyn MemoryStore>>,
     pub(crate) workspace_rag_index: &'a Option<Arc<WorkspaceRagIndex>>,
     pub(crate) knowledge_base_retrievers: &'a HashMap<String, Arc<dyn WorkspaceRetriever>>,

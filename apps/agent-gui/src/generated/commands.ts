@@ -93,6 +93,8 @@ export const commands = {
     ),
   resolvePermission: (requestId: string, decision: string, reason: string | null) =>
     typedError<null, string>(__TAURI_INVOKE("resolve_permission", { requestId, decision, reason })),
+  resolveTaskConfirmation: (decision: TaskConfirmationDecision_Deserialize) =>
+    typedError<null, string>(__TAURI_INVOKE("resolve_task_confirmation", { decision })),
   queryMemories: (scope: string | null, keywords: string[] | null, limit: number | null) =>
     typedError<MemoryEntryResponse[], string>(
       __TAURI_INVOKE("query_memories", { scope, keywords, limit })
@@ -711,6 +713,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -722,6 +726,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -757,6 +762,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -766,6 +772,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -777,6 +784,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -811,6 +819,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -822,6 +832,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -856,6 +867,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -866,6 +878,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -877,6 +890,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -916,6 +930,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -926,6 +942,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -959,6 +976,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -969,6 +987,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -980,6 +999,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1020,6 +1040,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1031,6 +1053,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       description?: never;
       diff?: never;
@@ -1065,6 +1088,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1075,6 +1099,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -1085,6 +1110,7 @@ export type EventPayload_Deserialize =
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1117,6 +1143,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1128,6 +1156,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1163,6 +1192,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1173,6 +1203,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -1184,6 +1215,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1217,6 +1249,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1228,6 +1262,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1263,6 +1298,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1273,6 +1309,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -1284,6 +1321,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1322,6 +1360,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
@@ -1331,6 +1371,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1366,6 +1407,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1376,6 +1418,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -1386,6 +1429,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1424,6 +1468,8 @@ export type EventPayload_Deserialize =
       activation_mode?: never;
       advisor_profile?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1435,6 +1481,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1469,6 +1516,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1479,6 +1527,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -1490,6 +1539,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1523,6 +1573,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1534,6 +1586,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1567,6 +1620,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1577,6 +1631,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -1588,6 +1643,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1626,6 +1682,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1637,6 +1695,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1672,6 +1731,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1682,6 +1742,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
@@ -1691,6 +1752,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1733,6 +1795,8 @@ export type EventPayload_Deserialize =
       activation_mode?: never;
       advisor_profile?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
@@ -1742,6 +1806,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1777,6 +1842,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -1787,6 +1853,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       request_id?: never;
@@ -1796,6 +1863,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1853,6 +1921,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1863,6 +1933,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       content?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1895,6 +1966,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_preview?: never;
       parent_task_id?: never;
@@ -1904,6 +1976,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       replaces_event_range?: never;
@@ -1914,6 +1987,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -1947,6 +2021,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -1958,6 +2034,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -1991,6 +2068,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2001,6 +2079,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2012,6 +2091,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2053,6 +2133,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2064,6 +2146,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2097,6 +2180,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2106,6 +2190,7 @@ export type EventPayload_Deserialize =
       persistent?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2115,6 +2200,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2149,6 +2235,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2160,6 +2248,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       dependencies?: never;
       description?: never;
       diff?: never;
@@ -2194,6 +2283,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2204,6 +2294,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2215,6 +2306,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2249,6 +2341,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2260,6 +2354,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2295,6 +2390,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2305,6 +2401,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2316,6 +2413,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2348,6 +2446,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2359,6 +2459,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2394,6 +2495,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2403,6 +2505,7 @@ export type EventPayload_Deserialize =
       persistent?: never;
       phase?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2413,6 +2516,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2446,6 +2550,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2457,6 +2563,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2492,6 +2599,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2502,6 +2610,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2512,6 +2621,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2546,6 +2656,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2557,6 +2669,117 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "TaskConfirmationRequested";
+      request_id: string;
+      prompt: string;
+      options: TaskConfirmationOption_Deserialize[];
+      allow_multiple: boolean;
+      allow_custom: boolean;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2603,6 +2826,117 @@ export type EventPayload_Deserialize =
       preview?: never;
       program?: never;
       ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "TaskConfirmationResolved";
+      request_id: string;
+      selected_option_ids: string[];
+      custom_response?: string | null;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       retry_attempt?: never;
@@ -2645,6 +2979,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2656,6 +2992,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2690,6 +3027,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2700,6 +3038,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2711,6 +3050,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2754,6 +3094,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2765,6 +3107,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2796,6 +3139,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       parent_task_id?: never;
@@ -2805,6 +3149,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2816,6 +3161,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2848,6 +3194,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2859,6 +3207,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2892,6 +3241,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -2902,6 +3252,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -2913,6 +3264,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -2946,6 +3298,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -2957,6 +3311,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -2991,6 +3346,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3000,6 +3356,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3011,6 +3368,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3045,6 +3403,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3056,6 +3416,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3091,6 +3452,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3100,6 +3462,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3111,6 +3474,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3151,6 +3515,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3161,6 +3527,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3194,6 +3561,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3204,6 +3572,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3214,6 +3583,7 @@ export type EventPayload_Deserialize =
       review_id?: never;
       role?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3254,6 +3624,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3264,6 +3636,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3297,6 +3670,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3307,6 +3681,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3317,6 +3692,7 @@ export type EventPayload_Deserialize =
       review_id?: never;
       role?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3351,6 +3727,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3362,6 +3740,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3396,6 +3775,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3406,6 +3786,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -3416,6 +3797,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3450,6 +3832,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3461,6 +3845,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3494,6 +3879,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3504,6 +3890,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3515,6 +3902,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3548,6 +3936,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3558,6 +3948,7 @@ export type EventPayload_Deserialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3592,6 +3983,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3602,6 +3994,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3613,6 +4006,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3647,6 +4041,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3658,6 +4054,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3693,6 +4090,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3703,6 +4101,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3714,6 +4113,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3747,6 +4147,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3758,6 +4160,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3792,6 +4195,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3802,6 +4206,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3813,6 +4218,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3846,6 +4252,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3857,6 +4265,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3892,6 +4301,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -3901,6 +4311,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -3912,6 +4323,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -3945,6 +4357,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -3955,6 +4369,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -3990,6 +4405,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4000,6 +4416,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -4010,6 +4427,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4042,6 +4460,8 @@ export type EventPayload_Deserialize =
       activation_mode?: never;
       advisor_profile?: never;
       after_tokens?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4053,6 +4473,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4088,6 +4509,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4098,6 +4520,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4108,6 +4531,7 @@ export type EventPayload_Deserialize =
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4140,6 +4564,8 @@ export type EventPayload_Deserialize =
       activation_mode?: never;
       advisor_profile?: never;
       after_tokens?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4151,6 +4577,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4186,6 +4613,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4196,6 +4624,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4207,6 +4636,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4241,6 +4671,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -4251,6 +4683,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4286,6 +4719,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4296,6 +4730,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4307,6 +4742,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4340,6 +4776,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4351,6 +4789,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4386,6 +4825,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4396,6 +4836,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4407,6 +4848,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4440,6 +4882,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4451,6 +4895,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4486,6 +4931,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4496,6 +4942,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -4506,6 +4953,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4540,6 +4988,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4551,6 +5001,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4585,6 +5036,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4595,6 +5047,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4606,6 +5059,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4638,6 +5092,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4649,6 +5105,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4683,6 +5140,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4692,6 +5150,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4703,6 +5162,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4742,6 +5202,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4753,6 +5215,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4787,6 +5250,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4797,6 +5261,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4808,6 +5273,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4840,6 +5306,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4851,6 +5319,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4885,6 +5354,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4895,6 +5365,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -4906,6 +5377,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -4938,6 +5410,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -4949,6 +5423,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -4983,6 +5458,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -4993,6 +5469,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -5003,6 +5480,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -5036,6 +5514,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5047,6 +5527,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5082,6 +5563,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5092,6 +5574,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5103,6 +5586,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5136,6 +5620,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5147,6 +5633,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5182,6 +5669,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5192,6 +5680,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5203,6 +5692,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5235,6 +5725,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5246,6 +5738,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5281,6 +5774,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5291,6 +5785,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5302,6 +5797,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5335,6 +5831,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5346,6 +5844,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5380,6 +5879,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5390,6 +5890,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5401,6 +5902,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5434,6 +5936,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5445,6 +5949,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5480,6 +5985,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5490,6 +5996,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5501,6 +6008,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5533,6 +6041,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5544,6 +6054,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5578,6 +6089,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5588,6 +6100,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5599,6 +6112,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5631,6 +6145,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5642,6 +6158,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5677,6 +6194,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5687,6 +6205,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5698,6 +6217,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5731,6 +6251,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5742,6 +6264,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5777,6 +6300,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5787,6 +6311,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5798,6 +6323,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -5831,6 +6357,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5842,6 +6370,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5876,6 +6405,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5886,6 +6416,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5897,6 +6428,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -5930,6 +6462,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -5940,6 +6474,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -5975,6 +6510,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -5985,6 +6521,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -5996,6 +6533,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6029,6 +6567,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6039,6 +6579,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6074,6 +6615,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6084,6 +6626,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6095,6 +6638,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -6127,6 +6671,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6138,6 +6684,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6173,6 +6720,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6183,6 +6731,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6194,6 +6743,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -6227,6 +6777,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6237,6 +6789,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6271,6 +6824,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6281,6 +6835,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6292,6 +6847,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6326,6 +6882,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6337,6 +6895,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6372,6 +6931,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6382,6 +6942,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6393,6 +6954,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6426,6 +6988,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6437,6 +7001,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6471,6 +7036,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6481,6 +7047,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6492,6 +7059,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6530,6 +7098,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6541,6 +7111,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6575,6 +7146,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6585,6 +7157,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6596,6 +7169,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6636,6 +7210,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6646,6 +7222,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       diff?: never;
@@ -6679,6 +7256,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6688,6 +7266,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6699,6 +7278,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6732,6 +7312,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6743,6 +7325,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6776,6 +7359,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6786,6 +7370,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6797,6 +7382,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6831,6 +7417,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6842,6 +7430,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6876,6 +7465,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6886,6 +7476,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -6896,6 +7487,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -6930,6 +7522,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -6941,6 +7535,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -6974,6 +7569,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -6984,6 +7580,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -6995,6 +7592,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -7029,6 +7627,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7040,6 +7640,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7074,6 +7675,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7084,6 +7686,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7095,6 +7698,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7128,6 +7732,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7139,6 +7745,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7173,6 +7780,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7183,6 +7791,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7194,6 +7803,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7227,6 +7837,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7238,6 +7850,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7273,6 +7886,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7283,6 +7897,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7294,6 +7909,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7327,6 +7943,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7338,6 +7956,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7372,6 +7991,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7382,6 +8002,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7393,6 +8014,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7426,6 +8048,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7437,6 +8061,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7472,6 +8097,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7481,6 +8107,7 @@ export type EventPayload_Deserialize =
       persistent?: never;
       phase?: never;
       preview?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7492,6 +8119,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7525,6 +8153,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7536,6 +8166,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7571,6 +8202,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7581,6 +8213,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7592,6 +8225,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7625,6 +8259,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7636,6 +8272,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7669,6 +8306,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7679,6 +8317,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7690,6 +8329,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -7723,6 +8363,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7734,6 +8376,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7769,6 +8412,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7779,6 +8423,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7790,6 +8435,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -7829,6 +8475,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7840,6 +8488,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7873,6 +8522,7 @@ export type EventPayload_Deserialize =
       model_profile?: never;
       monitor_id?: never;
       name?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -7883,6 +8533,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7893,6 +8544,7 @@ export type EventPayload_Deserialize =
       review_id?: never;
       role?: never;
       scope?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -7930,6 +8582,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -7941,6 +8595,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -7976,6 +8631,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       output_limit?: never;
       output_preview?: never;
       parent_task_id?: never;
@@ -7985,6 +8641,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -7996,6 +8653,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8033,6 +8691,8 @@ export type EventPayload_Deserialize =
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -8044,6 +8704,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8078,6 +8739,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8088,6 +8750,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8098,6 +8761,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8137,6 +8801,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -8147,6 +8813,7 @@ export type EventPayload_Deserialize =
       command?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8182,6 +8849,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8192,6 +8860,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8202,6 +8871,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8239,6 +8909,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8249,6 +8921,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8282,6 +8955,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8292,6 +8966,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8303,6 +8978,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8342,6 +9018,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8352,6 +9030,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8387,6 +9066,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8397,6 +9077,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8408,6 +9089,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       severity?: never;
       skill_id?: never;
@@ -8447,6 +9129,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8456,6 +9140,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8490,6 +9175,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8500,6 +9186,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8511,6 +9198,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       severity?: never;
       skill_id?: never;
@@ -8543,6 +9231,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8553,6 +9243,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8588,6 +9279,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8598,6 +9290,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8609,6 +9302,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8642,6 +9336,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8652,6 +9348,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8687,6 +9384,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8697,6 +9395,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -8707,6 +9406,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8741,6 +9441,8 @@ export type EventPayload_Deserialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -8751,6 +9453,7 @@ export type EventPayload_Deserialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8786,6 +9489,7 @@ export type EventPayload_Deserialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8796,6 +9500,7 @@ export type EventPayload_Deserialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8807,6 +9512,7 @@ export type EventPayload_Deserialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8843,6 +9549,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -8854,6 +9562,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8889,6 +9598,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8898,6 +9608,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -8909,6 +9620,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -8943,6 +9655,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -8954,6 +9668,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -8988,6 +9703,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -8998,6 +9714,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9009,6 +9726,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9048,6 +9766,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9058,6 +9778,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9091,6 +9812,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9101,6 +9823,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9112,6 +9835,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9152,6 +9876,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9163,6 +9889,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       description?: never;
       diff?: never;
@@ -9197,6 +9924,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9207,6 +9935,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9217,6 +9946,7 @@ export type EventPayload_Serialize =
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9249,6 +9979,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9260,6 +9992,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9295,6 +10028,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9305,6 +10039,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9316,6 +10051,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9349,6 +10085,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9360,6 +10098,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9395,6 +10134,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9405,6 +10145,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9416,6 +10157,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9454,6 +10196,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
@@ -9463,6 +10207,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9498,6 +10243,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9508,6 +10254,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -9518,6 +10265,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9556,6 +10304,8 @@ export type EventPayload_Serialize =
       activation_mode?: never;
       advisor_profile?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9567,6 +10317,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9601,6 +10352,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9611,6 +10363,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9622,6 +10375,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9655,6 +10409,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9666,6 +10422,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9699,6 +10456,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9709,6 +10467,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -9720,6 +10479,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9758,6 +10518,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9769,6 +10531,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9804,6 +10567,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9814,6 +10578,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       request_id?: never;
@@ -9823,6 +10588,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9865,6 +10631,8 @@ export type EventPayload_Serialize =
       activation_mode?: never;
       advisor_profile?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
@@ -9874,6 +10642,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -9909,6 +10678,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -9919,6 +10689,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       request_id?: never;
@@ -9928,6 +10699,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -9985,6 +10757,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -9995,6 +10769,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       content?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10027,6 +10802,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_preview?: never;
       parent_task_id?: never;
@@ -10036,6 +10812,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       replaces_event_range?: never;
@@ -10046,6 +10823,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10079,6 +10857,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10090,6 +10870,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10123,6 +10904,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10133,6 +10915,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10144,6 +10927,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10185,6 +10969,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10196,6 +10982,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10229,6 +11016,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10238,6 +11026,7 @@ export type EventPayload_Serialize =
       persistent?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10247,6 +11036,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10281,6 +11071,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10292,6 +11084,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       dependencies?: never;
       description?: never;
       diff?: never;
@@ -10326,6 +11119,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10336,6 +11130,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10347,6 +11142,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10381,6 +11177,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10392,6 +11190,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10427,6 +11226,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10437,6 +11237,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10448,6 +11249,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10480,6 +11282,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10491,6 +11295,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10526,6 +11331,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10535,6 +11341,7 @@ export type EventPayload_Serialize =
       persistent?: never;
       phase?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10545,6 +11352,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10578,6 +11386,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10589,6 +11399,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10624,6 +11435,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10634,6 +11446,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10644,6 +11457,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10678,6 +11492,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10689,6 +11505,117 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "TaskConfirmationRequested";
+      request_id: string;
+      prompt: string;
+      options: TaskConfirmationOption_Serialize[];
+      allow_multiple: boolean;
+      allow_custom: boolean;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10735,6 +11662,117 @@ export type EventPayload_Serialize =
       preview?: never;
       program?: never;
       ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "TaskConfirmationResolved";
+      request_id: string;
+      selected_option_ids: string[];
+      custom_response?: string | null;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      model_id?: never;
+      model_profile?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reason?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
       retry_attempt?: never;
@@ -10777,6 +11815,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10788,6 +11828,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10822,6 +11863,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -10832,6 +11874,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10843,6 +11886,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10886,6 +11930,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10897,6 +11943,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -10928,6 +11975,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       parent_task_id?: never;
@@ -10937,6 +11985,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -10948,6 +11997,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -10980,6 +12030,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -10991,6 +12043,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11024,6 +12077,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11034,6 +12088,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11045,6 +12100,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11078,6 +12134,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11089,6 +12147,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11123,6 +12182,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11132,6 +12192,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11143,6 +12204,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11177,6 +12239,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11188,6 +12252,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11223,6 +12288,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11232,6 +12298,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11243,6 +12310,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11283,6 +12351,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11293,6 +12363,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11326,6 +12397,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11336,6 +12408,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11346,6 +12419,7 @@ export type EventPayload_Serialize =
       review_id?: never;
       role?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11386,6 +12460,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11396,6 +12472,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11429,6 +12506,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11439,6 +12517,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11449,6 +12528,7 @@ export type EventPayload_Serialize =
       review_id?: never;
       role?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11483,6 +12563,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11494,6 +12576,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11528,6 +12611,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11538,6 +12622,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -11548,6 +12633,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11582,6 +12668,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11593,6 +12681,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11626,6 +12715,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11636,6 +12726,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11647,6 +12738,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11680,6 +12772,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11690,6 +12784,7 @@ export type EventPayload_Serialize =
       command?: never;
       concern_count?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11724,6 +12819,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11734,6 +12830,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11745,6 +12842,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11779,6 +12877,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11790,6 +12890,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11825,6 +12926,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11835,6 +12937,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11846,6 +12949,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11879,6 +12983,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11890,6 +12996,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -11924,6 +13031,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -11934,6 +13042,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -11945,6 +13054,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -11978,6 +13088,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -11989,6 +13101,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12024,6 +13137,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12033,6 +13147,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12044,6 +13159,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12077,6 +13193,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12087,6 +13205,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12122,6 +13241,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12132,6 +13252,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -12142,6 +13263,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12174,6 +13296,8 @@ export type EventPayload_Serialize =
       activation_mode?: never;
       advisor_profile?: never;
       after_tokens?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12185,6 +13309,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12220,6 +13345,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12230,6 +13356,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12240,6 +13367,7 @@ export type EventPayload_Serialize =
       review_id?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12272,6 +13400,8 @@ export type EventPayload_Serialize =
       activation_mode?: never;
       advisor_profile?: never;
       after_tokens?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12283,6 +13413,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12318,6 +13449,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12328,6 +13460,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12339,6 +13472,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12373,6 +13507,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -12383,6 +13519,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12418,6 +13555,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12428,6 +13566,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12439,6 +13578,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12472,6 +13612,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12483,6 +13625,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12518,6 +13661,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12528,6 +13672,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12539,6 +13684,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12572,6 +13718,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12583,6 +13731,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12618,6 +13767,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12628,6 +13778,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -12638,6 +13789,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12672,6 +13824,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12683,6 +13837,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12717,6 +13872,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12727,6 +13883,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12738,6 +13895,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12770,6 +13928,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12781,6 +13941,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12815,6 +13976,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12824,6 +13986,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12835,6 +13998,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12874,6 +14038,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12885,6 +14051,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -12919,6 +14086,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -12929,6 +14097,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -12940,6 +14109,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -12972,6 +14142,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -12983,6 +14155,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13017,6 +14190,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13027,6 +14201,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13038,6 +14213,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -13070,6 +14246,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13081,6 +14259,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13115,6 +14294,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       monitor_id?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13125,6 +14305,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -13135,6 +14316,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -13168,6 +14350,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13179,6 +14363,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13214,6 +14399,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13224,6 +14410,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13235,6 +14422,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13268,6 +14456,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13279,6 +14469,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13314,6 +14505,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13324,6 +14516,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13335,6 +14528,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13367,6 +14561,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13378,6 +14574,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13413,6 +14610,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13423,6 +14621,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13434,6 +14633,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13467,6 +14667,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13478,6 +14680,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13512,6 +14715,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13522,6 +14726,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13533,6 +14738,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13566,6 +14772,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13577,6 +14785,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13612,6 +14821,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13622,6 +14832,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13633,6 +14844,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13665,6 +14877,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13676,6 +14890,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13710,6 +14925,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13720,6 +14936,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13731,6 +14948,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13763,6 +14981,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13774,6 +14994,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13809,6 +15030,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13819,6 +15041,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13830,6 +15053,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13863,6 +15087,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13874,6 +15100,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -13909,6 +15136,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -13919,6 +15147,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -13930,6 +15159,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -13963,6 +15193,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -13974,6 +15206,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14008,6 +15241,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14018,6 +15252,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14029,6 +15264,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14062,6 +15298,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14072,6 +15310,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14107,6 +15346,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14117,6 +15357,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14128,6 +15369,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14161,6 +15403,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14171,6 +15415,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14206,6 +15451,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14216,6 +15462,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14227,6 +15474,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -14259,6 +15507,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14270,6 +15520,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14305,6 +15556,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14315,6 +15567,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14326,6 +15579,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -14359,6 +15613,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14369,6 +15625,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14403,6 +15660,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14413,6 +15671,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14424,6 +15683,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14458,6 +15718,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14469,6 +15731,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14504,6 +15767,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14514,6 +15778,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14525,6 +15790,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14558,6 +15824,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14569,6 +15837,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14603,6 +15872,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14613,6 +15883,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14624,6 +15895,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14662,6 +15934,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14673,6 +15947,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14707,6 +15982,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14717,6 +15993,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14728,6 +16005,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14768,6 +16046,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14778,6 +16058,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       diff?: never;
@@ -14811,6 +16092,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14820,6 +16102,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14831,6 +16114,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14864,6 +16148,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14875,6 +16161,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -14908,6 +16195,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -14918,6 +16206,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -14929,6 +16218,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -14963,6 +16253,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -14974,6 +16266,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15008,6 +16301,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15018,6 +16312,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -15028,6 +16323,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -15062,6 +16358,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15073,6 +16371,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15106,6 +16405,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15116,6 +16416,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15127,6 +16428,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -15161,6 +16463,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15172,6 +16476,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15206,6 +16511,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15216,6 +16522,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15227,6 +16534,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15260,6 +16568,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15271,6 +16581,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15305,6 +16616,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15315,6 +16627,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15326,6 +16639,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15359,6 +16673,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15370,6 +16686,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15405,6 +16722,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15415,6 +16733,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15426,6 +16745,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15459,6 +16779,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15470,6 +16792,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15504,6 +16827,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15514,6 +16838,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15525,6 +16850,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15558,6 +16884,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15569,6 +16897,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15604,6 +16933,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15613,6 +16943,7 @@ export type EventPayload_Serialize =
       persistent?: never;
       phase?: never;
       preview?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15624,6 +16955,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15657,6 +16989,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15668,6 +17002,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15703,6 +17038,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15713,6 +17049,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15724,6 +17061,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15757,6 +17095,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15768,6 +17108,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15801,6 +17142,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15811,6 +17153,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15822,6 +17165,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       session_id?: never;
       session_index?: never;
       severity?: never;
@@ -15855,6 +17199,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15866,6 +17212,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -15901,6 +17248,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -15911,6 +17259,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -15922,6 +17271,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -15961,6 +17311,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -15972,6 +17324,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16005,6 +17358,7 @@ export type EventPayload_Serialize =
       model_profile?: never;
       monitor_id?: never;
       name?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16015,6 +17369,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16025,6 +17380,7 @@ export type EventPayload_Serialize =
       review_id?: never;
       role?: never;
       scope?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16062,6 +17418,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -16073,6 +17431,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16108,6 +17467,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       output_limit?: never;
       output_preview?: never;
       parent_task_id?: never;
@@ -16117,6 +17477,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16128,6 +17489,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16165,6 +17527,8 @@ export type EventPayload_Serialize =
       activation_mode?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -16176,6 +17540,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16210,6 +17575,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16220,6 +17586,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16230,6 +17597,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16269,6 +17637,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
@@ -16279,6 +17649,7 @@ export type EventPayload_Serialize =
       command?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16314,6 +17685,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16324,6 +17696,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16334,6 +17707,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16371,6 +17745,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16381,6 +17757,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16414,6 +17791,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16424,6 +17802,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16435,6 +17814,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16474,6 +17854,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16484,6 +17866,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16519,6 +17902,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16529,6 +17913,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16540,6 +17925,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       severity?: never;
       skill_id?: never;
@@ -16579,6 +17965,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16588,6 +17976,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16622,6 +18011,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16632,6 +18022,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16643,6 +18034,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       severity?: never;
       skill_id?: never;
@@ -16675,6 +18067,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16685,6 +18079,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16720,6 +18115,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16730,6 +18126,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16741,6 +18138,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16774,6 +18172,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16784,6 +18184,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16819,6 +18220,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16829,6 +18231,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reasoning_effort?: never;
       replaces_event_range?: never;
@@ -16839,6 +18242,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -16873,6 +18277,8 @@ export type EventPayload_Serialize =
       advisor_profile?: never;
       after_tokens?: never;
       agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
@@ -16883,6 +18289,7 @@ export type EventPayload_Serialize =
       concern_count?: never;
       content?: never;
       context_window?: never;
+      custom_response?: never;
       delta?: never;
       dependencies?: never;
       description?: never;
@@ -16918,6 +18325,7 @@ export type EventPayload_Serialize =
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
+      options?: never;
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
@@ -16928,6 +18336,7 @@ export type EventPayload_Serialize =
       phase?: never;
       preview?: never;
       program?: never;
+      prompt?: never;
       ratio?: never;
       reason?: never;
       reasoning_effort?: never;
@@ -16939,6 +18348,7 @@ export type EventPayload_Serialize =
       role?: never;
       scope?: never;
       screenshot_id?: never;
+      selected_option_ids?: never;
       server_id?: never;
       session_id?: never;
       session_index?: never;
@@ -17560,6 +18970,50 @@ export type SkillView = {
   can_request_tools: string[];
   valid: boolean;
   validation_error: string | null;
+};
+
+/**  User response to a structured task confirmation request. */
+export type TaskConfirmationDecision =
+  | TaskConfirmationDecision_Serialize
+  | TaskConfirmationDecision_Deserialize;
+
+/**  User response to a structured task confirmation request. */
+export type TaskConfirmationDecision_Deserialize = {
+  request_id: string;
+  selected_option_ids?: string[];
+  custom_response?: string | null;
+};
+
+/**  User response to a structured task confirmation request. */
+export type TaskConfirmationDecision_Serialize = {
+  request_id: string;
+  selected_option_ids: string[];
+  custom_response?: string | null;
+};
+
+/**  One selectable option in a structured task confirmation prompt. */
+export type TaskConfirmationOption =
+  | TaskConfirmationOption_Serialize
+  | TaskConfirmationOption_Deserialize;
+
+/**  One selectable option in a structured task confirmation prompt. */
+export type TaskConfirmationOption_Deserialize = {
+  /**  Stable option id returned by the UI when selected. */
+  id: string;
+  /**  Short display label. */
+  label: string;
+  /**  Optional supporting copy shown below the label. */
+  description?: string | null;
+};
+
+/**  One selectable option in a structured task confirmation prompt. */
+export type TaskConfirmationOption_Serialize = {
+  /**  Stable option id returned by the UI when selected. */
+  id: string;
+  /**  Short display label. */
+  label: string;
+  /**  Optional supporting copy shown below the label. */
+  description?: string | null;
 };
 
 export type TaskSnapshotResponse = {

@@ -4,7 +4,7 @@
 
 use agent_core::{
     context_types::{ContextSource, ContextUsage},
-    AgentRole, CompactionReason, EventPayload,
+    AgentRole, CompactionReason, EventPayload, TaskConfirmationOption,
 };
 use std::collections::HashSet;
 
@@ -118,6 +118,22 @@ fn every_event_payload_variant_has_event_type() {
         EventPayload::PermissionDenied {
             request_id: "req1".into(),
             reason: "destructive".into(),
+        },
+        EventPayload::TaskConfirmationRequested {
+            request_id: "clarify1".into(),
+            prompt: "Choose scope".into(),
+            options: vec![TaskConfirmationOption {
+                id: "tests".into(),
+                label: "Tests only".into(),
+                description: Some("Add tests first".into()),
+            }],
+            allow_multiple: false,
+            allow_custom: true,
+        },
+        EventPayload::TaskConfirmationResolved {
+            request_id: "clarify1".into(),
+            selected_option_ids: vec!["tests".into()],
+            custom_response: Some("Keep it focused".into()),
         },
         EventPayload::ToolInvocationStarted {
             invocation_id: "inv1".into(),
@@ -393,6 +409,22 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::PermissionDenied {
             request_id: "req1".into(),
             reason: "destructive".into(),
+        },
+        EventPayload::TaskConfirmationRequested {
+            request_id: "clarify1".into(),
+            prompt: "Choose scope".into(),
+            options: vec![TaskConfirmationOption {
+                id: "impl".into(),
+                label: "Implementation".into(),
+                description: None,
+            }],
+            allow_multiple: true,
+            allow_custom: true,
+        },
+        EventPayload::TaskConfirmationResolved {
+            request_id: "clarify1".into(),
+            selected_option_ids: vec!["impl".into()],
+            custom_response: None,
         },
         EventPayload::ToolInvocationStarted {
             invocation_id: "inv-1".into(),

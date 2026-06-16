@@ -34,8 +34,8 @@ pub use project::{
 };
 pub use session::{
     AgentStatusInfo, AttachmentInfo, PermissionDecision, SendMessageRequest, SessionFacade,
-    SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport,
-    WorkspaceInfo,
+    SessionMeta, StartSessionRequest, TaskConfirmationDecision, TaskGraphSnapshot, TaskSnapshot,
+    TraceEntry, TraceExport, WorkspaceInfo,
 };
 pub use settings::{
     AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
@@ -90,6 +90,12 @@ pub trait AppFacade:
     }
     async fn decide_permission(&self, decision: PermissionDecision) -> crate::Result<()> {
         SessionFacade::decide_permission(self, decision).await
+    }
+    async fn decide_task_confirmation(
+        &self,
+        decision: TaskConfirmationDecision,
+    ) -> crate::Result<()> {
+        SessionFacade::decide_task_confirmation(self, decision).await
     }
     async fn cancel_session(
         &self,

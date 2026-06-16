@@ -13,3 +13,4 @@ mod input;
 mod permissions;
 mod queue;
 mod render;
+mod task_confirmation;

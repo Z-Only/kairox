@@ -220,6 +220,33 @@ export const useTraceStore = defineStore("trace", () => {
         break;
       }
 
+      case "TaskConfirmationRequested": {
+        pushEntry({
+          id: p.request_id,
+          kind: "task_confirmation",
+          status: "pending",
+          toolId: "task_confirmation.request",
+          title: p.prompt,
+          startedAt: Date.now(),
+          expanded: true,
+          options: p.options,
+          allowMultiple: p.allow_multiple,
+          allowCustom: p.allow_custom,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
+      case "TaskConfirmationResolved": {
+        updateEntry(p.request_id, {
+          status: "completed",
+          selectedOptionIds: p.selected_option_ids,
+          customResponse: p.custom_response,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
       case "PermissionGranted": {
         updateEntry(p.request_id, {
           status: "completed",

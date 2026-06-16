@@ -111,7 +111,7 @@ where
     let budget = context_budget::build_budget(&limits);
 
     // Tool definitions.
-    let tool_definitions: Vec<ToolDefinition> = {
+    let mut tool_definitions: Vec<ToolDefinition> = {
         let registry = deps.tool_registry.lock().await;
         registry
             .list_all()
@@ -124,6 +124,12 @@ where
             })
             .collect()
     };
+    if !tool_definitions
+        .iter()
+        .any(|tool| tool.name == crate::task_confirmation::TASK_CONFIRMATION_TOOL)
+    {
+        tool_definitions.push(crate::task_confirmation::tool_definition());
+    }
 
     // System prompt with instructions + memory.
     let mut base_system_prompt = super::SYSTEM_PROMPT.to_string();
