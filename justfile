@@ -295,6 +295,8 @@ eval-live profile="":
         --enable-mcp
 
 # Run a live vibe-coding eval in a disposable Kairox worktree.
+# The detached HEAD worktree is the programming project under test, so
+# scenarios can safely ask agents to edit the current commit's repository.
 # Defaults to the stable live-model profile used for local model quality checks.
 # Override the profile via: just eval-vibe-coding <profile>
 eval-vibe-coding profile="kairox-live":
