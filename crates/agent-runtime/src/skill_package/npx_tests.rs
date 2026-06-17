@@ -138,10 +138,7 @@ fn classify_permission_denied_error_wraps_original() {
 
 #[test]
 fn classify_other_io_error_wraps_original() {
-    let error = classify_npx_spawn_error(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "something weird happened",
-    ));
+    let error = classify_npx_spawn_error(std::io::Error::other("something weird happened"));
     let message = error.to_string();
     assert!(
         message.contains("failed to run npx"),
