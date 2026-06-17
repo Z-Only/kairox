@@ -211,12 +211,15 @@ async fn hover_returns_none_for_null_result() {
         "capabilities": {"hoverProvider": true}
     }));
     // Simulate null hover result.
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(2.into()),
-        result: None,
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(2.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     client.initialize("file:///tmp/test").await.unwrap();
@@ -260,12 +263,15 @@ async fn find_references_returns_locations() {
 #[tokio::test]
 async fn find_references_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let locs = client
@@ -303,12 +309,15 @@ async fn workspace_symbols_returns_symbols() {
 #[tokio::test]
 async fn workspace_symbols_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let symbols = client.workspace_symbols("anything").await.unwrap();
@@ -352,12 +361,15 @@ async fn completion_returns_items_from_completion_list() {
 #[tokio::test]
 async fn completion_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let items = client
@@ -389,12 +401,15 @@ async fn shutdown_sends_request_then_exit() {
     let requests = mock.requests.clone();
     let notifications = mock.notifications.clone();
     // Queue shutdown response.
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: Some(serde_json::Value::Null),
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: Some(serde_json::Value::Null),
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     client.shutdown().await.unwrap();
@@ -656,12 +671,15 @@ async fn hover_with_markup_content_response() {
 #[tokio::test]
 async fn document_symbols_returns_empty_for_null_response() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(Ok(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    }));
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let symbols = client
