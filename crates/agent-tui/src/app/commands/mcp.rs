@@ -1,5 +1,9 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "mcp_tests.rs"]
+mod tests;
+
 pub(super) async fn dispatch<F>(runtime: &std::sync::Arc<F>, app: &mut App, command: Command)
 where
     F: AppFacade + ?Sized,
