@@ -459,3 +459,7 @@ fn model_profile_entry_from_settings(
         has_api_key: profile.has_api_key,
     }
 }
+
+#[cfg(test)]
+#[path = "models_tests.rs"]
+mod tests;

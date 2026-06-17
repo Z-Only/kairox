@@ -411,3 +411,7 @@ where
     let (catalog_keyword, catalog_sources) = app.skills_overlay.catalog_query();
     refresh_skills_overlay(runtime, app, catalog_keyword, catalog_sources).await;
 }
+
+#[cfg(test)]
+#[path = "skills_tests.rs"]
+mod tests;
