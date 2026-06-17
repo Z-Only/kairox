@@ -169,3 +169,7 @@ fn build_catalog_provider(
         Some(sink),
     ))
 }
+
+#[cfg(test)]
+#[path = "skill_catalog_tests.rs"]
+mod tests;
