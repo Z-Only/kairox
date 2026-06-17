@@ -1,5 +1,52 @@
 use super::*;
 
+fn map_tool_def(t: agent_mcp::types::McpToolDef) -> McpToolDefResponse {
+    McpToolDefResponse {
+        name: t.name,
+        description: t.description,
+        input_schema: t.input_schema,
+    }
+}
+
+fn map_resource_def(r: agent_mcp::types::McpResourceDef) -> McpResourceDefResponse {
+    McpResourceDefResponse {
+        uri: r.uri,
+        name: r.name,
+        description: r.description,
+        mime_type: r.mime_type,
+    }
+}
+
+fn map_prompt_def(p: agent_mcp::types::McpPromptDef) -> McpPromptDefResponse {
+    McpPromptDefResponse {
+        name: p.name,
+        description: p.description,
+        argument_count: p.arguments.len(),
+    }
+}
+
+fn map_content_block(b: agent_mcp::types::McpContentBlock) -> McpContentBlockResponse {
+    match b {
+        agent_mcp::McpContentBlock::Text { text } => McpContentBlockResponse::Text { text },
+        agent_mcp::McpContentBlock::Image { data, mime_type } => {
+            McpContentBlockResponse::Image { data, mime_type }
+        }
+        agent_mcp::McpContentBlock::Resource { resource } => McpContentBlockResponse::Resource {
+            uri: resource.uri,
+            name: String::new(),
+            mime_type: resource.mime_type,
+        },
+    }
+}
+
+fn map_health_result(result: agent_mcp::types::CheckHealthResult) -> CheckMcpHealthResponse {
+    CheckMcpHealthResponse {
+        tools: result.tools.into_iter().map(map_tool_def).collect(),
+        healthy: result.healthy,
+        error: result.error,
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn list_mcp_servers(
@@ -69,16 +116,7 @@ pub async fn refresh_mcp_tools(
             manager
                 .refresh_tools(&server_id)
                 .await
-                .map(|tools| {
-                    tools
-                        .into_iter()
-                        .map(|t| McpToolDefResponse {
-                            name: t.name,
-                            description: t.description,
-                            input_schema: t.input_schema,
-                        })
-                        .collect()
-                })
+                .map(|tools| tools.into_iter().map(map_tool_def).collect())
                 .map_err(|e| e.to_string())
         }
         None => Err("No MCP servers configured".into()),
@@ -130,16 +168,7 @@ pub async fn list_mcp_resources(
             manager
                 .list_resources(&server_id)
                 .await
-                .map(|r| {
-                    r.into_iter()
-                        .map(|r| McpResourceDefResponse {
-                            uri: r.uri,
-                            name: r.name,
-                            description: r.description,
-                            mime_type: r.mime_type,
-                        })
-                        .collect()
-                })
+                .map(|r| r.into_iter().map(map_resource_def).collect())
                 .map_err(|e| e.to_string())
         }
         None => Err("No MCP servers configured".into()),
@@ -159,15 +188,7 @@ pub async fn list_mcp_prompts(
             manager
                 .list_prompts(&server_id)
                 .await
-                .map(|p| {
-                    p.into_iter()
-                        .map(|p| McpPromptDefResponse {
-                            name: p.name,
-                            description: p.description,
-                            argument_count: p.arguments.len(),
-                        })
-                        .collect()
-                })
+                .map(|p| p.into_iter().map(map_prompt_def).collect())
                 .map_err(|e| e.to_string())
         }
         None => Err("No MCP servers configured".into()),
@@ -188,26 +209,7 @@ pub async fn read_mcp_resource(
             manager
                 .read_resource(&server_id, &uri)
                 .await
-                .map(|blocks| {
-                    blocks
-                        .into_iter()
-                        .map(|b| match b {
-                            agent_mcp::McpContentBlock::Text { text } => {
-                                McpContentBlockResponse::Text { text }
-                            }
-                            agent_mcp::McpContentBlock::Image { data, mime_type } => {
-                                McpContentBlockResponse::Image { data, mime_type }
-                            }
-                            agent_mcp::McpContentBlock::Resource { resource } => {
-                                McpContentBlockResponse::Resource {
-                                    uri: resource.uri,
-                                    name: String::new(),
-                                    mime_type: resource.mime_type,
-                                }
-                            }
-                        })
-                        .collect()
-                })
+                .map(|blocks| blocks.into_iter().map(map_content_block).collect())
                 .map_err(|e| e.to_string())
         }
         None => Err("No MCP servers configured".into()),
@@ -244,19 +246,7 @@ pub async fn check_mcp_health(
         .check_mcp_health(&server_id)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(CheckMcpHealthResponse {
-        tools: result
-            .tools
-            .into_iter()
-            .map(|t| McpToolDefResponse {
-                name: t.name,
-                description: t.description,
-                input_schema: t.input_schema,
-            })
-            .collect(),
-        healthy: result.healthy,
-        error: result.error,
-    })
+    Ok(map_health_result(result))
 }
 
 #[tauri::command]
@@ -288,4 +278,151 @@ pub async fn get_mcp_tool_states(
     Ok(McpToolStatesResponse {
         disabled_tools: disabled.into_iter().collect(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_mcp::types::{
+        CheckHealthResult, McpContentBlock, McpPromptArgument, McpPromptDef, McpResourceContent,
+        McpResourceDef, McpToolDef,
+    };
+    use serde_json::json;
+
+    #[test]
+    fn mcp_runtime_maps_tool_dto_fields() {
+        let response = map_tool_def(McpToolDef {
+            name: "search".into(),
+            description: Some("Search files".into()),
+            input_schema: Some(r#"{"type":"object"}"#.into()),
+        });
+
+        assert_eq!(response.name, "search");
+        assert_eq!(response.description.as_deref(), Some("Search files"));
+        assert_eq!(
+            response.input_schema.as_deref(),
+            Some(r#"{"type":"object"}"#)
+        );
+    }
+
+    #[test]
+    fn mcp_runtime_maps_resource_dto_fields() {
+        let response = map_resource_def(McpResourceDef {
+            uri: "file:///tmp/context.md".into(),
+            name: "context".into(),
+            description: Some("Context file".into()),
+            mime_type: Some("text/markdown".into()),
+        });
+
+        assert_eq!(response.uri, "file:///tmp/context.md");
+        assert_eq!(response.name, "context");
+        assert_eq!(response.description.as_deref(), Some("Context file"));
+        assert_eq!(response.mime_type.as_deref(), Some("text/markdown"));
+    }
+
+    #[test]
+    fn mcp_runtime_maps_prompt_argument_count() {
+        let response = map_prompt_def(McpPromptDef {
+            name: "summarize".into(),
+            description: Some("Summarize input".into()),
+            arguments: vec![
+                McpPromptArgument {
+                    name: "input".into(),
+                    description: None,
+                    required: Some(true),
+                },
+                McpPromptArgument {
+                    name: "style".into(),
+                    description: Some("Tone".into()),
+                    required: None,
+                },
+            ],
+        });
+
+        assert_eq!(response.name, "summarize");
+        assert_eq!(response.description.as_deref(), Some("Summarize input"));
+        assert_eq!(response.argument_count, 2);
+    }
+
+    #[test]
+    fn mcp_runtime_maps_and_serializes_content_blocks() {
+        let text = map_content_block(McpContentBlock::Text {
+            text: "hello".into(),
+        });
+        let image = map_content_block(McpContentBlock::Image {
+            data: "aW1hZ2U=".into(),
+            mime_type: "image/png".into(),
+        });
+        let resource = map_content_block(McpContentBlock::Resource {
+            resource: McpResourceContent {
+                uri: "file:///tmp/context.md".into(),
+                mime_type: Some("text/markdown".into()),
+                text: Some("# Context".into()),
+            },
+        });
+
+        assert_eq!(
+            serde_json::to_value(text).unwrap(),
+            json!({
+                "type": "text",
+                "text": "hello",
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(image).unwrap(),
+            json!({
+                "type": "image",
+                "data": "aW1hZ2U=",
+                "mime_type": "image/png",
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(resource).unwrap(),
+            json!({
+                "type": "resource",
+                "uri": "file:///tmp/context.md",
+                "name": "",
+                "mime_type": "text/markdown",
+            })
+        );
+    }
+
+    #[test]
+    fn mcp_runtime_maps_connected_health_response() {
+        let response = map_health_result(CheckHealthResult {
+            tools: vec![McpToolDef {
+                name: "search".into(),
+                description: Some("Search files".into()),
+                input_schema: Some(r#"{"type":"object"}"#.into()),
+            }],
+            healthy: true,
+            error: None,
+        });
+
+        assert!(response.healthy);
+        assert!(response.error.is_none());
+        assert_eq!(response.tools.len(), 1);
+        assert_eq!(response.tools[0].name, "search");
+        assert_eq!(
+            response.tools[0].description.as_deref(),
+            Some("Search files")
+        );
+        assert_eq!(
+            response.tools[0].input_schema.as_deref(),
+            Some(r#"{"type":"object"}"#)
+        );
+    }
+
+    #[test]
+    fn mcp_runtime_maps_error_health_response() {
+        let response = map_health_result(CheckHealthResult {
+            tools: Vec::new(),
+            healthy: false,
+            error: Some("No MCP servers configured".into()),
+        });
+
+        assert!(!response.healthy);
+        assert_eq!(response.error.as_deref(), Some("No MCP servers configured"));
+        assert!(response.tools.is_empty());
+    }
 }
