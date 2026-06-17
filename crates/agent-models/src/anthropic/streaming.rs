@@ -133,23 +133,10 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
             }
         }
         "message_start" => {
-            // Extract usage from message_start if present (includes cache stats).
-            let usage_value = &value["message"]["usage"];
-            if usage_value.is_object() {
-                let usage = crate::ModelUsage {
-                    input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
-                    output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
-                    cache_creation_input_tokens: usage_value["cache_creation_input_tokens"]
-                        .as_u64(),
-                    cache_read_input_tokens: usage_value["cache_read_input_tokens"].as_u64(),
-                };
-                // Emit as a Completed event so downstream consumers receive
-                // the initial input-token count and cache statistics.
-                // The final message_delta Completed will carry the output-token count.
-                events.push(AnthropicRawEvent::Event(ModelEvent::Completed {
-                    usage: Some(usage),
-                }));
-            }
+            // `message_start` is not terminal. Some Anthropic-compatible
+            // proxies include usage here before any content deltas; emitting a
+            // `Completed` event would make downstream consumers stop before
+            // reading the actual text/tool events.
         }
         "ping" => {
             // No model events to emit for pings
@@ -162,12 +149,37 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                 message: msg.to_string(),
             }));
         }
+        event_type if event_type.ends_with("_ERROR") || event_type.contains("ERROR") => {
+            events.push(AnthropicRawEvent::Event(ModelEvent::Failed {
+                message: proxy_error_message(&value, event_type),
+            }));
+        }
         _ => {
             // Unknown event type — skip
         }
     }
 
     Ok(events)
+}
+
+fn proxy_error_message(value: &serde_json::Value, event_type: &str) -> String {
+    if let Some(message) = value["message"].as_str() {
+        if let Ok(nested) = serde_json::from_str::<serde_json::Value>(message) {
+            if let Some(nested_message) = nested["error"]["message"]
+                .as_str()
+                .or_else(|| nested["message"].as_str())
+            {
+                return nested_message.to_string();
+            }
+        }
+        return message.to_string();
+    }
+
+    value["error"]["message"]
+        .as_str()
+        .or_else(|| value["error"]["type"].as_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("Anthropic proxy error: {event_type}"))
 }
 
 /// Parse a non-streaming (JSON) response from the Anthropic Messages API.

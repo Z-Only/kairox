@@ -91,6 +91,19 @@ fn parses_error_event() {
 }
 
 #[test]
+fn parses_proxy_error_event() {
+    let data = r#"{"type":"UPSTREAM_UNKNOWN_ERROR","message":"{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Upstream returned an error event\"}}","code":200}"#;
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        AnthropicRawEvent::Event(ModelEvent::Failed { message }) => {
+            assert!(message.contains("Upstream returned an error event"));
+        }
+        _ => panic!("expected Failed event"),
+    }
+}
+
+#[test]
 fn ignores_ping_and_start_events() {
     let data = r#"{"type":"ping"}"#;
     let events = parse_anthropic_raw_events(data).unwrap();

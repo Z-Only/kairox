@@ -615,6 +615,62 @@ async fn streams_tool_use_from_wiremock_server() {
 }
 
 #[tokio::test]
+async fn streams_text_when_proxy_sends_data_before_event_field() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    let sse_body = "data:{\"message\":{\"id\":\"msg_1\",\"content\":[],\"model\":\"claude-opus-4-6\",\"role\":\"assistant\",\"stop_reason\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":11,\"output_tokens\":1}},\"type\":\"message_start\"}\nevent:message_start\n\ndata:{\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\nevent:content_block_start\n\ndata:{\"delta\":{\"text\":\"OK\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\nevent:content_block_delta\n\ndata:{\"index\":0,\"type\":\"content_block_stop\"}\nevent:content_block_stop\n\ndata:{\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":11,\"output_tokens\":5}}\nevent:message_delta\n\ndata:{\"type\":\"message_stop\"}\nevent:message_stop\n\n";
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(sse_body))
+        .mount(&mock_server)
+        .await;
+
+    let config = AnthropicConfig {
+        base_url: mock_server.uri(),
+        api_key_env: "KAIROX_ANTHROPIC_REVERSED_SSE_KEY".into(),
+        default_model: "test-model".into(),
+        max_tokens: 4096,
+        connect_timeout_secs: super::config::default_connect_timeout_secs(),
+        request_timeout_secs: None,
+        headers: Vec::new(),
+        capability_overrides: None,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        extra_params: None,
+    };
+
+    std::env::set_var("KAIROX_ANTHROPIC_REVERSED_SSE_KEY", "test-key");
+    let client = AnthropicClient::new(config);
+
+    let request = ModelRequest::user_text("claude", "Reply with OK.");
+    let stream: BoxStream<'static, Result<ModelEvent>> = client.stream(request).await.unwrap();
+    let events: Vec<ModelEvent> = stream
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .filter_map(|event| event.ok())
+        .collect();
+
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, ModelEvent::TokenDelta(text) if text == "OK")),
+        "expected text delta from data-before-event SSE stream, got: {events:?}"
+    );
+    assert!(
+        matches!(events.first(), Some(ModelEvent::TokenDelta(text)) if text == "OK"),
+        "message_start must not emit terminal Completed before text, got: {events:?}"
+    );
+
+    std::env::remove_var("KAIROX_ANTHROPIC_REVERSED_SSE_KEY");
+}
+
+#[tokio::test]
 async fn streams_multi_chunk_tool_arguments() {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -857,7 +913,7 @@ fn cache_control_on_five_tool_results_only_last_three() {
 }
 
 #[test]
-fn parse_message_start_with_cache_stats() {
+fn parse_message_start_with_cache_stats_is_not_terminal() {
     use super::streaming::parse_anthropic_raw_events;
 
     let data = r#"{
@@ -874,20 +930,11 @@ fn parse_message_start_with_cache_stats() {
     }"#;
 
     let events = parse_anthropic_raw_events(data).unwrap();
-    assert_eq!(events.len(), 1);
-    match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
-            assert_eq!(u.input_tokens, 2048);
-            assert_eq!(u.output_tokens, 0);
-            assert_eq!(u.cache_creation_input_tokens, Some(1500));
-            assert_eq!(u.cache_read_input_tokens, Some(500));
-        }
-        _ => panic!("expected Completed with cache stats"),
-    }
+    assert!(events.is_empty());
 }
 
 #[test]
-fn parse_message_start_without_cache_stats() {
+fn parse_message_start_without_cache_stats_is_not_terminal() {
     use super::streaming::parse_anthropic_raw_events;
 
     let data = r#"{
@@ -902,15 +949,7 @@ fn parse_message_start_without_cache_stats() {
     }"#;
 
     let events = parse_anthropic_raw_events(data).unwrap();
-    assert_eq!(events.len(), 1);
-    match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
-            assert_eq!(u.input_tokens, 100);
-            assert_eq!(u.cache_creation_input_tokens, None);
-            assert_eq!(u.cache_read_input_tokens, None);
-        }
-        _ => panic!("expected Completed without cache stats"),
-    }
+    assert!(events.is_empty());
 }
 
 #[test]
