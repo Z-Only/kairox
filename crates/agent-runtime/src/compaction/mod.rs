@@ -6,8 +6,8 @@
 use crate::event_emitter::append_and_broadcast;
 use crate::session::SessionState;
 use agent_core::{
-    AgentId, CompactionReason, CoreError, DomainEvent, EventPayload, PrivacyClassification,
-    SessionId, WorkspaceId,
+    AgentId, CompactionReason, CompactionSkipReason, CoreError, DomainEvent, EventPayload,
+    PrivacyClassification, SessionId, WorkspaceId,
 };
 use agent_memory::{render_transcript, Compactor};
 use agent_models::ModelClient;
@@ -110,8 +110,10 @@ pub fn pick_compaction_boundary(
 ///
 /// Returns `Ok(())` even when the LLM failed (the fallback ensures the
 /// runtime always exits the busy state with a usable summary).
-/// Returns `Ok(())` (no events emitted) when there's not enough history
-/// to compact yet (`< KEEP_LAST_PAIRS + 1` complete pairs).
+/// Returns `Ok(())` when there's not enough history to compact yet
+/// (`< KEEP_LAST_PAIRS + 1` complete pairs). Manual requests emit
+/// `ContextCompactionSkipped { NotEnoughHistory }`; automatic threshold
+/// compaction remains silent for this steady-state path.
 #[allow(clippy::too_many_arguments)]
 pub async fn compact_session<S: EventStore>(
     store: &S,
@@ -174,7 +176,19 @@ async fn compact_inner<S: EventStore>(
         .map_err(|e| CoreError::InvalidState(e.to_string()))?;
 
     let Some((first_ts, last_ts)) = pick_compaction_boundary(&events, KEEP_LAST_PAIRS) else {
-        // Not enough history yet; nothing to compact.
+        if reason == CompactionReason::UserRequested {
+            let skipped = DomainEvent::new(
+                workspace_id,
+                session_id,
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::ContextCompactionSkipped {
+                    reason: CompactionSkipReason::NotEnoughHistory,
+                    ratio: 0.0,
+                },
+            );
+            append_and_broadcast(store, event_tx, &skipped).await?;
+        }
         return Ok(());
     };
 

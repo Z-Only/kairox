@@ -237,7 +237,7 @@ async fn compact_session_uses_sliding_window_fallback_after_llm_failures() {
 }
 
 #[tokio::test]
-async fn compact_session_returns_ok_when_history_too_short() {
+async fn compact_session_emits_history_too_short_skip_when_user_requested() {
     let (store, ws, ses) = fixture_session_with_n_pairs(2).await; // < 3 pairs
     let model = StubSummariser::new("ignored", 0);
     let (tx, _rx) = tokio::sync::broadcast::channel(64);
@@ -259,9 +259,59 @@ async fn compact_session_returns_ok_when_history_too_short() {
 
     // No CompactionSummary should be appended.
     let events = store.load_session(&ses).await.unwrap();
+    let skipped = events
+        .iter()
+        .find_map(|e| match &e.payload {
+            EventPayload::ContextCompactionSkipped { reason, ratio } => Some((*reason, *ratio)),
+            _ => None,
+        })
+        .expect("manual short-history compaction should emit skipped event");
+    assert_eq!(
+        skipped,
+        (agent_core::CompactionSkipReason::NotEnoughHistory, 0.0)
+    );
+    assert!(!events
+        .iter()
+        .any(|e| matches!(&e.payload, EventPayload::ContextCompactionStarted { .. })));
+    assert!(!events
+        .iter()
+        .any(|e| matches!(&e.payload, EventPayload::ContextCompactionCompleted { .. })));
     assert!(!events
         .iter()
         .any(|e| matches!(&e.payload, EventPayload::CompactionSummary { .. })));
+}
+
+#[tokio::test]
+async fn compact_session_stays_silent_for_threshold_short_history() {
+    let (store, ws, ses) = fixture_session_with_n_pairs(2).await; // < 3 pairs
+    let model = StubSummariser::new("ignored", 0);
+    let (tx, _rx) = tokio::sync::broadcast::channel(64);
+    let states: Arc<tokio::sync::Mutex<HashMap<String, crate::session::SessionState>>> =
+        Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+
+    compact_session(
+        &*store,
+        &tx,
+        &model,
+        "fast",
+        &states,
+        ws,
+        ses.clone(),
+        CompactionReason::Threshold { ratio: 0.95 },
+    )
+    .await
+    .expect("threshold short-history compaction should remain a silent no-op");
+
+    let events = store.load_session(&ses).await.unwrap();
+    assert!(!events.iter().any(|e| {
+        matches!(
+            &e.payload,
+            EventPayload::ContextCompactionStarted { .. }
+                | EventPayload::ContextCompactionSkipped { .. }
+                | EventPayload::ContextCompactionCompleted { .. }
+                | EventPayload::CompactionSummary { .. }
+        )
+    }));
 }
 
 #[test]

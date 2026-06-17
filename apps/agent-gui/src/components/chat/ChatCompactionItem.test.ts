@@ -131,6 +131,29 @@ describe("ChatCompactionItem", () => {
     expect(wrapper.find('[data-test="chat-compaction-ratio"]').exists()).toBe(false);
   });
 
+  it("renders the notEnoughHistory reason chip and hides a non-informative ratio", () => {
+    const wrapper = mountWithPlugins(ChatCompactionItem, {
+      props: {
+        status: {
+          type: "Skipped",
+          reason: { type: "NotEnoughHistory" },
+          ratio: 0
+        }
+      }
+    });
+
+    const root = wrapper.find('[data-test="chat-compaction-skipped"]');
+    expect(root.exists()).toBe(true);
+    expect(root.attributes("data-status")).toBe("skipped");
+
+    const reason = wrapper.find('[data-test="chat-compaction-skipped-reason"]');
+    expect(reason.exists()).toBe(true);
+    expect(reason.text()).toBe("not enough history");
+
+    expect(wrapper.find('[data-test="chat-compaction-ratio"]').exists()).toBe(false);
+    expect(root.text()).not.toContain("0%");
+  });
+
   it("omits the fallback chip when fallback was not used", () => {
     const wrapper = mountWithPlugins(ChatCompactionItem, {
       props: {

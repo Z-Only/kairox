@@ -29,6 +29,7 @@ use agent_gui_tauri::commands::{
     SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
     TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
+use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
 
@@ -37,10 +38,6 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| "../../src/generated/commands.ts".to_string());
     let out_path = std::path::Path::new(&out_path_str);
-
-    if let Some(parent) = out_path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create output directory");
-    }
 
     let specta_builder = tauri_specta::Builder::new()
         .commands(collect_commands![
@@ -303,7 +300,9 @@ fn main() {
         .typ::<AutonomousTaskView>()
         .typ::<CheckpointView>();
 
-    match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
+    match export_types_atomically(out_path, |tmp_path| {
+        specta_builder.export(specta_typescript::Typescript::default(), tmp_path)
+    }) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),
         Err(e) => {
             eprintln!("Export error: {e:?}");

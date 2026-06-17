@@ -371,12 +371,13 @@ pub fn append_compaction_skipped(lines: &mut Vec<Line>, reason: CompactionSkipRe
     let reason_phrase = match reason {
         CompactionSkipReason::AlreadyCompacting => "another compaction in flight",
         CompactionSkipReason::ThresholdDisabled => "threshold disabled",
+        CompactionSkipReason::NotEnoughHistory => "not enough history",
     };
     let mut spans = vec![Span::styled(
         format!("⊘ Compaction skipped: {reason_phrase}"),
         style.fg(theme::MUTED),
     )];
-    if !matches!(reason, CompactionSkipReason::ThresholdDisabled) {
+    if reason.has_informative_ratio() {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(format!("(ratio {ratio:.2})"), theme::muted()));
     }

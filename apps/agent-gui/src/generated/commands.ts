@@ -588,7 +588,10 @@ export type CompactionReason =
  *  `BelowThreshold` is intentionally not modeled — it is the steady state
  *  and would flood the event log.
  */
-export type CompactionSkipReason = { type: "AlreadyCompacting" } | { type: "ThresholdDisabled" };
+export type CompactionSkipReason =
+  | { type: "AlreadyCompacting" }
+  | { type: "ThresholdDisabled" }
+  | { type: "NotEnoughHistory" };
 
 export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
 

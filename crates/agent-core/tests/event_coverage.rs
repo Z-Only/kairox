@@ -4,7 +4,7 @@
 
 use agent_core::{
     context_types::{ContextSource, ContextUsage},
-    AgentRole, CompactionReason, EventPayload, TaskConfirmationOption,
+    AgentRole, CompactionReason, CompactionSkipReason, EventPayload, TaskConfirmationOption,
 };
 use std::collections::HashSet;
 
@@ -70,6 +70,10 @@ fn every_event_payload_variant_has_event_type() {
         EventPayload::ContextCompactionFailed {
             error: "timeout".into(),
             fallback_used: true,
+        },
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::NotEnoughHistory,
+            ratio: 0.0,
         },
         EventPayload::CompactionSummary {
             summary_id: "sum1".into(),
@@ -361,6 +365,10 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::ContextCompactionFailed {
             error: "timeout".into(),
             fallback_used: true,
+        },
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::NotEnoughHistory,
+            ratio: 0.0,
         },
         EventPayload::CompactionSummary {
             summary_id: "sum_abc".into(),
