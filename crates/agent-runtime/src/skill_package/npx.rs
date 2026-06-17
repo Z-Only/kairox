@@ -10,6 +10,10 @@ use agent_core::CoreError;
 
 use super::SkillPackageManager;
 
+#[cfg(test)]
+#[path = "npx_tests.rs"]
+mod npx_tests;
+
 pub struct NpxSkillsPackageManager;
 
 #[async_trait::async_trait]
