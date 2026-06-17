@@ -8,6 +8,10 @@ use agent_core::CoreError;
 use super::discovery;
 use super::SkillPackageManager;
 
+#[cfg(test)]
+#[path = "direct_tests.rs"]
+mod direct_tests;
+
 pub struct DirectDownloadPackageManager;
 
 #[async_trait::async_trait]
