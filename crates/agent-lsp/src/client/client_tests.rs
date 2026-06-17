@@ -3,14 +3,14 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use async_trait::async_trait;
 
-use crate::error::Result;
+use crate::error::{LspError, Result};
 use crate::transport::Transport;
-use crate::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use crate::types::{JsonRpcErrorObject, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 
 use super::LspClient;
 
 struct MockTransport {
-    responses: Arc<StdMutex<VecDeque<JsonRpcResponse>>>,
+    responses: Arc<StdMutex<VecDeque<std::result::Result<JsonRpcResponse, String>>>>,
     requests: Arc<StdMutex<Vec<JsonRpcRequest>>>,
     notifications: Arc<StdMutex<Vec<JsonRpcNotification>>>,
 }
@@ -25,12 +25,38 @@ impl MockTransport {
     }
 
     fn enqueue_response(&self, result: serde_json::Value) {
-        self.responses.lock().unwrap().push_back(JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
-            id: serde_json::Value::Null,
-            result: Some(result),
-            error: None,
-        });
+        self.responses
+            .lock()
+            .unwrap()
+            .push_back(Ok(JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: serde_json::Value::Null,
+                result: Some(result),
+                error: None,
+            }));
+    }
+
+    fn enqueue_error_response(&self, code: i64, message: &str) {
+        self.responses
+            .lock()
+            .unwrap()
+            .push_back(Ok(JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: serde_json::Value::Null,
+                result: None,
+                error: Some(JsonRpcErrorObject {
+                    code,
+                    message: message.to_string(),
+                    data: None,
+                }),
+            }));
+    }
+
+    fn enqueue_transport_error(&self, message: &str) {
+        self.responses
+            .lock()
+            .unwrap()
+            .push_back(Err(message.to_string()));
     }
 }
 
@@ -38,11 +64,16 @@ impl MockTransport {
 impl Transport for MockTransport {
     async fn send_request(&mut self, request: JsonRpcRequest) -> Result<JsonRpcResponse> {
         self.requests.lock().unwrap().push(request);
-        self.responses
+        match self
+            .responses
             .lock()
             .unwrap()
             .pop_front()
-            .ok_or_else(|| crate::error::LspError::Transport("no response queued".into()))
+            .ok_or_else(|| LspError::Transport("no response queued".into()))?
+        {
+            Ok(response) => Ok(response),
+            Err(msg) => Err(LspError::Transport(msg)),
+        }
     }
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> Result<()> {
@@ -180,12 +211,15 @@ async fn hover_returns_none_for_null_result() {
         "capabilities": {"hoverProvider": true}
     }));
     // Simulate null hover result.
-    mock.responses.lock().unwrap().push_back(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(2.into()),
-        result: None,
-        error: None,
-    });
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(2.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     client.initialize("file:///tmp/test").await.unwrap();
@@ -229,12 +263,15 @@ async fn find_references_returns_locations() {
 #[tokio::test]
 async fn find_references_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    });
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let locs = client
@@ -272,12 +309,15 @@ async fn workspace_symbols_returns_symbols() {
 #[tokio::test]
 async fn workspace_symbols_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    });
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let symbols = client.workspace_symbols("anything").await.unwrap();
@@ -321,12 +361,15 @@ async fn completion_returns_items_from_completion_list() {
 #[tokio::test]
 async fn completion_returns_empty_for_null_result() {
     let mock = MockTransport::new();
-    mock.responses.lock().unwrap().push_back(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: None,
-        error: None,
-    });
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     let items = client
@@ -358,12 +401,15 @@ async fn shutdown_sends_request_then_exit() {
     let requests = mock.requests.clone();
     let notifications = mock.notifications.clone();
     // Queue shutdown response.
-    mock.responses.lock().unwrap().push_back(JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: serde_json::Value::Number(1.into()),
-        result: Some(serde_json::Value::Null),
-        error: None,
-    });
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: Some(serde_json::Value::Null),
+            error: None,
+        }));
 
     let client = LspClient::new("test-server".to_string(), Box::new(mock));
     client.shutdown().await.unwrap();
@@ -444,4 +490,252 @@ async fn next_request_id_increments() {
     let reqs = requests.lock().unwrap();
     assert_eq!(reqs[0].id, serde_json::json!(1));
     assert_eq!(reqs[1].id, serde_json::json!(2));
+}
+
+// --- Error path and edge-case tests ---
+
+#[tokio::test]
+async fn goto_definition_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("connection reset");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client
+        .goto_definition("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("connection reset"));
+}
+
+#[tokio::test]
+async fn hover_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("broken pipe");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client
+        .hover("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("broken pipe"));
+}
+
+#[tokio::test]
+async fn completion_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("timeout");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client
+        .completion("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("timeout"));
+}
+
+#[tokio::test]
+async fn find_references_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("server crashed");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client
+        .find_references("file:///tmp/test/src/lib.rs", 1, 0)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("server crashed"));
+}
+
+#[tokio::test]
+async fn document_symbols_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("EOF");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client
+        .document_symbols("file:///tmp/test/src/lib.rs")
+        .await
+        .unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("EOF"));
+}
+
+#[tokio::test]
+async fn goto_definition_returns_empty_for_json_rpc_error_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_error_response(-32601, "method not found");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    // JSON-RPC error with result=None is treated as no result.
+    let locs = client
+        .goto_definition("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap();
+    assert!(locs.is_empty());
+}
+
+#[tokio::test]
+async fn hover_returns_none_for_json_rpc_error_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_error_response(-32600, "invalid request");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let hover = client
+        .hover("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap();
+    assert!(hover.is_none());
+}
+
+#[tokio::test]
+async fn completion_returns_empty_for_json_rpc_error_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_error_response(-32603, "internal error");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let items = client
+        .completion("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap();
+    assert!(items.is_empty());
+}
+
+#[tokio::test]
+async fn document_symbols_returns_empty_for_json_rpc_error_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_error_response(-32601, "method not supported");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let symbols = client
+        .document_symbols("file:///tmp/test/src/lib.rs")
+        .await
+        .unwrap();
+    assert!(symbols.is_empty());
+}
+
+#[tokio::test]
+async fn goto_definition_returns_empty_for_empty_array_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_response(serde_json::json!([]));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let locs = client
+        .goto_definition("file:///tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap();
+    assert!(locs.is_empty());
+}
+
+#[tokio::test]
+async fn hover_with_markup_content_response() {
+    let mock = MockTransport::new();
+    mock.enqueue_response(serde_json::json!({
+        "contents": {
+            "kind": "markdown",
+            "value": "```rust\nfn main() {}\n```"
+        },
+        "range": {
+            "start": {"line": 5, "character": 3},
+            "end": {"line": 5, "character": 7}
+        }
+    }));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let hover = client
+        .hover("file:///tmp/test/src/lib.rs", 5, 3)
+        .await
+        .unwrap();
+
+    let hover = hover.expect("expected Some hover");
+    match &hover.contents {
+        lsp_types::HoverContents::Markup(markup) => {
+            assert_eq!(markup.kind, lsp_types::MarkupKind::Markdown);
+            assert!(markup.value.contains("fn main()"));
+        }
+        other => panic!("expected MarkupContent, got {:?}", other),
+    }
+    let range = hover.range.expect("expected range");
+    assert_eq!(range.start.line, 5);
+    assert_eq!(range.start.character, 3);
+}
+
+#[tokio::test]
+async fn document_symbols_returns_empty_for_null_response() {
+    let mock = MockTransport::new();
+    mock.responses
+        .lock()
+        .unwrap()
+        .push_back(Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(1.into()),
+            result: None,
+            error: None,
+        }));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let symbols = client
+        .document_symbols("file:///tmp/test/src/lib.rs")
+        .await
+        .unwrap();
+    assert!(symbols.is_empty());
+}
+
+#[tokio::test]
+async fn find_references_converts_absolute_path_to_file_uri() {
+    let mock = MockTransport::new();
+    let requests = mock.requests.clone();
+    mock.enqueue_response(serde_json::json!([
+        {
+            "uri": "file:///tmp/test/src/lib.rs",
+            "range": {"start": {"line": 1, "character": 0}, "end": {"line": 1, "character": 5}}
+        }
+    ]));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let locs = client
+        .find_references("/tmp/test/src/lib.rs", 1, 0)
+        .await
+        .unwrap();
+
+    assert_eq!(locs.len(), 1);
+
+    let reqs = requests.lock().unwrap();
+    assert_eq!(reqs[0].method, "textDocument/references");
+    assert_eq!(
+        reqs[0].params.as_ref().unwrap()["textDocument"]["uri"],
+        "file:///tmp/test/src/lib.rs"
+    );
+}
+
+#[tokio::test]
+async fn initialize_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("connection refused");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client.initialize("file:///tmp/test").await.unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("connection refused"));
+}
+
+#[tokio::test]
+async fn shutdown_propagates_transport_error() {
+    let mock = MockTransport::new();
+    mock.enqueue_transport_error("pipe broken");
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let err = client.shutdown().await.unwrap_err();
+
+    assert!(matches!(err, LspError::Transport(_)));
+    assert!(err.to_string().contains("pipe broken"));
 }
