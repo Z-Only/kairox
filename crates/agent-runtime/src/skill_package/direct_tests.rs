@@ -1,14 +1,15 @@
-use agent_core::facade::{
-    InstallRemoteSkillRequest, SkillInstallTarget, SkillUpdateState,
-};
+use agent_core::facade::{InstallRemoteSkillRequest, SkillInstallTarget, SkillUpdateState};
 
-use super::DirectDownloadPackageManager;
 use super::super::SkillPackageManager;
+use super::DirectDownloadPackageManager;
 
 #[tokio::test]
 async fn search_returns_empty_vec() {
     let manager = DirectDownloadPackageManager;
-    let results = manager.search("anything").await.expect("search should succeed");
+    let results = manager
+        .search("anything")
+        .await
+        .expect("search should succeed");
     assert!(results.is_empty());
 }
 
@@ -52,10 +53,7 @@ async fn install_from_registry_rejects_plain_package_without_url() {
         .await
         .expect_err("should reject missing URL");
     let message = error.to_string();
-    assert!(
-        message.contains("no package_url"),
-        "message was: {message}"
-    );
+    assert!(message.contains("no package_url"), "message was: {message}");
     assert!(
         message.contains("plain-package-name"),
         "message was: {message}"

@@ -209,10 +209,7 @@ fn check_output_returns_unknown_for_unrecognized_text() {
 
 #[test]
 fn check_output_returns_unknown_for_empty_string() {
-    assert_eq!(
-        parse_npx_skills_check_output(""),
-        SkillUpdateState::Unknown
-    );
+    assert_eq!(parse_npx_skills_check_output(""), SkillUpdateState::Unknown);
 }
 
 #[test]
@@ -289,8 +286,7 @@ fn exit_error_does_not_truncate_short_stderr() {
     let status = std::os::windows::process::ExitStatusExt::from_raw(1);
 
     let short_stderr = "short error";
-    let error =
-        format_npx_exit_error(&["skills", "update", "x"], status, short_stderr.as_bytes());
+    let error = format_npx_exit_error(&["skills", "update", "x"], status, short_stderr.as_bytes());
     let message = error.to_string();
     assert!(message.contains("short error"), "message was: {message}");
     assert!(
@@ -335,7 +331,10 @@ fn append_target_args_adds_user_flag() {
 
 #[test]
 fn parse_install_count_valid_number() {
-    assert_eq!(parse_install_count("42", 1).expect("should parse"), Some(42));
+    assert_eq!(
+        parse_install_count("42", 1).expect("should parse"),
+        Some(42)
+    );
 }
 
 #[test]
@@ -350,10 +349,7 @@ fn parse_install_count_empty_returns_none() {
 
 #[test]
 fn parse_install_count_whitespace_only_returns_none() {
-    assert_eq!(
-        parse_install_count("   ", 1).expect("should parse"),
-        None
-    );
+    assert_eq!(parse_install_count("   ", 1).expect("should parse"), None);
 }
 
 #[test]
