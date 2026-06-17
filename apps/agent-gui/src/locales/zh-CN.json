@@ -1007,7 +1007,8 @@
         "label": "已跳过自动压缩",
         "reason": {
           "alreadyCompacting": "另一次压缩进行中",
-          "thresholdDisabled": "阈值已关闭"
+          "thresholdDisabled": "阈值已关闭",
+          "notEnoughHistory": "历史太短"
         }
       }
     }

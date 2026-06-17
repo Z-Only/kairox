@@ -781,6 +781,55 @@ fn skipped_compaction_threshold_disabled_renders_reason_without_ratio() {
 }
 
 // ---------------------------------------------------------------------------
+// 8d. ContextCompactionSkipped (NotEnoughHistory) → renders the manual
+//     short-history reason without a misleading "ratio" segment.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn skipped_compaction_not_enough_history_renders_reason_without_ratio() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![make_event_at(
+        500,
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::NotEnoughHistory,
+            ratio: 0.0,
+        },
+    )];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(120, 8, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("Compaction skipped"),
+        "skipped compaction should announce itself with `Compaction skipped`; got:\n{output}"
+    );
+    assert!(
+        output.contains("not enough history"),
+        "NotEnoughHistory should render the `not enough history` reason phrase; got:\n{output}"
+    );
+    assert!(
+        !output.contains("ratio"),
+        "NotEnoughHistory should omit the ratio segment; got:\n{output}"
+    );
+    assert!(
+        !output.contains("0.00"),
+        "NotEnoughHistory should omit the raw ratio value; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_RUNNING_GLYPH),
+        "skipped compaction must not render the running glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_COMPLETED_GLYPH),
+        "skipped compaction must not render the completed glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_FAILED_GLYPH),
+        "skipped compaction must not render the failed glyph; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 10. Multiple items in chronological order — assert row ordering
 //     matches `fold_stream` output (permission, tool, running
 //     compaction in that timestamp order, all rendered below the

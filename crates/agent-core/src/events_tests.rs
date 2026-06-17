@@ -325,6 +325,21 @@ fn context_compaction_skipped_round_trips() {
     let json = serde_json::to_value(&disabled).unwrap();
     assert_eq!(json["reason"]["type"], "ThresholdDisabled");
     assert_eq!(disabled.event_type(), "ContextCompactionSkipped");
+
+    let not_enough_history = EventPayload::ContextCompactionSkipped {
+        reason: CompactionSkipReason::NotEnoughHistory,
+        ratio: 0.0,
+    };
+    let json = serde_json::to_value(&not_enough_history).unwrap();
+    assert_eq!(json["reason"]["type"], "NotEnoughHistory");
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    assert!(matches!(
+        back,
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::NotEnoughHistory,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -569,6 +584,14 @@ mod serde_roundtrip {
     fn context_compaction_skipped_threshold_disabled() {
         roundtrip(&EventPayload::ContextCompactionSkipped {
             reason: CompactionSkipReason::ThresholdDisabled,
+            ratio: 0.0,
+        });
+    }
+
+    #[test]
+    fn context_compaction_skipped_not_enough_history() {
+        roundtrip(&EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::NotEnoughHistory,
             ratio: 0.0,
         });
     }

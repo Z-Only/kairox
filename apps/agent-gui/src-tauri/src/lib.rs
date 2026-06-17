@@ -3,6 +3,7 @@ pub mod commands;
 mod event_forwarder;
 pub mod specta;
 mod tracing_init;
+pub mod type_export;
 
 #[cfg(test)]
 use agent_config::Config;

@@ -13,7 +13,7 @@ const { t } = useI18n();
 
 const effectiveRatio = computed(() => {
   if (props.status.type === "Skipped" && typeof props.status.ratio === "number") {
-    return props.status.ratio;
+    return props.status.reason.type === "AlreadyCompacting" ? props.status.ratio : null;
   }
   return typeof props.ratio === "number" ? props.ratio : null;
 });
@@ -38,9 +38,13 @@ const reasonLabel = computed(() => {
 
 const skippedReasonLabel = computed(() => {
   if (props.status.type !== "Skipped") return null;
-  return props.status.reason.type === "AlreadyCompacting"
-    ? t("chatStream.compaction.skipped.reason.alreadyCompacting")
-    : t("chatStream.compaction.skipped.reason.thresholdDisabled");
+  if (props.status.reason.type === "AlreadyCompacting") {
+    return t("chatStream.compaction.skipped.reason.alreadyCompacting");
+  }
+  if (props.status.reason.type === "ThresholdDisabled") {
+    return t("chatStream.compaction.skipped.reason.thresholdDisabled");
+  }
+  return t("chatStream.compaction.skipped.reason.notEnoughHistory");
 });
 
 const dataStatus = computed<"running" | "completed" | "failed" | "skipped" | null>(() => {

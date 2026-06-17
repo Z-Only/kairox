@@ -32,6 +32,13 @@ pub enum CompactionReason {
 pub enum CompactionSkipReason {
     AlreadyCompacting,
     ThresholdDisabled,
+    NotEnoughHistory,
+}
+
+impl CompactionSkipReason {
+    pub fn has_informative_ratio(self) -> bool {
+        matches!(self, Self::AlreadyCompacting)
+    }
 }
 
 /// An image attachment produced by a tool invocation (e.g. screenshot).

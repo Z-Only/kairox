@@ -1007,7 +1007,8 @@
         "label": "Auto-compaction skipped",
         "reason": {
           "alreadyCompacting": "another compaction in flight",
-          "thresholdDisabled": "threshold disabled"
+          "thresholdDisabled": "threshold disabled",
+          "notEnoughHistory": "not enough history"
         }
       }
     }
