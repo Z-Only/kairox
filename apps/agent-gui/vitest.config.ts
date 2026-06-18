@@ -39,51 +39,52 @@ export default defineConfig({
       //   T3 (components, views)   — UI presentation layer
       // Aggregate (no glob) is the workspace floor.
       // Baseline: 2026-06-01 — floor(actual - 1), only raised.
-      // GitHub CI baseline 2026-06-11 (run 27352470387): all files stmts
-      // 91.53, br 85.09, fn 91.60, ln 92.76; global floors remain tight.
+      // GitHub CI baseline 2026-06-18 (run 27731357539): all files stmts
+      // 92.21, br 85.59, fn 92.13, ln 93.50; raise floors to prevent
+      // coverage regression.
       thresholds: {
-        statements: 91,
+        statements: 92,
         branches: 85,
-        functions: 91,
-        lines: 92,
-        // T3 — components recursive aggregate: stmts 89.70, br 84.87,
-        // fn 90.18, ln 90.78.
+        functions: 92,
+        lines: 93,
+        // T3 — components recursive aggregate.
         "src/components/**/*.{ts,vue}": {
-          statements: 89,
-          branches: 84,
-          functions: 88,
-          lines: 90
+          // CI baseline 2026-06-18: stmts 90.75, br 85.43, fn 90.83, ln 91.94.
+          statements: 90,
+          branches: 85,
+          functions: 90,
+          lines: 91
         },
-        // T3 — views recursive aggregate: stmts 95.83, br 90.53,
-        // fn 92.31, ln 95.58; raise branches 83 → 89.
+        // T3 — views recursive aggregate. CI baseline 2026-06-18:
+        // stmts 95.83, br 90.53, fn 92.31, ln 95.58.
         "src/views/**/*.vue": {
-          statements: 94,
-          branches: 89,
+          statements: 95,
+          branches: 90,
           functions: 92,
-          lines: 94
-        },
-        // T2 — stores recursive aggregate: stmts 94.20, br 84.73,
-        // fn 95.76, ln 95.68.
-        "src/stores/**/*.ts": {
-          statements: 94,
-          branches: 84,
-          functions: 94,
           lines: 95
         },
-        // T2 — composables recursive aggregate: stmts 94.18, br 86.52,
-        // fn 95.72, ln 95.68; tighten floors where current headroom is real.
-        "src/composables/**/*.ts": {
-          statements: 92,
+        // T2 — stores recursive aggregate.
+        "src/stores/**/*.ts": {
+          statements: 94,
+          // CI baseline 2026-06-18: stmts 94.47, br 85.28, fn 96.01, ln 95.91.
           branches: 85,
-          functions: 94,
-          lines: 94
+          functions: 95,
+          lines: 95
+        },
+        // T2 — composables recursive aggregate.
+        "src/composables/**/*.ts": {
+          // CI baseline 2026-06-18: stmts 94.20, br 86.19, fn 95.77, ln 95.65.
+          statements: 94,
+          branches: 86,
+          functions: 95,
+          lines: 95
         },
         // T1 — utils aggregate: stmts 95.83, br 100, fn 100, ln 95.83
         "src/utils/**/*.ts": {
-          statements: 94,
-          branches: 99,
-          functions: 99,
-          lines: 94
+          statements: 95,
+          branches: 100,
+          functions: 100,
+          lines: 95
         }
       }
     }
