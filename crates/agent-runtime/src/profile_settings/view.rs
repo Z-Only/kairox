@@ -46,6 +46,7 @@ pub async fn list_profile_settings(
                 api_key_env: def.api_key_env,
                 api_key: def.api_key,
                 client_identity: def.client_identity,
+                supports_reasoning: def.supports_reasoning,
                 source: "defaults".to_string(),
                 writable: false,
             },
@@ -70,6 +71,7 @@ pub async fn list_profile_settings(
                     api_key_env: def.api_key_env.clone(),
                     api_key: def.api_key.clone(),
                     client_identity: def.client_identity.clone(),
+                    supports_reasoning: def.supports_reasoning,
                     source: "defaults".to_string(),
                     writable: false,
                 },
@@ -153,6 +155,7 @@ pub async fn list_profile_settings(
                 api_key: None, // masked for security; use has_api_key to check presence
                 api_key_env: row.api_key_env,
                 client_identity: row.client_identity,
+                supports_reasoning: row.supports_reasoning,
                 has_api_key,
                 writable: row.writable,
                 config_path: config_path.map(|p| p.display().to_string()),

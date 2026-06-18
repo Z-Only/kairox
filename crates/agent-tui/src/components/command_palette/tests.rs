@@ -21,6 +21,7 @@ fn model_profile(alias: &str) -> ModelProfileEntry {
         api_key_env: None,
         client_identity: None,
         supports_reasoning: false,
+        supports_reasoning_override: Some(false),
         enabled: true,
         writable: true,
         source: "test".into(),

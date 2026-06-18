@@ -23,6 +23,7 @@ fn entry(alias: &str, supports_reasoning: bool) -> ModelProfileEntry {
         api_key_env: None,
         client_identity: None,
         supports_reasoning,
+        supports_reasoning_override: Some(supports_reasoning),
         enabled: true,
         writable: true,
         source: "profiles_toml".to_string(),
@@ -403,6 +404,7 @@ fn new_profile_editor_saves_full_profile_input() {
         api_key: None,
         api_key_env: Some("LOCAL_LLM_API_KEY".to_string()),
         client_identity: None,
+        supports_reasoning: None,
     });
 
     let (effects, commands) = overlay.handle_event(
@@ -487,6 +489,7 @@ fn edit_profile_editor_preserves_alias_and_enabled_state() {
         api_key: None,
         api_key_env: Some("ANTHROPIC_API_KEY".to_string()),
         client_identity: None,
+        supports_reasoning: None,
     });
 
     let (_, commands) =

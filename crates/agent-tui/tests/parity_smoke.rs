@@ -191,6 +191,7 @@ fn model_profile(alias: &str, supports_reasoning: bool) -> ModelProfileEntry {
         api_key_env: None,
         client_identity: None,
         supports_reasoning,
+        supports_reasoning_override: Some(supports_reasoning),
         enabled: true,
         writable: true,
         source: "test".into(),

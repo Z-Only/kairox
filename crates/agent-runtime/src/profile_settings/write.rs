@@ -89,6 +89,9 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
             table["client_identity"] = value(v.clone());
         }
     }
+    if let Some(v) = def.supports_reasoning {
+        table["supports_reasoning"] = value(v);
+    }
 }
 
 pub async fn delete_profile_in_file(config_path: &Path, alias: &str) -> agent_core::Result<()> {
@@ -136,6 +139,7 @@ async fn settings_view_from_file(
         api_key: None, // masked for security
         api_key_env: row.api_key_env,
         client_identity: row.client_identity,
+        supports_reasoning: row.supports_reasoning,
         has_api_key: false,
         writable: true,
         config_path: Some(config_path.display().to_string()),
@@ -192,6 +196,11 @@ fn upsert_profile_table(document: &mut DocumentMut, input: &ProfileSettingsInput
     set_optional_string(profile_table, "api_key", &input.api_key);
     set_optional_string(profile_table, "api_key_env", &input.api_key_env);
     set_optional_string(profile_table, "client_identity", &input.client_identity);
+    set_optional_bool(
+        profile_table,
+        "supports_reasoning",
+        input.supports_reasoning,
+    );
 }
 
 fn ensure_profile_table<'a>(document: &'a mut DocumentMut, alias: &str) -> &'a mut Table {
@@ -234,6 +243,15 @@ fn set_optional_int_32(table: &mut Table, key: &str, val: Option<u32>) {
 fn set_optional_float(table: &mut Table, key: &str, val: Option<f32>) {
     match val {
         Some(v) => table[key] = value(v as f64),
+        None => {
+            table.remove(key);
+        }
+    }
+}
+
+fn set_optional_bool(table: &mut Table, key: &str, val: Option<bool>) {
+    match val {
+        Some(v) => table[key] = value(v),
         None => {
             table.remove(key);
         }

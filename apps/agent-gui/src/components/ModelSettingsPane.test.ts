@@ -61,6 +61,7 @@ const writableProfile = {
   api_key_env: "OPENAI_API_KEY",
   api_key: null,
   client_identity: null,
+  supports_reasoning: null,
   has_api_key: true,
   writable: true,
   config_path: "/tmp/config.toml",
@@ -82,6 +83,7 @@ const readOnlyProfile = {
   api_key_env: "OPENAI_API_KEY",
   api_key: null,
   client_identity: null,
+  supports_reasoning: null,
   has_api_key: true,
   writable: false,
   config_path: null,
@@ -103,6 +105,7 @@ const projectOnlyProfile = {
   api_key_env: null,
   api_key: null,
   client_identity: "claude_code",
+  supports_reasoning: null,
   has_api_key: false,
   writable: true,
   config_path: "/tmp/config.toml",
@@ -390,6 +393,28 @@ describe("ModelSettingsPane", () => {
     );
   });
 
+  it("saves explicit reasoning support from the add dialog", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-form-alias"]').setValue("reasoning-model");
+    await wrapper.find('[data-test="model-form-provider"]').setValue("anthropic");
+    await wrapper.find('[data-test="model-form-model-id"]').setValue("claude-opus-4-6");
+    await wrapper.find('[data-test="model-form-supports-reasoning"]').setValue(true);
+    await wrapper.find('[data-test="model-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        alias: "reasoning-model",
+        supports_reasoning: true
+      })
+    );
+  });
+
   it("edit dialog opens pre-filled and saves changes", async () => {
     const wrapper = mountPane("user");
     await flushPromises();
@@ -408,6 +433,28 @@ describe("ModelSettingsPane", () => {
 
     expect(mockedCommands.upsertProfileSettings).toHaveBeenCalledWith(
       expect.objectContaining({ provider: "anthropic" })
+    );
+  });
+
+  it("prefills and preserves explicit reasoning support when editing", async () => {
+    mockedCommands.listProfileSettings.mockResolvedValueOnce(
+      ok([{ ...writableProfile, supports_reasoning: true } as ProfileSettingsView])
+    );
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-edit-my-model"]').trigger("click");
+    await flushPromises();
+
+    const checkbox = wrapper.find('[data-test="model-edit-supports-reasoning"]');
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true);
+    await wrapper.find('[data-test="model-edit-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supports_reasoning: true
+      })
     );
   });
 
