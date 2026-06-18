@@ -22,6 +22,31 @@ model_id = "base-fast"
 }
 
 #[test]
+fn default_home_dir_prefers_kairox_home_over_home() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
+    let previous_home = std::env::var_os("HOME");
+    let previous_kairox_home = std::env::var_os("KAIROX_HOME");
+    let home = tempfile::tempdir().expect("home tempdir");
+    let kairox_home = tempfile::tempdir().expect("kairox home tempdir");
+
+    std::env::set_var("HOME", home.path());
+    std::env::set_var("KAIROX_HOME", kairox_home.path());
+
+    let resolved = agent_runtime::ui_bootstrap::default_home_dir();
+
+    match previous_home {
+        Some(value) => std::env::set_var("HOME", value),
+        None => std::env::remove_var("HOME"),
+    }
+    match previous_kairox_home {
+        Some(value) => std::env::set_var("KAIROX_HOME", value),
+        None => std::env::remove_var("KAIROX_HOME"),
+    }
+
+    assert_eq!(resolved, kairox_home.path());
+}
+
+#[test]
 fn profiles_overlay_adds_missing_profiles_without_replacing_base_profiles() {
     let tmp = tempfile::tempdir().expect("tempdir");
     std::fs::write(
