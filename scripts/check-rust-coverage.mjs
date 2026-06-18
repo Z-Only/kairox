@@ -21,7 +21,7 @@ const metrics = ["functions", "lines"];
 // floor and a tier-specific gate). Stricter tiers must pass first; relaxed
 // tiers act as a safety net against report truncation.
 //
-// 2026-06-11: thresholds track the latest successful GitHub CI baseline and
+// 2026-06-18: thresholds track the latest successful GitHub CI baseline and
 // stay just below measured coverage so new regressions fail without treating
 // prior inline-test extraction measurement shifts as production regressions.
 const groups = [
@@ -42,8 +42,10 @@ const groups = [
       // measured coverage (floor ≈ actual − 1.5pp).
       // GitHub CI baseline 2026-06-11 (run 27352470387): functions 39.70%,
       // lines 86.74% (50 files); tighten floors to prevent regression.
-      functions: 38,
-      lines: 85
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 39.74%,
+      // lines 86.67% (50 files); raise floors to current measured coverage.
+      functions: 39,
+      lines: 86
     }
   },
   // Tier 2A — High-risk runtime hot path.
@@ -89,8 +91,10 @@ const groups = [
       // Raising lines floor 67 → 78 to track measured coverage (floor ≈ actual − 1.6pp).
       // GitHub CI baseline 2026-06-11 (run 27352470387): functions 31.51%,
       // lines 81.72% (149 files); restore the functions gate and raise lines.
-      functions: 30,
-      lines: 80
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 32.85%,
+      // lines 82.62% (150 files); raise floors to current measured coverage.
+      functions: 32,
+      lines: 82
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
@@ -113,8 +117,10 @@ const groups = [
       // GitHub CI baseline 2026-06-11 (run 27352470387): functions 6.87%,
       // lines 32.44% (22 files); keep functions near the macro-heavy adapter
       // limit and tighten the lines floor.
-      functions: 5,
-      lines: 30
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 9.62%,
+      // lines 41.10% (22 files); raise floors to current measured coverage.
+      functions: 9,
+      lines: 41
     }
   },
   // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
@@ -172,8 +178,10 @@ const groups = [
       // GitHub CI baseline 2026-06-11 (run 27352470387): functions 59.24%,
       // lines 79.17% (43 files); restore a meaningful functions gate while
       // keeping the lines floor below the headless-CI baseline.
-      functions: 58,
-      lines: 78
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 60.22%,
+      // lines 79.88% (43 files); raise floors to current measured coverage.
+      functions: 60,
+      lines: 79
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
@@ -196,12 +204,14 @@ const groups = [
       // scheduler tests extracted to scheduler_tests.rs (excluded from src function counts); floor lowered 27 → 25.
       // CI baseline 2026-06-08: functions 36.02%, lines 64.03% (128 files).
       // Raising functions floor 25 → 35 to track measured coverage (floor ≈ actual − 1pp).
-      functions: 35,
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 37.02%,
+      // lines 64.36% (128 files); raise floors to current measured coverage.
+      functions: 37,
       // view tests extracted to view_tests.rs: those test lines leave the gated T4 src tier's covered-lines numerator (measurement shift, not a production regression); post-shift baseline ~61-62%, floor lowered 62 → 60.
       // CI baseline 2026-06-08: lines 64.03%; raising 60 → 62.
       // GitHub CI baseline 2026-06-11 (run 27352470387): lines 64.18%;
       // raise one more point to protect the latest baseline.
-      lines: 63
+      lines: 64
     }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
@@ -249,8 +259,10 @@ const groups = [
       // CI baseline 2026-06-08: functions 31.64%, lines 70.21% (397 files).
       // Raising functions floor 28 → 30 and lines floor 64 → 69 to track
       // measured coverage (floor ≈ actual − 1.5pp).
-      functions: 30,
-      lines: 69
+      // GitHub CI baseline 2026-06-18 (run 27732500249): functions 33.08%,
+      // lines 71.81% (402 files); raise floors to current measured coverage.
+      functions: 33,
+      lines: 71
     }
   }
 ];
