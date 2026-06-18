@@ -43,8 +43,10 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - `<memory>` marker protocol with session / user / workspace scopes and approval semantics.
 - Memory browser in the GUI; deletion via TUI trace panel.
 - Tiktoken-based context budgeting with auto-compaction at a configurable threshold.
+<!-- current-release:memory-context:start -->
 - Workspace RAG with `WorkspaceRagIndex`, pluggable embedding backends, and turn-time context injection.
 - Profile-scoped external knowledge bases with SQLite FTS today and config models for Tantivy, Bedrock Knowledge Bases, Pinecone, and Weaviate.
+<!-- current-release:memory-context:end -->
 
 ### UIs
 
