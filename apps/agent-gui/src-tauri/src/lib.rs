@@ -179,6 +179,7 @@ pub fn run() {
             crate::commands::send_message,
             crate::commands::send_message_to_session,
             crate::commands::send_message_to_session_and_wait,
+            crate::commands::send_message_to_session_if_idle,
             crate::commands::switch_session,
             crate::commands::get_trace,
             crate::commands::export_trace,

@@ -307,6 +307,71 @@ async fn send_message_strict_queues_same_session_turn_when_actor_turn_running() 
 }
 
 #[tokio::test]
+async fn send_message_if_idle_rejects_running_session() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let stream_calls = Arc::new(AtomicUsize::new(0));
+    let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+    let runtime = Arc::new(LocalRuntime::new(store, model));
+
+    let workspace = runtime
+        .open_workspace("/tmp/workspace".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "blocking".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    let first_runtime = runtime.clone();
+    let first_workspace_id = workspace.workspace_id.clone();
+    let first_session_id = session_id.clone();
+    let first = tokio::spawn(async move {
+        first_runtime
+            .send_message(SendMessageRequest {
+                workspace_id: first_workspace_id,
+                session_id: first_session_id,
+                content: "first".into(),
+                display_content: None,
+                attachments: vec![],
+            })
+            .await
+    });
+    started_rx.await.unwrap();
+
+    let result = runtime
+        .send_message_if_idle(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "second".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await;
+
+    match result {
+        Err(agent_core::CoreError::SessionBusy {
+            session_id: id,
+            reason,
+        }) => {
+            assert_eq!(id, session_id.to_string());
+            assert!(reason.contains("running"), "unexpected reason: {reason}");
+        }
+        other => panic!("expected SessionBusy, got {other:?}"),
+    }
+    assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+
+    release_tx.send(()).unwrap();
+    first.await.unwrap().unwrap();
+}
+
+#[tokio::test]
 async fn send_message_queued_queues_same_session_turn_when_actor_turn_running() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let (started_tx, started_rx) = oneshot::channel();

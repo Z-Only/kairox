@@ -15,6 +15,11 @@ pub(crate) enum ActorMessage {
         executor: Arc<dyn TurnExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
+    RunTurnIfIdle {
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    },
     Cancel {
         reason: String,
         reply: oneshot::Sender<agent_core::Result<()>>,
@@ -131,6 +136,23 @@ impl SessionActorHandle {
         let (reply, result) = oneshot::channel();
         self.sender
             .send(ActorMessage::RunTurn {
+                request,
+                executor,
+                reply,
+            })
+            .await
+            .map_err(|_| actor_stopped())?;
+        result.await.map_err(|_| actor_stopped())?
+    }
+
+    pub(crate) async fn run_turn_if_idle(
+        &self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+    ) -> agent_core::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender
+            .send(ActorMessage::RunTurnIfIdle {
                 request,
                 executor,
                 reply,
@@ -280,6 +302,14 @@ impl SessionExecutionActor {
                 .await;
                 true
             }
+            ActorMessage::RunTurnIfIdle {
+                request,
+                executor,
+                reply,
+            } => {
+                self.handle_run_turn_if_idle(request, executor, reply).await;
+                true
+            }
             ActorMessage::Cancel { reason, reply } => {
                 self.handle_cancel(reason, reply);
                 true
@@ -359,6 +389,50 @@ impl SessionExecutionActor {
 
         self.execute_or_start_command(command).await;
         self.drain_pending_until_running().await;
+    }
+
+    async fn handle_run_turn_if_idle(
+        &mut self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    ) {
+        match &self.state {
+            ExecutionState::Running { turn_id } => {
+                let _ = reply.send(Err(actor_busy(
+                    &request.session_id,
+                    format!("session execution running ({turn_id})"),
+                )));
+                return;
+            }
+            ExecutionState::Cancelling { turn_id } => {
+                let _ = reply.send(Err(actor_busy(
+                    &request.session_id,
+                    format!("session execution cancelling ({turn_id})"),
+                )));
+                return;
+            }
+            ExecutionState::Stopped => {
+                let _ = reply.send(Err(actor_stopped()));
+                return;
+            }
+            ExecutionState::Idle => {}
+        }
+
+        if self.running.is_some() {
+            let _ = reply.send(Err(actor_busy(
+                &request.session_id,
+                "session execution running".to_string(),
+            )));
+            return;
+        }
+
+        self.handle_command(PendingCommand::RunTurn(PendingTurn {
+            request,
+            executor,
+            reply,
+        }))
+        .await;
     }
 
     async fn execute_or_start_command(&mut self, command: PendingCommand) {
@@ -497,6 +571,13 @@ fn actor_stopped() -> CoreError {
 
 fn actor_cancelled(reason: &str) -> CoreError {
     CoreError::InvalidState(format!("session execution cancelled: {reason}"))
+}
+
+fn actor_busy(session_id: &SessionId, reason: String) -> CoreError {
+    CoreError::SessionBusy {
+        session_id: session_id.to_string(),
+        reason,
+    }
 }
 
 fn schedule_force_abort(sender: mpsc::Sender<ActorMessage>, turn_id: String) {

@@ -15,6 +15,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
+const DEFAULT_AGENT_LOOP_TOOL_TIMEOUT_MS: u64 = 30_000;
+const SHELL_EXEC_AGENT_LOOP_TIMEOUT_MS: u64 = 300_000;
+
 /// Result of executing a batch of tool calls.
 pub(crate) struct ToolLoopResult {
     /// Formatted tool results ready to be appended to a ModelRequest via
@@ -129,13 +132,14 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
         }
 
         let preview = format!("{}({})", tc.name, tc.arguments);
+        let timeout_ms = tool_invocation_timeout_ms(&tc.name);
         let risk_invocation = ToolInvocation {
             tool_id: tc.name.clone(),
             arguments: tc.arguments.clone(),
             workspace_id: workspace_id.to_string(),
             session_id: session_id.to_string(),
             preview: preview.clone(),
-            timeout_ms: 30_000,
+            timeout_ms,
             output_limit_bytes: 102_400,
         };
 
@@ -241,7 +245,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 workspace_id: workspace_id.to_string(),
                 session_id: session_id.to_string(),
                 preview: format!("{}({})", tc.name, tc.arguments),
-                timeout_ms: 30_000,
+                timeout_ms,
                 output_limit_bytes: 102_400,
             };
 
@@ -458,6 +462,14 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     }
 
     Ok(ToolLoopResult { tool_results })
+}
+
+fn tool_invocation_timeout_ms(tool_id: &str) -> u64 {
+    if tool_id == "shell.exec" {
+        SHELL_EXEC_AGENT_LOOP_TIMEOUT_MS
+    } else {
+        DEFAULT_AGENT_LOOP_TOOL_TIMEOUT_MS
+    }
 }
 
 #[cfg(test)]
