@@ -2,7 +2,7 @@
 
 ## Project
 
-Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI + ratatui TUI. It includes native skills and plugins, GUI-managed user/project instructions, and per-project `.kairox/` config discovery.
+Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI + ratatui TUI. It includes native skills and plugins, GUI-managed user/project instructions, and layered user/project/local `.kairox/` config discovery.
 
 ## Language & tooling
 
@@ -15,14 +15,17 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 ## Crate structure & dependency direction
 
 ```
-agent-core ← agent-runtime ← agent-tui / agent-gui (Tauri)
-agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp, agent-skills, agent-plugins
+agent-core ← agent-runtime ← agent-tui / agent-gui (Tauri) / agent-eval
+agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp, agent-lsp, agent-skills, agent-plugins, agent-sdk
 agent-tools → agent-mcp (re-exports McpServerDef/McpTransportDef, provides McpToolAdapter)
 agent-skills provides the native skills system for reusable prompt/tool/workflow capabilities
 agent-plugins parses plugin manifests and inventories for plugin-provided skills, tools, hooks, and MCP servers
 agent-eval provides the `kairox-eval` headless JSONL scenario harness with list/tag filtering, fail-fast runs, summaries, combined reports, and expectations
-agent-config supports `.kairox/` project-level config discovery and layered instruction settings
-agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config, agent-mcp, agent-skills
+agent-config supports layered config discovery (defaults → user → project → local), knowledge bases, hooks, LSP/DAP servers, and layered instruction settings
+agent-memory owns durable memory, context assembly, workspace RAG, and knowledge-base retriever boundaries
+agent-lsp provides LSP/DAP clients, transports, and server lifecycle for code intelligence and debugging
+agent-sdk provides an embeddable runtime API (`KairoxSdk`, `SdkBuilder`, `SdkSession`) for external harnesses, CI/CD, and custom UIs
+agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config, agent-mcp, agent-lsp, agent-skills
 ```
 
 Never create reverse dependencies. New domain types/events go in `agent-core` first.
@@ -34,7 +37,7 @@ Never create reverse dependencies. New domain types/events go in `agent-core` fi
 - **Trait boundaries**: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool`, `Transport`, `AgentStrategy` — prefer `Arc<dyn Trait>` or generics
 - **Async**: Tokio + `async_trait` for async trait methods
 - **Testing**: Rust crate-local tests live in sibling `src/*_tests.rs` files; crate integration tests live under `crates/<crate>/tests/`. Use `FakeModelClient` / `ToolCallingModel` for runtime tests and in-memory SQLite for store tests. Web Vitest specs are colocated as `*.test.ts`; Playwright E2E specs live under `apps/agent-gui/e2e/` with domain mock fragments in `e2e/fixtures/tauri-mock/`; real desktop scenarios live under `apps/agent-gui/e2e-pilot/`.
-- **Built-in tools**: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, and `monitor.stop`
+- **Built-in tools**: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, `monitor.stop`, `browser.action`, `browser.batch`, and `computer.use`
 - **MCP**: transports include stdio, SSE, and Streamable HTTP; config uses `type = "stdio" | "sse" | "streamable_http"`
 - **Permissions**: approval and sandbox are separate axes (`ApprovalPolicy` × `SandboxPolicy`); legacy `PermissionMode` is removed
 - **Tauri IPC**: Rust `#[tauri::command]` in `commands.rs` → Vue calls `invoke()` → events via `event_forwarder.rs` + `useTauriEvents.ts` (filters by current session)

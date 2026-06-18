@@ -40,7 +40,7 @@ just worktree feat/my-feature
 cd .worktrees/feat-my-feature
 ```
 
-`just worktree` creates `.worktrees/feat-my-feature/` branched from `origin/main` and runs `bun install` so Husky pre-commit hooks register.
+`just worktree` creates `.worktrees/feat-my-feature/` branched from local `main` and runs `bun install` so Husky pre-commit hooks register. Sync local `main` first when you want a fresh upstream base.
 
 Branch prefix conventions: `feat/`, `fix/`, `refactor/`, `test/`, `docs/`, `chore/`, `ci/`. Use one that matches the change.
 

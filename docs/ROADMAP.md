@@ -1,7 +1,7 @@
 # Kairox Roadmap
 
 > Living document. Updated as milestones ship or priorities shift.
-> Current version: **0.37.0** (2026-06-05).
+> Current version: **0.41.0** (2026-06-18).
 
 ## Design principles
 
@@ -17,26 +17,26 @@
 
 Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCode, Aider, Cline, Goose, Continue).
 
-| Capability                                | Kairox status                                         | Industry best-in-class                                               |
-| ----------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
-| Agent loop + tool dispatch                | ✅ Event-sourced session actors                       | Claude Code, Codex CLI                                               |
-| Multi-agent orchestration                 | ✅ Planner/Worker/Reviewer + DAG executor             | Ahead of most; Devin-style long-running is next frontier             |
-| MCP integration                           | ✅ stdio/SSE/Streamable HTTP + marketplace            | Claude Code parity                                                   |
-| Tool safety (approval + sandbox)          | ✅ Orthogonal ApprovalPolicy × SandboxPolicy          | Ahead of most; Codex CLI has similar sandbox                         |
-| Prompt caching                            | ✅ Cache breakpoints + hit-rate tracking              | Claude quickstarts best-practices shows optimal breakpoint placement |
-| Memory + context assembly                 | ✅ Multi-scope memory + tiktoken budgets + compaction | Competitive; RAG retrieval is gap                                    |
-| Skills + plugins                          | ✅ Native skills + plugin manifests + marketplace     | Ahead of most OSS agents                                             |
-| Eval harness                              | ✅ JSONL scenarios + tag filters + expectations       | Competitive with SWE-bench style harnesses                           |
-| LSP / code intelligence                   | ✅ Native LSP + DAP                                   | OpenCode, Continue have similar                                      |
-| Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough            | Claude Code, Codex use provider-hosted tools                         |
-| Multimodal context management             | ✅ Image pruning strategies                           | Claude quickstarts has reference impl                                |
-| Browser / computer use                    | ✅ Browser tool + Computer use primitives             | Claude quickstarts, browser-use, Cline                               |
-| Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                  | SWE-Agent, Moatless                                                  |
-| Agent self-reflection / advisor           | ✅ Inline advisor review before tool execution        | Anthropic BetaAdvisorTool (beta)                                     |
-| Long-running autonomous mode              | ✅ Autonomous controller + session chaining           | Claude quickstarts autonomous-coding, Codex background tasks         |
-| Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming         | Claude Agent SDK, Goose extensible-agent                             |
-| Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
-| Git-aware workflows                       | ✅ Git context injection + branch memory scope        | Aider, Claude Code have deep git integration                         |
+| Capability                                | Kairox status                                                            | Industry best-in-class                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Agent loop + tool dispatch                | ✅ Event-sourced session actors                                          | Claude Code, Codex CLI                                               |
+| Multi-agent orchestration                 | ✅ Planner/Worker/Reviewer + DAG executor                                | Ahead of most; Devin-style long-running is next frontier             |
+| MCP integration                           | ✅ stdio/SSE/Streamable HTTP + marketplace                               | Claude Code parity                                                   |
+| Tool safety (approval + sandbox)          | ✅ Orthogonal ApprovalPolicy × SandboxPolicy                             | Ahead of most; Codex CLI has similar sandbox                         |
+| Prompt caching                            | ✅ Cache breakpoints + hit-rate tracking                                 | Claude quickstarts best-practices shows optimal breakpoint placement |
+| Memory + context assembly                 | ✅ Multi-scope memory + tiktoken budgets + compaction + RAG/KB retrieval | Competitive; local-first RAG and scoped KB connectors are in place   |
+| Skills + plugins                          | ✅ Native skills + plugin manifests + marketplace                        | Ahead of most OSS agents                                             |
+| Eval harness                              | ✅ JSONL scenarios + tag filters + expectations                          | Competitive with SWE-bench style harnesses                           |
+| LSP / code intelligence                   | ✅ Native LSP + DAP                                                      | OpenCode, Continue have similar                                      |
+| Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough                               | Claude Code, Codex use provider-hosted tools                         |
+| Multimodal context management             | ✅ Image pruning strategies                                              | Claude quickstarts has reference impl                                |
+| Browser / computer use                    | ✅ Browser tool + Computer use primitives                                | Claude quickstarts, browser-use, Cline                               |
+| Trajectory recording                      | ✅ Runtime auto-capture + GUI viewer                                     | SWE-Agent, Moatless                                                  |
+| Agent self-reflection / advisor           | ✅ Inline advisor review before tool execution                           | Anthropic BetaAdvisorTool (beta)                                     |
+| Long-running autonomous mode              | ✅ Autonomous controller + session chaining                              | Claude quickstarts autonomous-coding, Codex background tasks         |
+| Embedded SDK mode                         | ✅ `agent-sdk` crate with builder + streaming                            | Claude Agent SDK, Goose extensible-agent                             |
+| Streaming UX                              | ⚠️ Basic event forwarding                                                | Claude Code, Codex CLI have rich streaming                           |
+| Git-aware workflows                       | ✅ Git context injection + branch memory scope                           | Aider, Claude Code have deep git integration                         |
 
 ---
 
@@ -63,7 +63,7 @@ Apply the cache breakpoint strategy from Anthropic's computer-use best-practices
 
 Support Anthropic's server-hosted tool format:
 
-- `code_execution` (`type: "code_execution_20250522"`) — sandboxed code execution on Anthropic's infra.
+- `code_execution` (`type: "code_execution_20250825"`) — sandboxed code execution on Anthropic's infra.
 - `web_search` (`type: "web_search_20250305"`) — provider-side web search with domain filtering.
 
 These are _not_ local tools — they're API-level tool types that Anthropic executes server-side. The model adapter needs to pass them through correctly, and the config layer needs to let users enable/disable them per profile.
@@ -232,7 +232,7 @@ Complete. The advisor (self-reflection) system now includes:
 
 ---
 
-## Phase 4 — Knowledge and retrieval (v0.43+)
+## Phase 4 — Knowledge and retrieval (v0.41+) ✅
 
 ### 4.1 Workspace RAG (vector retrieval) ✅
 

@@ -1,5 +1,7 @@
 # Roadmap
 
+> Current version: **0.41.0** (2026-06-18).
+
 ## Near term
 
 - ✅ Implement memory layer with durable/session/user/workspace scopes
@@ -80,6 +82,8 @@
 - ✅ Add embeddable `agent-sdk` crate for programmatic runtime API (#925)
 - ✅ Add software update settings to GUI general settings (#882)
 - ✅ Enrich eval harness with regex matching, multi-turn scenarios, trajectory capture, and regression comparison (#881)
+- ✅ Add workspace RAG indexing with pluggable embedding backends and turn-time retrieval context injection
+- ✅ Add profile-scoped knowledge base retrieval with SQLite FTS runtime support and config models for external KB providers
 
 ## Mid term
 

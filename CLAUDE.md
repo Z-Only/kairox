@@ -76,7 +76,7 @@ Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps):
 - `just test-fullstack` — full-stack runtime integration tests
 - `just test-mcp` — MCP-focused tests across `agent-mcp`, `agent-tools`, `agent-config`, `agent-runtime`
 - `just test-e2e` — Playwright E2E tests for the GUI frontend (uses Tauri IPC mock)
-- `just test-pilot` — real Tauri desktop E2E scenarios (requires `tauri-pilot-cli`; use `xvfb-run -a` on Linux)
+- `just test-pilot` — starts the Tauri dev app with `--features pilot` and runs real desktop E2E scenarios (requires `tauri-pilot-cli`; use `xvfb-run -a` on Linux)
 - `just test-live` — live GitHub Models smoke test (self-skips without `GITHUB_TOKEN`)
 - `just test-all` — unit + integration + fullstack + GUI Vitest
 

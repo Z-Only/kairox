@@ -1,14 +1,14 @@
 ---
 title: Memory & Context
-description: The `<memory>` marker protocol, memory scopes, context assembly with tiktoken budgets, and manual + automatic compaction.
+description: The `<memory>` marker protocol, scoped memory, workspace retrieval, context assembly with tiktoken budgets, and compaction.
 outline: [2, 3]
 ---
 
 # Memory & Context
 
-Kairox treats memory as a first-class part of every turn. Long-running sessions need a way to remember user preferences, project conventions, and ongoing work without re-pasting them every prompt — and they need a way to drop old context when the model's window fills up. Memory and compaction are the two halves of that story.
+Kairox treats memory, retrieval, and compaction as first-class parts of every turn. Long-running sessions need a way to remember user preferences, project conventions, and ongoing work without re-pasting them every prompt; they also need retrieval for relevant workspace documents and a way to drop old context when the model's window fills up.
 
-This page explains how the LLM proposes memories with `<memory>` tags, how the memory store keeps them scoped, how the context assembler builds the prompt for every turn under a tiktoken budget, and how compaction shrinks history without losing the thread.
+This page explains how the LLM proposes memories with `<memory>` tags, how the memory store keeps them scoped, how workspace RAG and configured knowledge bases add retrieved context, how the context assembler builds the prompt for every turn under a tiktoken budget, and how compaction shrinks history without losing the thread.
 
 ## The `<memory>` marker protocol
 
@@ -89,18 +89,20 @@ A memory record stores:
 - `created_at`, `updated_at`
 - `approved_at` (null for session memories)
 
-Lookups are keyed by scope + workspace/session + key, with a fallback "list all in this scope" query used by the GUI's memory browser. There is no embedding index; memory recall is based on scope + recency + key, not similarity. That is a deliberate choice: project memories should be exact and inspectable, not "approximately matched".
+Lookups are keyed by scope + workspace/session + key, with a fallback "list all in this scope" query used by the GUI's memory browser. Durable memories remain exact and inspectable records; similarity and full-text retrieval live in the separate workspace retrieval layer described below.
 
 ## Context assembly
 
-Every turn rebuilds the prompt from scratch. `ContextAssembler` is the component that decides what goes in. It takes the active model's context window, the recent message history, and the relevant memories, and produces a `Vec<Message>` that fits under the model's token budget.
+Every turn rebuilds the prompt from scratch. `ContextAssembler` is the component that decides what goes in. It takes the active model's context window, recent message history, relevant memories, workspace retrieval hits, knowledge-base hits, and the new user prompt, then produces a `Vec<Message>` that fits under the model's token budget.
 
 ### Inputs
 
 1. **System prompt.** The agent's strategy-specific system prompt, plus any active instructions configuration.
 2. **Memories.** All `user` and `workspace` memories for the current workspace, plus the active session's `session` memories. Filtered by relevance heuristics (key match, recency) when the budget is tight.
-3. **History.** Recent messages from the event stream — `UserMessageAdded`, the cleaned `ModelTokenDelta`s finalized by `AssistantMessageCompleted`, and `ToolInvocationCompleted` payloads.
-4. **The new user prompt.** Always included verbatim.
+3. **Workspace retrieval.** Hits from the local `WorkspaceRagIndex` and any active `WorkspaceRetriever` implementations.
+4. **Knowledge bases.** Profile-scoped configured sources such as SQLite FTS knowledge bases.
+5. **History.** Recent messages from the event stream — `UserMessageAdded`, the cleaned `ModelTokenDelta`s finalized by `AssistantMessageCompleted`, and `ToolInvocationCompleted` payloads.
+6. **The new user prompt.** Always included verbatim.
 
 ### Token accounting
 
@@ -114,6 +116,8 @@ Every turn rebuilds the prompt from scratch. `ContextAssembler` is the component
 flowchart LR
   sys["System prompt<br/>+ instructions"] --> asm["ContextAssembler"]
   mem["MemoryStore<br/>(user/workspace/session)"] --> asm
+  rag["WorkspaceRagIndex<br/>+ retrievers"] --> asm
+  kb["Knowledge bases<br/>(profile-scoped)"] --> asm
   hist["Event history<br/>(recent turns)"] --> asm
   prompt["New user prompt"] --> asm
   asm --> budget{"Within context window?"}
@@ -123,6 +127,16 @@ flowchart LR
 ```
 
 </div>
+
+## Workspace retrieval and knowledge bases
+
+Memory records are for facts the user or model explicitly chose to preserve. Workspace retrieval is for "find relevant context I did not explicitly save."
+
+`agent-memory` provides `WorkspaceRagIndex`, a SQLite-backed chunk store with a pluggable `EmbeddingBackend`. The current deterministic backend keeps the system local-first and testable; another backend can implement the same trait for local embedding models or remote APIs. During turn preparation, the runtime queries the workspace index and injects the results as a distinct workspace retrieval context source.
+
+Configured knowledge bases use the same retrieval boundary. `[knowledge_bases.<id>]` can enable SQLite FTS today, and the config model already represents Tantivy, Bedrock Knowledge Bases, Pinecone, and Weaviate so service-specific clients can plug into `WorkspaceRetriever`. Profile aliases decide which model profiles see each source. When multiple retrievers are active, `CompositeWorkspaceRetriever` merges the hits before context assembly.
+
+The trace/context source names distinguish these inputs from durable memories: approved records come from `MemoryStore`, while retrieved chunks come from workspace retrieval or knowledge-base sources.
 
 ## Compaction
 
@@ -166,6 +180,7 @@ Both surfaces talk to the same `MemoryStore` via the facade. There is no UI-only
 - **Memories should be facts, not instructions.** "User prefers TypeScript over JavaScript for new files." is good. "Always write TypeScript." is an instruction that belongs in the instructions configuration (see [Configuration](../reference/configuration)).
 - **Keep keys stable.** A `user` memory keyed `editor.font` is overwritten by the next write under the same key. A memory keyed `font-preference-2026` is a new memory that shadows nothing.
 - **Workspace memories are project-scoped.** Switching to a different workspace surfaces a different set. The model never sees a memory that belongs to a workspace it is not currently working in.
+- **Retrieval hits are not memories.** A workspace RAG or knowledge-base hit can help the current turn, but it does not become durable memory unless the model proposes a `<memory>` marker and the normal approval path accepts it.
 - **Compaction is lossy by design.** The summary is a paraphrase, not a verbatim record. Use memories for things that must survive verbatim; the event store keeps the original messages for audit purposes either way.
 - **Approval prompts cost the user's attention.** A model that proposes ten `workspace` memories in a row is annoying. Prompt engineering should encourage the model to consolidate into one memory per turn unless multiple unrelated facts are genuinely new.
 

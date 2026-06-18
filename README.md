@@ -35,6 +35,7 @@ graph TD
     MODELS["agent-models"]
     TOOLS["agent-tools"]
     MCP["agent-mcp"]
+    LSP["agent-lsp"]
     SKILLS["agent-skills"]
     PLUGINS["agent-plugins"]
     MEMORY["agent-memory"]
@@ -51,6 +52,7 @@ graph TD
     RUNTIME --> MODELS
     RUNTIME --> TOOLS
     RUNTIME --> MCP
+    RUNTIME --> LSP
     RUNTIME --> SKILLS
     RUNTIME --> PLUGINS
     RUNTIME --> MEMORY
@@ -98,18 +100,20 @@ graph TD
 - `crates/agent-models` — model client trait + OpenAI / Anthropic / Ollama / Fake adapters
 - `crates/agent-tools` — tool registry, permission engine, built-in tools (`shell.exec`, `fs.read/write/list`, `patch.apply`, `search.ripgrep`, `monitor.start/list/stop`, `browser.action`, `browser.batch`, `computer.use`), MCP tool adapter
 - `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE + Streamable HTTP transports, server lifecycle, diagnostics, discovery cache, marketplace catalog (built-in + remote sources)
+- `crates/agent-lsp` — LSP and DAP clients, stdio transports, and lifecycle management for code intelligence and debugging integrations
 - `crates/agent-skills` — native skills system for reusable prompt, tool, and workflow capabilities with config-driven discovery
 - `crates/agent-plugins` — plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers
 - `crates/agent-memory` — memory store, marker protocol, context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store, metadata tables, and trajectory store
-- `crates/agent-config` — TOML config loading, model profile discovery, MCP server config, skills config, API key resolution, `.kairox/` project config discovery
+- `crates/agent-config` — TOML config loading, model profile discovery, MCP server config, skills config, API key resolution, layered user/project/local `.kairox/` discovery
 - `crates/agent-eval` — headless evaluation harness (`kairox-eval` binary) for running JSONL scenarios with filters, expectations, summaries, reports, and metrics
+- `crates/agent-sdk` — embeddable runtime API for external harnesses, CI/CD pipelines, and custom UIs
 - `crates/agent-tui` — interactive ratatui terminal UI app
 - `apps/agent-gui` — Vue 3 frontend + Tauri 2 desktop app (with auto-generated specta TypeScript bindings)
 
 ## Status
 
-Kairox is in active development (current release `v0.37.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, searchable trace timeline, structured trace export, searchable settings surfaces, memory browser, inline chat authorization/tool/compaction flow, MCP server manager, MCP marketplace, MCP connectivity actions and diagnostics, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, per-session permission control, browser/computer-use tools, background monitors, native LSP/DAP code intelligence, and remote skill marketplace. The TUI supports CLI flags for profile and policy selection, model overlay with context-window details, monitor overlay, and remote skill search and install. Sessions persist across restarts via SQLite storage.
+Kairox is in active development (current release `v0.41.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, searchable trace timeline, structured trace export, searchable settings surfaces, memory browser, inline chat authorization/tool/compaction flow, MCP server manager, MCP marketplace, MCP connectivity actions and diagnostics, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, per-session permission control, browser/computer-use tools, background monitors, native LSP/DAP code intelligence, and remote skill marketplace. The TUI supports CLI flags for profile and policy selection, model overlay with context-window details, monitor overlay, and remote skill search and install. Sessions persist across restarts via SQLite storage.
 
 Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The runtime tracks per-model context windows, assembles prompts against token budgets, supports manual and automatic context compaction, allows mid-session model switching with reasoning effort selection when profiles support it, and can create isolated git worktrees for project worktree sessions.
 
