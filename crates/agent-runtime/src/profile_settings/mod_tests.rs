@@ -115,6 +115,7 @@ async fn upsert_writes_profile_settings() {
         api_key: None,
         api_key_env: Some("OPENAI_API_KEY".to_string()),
         client_identity: Some("claude_code".to_string()),
+        supports_reasoning: Some(true),
     };
 
     let view = upsert_profile_settings_in_file(&config_path, &input)
@@ -126,6 +127,7 @@ async fn upsert_writes_profile_settings() {
     assert_eq!(view.model_id, "gpt-4.1");
     assert!(view.enabled);
     assert_eq!(view.temperature, Some(0.7));
+    assert_eq!(view.supports_reasoning, Some(true));
 
     let raw = tokio::fs::read_to_string(config_path)
         .await
@@ -135,6 +137,30 @@ async fn upsert_writes_profile_settings() {
     assert!(raw.contains("context_window = 128000"));
     assert!(raw.contains("temperature = "));
     assert!(raw.contains("client_identity = \"claude_code\""));
+    assert!(raw.contains("supports_reasoning = true"));
+}
+
+#[tokio::test]
+async fn list_profile_settings_exposes_supports_reasoning_override() {
+    let config_path = write_profiles_config_fixture(
+        "[profiles.reasoning]\nprovider = \"anthropic\"\nmodel_id = \"claude-opus-4-6\"\nsupports_reasoning = true\n",
+    );
+
+    let views = list_profile_settings(
+        &agent_config::Config::defaults(),
+        Some(&config_path),
+        None,
+        None,
+        None,
+    )
+    .await
+    .expect("profile settings should list");
+    let profile = views
+        .iter()
+        .find(|profile| profile.alias == "reasoning")
+        .expect("profile should be visible");
+
+    assert_eq!(profile.supports_reasoning, Some(true));
 }
 
 #[tokio::test]
@@ -190,6 +216,7 @@ async fn upsert_preserves_other_profiles_and_unknown_fields() {
         api_key: None,
         api_key_env: None,
         client_identity: None,
+        supports_reasoning: None,
     };
 
     upsert_profile_settings_in_file(&config_path, &input)

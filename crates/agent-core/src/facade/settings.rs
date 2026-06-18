@@ -234,6 +234,7 @@ pub struct ProfileSettingsInput {
     pub api_key: Option<String>,
     pub api_key_env: Option<String>,
     pub client_identity: Option<String>,
+    pub supports_reasoning: Option<bool>,
 }
 
 fn default_true() -> bool {
@@ -260,6 +261,7 @@ pub struct ProfileSettingsView {
     pub api_key: Option<String>,
     pub api_key_env: Option<String>,
     pub client_identity: Option<String>,
+    pub supports_reasoning: Option<bool>,
     pub has_api_key: bool,
     pub writable: bool,
     pub config_path: Option<String>,

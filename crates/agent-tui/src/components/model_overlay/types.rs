@@ -64,6 +64,7 @@ pub(super) struct ProfileDraft {
     pub(super) top_k: String,
     pub(super) max_tokens: String,
     pub(super) client_identity: Option<String>,
+    pub(super) supports_reasoning: Option<bool>,
     pub(super) enabled: bool,
     pub(super) alias_editable: bool,
 }
@@ -83,6 +84,7 @@ impl ProfileDraft {
             top_k: String::new(),
             max_tokens: String::new(),
             client_identity: None,
+            supports_reasoning: None,
             enabled: true,
             alias_editable: true,
         }
@@ -102,6 +104,7 @@ impl ProfileDraft {
             top_k: format_optional(entry.top_k),
             max_tokens: format_optional(entry.max_tokens),
             client_identity: entry.client_identity.clone(),
+            supports_reasoning: entry.supports_reasoning_override,
             enabled: entry.enabled,
             alias_editable: false,
         }
@@ -122,6 +125,7 @@ impl ProfileDraft {
             top_k: format_optional(input.top_k),
             max_tokens: format_optional(input.max_tokens),
             client_identity: input.client_identity,
+            supports_reasoning: input.supports_reasoning,
             enabled: input.enabled,
             alias_editable: true,
         }
@@ -150,6 +154,7 @@ impl ProfileDraft {
             api_key: None,
             api_key_env: trim_option(&self.api_key_env),
             client_identity: self.client_identity.clone(),
+            supports_reasoning: self.supports_reasoning,
         })
     }
 

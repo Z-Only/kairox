@@ -18709,6 +18709,7 @@ export type ProfileSettingsInput = {
   api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
+  supports_reasoning: boolean | null;
 };
 
 export type ProfileSettingsView = {
@@ -18726,6 +18727,7 @@ export type ProfileSettingsView = {
   api_key: string | null;
   api_key_env: string | null;
   client_identity: string | null;
+  supports_reasoning: boolean | null;
   has_api_key: boolean;
   writable: boolean;
   config_path: string | null;

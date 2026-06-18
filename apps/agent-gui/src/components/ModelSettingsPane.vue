@@ -39,6 +39,8 @@ const formBaseUrl = ref("");
 const formApiKey = ref("");
 const formApiKeyEnv = ref("");
 const formClaudeCodeIdentity = ref(false);
+const formSupportsReasoning = ref(false);
+const formSupportsReasoningExplicit = ref(false);
 const searchQuery = ref("");
 const profileSort = ref<ModelProfileSort>("original");
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -174,6 +176,8 @@ function resetForm(): void {
   formApiKey.value = "";
   formApiKeyEnv.value = "";
   formClaudeCodeIdentity.value = false;
+  formSupportsReasoning.value = false;
+  formSupportsReasoningExplicit.value = false;
   advancedOpen.value = false;
   editAdvancedOpen.value = false;
 }
@@ -203,6 +207,8 @@ function openEditDialog(profile: ProfileSettingsView): void {
   formApiKey.value = profile.api_key ?? "";
   formApiKeyEnv.value = profile.api_key_env ?? "";
   formClaudeCodeIdentity.value = isClaudeCodeIdentity(profile.client_identity);
+  formSupportsReasoning.value = profile.supports_reasoning === true;
+  formSupportsReasoningExplicit.value = profile.supports_reasoning !== null;
   editAdvancedOpen.value = false;
   editDialogOpen.value = true;
 }
@@ -237,8 +243,13 @@ function buildProfileInput(alias: string, enabled: boolean) {
     base_url: formBaseUrl.value.trim() || null,
     api_key: formApiKey.value.trim() || null,
     api_key_env: formApiKeyEnv.value.trim() || null,
-    client_identity: formClaudeCodeIdentity.value ? "claude_code" : null
+    client_identity: formClaudeCodeIdentity.value ? "claude_code" : null,
+    supports_reasoning: formSupportsReasoningExplicit.value ? formSupportsReasoning.value : null
   };
+}
+
+function markSupportsReasoningExplicit(): void {
+  formSupportsReasoningExplicit.value = true;
 }
 
 const CONNECTIVITY_STATUS_KEYS: Record<string, string> = {
@@ -431,10 +442,12 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:api-key="formApiKey"
       v-model:api-key-env="formApiKeyEnv"
       v-model:claude-code-identity="formClaudeCodeIdentity"
+      v-model:supports-reasoning="formSupportsReasoning"
       v-model:advanced-open="advancedOpen"
       @close="closeAddDialog"
       @save="saveNewProfile"
       @test="testFormConnectivity"
+      @supports-reasoning-changed="markSupportsReasoningExplicit"
     />
 
     <ModelProfileFormDialog
@@ -455,10 +468,12 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:api-key="formApiKey"
       v-model:api-key-env="formApiKeyEnv"
       v-model:claude-code-identity="formClaudeCodeIdentity"
+      v-model:supports-reasoning="formSupportsReasoning"
       v-model:advanced-open="editAdvancedOpen"
       @close="closeEditDialog"
       @save="saveEditProfile"
       @test="editingProfile && testProfileConnectivity(editingProfile)"
+      @supports-reasoning-changed="markSupportsReasoningExplicit"
     />
   </section>
 </template>

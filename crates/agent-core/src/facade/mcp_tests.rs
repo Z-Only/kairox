@@ -105,6 +105,7 @@ async fn upsert_profile_settings_returns_error() {
         api_key: None,
         api_key_env: None,
         client_identity: None,
+        supports_reasoning: None,
     };
     let err = facade.upsert_profile_settings(input).await.unwrap_err();
     assert!(err.to_string().contains("not supported"));

@@ -206,6 +206,7 @@ fn profile(alias: &str, enabled: bool) -> ProfileSettingsView {
         api_key: Some("redacted".to_string()),
         api_key_env: Some(format!("{}_API_KEY", alias.to_uppercase())),
         client_identity: Some(format!("{alias}-client")),
+        supports_reasoning: Some(enabled),
         has_api_key: true,
         writable: alias != "builtin",
         config_path: Some(format!("/tmp/{alias}.toml")),
@@ -240,7 +241,8 @@ fn model_profile_entry_from_settings_maps_display_and_metadata_fields() {
     );
     assert_eq!(entry.api_key_env.as_deref(), Some("ALPHA_API_KEY"));
     assert_eq!(entry.client_identity.as_deref(), Some("alpha-client"));
-    assert!(!entry.supports_reasoning);
+    assert!(entry.supports_reasoning);
+    assert_eq!(entry.supports_reasoning_override, Some(true));
     assert!(entry.enabled);
     assert!(entry.writable);
     assert_eq!(entry.source, "user");

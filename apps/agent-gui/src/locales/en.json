@@ -583,6 +583,7 @@
     "apiKeyEnv": "API Key Env Var",
     "apiKeyEnvPlaceholder": "e.g. OPENAI_API_KEY",
     "claudeCodeIdentity": "Claude Code identity",
+    "supportsReasoning": "Reasoning controls",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "noProfiles": "No model profiles configured.",

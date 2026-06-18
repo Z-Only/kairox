@@ -26,6 +26,7 @@ describe("ModelProfileFormDialog", () => {
         maxTokens: "",
         baseUrl: "",
         apiKeyEnv: "",
+        supportsReasoning: false,
         advancedOpen: false
       };
     },
@@ -46,6 +47,7 @@ describe("ModelProfileFormDialog", () => {
         v-model:max-tokens="maxTokens"
         v-model:base-url="baseUrl"
         v-model:api-key-env="apiKeyEnv"
+        v-model:supports-reasoning="supportsReasoning"
         v-model:advanced-open="advancedOpen"
       />
     `

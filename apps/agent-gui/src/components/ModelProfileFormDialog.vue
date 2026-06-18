@@ -13,6 +13,7 @@ const emit = defineEmits<{
   close: [];
   save: [];
   test: [];
+  supportsReasoningChanged: [];
 }>();
 
 const { t } = useI18n();
@@ -30,6 +31,7 @@ const baseUrl = defineModel<string>("baseUrl", { required: true });
 const apiKey = defineModel<string>("apiKey", { required: true });
 const apiKeyEnv = defineModel<string>("apiKeyEnv", { required: true });
 const claudeCodeIdentity = defineModel<boolean>("claudeCodeIdentity", { required: true });
+const supportsReasoning = defineModel<boolean>("supportsReasoning", { required: true });
 const advancedOpen = defineModel<boolean>("advancedOpen", { required: true });
 
 const idPrefix = computed(() => `model-${props.mode}`);
@@ -139,6 +141,17 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
             "
           />
           <span>{{ t("models.claudeCodeIdentity") }}</span>
+        </label>
+        <label class="model-form__checkbox">
+          <input
+            v-model="supportsReasoning"
+            type="checkbox"
+            :data-test="
+              isAddMode ? 'model-form-supports-reasoning' : 'model-edit-supports-reasoning'
+            "
+            @change="emit('supportsReasoningChanged')"
+          />
+          <span>{{ t("models.supportsReasoning") }}</span>
         </label>
       </fieldset>
 

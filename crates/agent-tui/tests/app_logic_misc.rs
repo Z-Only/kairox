@@ -46,6 +46,7 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
                     api_key: None,
                     api_key_env: Some("LOCAL_LLM_API_KEY".into()),
                     client_identity: None,
+                    supports_reasoning: None,
                 },
             },
             Command::SetProfileEnabled {

@@ -294,6 +294,7 @@ where
         api_key: profile.api_key,
         api_key_env: profile.api_key_env,
         client_identity: profile.client_identity,
+        supports_reasoning: profile.supports_reasoning,
     })
 }
 
@@ -452,7 +453,8 @@ fn model_profile_entry_from_settings(
         base_url: profile.base_url,
         api_key_env: profile.api_key_env,
         client_identity: profile.client_identity,
-        supports_reasoning: false,
+        supports_reasoning: profile.supports_reasoning.unwrap_or(false),
+        supports_reasoning_override: profile.supports_reasoning,
         enabled: profile.enabled,
         writable: profile.writable,
         source: profile.source,

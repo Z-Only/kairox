@@ -98,6 +98,7 @@ async fn config_source_model_save_uses_selected_project_config_path() {
                 api_key: None,
                 api_key_env: None,
                 client_identity: None,
+                supports_reasoning: None,
             },
         }],
     )
