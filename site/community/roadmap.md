@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.38.x)
+## What ships today (v0.41.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -43,6 +43,8 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - `<memory>` marker protocol with session / user / workspace scopes and approval semantics.
 - Memory browser in the GUI; deletion via TUI trace panel.
 - Tiktoken-based context budgeting with auto-compaction at a configurable threshold.
+- Workspace RAG with `WorkspaceRagIndex`, pluggable embedding backends, and turn-time context injection.
+- Profile-scoped external knowledge bases with SQLite FTS today and config models for Tantivy, Bedrock Knowledge Bases, Pinecone, and Weaviate.
 
 ### UIs
 

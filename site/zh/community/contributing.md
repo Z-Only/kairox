@@ -40,7 +40,7 @@ just worktree feat/my-feature
 cd .worktrees/feat-my-feature
 ```
 
-`just worktree` 会基于 `origin/main` 创建 `.worktrees/feat-my-feature/`，并运行 `bun install` 让 Husky 的 pre-commit hook 注册到位。
+`just worktree` 会基于本地 `main` 创建 `.worktrees/feat-my-feature/`，并运行 `bun install` 让 Husky 的 pre-commit hook 注册到位。如果需要最新 upstream base，请先同步本地 `main`。
 
 分支前缀约定：`feat/`、`fix/`、`refactor/`、`test/`、`docs/`、`chore/`、`ci/`。请选用与改动相匹配的那一个。
 

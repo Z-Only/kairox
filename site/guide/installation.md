@@ -186,7 +186,7 @@ Kairox uses git worktrees for isolated development. Create one and the helper ru
 just worktree feat/my-feature
 ```
 
-This creates `.worktrees/feat-my-feature/` branched from `origin/main` and wires Husky. The base checkout stays clean for rebases and emergency fixes. Contributing flow lives in [Contributing](../community/contributing).
+This creates `.worktrees/feat-my-feature/` branched from local `main` and wires Husky. Sync local `main` first when you want a fresh upstream base. The base checkout stays clean for rebases and emergency fixes. Contributing flow lives in [Contributing](../community/contributing).
 
 ## Configuration
 

@@ -2,13 +2,19 @@
 # Kairox Configuration Example
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Copy this file to `.kairox/config.toml` (project root) or `~/.kairox/config.toml`
-# and fill in your profiles. The `.kairox/config.toml` file is git-ignored.
+# Copy this file to `.kairox/config.toml` (project root), `.kairox/config.local.toml`
+# (project-local override), or `~/.kairox/config.toml` and fill in your profiles.
 #
-# Discovery order:
-#   1. ./.kairox/config.toml  (project-level, takes priority; walks up 5 parents)
-#   2. ~/.kairox/config.toml  (user-level fallback)
-#   3. Built-in defaults      (fake + local-code, plus "fast" if OPENAI_API_KEY is set)
+# Layering order:
+#   1. Built-in defaults             (fake + disabled local-code, plus "fast" if OPENAI_API_KEY is set)
+#   2. ~/.kairox/config.toml         (user-level)
+#   3. ./.kairox/config.toml         (project-level; walks up 5 parents)
+#   4. ./.kairox/config.local.toml   (gitignored machine-local project override)
+#
+# Higher layers override or extend lower layers. Profiles keep their order when
+# an alias is replaced; MCP servers, knowledge bases, hooks, LSP servers, and DAP
+# servers replace by id. Instructions concatenate; disabled MCP server ids are
+# additive.
 #
 # Provider auto-detection:
 #   Any provider name is accepted. Known providers (anthropic, ollama, fake) map
@@ -19,7 +25,10 @@
 # Profile fields:
 #   provider          — (required) any provider name; auto-detected client type
 #   model_id          — (required) model identifier sent to the API
+#   enabled           — (optional) false parses but does not register the profile
 #   base_url          — API base URL (optional; defaults depend on provider)
+#   connect_timeout_secs — (optional) HTTP connect timeout for supported clients
+#   request_timeout_secs — (optional) total HTTP request timeout
 #   api_key           — direct API key string (takes priority over api_key_env)
 #   api_key_env       — environment variable name holding the API key
 #   context_window    — (optional) max context tokens, resolved via 3-layer fallback
@@ -29,9 +38,12 @@
 #   top_p             — (optional) nucleus sampling parameter (0.0–1.0)
 #   top_k             — (optional) top-k sampling (Anthropic only)
 #   headers           — (optional) custom HTTP headers sent with every request
+#   client_identity   — (optional) "claude_code" adds Claude Code client headers
 #   supports_tools    — (optional) override auto-detected tool calling capability
 #   supports_vision   — (optional) override auto-detected vision capability
 #   supports_reasoning — (optional) override auto-detected reasoning capability
+#   server_tool_code_execution — (optional) Anthropic code_execution_20250825
+#   server_tool_web_search    — (optional) Anthropic web_search_20250305
 #   extra_params      — (optional) provider-specific parameters passed through to the API
 #   response          — static response text (only used by the "fake" provider)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -74,6 +86,9 @@ output_limit = 32_768
 [profiles.claude]
 provider = "anthropic"
 model_id = "claude-sonnet-4-20250514"
+# server_tool_code_execution = true
+# server_tool_web_search = true
+# client_identity = "claude_code"
 # temperature = 0.7
 # top_p = 0.9
 # top_k = 50
@@ -135,18 +150,29 @@ response = "Hello from the Kairox fake provider!"
 # X-Organization = "my-org"
 # X-Project = "kairox"
 
+# ---------------------------------------------------------------------------
+# Anthropic-compatible gateway with explicit timeouts
+# ---------------------------------------------------------------------------
+# [profiles.enterprise-claude]
+# provider = "enterprise-anthropic"
+# model_id = "claude-sonnet-4-20250514"
+# base_url = "https://gateway.example.com/anthropic"
+# api_key_env = "ENTERPRISE_ANTHROPIC_KEY"
+# connect_timeout_secs = 10
+# request_timeout_secs = 120
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MCP Server Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 # Configure MCP (Model Context Protocol) servers to extend Kairox with
 # external tools. Servers can be run as child processes (stdio) or connected
-# to remotely (sse).
+# to remotely (sse or streamable_http).
 #
 # Each server is defined in a [mcp_servers.<id>] section where <id> is a
 # unique name you choose.
 #
 # Common fields:
-#   type              — "stdio" or "sse" (required)
+#   type              — "stdio", "sse", or "streamable_http" (required)
 #   keep_alive        — If true, the server stays running even when idle (default: false)
 #   idle_timeout_secs — Seconds before an idle server is stopped (default: 300)
 #   auto_restart      — If true, automatically restart on failure (default: true)
@@ -159,8 +185,8 @@ response = "Hello from the Kairox fake provider!"
 #                        Empty values ("") are resolved from the env var of the same name
 #   cwd               — Working directory for the child process
 #
-# SSE-specific fields:
-#   url               — The URL of the SSE endpoint (required for sse)
+# HTTP-specific fields (sse and streamable_http):
+#   url               — The URL of the MCP endpoint (required for sse/streamable_http)
 #   headers           — HTTP headers to send (table of key=value)
 #                        ${VAR} patterns are expanded from environment variables
 #   api_key_env       — Environment variable name holding an API key for authentication
@@ -187,11 +213,68 @@ response = "Hello from the Kairox fake provider!"
 # headers = { Authorization = "Bearer ${MCP_API_TOKEN}" }
 # api_key_env = "MCP_SEARCH_API_KEY"
 
+# Example: Remote MCP server (Streamable HTTP)
+# [mcp_servers.remote-http]
+# type = "streamable_http"
+# url = "https://mcp.example.com/mcp"
+# api_key_env = "MCP_API_TOKEN"
+
 # Example: SSE server with keep-alive
 # [mcp_servers.persistent-remote]
 # type = "sse"
 # url = "http://localhost:8080/mcp"
 # keep_alive = true
+
+# -----------------------------------------------------------------------------
+# Knowledge bases (optional).
+# -----------------------------------------------------------------------------
+# [knowledge_bases.company-docs]
+# kind = "sqlite_fts" # also: sqlite, tantivy, bedrock, pinecone, weaviate
+# path = ".kairox/kb/company.sqlite"
+# table = "kb_docs"
+# id_column = "doc_id"
+# title_column = "title"
+# content_column = "body"
+# workspace_id_column = "workspace_id"
+# profile_aliases = ["fast", "claude"] # empty or omitted = all profiles
+# max_results = 4
+# min_score = 0.25
+
+# -----------------------------------------------------------------------------
+# LSP / DAP servers (optional).
+# -----------------------------------------------------------------------------
+# [lsp_servers.rust-analyzer]
+# command = "rust-analyzer"
+# args = ["--stdio"]
+# languages = ["rust"]
+# file_patterns = ["*.rs"]
+# initialization_options = { check = { command = "clippy" } }
+# auto_start = true
+#
+# [dap_servers.lldb]
+# command = "codelldb"
+# args = ["--port", "0"]
+# languages = ["rust"]
+
+# -----------------------------------------------------------------------------
+# Instructions, feature flags, and hooks (optional).
+# -----------------------------------------------------------------------------
+# instructions = """
+# Follow the repository's Rust and Vue style.
+# Prefer focused patches and tests that cover the changed behavior.
+# """
+#
+# disabled_mcp_servers = ["personal-browser", "experimental-shell"]
+#
+# [features]
+# hooks = true
+#
+# [hooks.Stop.verify]
+# matcher = "*"
+# command = "cargo test --workspace --all-targets"
+# status_message = "Running workspace tests"
+# timeout_secs = 120
+# enabled = true
 
 # -----------------------------------------------------------------------------
 # Session compaction & context budgeting (optional; safe defaults shown).

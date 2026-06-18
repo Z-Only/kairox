@@ -188,7 +188,7 @@ Kairox resolves plugin manifests in this order: `.kairox-plugin/plugin.json`, `.
     "tools": ["shell.exec", "fs.read"]
   },
   "compatibility": {
-    "kairoxVersion": ">=0.37.0 <0.38.0",
+    "kairoxVersion": ">=0.41.0 <0.42.0",
     "platforms": ["macos", "linux"],
     "requires": ["node >=20", "git"]
   },
@@ -268,8 +268,7 @@ These tools appear alongside MCP tools and built-in tools in the tool registry. 
 ### Example: declaring an LSP server in `kairox.toml`
 
 ```toml
-[[lsp]]
-name = "rust-analyzer"
+[lsp_servers.rust-analyzer]
 command = "rust-analyzer"
 args = []
 languages = ["rust"]
@@ -277,8 +276,7 @@ file_patterns = ["*.rs"]
 ```
 
 ```toml
-[[dap]]
-name = "codelldb"
+[dap_servers.codelldb]
 command = "codelldb"
 args = ["--port", "0"]
 languages = ["rust", "c", "cpp"]

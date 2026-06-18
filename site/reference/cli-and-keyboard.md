@@ -66,19 +66,19 @@ Kairox uses [`just`](https://github.com/casey/just) as the task runner. Install 
 
 ### Integration and end-to-end tests
 
-| Recipe                 | What it does                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `just test-e2e`        | Playwright E2E tests for the GUI frontend (against the Tauri IPC mock).                                                                     |
-| `just test-e2e-headed` | Same as `test-e2e` in headed (visible browser) mode for debugging.                                                                          |
-| `just test-e2e-ui`     | Same as `test-e2e` in the Playwright UI runner.                                                                                             |
-| `just test-tui`        | Deterministic TUI test layers — no real terminal required.                                                                                  |
-| `just test-tui-pty`    | Real-PTY TUI smoke test (the one CI runs). Builds the binary first.                                                                         |
-| `just test-fullstack`  | Full-stack runtime integration tests.                                                                                                       |
-| `just test-all`        | `test` + `test-tui` + `test-fullstack` + `test-gui`.                                                                                        |
-| `just test-mcp`        | All MCP-related tests across `agent-mcp`, `agent-tools`, `agent-config`, and `agent-runtime`.                                               |
-| `just test-live`       | GitHub Models live smoke test (self-skips without `GITHUB_TOKEN`).                                                                          |
-| `just test-pilot`      | Build Tauri debug with the `pilot` feature and run the `tauri-pilot` E2E scenarios. Requires `tauri-pilot-cli`; use `xvfb-run -a` on Linux. |
-| `just test-pilot-live` | `test-pilot` with `KAIROX_PILOT_LIVE_MODELS=1` — runs against real GitHub Models. Requires `GITHUB_TOKEN`.                                  |
+| Recipe                 | What it does                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `just test-e2e`        | Playwright E2E tests for the GUI frontend (against the Tauri IPC mock).                                                                           |
+| `just test-e2e-headed` | Same as `test-e2e` in headed (visible browser) mode for debugging.                                                                                |
+| `just test-e2e-ui`     | Same as `test-e2e` in the Playwright UI runner.                                                                                                   |
+| `just test-tui`        | Deterministic TUI test layers — no real terminal required.                                                                                        |
+| `just test-tui-pty`    | Real-PTY TUI smoke test (the one CI runs). Builds the binary first.                                                                               |
+| `just test-fullstack`  | Full-stack runtime integration tests.                                                                                                             |
+| `just test-all`        | `test` + `test-tui` + `test-fullstack` + `test-gui`.                                                                                              |
+| `just test-mcp`        | All MCP-related tests across `agent-mcp`, `agent-tools`, `agent-config`, and `agent-runtime`.                                                     |
+| `just test-live`       | GitHub Models live smoke test (self-skips without `GITHUB_TOKEN`).                                                                                |
+| `just test-pilot`      | Start the Tauri dev app with the `pilot` feature and run the `tauri-pilot` E2E scenarios. Requires `tauri-pilot-cli`; use `xvfb-run -a` on Linux. |
+| `just test-pilot-live` | `test-pilot` with `KAIROX_PILOT_LIVE_MODELS=1` — runs against real GitHub Models. Requires `GITHUB_TOKEN`.                                        |
 
 ## `bun` scripts
 

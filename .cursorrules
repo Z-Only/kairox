@@ -9,7 +9,7 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Test: `just test` or `cargo test --workspace --all-targets`
 - Full CI gate: `just check`
 - Type sync check: `just check-types`
-- Desktop E2E: `just test-pilot`
+- Desktop E2E: `just test-pilot` (starts Tauri dev app with `--features pilot`)
 - Live model smoke: `just test-live`
 - Run TUI: `just tui`
 - Run GUI dev: `just gui-dev`
@@ -30,7 +30,8 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - agent-runtime owns session execution via `SessionActor` (`execution_runtime/`) with race-free turn-end compaction
 - agent-skills provides the native skills system for reusable prompt/tool/workflow capabilities
 - agent-plugins parses plugin manifests and inventories for plugin-provided skills, tools, hooks, and MCP servers
-- agent-config supports `.kairox/` project-level config discovery
+- agent-config supports layered config discovery (defaults → user → project → local), knowledge bases, hooks, and LSP/DAP server config
+- agent-memory owns durable memory, context assembly, workspace RAG, and knowledge-base retriever boundaries
 - agent-eval is a headless evaluation harness (binary `kairox-eval`) for JSONL scenarios with list/tag filtering, fail-fast runs, summaries, combined reports, and scenario expectations
 - agent-lsp provides LSP/DAP client, transports, and server lifecycle for code intelligence and debugging
 - agent-sdk provides an embeddable runtime API (`KairoxSdk`, `SdkBuilder`, `SdkSession`) for external harnesses, CI/CD, and custom UIs

@@ -188,7 +188,7 @@ Kairox 会按顺序解析这些 plugin manifest:`.kairox-plugin/plugin.json`、`
     "tools": ["shell.exec", "fs.read"]
   },
   "compatibility": {
-    "kairoxVersion": ">=0.37.0 <0.38.0",
+    "kairoxVersion": ">=0.41.0 <0.42.0",
     "platforms": ["macos", "linux"],
     "requires": ["node >=20", "git"]
   },
@@ -268,8 +268,7 @@ LSP server 启动后，runtime 注册 `LspToolProvider`，将 LSP 操作（`text
 ### 示例：在 `kairox.toml` 中声明 LSP server
 
 ```toml
-[[lsp]]
-name = "rust-analyzer"
+[lsp_servers.rust-analyzer]
 command = "rust-analyzer"
 args = []
 languages = ["rust"]
@@ -277,8 +276,7 @@ file_patterns = ["*.rs"]
 ```
 
 ```toml
-[[dap]]
-name = "codelldb"
+[dap_servers.codelldb]
 command = "codelldb"
 args = ["--port", "0"]
 languages = ["rust", "c", "cpp"]
