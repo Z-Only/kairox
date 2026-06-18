@@ -186,6 +186,29 @@ pub async fn send_message_to_session_and_wait(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn send_message_to_session_if_idle(
+    session_id: String,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = SessionId::from_string(session_id);
+    let runtime = state.runtime.clone();
+    send_message_to_session_if_idle_inner(
+        runtime.as_ref(),
+        workspace_id,
+        session_id,
+        content,
+        attachments,
+    )
+    .await
+}
+
 fn spawn_send_message_task(
     runtime: std::sync::Arc<
         agent_runtime::LocalRuntime<agent_store::SqliteEventStore, agent_models::ModelRouter>,
@@ -236,6 +259,26 @@ fn spawn_send_message_task(
             let _ = app_handle.emit("session-error", &payload);
         }
     });
+}
+
+async fn send_message_to_session_if_idle_inner<S, M>(
+    runtime: &agent_runtime::LocalRuntime<S, M>,
+    workspace_id: agent_core::WorkspaceId,
+    session_id: agent_core::SessionId,
+    content: String,
+    attachments: Vec<agent_core::AttachmentInfo>,
+) -> Result<(), String>
+where
+    S: agent_store::EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    let request =
+        build_send_message_request(runtime, workspace_id, session_id, content, attachments).await?;
+
+    runtime
+        .send_message_if_idle(request)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 async fn build_send_message_request<S, M>(
@@ -511,6 +554,61 @@ mod chat_attachment_tests {
     #[test]
     fn send_message_to_session_and_wait_command_is_compiled() {
         let _command = send_message_to_session_and_wait;
+    }
+
+    #[test]
+    fn send_message_to_session_if_idle_command_is_compiled() {
+        let _command = send_message_to_session_if_idle;
+    }
+
+    #[tokio::test]
+    async fn send_message_to_session_if_idle_inner_runs_idle_turn() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let runtime = agent_runtime::LocalRuntime::new(
+            store,
+            agent_models::FakeModelClient::new(vec!["ipc-ok".into()]),
+        );
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+
+        send_message_to_session_if_idle_inner(
+            &runtime,
+            workspace.workspace_id,
+            session_id.clone(),
+            "idle ipc path".to_string(),
+            vec![],
+        )
+        .await
+        .expect("idle send should run");
+
+        let trace = runtime
+            .get_trace(session_id)
+            .await
+            .expect("trace should load");
+        assert!(trace.iter().any(|entry| matches!(
+            &entry.event.payload,
+            agent_core::EventPayload::UserMessageAdded { content, .. }
+                if content == "idle ipc path"
+        )));
+        assert!(trace.iter().any(|entry| matches!(
+            &entry.event.payload,
+            agent_core::EventPayload::AssistantMessageCompleted { content, .. }
+                if content == "ipc-ok"
+        )));
     }
 
     #[test]

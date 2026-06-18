@@ -110,6 +110,46 @@ impl Tool for WriteRiskFakeTool {
     }
 }
 
+struct RecordingInvocationTool {
+    tool_name: String,
+    timeouts: Arc<std::sync::Mutex<Vec<u64>>>,
+}
+
+impl RecordingInvocationTool {
+    fn new(tool_name: &str, timeouts: Arc<std::sync::Mutex<Vec<u64>>>) -> Self {
+        Self {
+            tool_name: tool_name.to_string(),
+            timeouts,
+        }
+    }
+}
+
+#[async_trait]
+impl Tool for RecordingInvocationTool {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            tool_id: self.tool_name.clone(),
+            description: "records invocation metadata for testing".to_string(),
+            required_capability: String::new(),
+            parameters: serde_json::json!({"type": "object"}),
+        }
+    }
+
+    fn risk(&self, _invocation: &ToolInvocation) -> ToolRisk {
+        ToolRisk::read(&self.tool_name)
+    }
+
+    async fn invoke(&self, invocation: ToolInvocation) -> agent_tools::Result<ToolOutput> {
+        self.timeouts.lock().unwrap().push(invocation.timeout_ms);
+        Ok(ToolOutput {
+            text: "recorded".to_string(),
+            truncated: false,
+            exit_code: None,
+            images: vec![],
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // FakeTrajectoryStore
 // ---------------------------------------------------------------------------
@@ -406,6 +446,36 @@ async fn successful_tool_execution() {
         output.contains("hello world"),
         "expected output to contain 'hello world', got: {output}"
     );
+}
+
+#[tokio::test]
+async fn shell_exec_uses_longer_agent_loop_timeout() {
+    let harness = TestHarness::new().await;
+    let timeouts = Arc::new(std::sync::Mutex::new(Vec::new()));
+    harness.register_tool(Box::new(RecordingInvocationTool::new(
+        "shell.exec",
+        timeouts.clone(),
+    )));
+
+    let calls = vec![make_tool_call("call-shell", "shell.exec", "cargo test")];
+    harness.execute_simple(&calls).await.unwrap();
+
+    assert_eq!(*timeouts.lock().unwrap(), vec![300_000]);
+}
+
+#[tokio::test]
+async fn non_shell_tools_keep_default_agent_loop_timeout() {
+    let harness = TestHarness::new().await;
+    let timeouts = Arc::new(std::sync::Mutex::new(Vec::new()));
+    harness.register_tool(Box::new(RecordingInvocationTool::new(
+        "greet",
+        timeouts.clone(),
+    )));
+
+    let calls = vec![make_tool_call("call-greet", "greet", "")];
+    harness.execute_simple(&calls).await.unwrap();
+
+    assert_eq!(*timeouts.lock().unwrap(), vec![30_000]);
 }
 
 #[tokio::test]
