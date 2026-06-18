@@ -108,7 +108,8 @@ bump-version version:
     sed -i '' 's/"version": ".*"/"version": "{{ version }}"/' apps/agent-gui/src-tauri/tauri.conf.json
     sed -i '' 's/"version": ".*"/"version": "{{ version }}"/' package.json
     cargo generate-lockfile
-    @echo "✅ Version bumped to {{ version }} in Cargo.toml, Cargo.lock, package.json (root), apps/agent-gui/package.json, tauri.conf.json"
+    node scripts/release-version-docs.mjs --write
+    @echo "✅ Version bumped to {{ version }} in Cargo.toml, Cargo.lock, package.json (root), apps/agent-gui/package.json, tauri.conf.json, docs/current-release.json, and current release docs"
     @echo "⚠️  Remember to review the diff and commit"
 
 # ─── Worktree ──────────────────────────────────────────────────

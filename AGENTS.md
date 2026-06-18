@@ -315,6 +315,7 @@ When bumping the version for a release, edit these files (all must stay in sync)
 3. **`apps/agent-gui/package.json`** — `"version"` field
 4. **`apps/agent-gui/src-tauri/tauri.conf.json`** — `"version"` field
 5. **`package.json`** (root) — `"version"` field
+6. **`docs/current-release.json` and public docs** — run `bun run release-docs:sync`, then `bun run release-docs:check`
 
 Do NOT edit `version` in individual crate `Cargo.toml` files — they inherit from the workspace.
 

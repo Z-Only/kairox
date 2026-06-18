@@ -38,7 +38,8 @@ Follow these steps:
 
 ```bash
 just bump-version X.Y.Z
-# This updates: Cargo.toml, Cargo.lock, package.json (root), apps/agent-gui/package.json, tauri.conf.json
+# This updates: Cargo.toml, Cargo.lock, package.json (root), apps/agent-gui/package.json, tauri.conf.json, docs/current-release.json, and current-release docs
+bun run release-docs:check
 git commit -m "chore(release): bump version to X.Y.Z"
 ```
 

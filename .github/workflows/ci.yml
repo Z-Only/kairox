@@ -180,6 +180,12 @@ jobs:
       - name: Check no inline test modules
         run: bun run lint:no-inline-tests
 
+      - name: Check release docs
+        run: bun run release-docs:check
+
+      - name: Run script tests
+        run: bun run test:scripts
+
   lint-rust:
     name: Clippy
     needs: changes
