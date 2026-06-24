@@ -33,7 +33,7 @@ jobs:
       rust: ${{ steps.paths.outputs.rust }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -129,7 +129,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.should-run.outputs.value == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Rust
         if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
