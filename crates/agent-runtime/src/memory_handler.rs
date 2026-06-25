@@ -153,6 +153,56 @@ pub async fn store_memory_markers<S: EventStore>(
     .await;
 }
 
+fn is_transient_agent_status_memory(entry: &MemoryEntry) -> bool {
+    if !durable_memory_requires_confirmation(&entry.scope) {
+        return false;
+    }
+
+    let key = entry.key.as_deref().map(normalize_memory_signal);
+    if matches!(
+        key.as_deref(),
+        Some(
+            "task-status"
+                | "task-result"
+                | "task-summary"
+                | "run-status"
+                | "run-summary"
+                | "evaluation-result"
+                | "evaluation-summary"
+                | "pr-status"
+                | "ci-status"
+                | "completion-status"
+        )
+    ) {
+        return true;
+    }
+
+    let content = normalize_memory_signal(&entry.content);
+    [
+        "task completed:",
+        "task complete:",
+        "completed task:",
+        "run completed:",
+        "evaluation result:",
+        "merged pr",
+        "merged pull request",
+        "ci passed",
+        "tests passed",
+        "validation passed",
+    ]
+    .iter()
+    .any(|prefix| content.starts_with(prefix))
+}
+
+fn normalize_memory_signal(value: &str) -> String {
+    value
+        .trim()
+        .to_ascii_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub async fn store_memory_markers_with_branch<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
@@ -183,6 +233,10 @@ pub async fn store_memory_markers_with_branch<S: EventStore>(
         let mem_key = entry.key.clone();
         let mem_content = entry.content.clone();
         let requires_confirmation = durable_memory_requires_confirmation(&entry.scope);
+
+        if is_transient_agent_status_memory(&entry) {
+            continue;
+        }
 
         if requires_confirmation {
             if mem_store.store(entry).await.is_err() {

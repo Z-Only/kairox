@@ -278,6 +278,130 @@ async fn store_user_scope_marker_produces_proposed_event() {
 }
 
 #[tokio::test]
+async fn store_durable_agent_status_memory_marker_is_filtered() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (event_tx, mut rx) = tokio::sync::broadcast::channel(16);
+    let sqlite_mem = Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
+    let mem_store: Option<Arc<dyn MemoryStore>> = Some(sqlite_mem.clone());
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    store_memory_markers(
+        &store,
+        &event_tx,
+        &mem_store,
+        &workspace_id,
+        &session_id,
+        r#"<memory scope="workspace" key="task-status">Task completed: PR #1088 merged and CI passed.</memory>"#,
+    )
+    .await;
+
+    assert!(
+        matches!(
+            rx.try_recv(),
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+        ),
+        "filtered durable status memory must not emit a memory event"
+    );
+
+    let all = sqlite_mem
+        .query_including_pending(agent_memory::MemoryQuery {
+            scope: None,
+            keywords: Vec::new(),
+            limit: 10,
+            session_id: None,
+            workspace_id: None,
+            branch: None,
+        })
+        .await
+        .unwrap();
+    assert!(
+        all.iter()
+            .all(|m| m.content != "Task completed: PR #1088 merged and CI passed."),
+        "filtered durable status memory must not be stored"
+    );
+}
+
+#[tokio::test]
+async fn store_durable_pr_reference_memory_marker_is_proposed() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (event_tx, mut rx) = tokio::sync::broadcast::channel(16);
+    let sqlite_mem = Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
+    let mem_store: Option<Arc<dyn MemoryStore>> = Some(sqlite_mem.clone());
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    store_memory_markers(
+        &store,
+        &event_tx,
+        &mem_store,
+        &workspace_id,
+        &session_id,
+        r#"<memory scope="workspace" key="release-tracking">PR #42 tracks the release checklist.</memory>"#,
+    )
+    .await;
+
+    let event = rx.try_recv().unwrap();
+    assert!(
+        matches!(
+            event.payload,
+            EventPayload::MemoryProposed {
+                ref scope,
+                ref key,
+                ref content,
+                ..
+            } if scope == "workspace"
+                && key.as_deref() == Some("release-tracking")
+                && content == "PR #42 tracks the release checklist."
+        ),
+        "non-status durable PR reference should remain a proposed memory, got: {:?}",
+        event.payload
+    );
+
+    let all = sqlite_mem
+        .query_including_pending(agent_memory::MemoryQuery {
+            scope: None,
+            keywords: Vec::new(),
+            limit: 10,
+            session_id: None,
+            workspace_id: None,
+            branch: None,
+        })
+        .await
+        .unwrap();
+    assert!(all
+        .iter()
+        .any(|m| !m.accepted && m.content == "PR #42 tracks the release checklist."));
+}
+
+#[tokio::test]
+async fn store_session_agent_status_memory_marker_is_still_accepted() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let (event_tx, mut rx) = tokio::sync::broadcast::channel(16);
+    let sqlite_mem = Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
+    let mem_store: Option<Arc<dyn MemoryStore>> = Some(sqlite_mem.clone());
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+
+    store_memory_markers(
+        &store,
+        &event_tx,
+        &mem_store,
+        &workspace_id,
+        &session_id,
+        r#"<memory scope="session" key="task-status">Task completed: local test run passed.</memory>"#,
+    )
+    .await;
+
+    let event = rx.try_recv().unwrap();
+    assert!(
+        matches!(event.payload, EventPayload::MemoryAccepted { ref scope, .. } if scope == "session"),
+        "session status memory remains temporary accepted state, got: {:?}",
+        event.payload
+    );
+}
+
+#[tokio::test]
 async fn store_marker_records_current_branch_when_provided() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let (event_tx, _rx) = tokio::sync::broadcast::channel(16);
