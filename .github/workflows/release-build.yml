@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -87,7 +87,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -155,7 +155,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Bun + Node.js
         uses: ./.github/actions/setup-bun-node
@@ -360,7 +360,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
