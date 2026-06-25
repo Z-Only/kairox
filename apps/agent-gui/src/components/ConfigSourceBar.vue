@@ -22,19 +22,19 @@ const projectStore = useProjectStore();
 const source = ref<"user" | "project">("user");
 const selectedProjectId = ref<string>("");
 
-const hasProjects = computed(() => projectStore.activeProjects.length > 0);
-const missingProjects = computed(() => projectStore.activeProjects.filter((p) => !p.pathExists));
+const availableProjects = computed(() => projectStore.sidebarProjects);
+const hasProjects = computed(() => availableProjects.value.length > 0);
+const missingProjects = computed(() => projectStore.missingProjects);
 
 const projectOptions = computed(() =>
-  projectStore.activeProjects.map((p) => ({
+  availableProjects.value.map((p) => ({
     value: p.projectId,
-    label: p.displayName,
-    missing: !p.pathExists
+    label: p.displayName
   }))
 );
 
 function selectAvailableProject(): string | undefined {
-  const projects = projectStore.activeProjects;
+  const projects = availableProjects.value;
   if (projects.length === 0) {
     return selectedProjectId.value || undefined;
   }
@@ -77,10 +77,10 @@ watch(
 );
 
 watch(
-  () => projectStore.activeProjects.map((project) => project.projectId),
+  () => availableProjects.value.map((project) => project.projectId),
   () => {
     if (source.value !== "project") return;
-    if (projectStore.activeProjects.length === 0) {
+    if (availableProjects.value.length === 0) {
       onSourceChange("user");
       return;
     }
@@ -131,7 +131,7 @@ onMounted(() => {
             @change="onProjectChange"
           >
             <option v-for="opt in projectOptions" :key="opt.value" :value="opt.value">
-              {{ opt.missing ? "Missing - " : "" }}{{ opt.label }}
+              {{ opt.label }}
             </option>
           </KxSelect>
         </div>
