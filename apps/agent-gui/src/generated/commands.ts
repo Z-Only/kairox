@@ -18918,6 +18918,10 @@ export type SessionDiagnosticsResponse = {
   trajectory_started_count: number;
   trajectory_completed_count: number;
   trajectory_completed_outcomes: TrajectoryCompletedDiagnosticsResponse[];
+  running_model_requests: number;
+  running_tool_invocations: number;
+  trajectory_failed_count: number;
+  has_terminal_assistant_message: boolean;
 };
 
 export type SessionInfoResponse = {

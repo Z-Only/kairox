@@ -77,6 +77,10 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut trajectory_started_count = 0_u32;
     let mut trajectory_completed_count = 0_u32;
     let mut trajectory_completed_outcomes = Vec::new();
+    let mut running_model_requests = 0_u32;
+    let mut running_tool_invocations = 0_u32;
+    let mut trajectory_failed_count = 0_u32;
+    let mut has_terminal_assistant_message = false;
 
     for event in &trace.events {
         let count = event_type_counts
@@ -93,13 +97,20 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
                 message_id: message_id.clone(),
                 content: content.clone(),
             }),
+            agent_core::EventPayload::ModelRequestStarted { .. } => {
+                running_model_requests = running_model_requests.saturating_add(1);
+            }
             agent_core::EventPayload::AssistantMessageCompleted {
                 message_id,
                 content,
-            } => assistant_messages.push(SessionDiagnosticsMessageResponse {
-                message_id: message_id.clone(),
-                content: content.clone(),
-            }),
+            } => {
+                running_model_requests = running_model_requests.saturating_sub(1);
+                has_terminal_assistant_message = true;
+                assistant_messages.push(SessionDiagnosticsMessageResponse {
+                    message_id: message_id.clone(),
+                    content: content.clone(),
+                });
+            }
             agent_core::EventPayload::ModelToolCallRequested {
                 tool_call_id,
                 tool_id,
@@ -107,6 +118,13 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
                 tool_call_id: tool_call_id.clone(),
                 tool_id: tool_id.clone(),
             }),
+            agent_core::EventPayload::ToolInvocationStarted { .. } => {
+                running_tool_invocations = running_tool_invocations.saturating_add(1);
+            }
+            agent_core::EventPayload::ToolInvocationCompleted { .. }
+            | agent_core::EventPayload::ToolInvocationFailed { .. } => {
+                running_tool_invocations = running_tool_invocations.saturating_sub(1);
+            }
             agent_core::EventPayload::McpToolCallStarted {
                 server_id,
                 tool_name,
@@ -133,6 +151,9 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
                 outcome,
             } => {
                 trajectory_completed_count = trajectory_completed_count.saturating_add(1);
+                if matches!(outcome, agent_core::TrajectoryOutcome::Failed) {
+                    trajectory_failed_count = trajectory_failed_count.saturating_add(1);
+                }
                 trajectory_completed_outcomes.push(TrajectoryCompletedDiagnosticsResponse {
                     trajectory_id: trajectory_id.clone(),
                     step_count: *step_count,
@@ -158,6 +179,10 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         trajectory_started_count,
         trajectory_completed_count,
         trajectory_completed_outcomes,
+        running_model_requests,
+        running_tool_invocations,
+        trajectory_failed_count,
+        has_terminal_assistant_message,
     }
 }
 
@@ -873,6 +898,84 @@ mod session_diagnostics_tests {
         assert_eq!(counts.get("ModelToolCallRequested"), Some(&1));
         assert_eq!(counts.get("McpToolCallStarted"), Some(&1));
         assert_eq!(counts.get("McpToolCallCompleted"), Some(&1));
+    }
+
+    #[test]
+    fn summarize_trace_export_reports_stuck_signals_without_terminal_message() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::ModelRequestStarted {
+                    model_profile: "default".into(),
+                    model_id: "model-a".into(),
+                }),
+                event(EventPayload::ModelRequestStarted {
+                    model_profile: "default".into(),
+                    model_id: "model-b".into(),
+                }),
+                event(EventPayload::ToolInvocationCompleted {
+                    invocation_id: "unmatched".into(),
+                    tool_id: "shell.exec".into(),
+                    output_preview: String::new(),
+                    exit_code: Some(0),
+                    duration_ms: 1,
+                    truncated: false,
+                    images: Vec::new(),
+                }),
+                event(EventPayload::ToolInvocationStarted {
+                    invocation_id: "tool_1".into(),
+                    tool_id: "shell.exec".into(),
+                }),
+                event(EventPayload::ToolInvocationStarted {
+                    invocation_id: "tool_2".into(),
+                    tool_id: "fs.read".into(),
+                }),
+                event(EventPayload::ToolInvocationFailed {
+                    invocation_id: "tool_1".into(),
+                    tool_id: "shell.exec".into(),
+                    error: "denied".into(),
+                }),
+                event(EventPayload::TrajectoryCompleted {
+                    trajectory_id: "traj_failed".into(),
+                    step_count: 2,
+                    outcome: agent_core::TrajectoryOutcome::Failed,
+                }),
+                event(EventPayload::TrajectoryCompleted {
+                    trajectory_id: "traj_success".into(),
+                    step_count: 1,
+                    outcome: agent_core::TrajectoryOutcome::Success,
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.running_model_requests, 2);
+        assert_eq!(summary.running_tool_invocations, 1);
+        assert_eq!(summary.trajectory_failed_count, 1);
+        assert!(!summary.has_terminal_assistant_message);
+    }
+
+    #[test]
+    fn summarize_trace_export_reports_terminal_message_and_closes_model_request() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::ModelRequestStarted {
+                    model_profile: "default".into(),
+                    model_id: "model-a".into(),
+                }),
+                event(EventPayload::AssistantMessageCompleted {
+                    message_id: "a1".into(),
+                    content: "done".into(),
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.running_model_requests, 0);
+        assert!(summary.has_terminal_assistant_message);
     }
 }
 
