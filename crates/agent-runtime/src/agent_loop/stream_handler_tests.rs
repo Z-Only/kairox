@@ -881,6 +881,76 @@ async fn stream_start_retry_emits_event() {
     );
 }
 
+#[tokio::test]
+async fn stream_start_timeout_emits_exhausted_status_before_root_failure() {
+    let harness = StreamTestHarness::new(HangingStreamStartClient).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let result = tokio::time::timeout(
+        Duration::from_millis(200),
+        process_model_stream_with_idle_timeout(
+            &deps,
+            &request,
+            &cancel_token,
+            &root_task_id,
+            &minimal_model_request(),
+            None,
+            Duration::from_millis(25),
+        ),
+    )
+    .await
+    .expect("hanging stream start should fail before the test timeout");
+
+    assert!(result.is_err(), "hanging stream start should time out");
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    let (exhausted_status_index, exhausted_status_message) = events
+        .iter()
+        .enumerate()
+        .find_map(|(index, event)| match &event.payload {
+            EventPayload::ModelStreamStatus {
+                phase,
+                retrying: false,
+                retry_attempt: 1,
+                max_retries: 1,
+                message,
+            } if phase == "stream_start"
+                && (message.contains("exhausted")
+                    || message.contains("failing")
+                    || message.contains("failed")) =>
+            {
+                Some((index, message.as_str()))
+            }
+            _ => None,
+        })
+        .expect("stream start retry exhaustion should emit ModelStreamStatus");
+    let root_failure_index = events
+        .iter()
+        .position(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::AgentTaskFailed { task_id, .. } if task_id == &root_task_id
+            )
+        })
+        .expect("root task should fail after retry exhaustion");
+
+    assert!(
+        exhausted_status_index < root_failure_index,
+        "retry exhaustion status should be emitted before root failure: {events:?}"
+    );
+    assert!(
+        exhausted_status_message.contains("stream_start"),
+        "exhaustion status should retain stream_start context, got: {exhausted_status_message}"
+    );
+}
+
 #[test]
 fn model_stream_timeout_log_classification_distinguishes_retry_from_final() {
     let retrying = ModelStreamProgress::retrying(
@@ -898,11 +968,19 @@ fn model_stream_timeout_log_classification_distinguishes_retry_from_final() {
         "model stream start idle timeout; retrying"
     );
 
-    let final_timeout = ModelStreamProgress::new("stream_start", 0, 0, "none");
+    let final_timeout = ModelStreamProgress::retry_exhausted(
+        "stream_start",
+        0,
+        0,
+        "none",
+        1,
+        MODEL_STREAM_START_IDLE_RETRIES,
+    );
     assert!(!final_timeout.is_retrying());
-    assert_eq!(final_timeout.retry_attempt(), 0);
+    assert_eq!(final_timeout.retry_attempt(), 1);
+    assert_eq!(final_timeout.max_retries(), 1);
     assert_eq!(
         model_stream_timeout_log_message(final_timeout),
-        "model stream idle timeout"
+        "model stream start idle timeout; retry exhausted; failing turn"
     );
 }

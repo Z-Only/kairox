@@ -33,12 +33,8 @@ struct ModelStreamProgress {
     assistant_chars: usize,
     tool_call_count: usize,
     last_event_kind: &'static str,
-    retry: Option<ModelStreamRetry>,
-}
-
-#[derive(Clone, Copy)]
-struct ModelStreamRetry {
-    attempt: usize,
+    retrying: bool,
+    retry_attempt: usize,
     max_retries: usize,
 }
 
@@ -54,7 +50,9 @@ impl ModelStreamProgress {
             assistant_chars,
             tool_call_count,
             last_event_kind,
-            retry: None,
+            retrying: false,
+            retry_attempt: 0,
+            max_retries: 0,
         }
     }
 
@@ -71,23 +69,45 @@ impl ModelStreamProgress {
             assistant_chars,
             tool_call_count,
             last_event_kind,
-            retry: Some(ModelStreamRetry {
-                attempt,
-                max_retries,
-            }),
+            retrying: true,
+            retry_attempt: attempt,
+            max_retries,
+        }
+    }
+
+    fn retry_exhausted(
+        phase: &'static str,
+        assistant_chars: usize,
+        tool_call_count: usize,
+        last_event_kind: &'static str,
+        attempt: usize,
+        max_retries: usize,
+    ) -> Self {
+        Self {
+            phase,
+            assistant_chars,
+            tool_call_count,
+            last_event_kind,
+            retrying: false,
+            retry_attempt: attempt,
+            max_retries,
         }
     }
 
     fn is_retrying(self) -> bool {
-        self.retry.is_some()
+        self.retrying
     }
 
     fn retry_attempt(self) -> usize {
-        self.retry.map(|retry| retry.attempt).unwrap_or(0)
+        self.retry_attempt
     }
 
     fn max_retries(self) -> usize {
-        self.retry.map(|retry| retry.max_retries).unwrap_or(0)
+        self.max_retries
+    }
+
+    fn has_retry_context(self) -> bool {
+        self.max_retries > 0
     }
 }
 
@@ -215,7 +235,14 @@ where
                 continue;
             }
             StreamStartResult::Timeout(error_msg) => {
-                let progress = ModelStreamProgress::new("stream_start", 0, 0, "none");
+                let progress = ModelStreamProgress::retry_exhausted(
+                    "stream_start",
+                    0,
+                    0,
+                    "none",
+                    stream_start_attempt,
+                    MODEL_STREAM_START_IDLE_RETRIES,
+                );
                 log_model_stream_timeout(
                     request,
                     root_task_id,
@@ -228,7 +255,7 @@ where
                     deps.event_tx,
                     request,
                     progress,
-                    error_msg.clone(),
+                    model_stream_timeout_status_message(progress, &error_msg),
                 )
                 .await?;
                 emit_model_request_failure(
@@ -668,6 +695,27 @@ fn log_model_stream_timeout(
             timeout_message,
             "model stream start idle timeout; retrying"
         );
+    } else if progress.has_retry_context() {
+        tracing::warn!(
+            session_id = request.session_id.as_str(),
+            root_task_id = root_task_id.as_str(),
+            model_profile = model_request.model_profile.as_str(),
+            phase = progress.phase,
+            retrying = false,
+            retry_attempt = progress.retry_attempt(),
+            max_retries = progress.max_retries(),
+            message_count = stats.message_count,
+            tool_count = stats.tool_count,
+            server_tool_count = stats.server_tool_count,
+            tool_result_count = stats.tool_result_count,
+            assistant_tool_call_message_count = stats.assistant_tool_call_message_count,
+            assistant_chars = progress.assistant_chars,
+            tool_call_count = progress.tool_call_count,
+            last_event_kind = progress.last_event_kind,
+            idle_timeout_ms = idle_timeout.as_millis() as u64,
+            timeout_message,
+            "model stream start idle timeout; retry exhausted; failing turn"
+        );
     } else {
         tracing::warn!(
             session_id = request.session_id.as_str(),
@@ -675,8 +723,8 @@ fn log_model_stream_timeout(
             model_profile = model_request.model_profile.as_str(),
             phase = progress.phase,
             retrying = false,
-            retry_attempt = 0usize,
-            max_retries = 0usize,
+            retry_attempt = progress.retry_attempt(),
+            max_retries = progress.max_retries(),
             message_count = stats.message_count,
             tool_count = stats.tool_count,
             server_tool_count = stats.server_tool_count,
@@ -695,8 +743,21 @@ fn log_model_stream_timeout(
 fn model_stream_timeout_log_message(progress: ModelStreamProgress) -> &'static str {
     if progress.is_retrying() {
         "model stream start idle timeout; retrying"
+    } else if progress.has_retry_context() {
+        "model stream start idle timeout; retry exhausted; failing turn"
     } else {
         "model stream idle timeout"
+    }
+}
+
+fn model_stream_timeout_status_message(progress: ModelStreamProgress, error_msg: &str) -> String {
+    if progress.has_retry_context() && !progress.is_retrying() {
+        format!(
+            "{}: {error_msg}",
+            model_stream_timeout_log_message(progress)
+        )
+    } else {
+        error_msg.to_string()
     }
 }
 
