@@ -237,8 +237,9 @@ export const useProjectStore = defineStore("project", () => {
   const archivedSessions = ref<ProjectSessionInfo[]>([]);
   const instructionSummariesByProject = ref(new Map<string, ProjectInstructionSummaryInfo>());
 
-  const activeProjects = computed(() =>
-    projects.value.filter((project) => !project.removedAt && project.pathExists)
+  const activeProjects = computed(() => projects.value.filter((project) => !project.removedAt));
+  const sidebarProjects = computed(() =>
+    activeProjects.value.filter((project) => project.pathExists)
   );
 
   async function loadProjects(): Promise<void> {
@@ -522,6 +523,7 @@ export const useProjectStore = defineStore("project", () => {
     archivedSessions,
     instructionSummariesByProject,
     activeProjects,
+    sidebarProjects,
     loadProjects,
     createBlankProject,
     addExistingProject,

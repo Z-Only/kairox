@@ -888,7 +888,7 @@ describe("project store — additional coverage", () => {
     expect(store.activeProjects[0].projectId).toBe("p1");
   });
 
-  it("activeProjects filters out projects whose root path is missing", () => {
+  it("activeProjects keeps projects whose root path is missing", () => {
     const store = useProjectStore();
     store.projects = [
       {
@@ -911,10 +911,36 @@ describe("project store — additional coverage", () => {
       }
     ];
 
-    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1"]);
+    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1", "p2"]);
   });
 
-  it("loadProjects keeps missing projects in raw state while excluding them from activeProjects", async () => {
+  it("sidebarProjects filters out projects whose root path is missing", () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "Existing",
+        rootPath: "/existing",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p2",
+        displayName: "Missing",
+        rootPath: "/missing",
+        removedAt: null,
+        sortOrder: 1,
+        expanded: true,
+        pathExists: false
+      }
+    ];
+
+    expect(store.sidebarProjects.map((project) => project.projectId)).toEqual(["p1"]);
+  });
+
+  it("loadProjects keeps missing projects in raw state while excluding them from sidebarProjects", async () => {
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_projects") {
         return [
@@ -946,6 +972,7 @@ describe("project store — additional coverage", () => {
 
     expect(store.projects.map((project) => project.projectId)).toEqual(["p1", "p2"]);
     expect(store.projects.find((project) => project.projectId === "p2")?.pathExists).toBe(false);
-    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1"]);
+    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1", "p2"]);
+    expect(store.sidebarProjects.map((project) => project.projectId)).toEqual(["p1"]);
   });
 });

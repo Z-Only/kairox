@@ -34,7 +34,8 @@ describe("SessionsSidebar", () => {
         root_path: "/tmp/existing-project",
         removed_at: null,
         sort_order: 0,
-        expanded: false
+        expanded: false,
+        path_exists: true
       }
     });
 
@@ -58,7 +59,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -100,7 +102,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });

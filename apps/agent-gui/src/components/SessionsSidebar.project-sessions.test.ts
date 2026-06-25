@@ -44,7 +44,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: true
+          expanded: true,
+          path_exists: true
         }
       ],
       list_project_sessions: [
@@ -79,7 +80,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -110,7 +112,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -130,7 +133,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -156,7 +160,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -216,7 +221,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: true
+          expanded: true,
+          path_exists: true
         }
       ],
       list_project_sessions: [
@@ -251,7 +257,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: true
+          expanded: true,
+          path_exists: true
         }
       ],
       list_project_sessions: [
@@ -325,7 +332,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: true
+          expanded: true,
+          path_exists: true
         }
       ],
       list_project_sessions: [

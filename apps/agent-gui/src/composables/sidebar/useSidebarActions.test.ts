@@ -30,6 +30,7 @@ vi.mock("@/stores/session", () => ({
 const projectStore = {
   sessionsByProject: new Map<string, ProjectSessionInfo[]>(),
   activeProjects: [] as ProjectInfo[],
+  sidebarProjects: [] as ProjectInfo[],
   createBlankProject: vi.fn(),
   addExistingProject: vi.fn(),
   loadProjects: vi.fn(),
@@ -97,6 +98,7 @@ describe("useSidebarActions", () => {
     sessionStore.currentSessionInfo = null;
     projectStore.sessionsByProject = new Map();
     projectStore.activeProjects = [];
+    projectStore.sidebarProjects = [];
   });
 
   // ---- activeSessionId ----
@@ -501,7 +503,7 @@ describe("useSidebarActions", () => {
 
   describe("loadProjectsForSidebar", () => {
     it("loads projects and sessions for expanded projects", async () => {
-      projectStore.activeProjects = [
+      projectStore.sidebarProjects = [
         makeProject({ projectId: "p1", expanded: true }),
         makeProject({ projectId: "p2", expanded: false }),
         makeProject({ projectId: "p3", expanded: true })

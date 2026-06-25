@@ -168,7 +168,7 @@ export function useSidebarActions() {
     try {
       await projects.loadProjects();
       await Promise.all(
-        projects.activeProjects
+        projects.sidebarProjects
           .filter((project) => project.expanded)
           .map((project) => projects.loadProjectSessions(project.projectId))
       );
