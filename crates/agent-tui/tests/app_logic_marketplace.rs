@@ -85,3 +85,63 @@ async fn tui_plugin_overlay_refresh_passes_catalog_filters_to_facade() {
         "expected filtered plugin catalog call, got {calls:?}"
     );
 }
+
+#[tokio::test]
+async fn tui_plugin_mutation_commands_call_facade_and_refresh_overlay() {
+    use agent_core::facade::{InstallPluginRequest, PluginInstallTarget};
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::OpenPluginsOverlay,
+            Command::SetPluginEnabled {
+                settings_id: "User:delta".into(),
+                enabled: false,
+            },
+            Command::DeletePluginSettings {
+                settings_id: "User:delta".into(),
+            },
+            Command::SetPluginMarketplaceSourceEnabled {
+                source_id: "local-market".into(),
+                enabled: false,
+            },
+            Command::InstallPlugin {
+                request: InstallPluginRequest {
+                    marketplace_id: "local-market".into(),
+                    plugin_name: "delta".into(),
+                    target: PluginInstallTarget::Project,
+                },
+            },
+        ],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    for expected in [
+        "set_plugin_enabled:User:delta:false",
+        "delete_plugin_settings:User:delta",
+        "set_plugin_marketplace_source_enabled:local-market:false",
+        "install_plugin:local-market:delta:Project",
+    ] {
+        assert!(
+            calls.iter().any(|call| call == expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
+    assert!(app.plugin_overlay.is_visible());
+    assert!(
+        calls
+            .iter()
+            .filter(|call| *call == "list_plugin_settings")
+            .count()
+            >= 2,
+        "plugin overlay should refresh after mutation commands, got {calls:?}"
+    );
+}
