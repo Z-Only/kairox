@@ -23,7 +23,8 @@ registerCommandHandlers({
       root_path: "/mock/workspace/" + displayName.replace(/\s+/g, "-").toLowerCase(),
       removed_at: null,
       sort_order: state.projects.length,
-      expanded: true
+      expanded: true,
+      path_exists: true
     };
     state.projects.push(project);
     state.projectSessions.set(projectId, []);
@@ -41,7 +42,8 @@ registerCommandHandlers({
       root_path: projectPath,
       removed_at: null,
       sort_order: state.projects.length,
-      expanded: true
+      expanded: true,
+      path_exists: true
     };
     state.projects.push(existingProject);
     state.projectSessions.set(existingProjectId, []);
