@@ -156,7 +156,11 @@ onMounted(() => {
     </div>
     <div class="session-scroll">
       <KxEmptyState
-        v-if="projects.sidebarProjects.length === 0 && session.sessions.length === 0"
+        v-if="
+          projects.sidebarProjects.length === 0 &&
+          projects.missingProjects.length === 0 &&
+          session.sessions.length === 0
+        "
         class="sessions-empty-state"
         density="inline"
         data-test="sessions-root-empty"
@@ -168,6 +172,7 @@ onMounted(() => {
           v-if="sectionName === 'projects'"
           v-model:project-create-menu-open="projectCreateMenuOpen"
           :active-projects="filteredActiveProjects"
+          :missing-projects="projects.missingProjects"
           :archived-sessions="filteredArchivedSessions"
           :active-session-id="activeSessionId"
           :pending-delete-project-id="pendingDeleteProjectId"
@@ -178,6 +183,7 @@ onMounted(() => {
           :get-project-sessions="getFilteredProjectSessions"
           :create-blank-project="createBlankProject"
           :import-existing-project="importExistingProject"
+          :remove-missing-projects="projects.removeMissingProjects"
           :toggle-project-expanded="toggleProjectExpanded"
           :create-project-session="createProjectSession"
           :request-delete-project="requestDeleteProject"
@@ -316,6 +322,18 @@ onMounted(() => {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+.sessions-sidebar .missing-projects-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 8px 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: var(--app-radius-md);
+  color: var(--app-text-color-2);
+  font-size: 12px;
 }
 .sessions-sidebar .project-row {
   display: flex;

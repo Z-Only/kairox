@@ -241,6 +241,9 @@ export const useProjectStore = defineStore("project", () => {
   const sidebarProjects = computed(() =>
     activeProjects.value.filter((project) => project.pathExists)
   );
+  const missingProjects = computed(() =>
+    activeProjects.value.filter((project) => !project.pathExists)
+  );
 
   async function loadProjects(): Promise<void> {
     const responses = await invoke<ProjectInfoResponse[]>("list_projects");
@@ -273,6 +276,16 @@ export const useProjectStore = defineStore("project", () => {
   async function removeProject(projectId: string): Promise<void> {
     await invoke("remove_project", { projectId });
     await loadProjects();
+  }
+
+  async function removeMissingProjects(): Promise<void> {
+    const projectIds = missingProjects.value.map((project) => project.projectId);
+    for (const projectId of projectIds) {
+      await invoke("remove_project", { projectId });
+    }
+    if (projectIds.length > 0) {
+      await loadProjects();
+    }
   }
 
   async function restoreProjectSession(sessionId: string): Promise<ProjectInfo> {
@@ -524,11 +537,13 @@ export const useProjectStore = defineStore("project", () => {
     instructionSummariesByProject,
     activeProjects,
     sidebarProjects,
+    missingProjects,
     loadProjects,
     createBlankProject,
     addExistingProject,
     renameProject,
     removeProject,
+    removeMissingProjects,
     restoreProjectSession,
     updateProjectOrder,
     updateProjectExpanded,

@@ -211,6 +211,8 @@
     "confirmArchive": "确认归档？",
     "newSessionInProject": "在 {name} 中新建会话",
     "newWorktreeSessionInProject": "在 {name} 中创建工作树会话",
+    "missingProjectNotice": "{count} 个项目路径已不存在。",
+    "removeMissingProjects": "移除缺失项",
     "worktreeBranchPlaceholder": "分支名称...",
     "expandProject": "展开 {name}",
     "collapseProject": "折叠 {name}",

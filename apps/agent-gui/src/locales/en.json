@@ -211,6 +211,8 @@
     "confirmArchive": "Confirm archive?",
     "newSessionInProject": "New session in {name}",
     "newWorktreeSessionInProject": "New worktree session in {name}",
+    "missingProjectNotice": "{count} project path(s) no longer exist.",
+    "removeMissingProjects": "Remove missing",
     "worktreeBranchPlaceholder": "Branch name...",
     "expandProject": "Expand {name}",
     "collapseProject": "Collapse {name}",

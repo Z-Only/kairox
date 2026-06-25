@@ -126,6 +126,29 @@ describe("SessionsSidebar", () => {
     );
   });
 
+  it("shows missing project cleanup without the root empty state", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-missing",
+          display_name: "Missing Project",
+          root_path: "/tmp/missing-project",
+          removed_at: null,
+          sort_order: 0,
+          expanded: false,
+          path_exists: false
+        }
+      ]
+    });
+    const { wrapper } = await mountSidebar();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="sessions-root-empty"]').exists()).toBe(false);
+    const notice = wrapper.find('[data-test="missing-projects-notice"]');
+    expect(notice.exists()).toBe(true);
+    expect(notice.text()).toContain("1");
+  });
+
   it("filters regular sessions by title", async () => {
     const { wrapper } = await mountSidebar();
     const session = useSessionStore();
