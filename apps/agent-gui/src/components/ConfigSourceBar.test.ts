@@ -79,6 +79,58 @@ describe("ConfigSourceBar", () => {
     expect(wrapper.find("[data-test='path-warning-banner']").exists()).toBe(true);
   });
 
+  it("excludes missing projects from the project selector", async () => {
+    mockedInvoke.mockResolvedValue([
+      projectResponse({
+        project_id: "project-1",
+        display_name: "Available Project",
+        root_path: "/tmp/available",
+        sort_order: 0,
+        path_exists: true
+      }),
+      projectResponse({
+        project_id: "project-2",
+        display_name: "Missing Project",
+        root_path: "/tmp/missing",
+        sort_order: 1,
+        path_exists: false
+      })
+    ]);
+
+    const { wrapper } = mountWithPlugins(ConfigSourceBar, { reusePinia: true });
+    await flushPromises();
+
+    await wrapper.get("[data-test='source-btn-project']").trigger("click");
+
+    const options = wrapper.findAll("option").map((option) => option.text());
+    expect(options).toEqual(["Available Project"]);
+    expect(wrapper.emitted("source-change")?.at(-1)).toEqual(["project", "project-1"]);
+    expect(wrapper.find("[data-test='path-warning-banner']").exists()).toBe(true);
+  });
+
+  it("keeps project source disabled when every active project path is missing", async () => {
+    mockedInvoke.mockResolvedValue([
+      projectResponse({
+        project_id: "project-1",
+        path_exists: false
+      })
+    ]);
+
+    const { wrapper } = mountWithPlugins(ConfigSourceBar, {
+      props: {
+        initialSource: "project",
+        initialProjectId: "project-1"
+      },
+      reusePinia: true
+    });
+    await flushPromises();
+
+    const projectBtn = wrapper.get("[data-test='source-btn-project']");
+    expect(projectBtn.attributes("disabled")).toBeDefined();
+    expect(wrapper.find("[data-test='project-select']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='path-warning-banner']").exists()).toBe(true);
+  });
+
   it("falls back to the first available project when the selected project disappears", async () => {
     const projectOne = projectResponse({
       project_id: "project-1",
