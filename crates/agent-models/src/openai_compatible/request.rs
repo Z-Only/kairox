@@ -1,9 +1,19 @@
+use super::tool_names::OpenAiToolNameMap;
 use super::OpenAiCompatibleClient;
 use crate::content_parts::{split_markdown_data_uri_images, MultimodalContentPart};
 use crate::{ModelRequest, Result};
 
 impl OpenAiCompatibleClient {
     pub(super) fn build_chat_request(&self, request: &ModelRequest) -> Result<serde_json::Value> {
+        let tool_name_map = OpenAiToolNameMap::from_tools(&request.tools);
+        self.build_chat_request_with_tool_name_map(request, &tool_name_map)
+    }
+
+    pub(super) fn build_chat_request_with_tool_name_map(
+        &self,
+        request: &ModelRequest,
+        tool_name_map: &OpenAiToolNameMap,
+    ) -> Result<serde_json::Value> {
         let mut messages = Vec::new();
 
         if let Some(system_prompt) = request
@@ -29,7 +39,7 @@ impl OpenAiCompatibleClient {
                             "id": tc.id,
                             "type": "function",
                             "function": {
-                                "name": tc.name,
+                                "name": tool_name_map.wire_name(&tc.name),
                                 "arguments": tc.arguments.to_string(),
                             }
                         })
@@ -95,7 +105,7 @@ impl OpenAiCompatibleClient {
                     serde_json::json!({
                         "type": "function",
                         "function": {
-                            "name": t.name,
+                            "name": tool_name_map.wire_name(&t.name),
                             "description": t.description,
                             "parameters": t.parameters,
                         }

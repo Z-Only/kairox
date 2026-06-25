@@ -98,7 +98,7 @@ fn builds_chat_request_with_tools() {
     let body = client.build_chat_request(&request).unwrap();
     let tools = body["tools"].as_array().unwrap();
     assert_eq!(tools[0]["type"], "function");
-    assert_eq!(tools[0]["function"]["name"], "fs.read");
+    assert_eq!(tools[0]["function"]["name"], "fs_read");
 }
 
 #[test]
@@ -183,7 +183,7 @@ file2.rs",
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0]["id"], "call_abc");
     assert_eq!(tool_calls[0]["type"], "function");
-    assert_eq!(tool_calls[0]["function"]["name"], "shell.exec");
+    assert_eq!(tool_calls[0]["function"]["name"], "shell_exec");
 
     // Message 2: tool result with tool_call_id
     assert_eq!(messages[2]["role"], "tool");
@@ -375,7 +375,7 @@ async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
     assert_eq!(body["messages"][2]["tool_calls"][0]["id"], "call_contract");
     assert_eq!(
         body["messages"][2]["tool_calls"][0]["function"]["name"],
-        "shell.exec"
+        "shell_exec"
     );
     assert_eq!(
         body["messages"][2]["tool_calls"][0]["function"]["arguments"],
@@ -385,7 +385,7 @@ async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
     assert_eq!(body["messages"][3]["tool_call_id"], "call_contract");
     assert_eq!(body["messages"][3]["content"], "Cargo.toml");
     assert_eq!(body["tools"][0]["type"], "function");
-    assert_eq!(body["tools"][0]["function"]["name"], "shell.exec");
+    assert_eq!(body["tools"][0]["function"]["name"], "shell_exec");
     assert_eq!(
         body["tools"][0]["function"]["parameters"]["required"][0],
         "command"
@@ -527,6 +527,51 @@ async fn streams_tool_calls_from_wiremock_server() {
         .any(|e| matches!(e, ModelEvent::Completed { .. })));
 
     std::env::remove_var("TEST_KEY_OAI_TC");
+}
+
+#[tokio::test]
+async fn maps_sanitized_wire_tool_call_names_to_internal_tool_ids() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+    let sse_body = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_sanitized\",\"function\":{\"name\":\"shell_exec\",\"arguments\":\"{\\\"command\\\":\\\"ls\\\"}\"}}]},\"index\":0}]}\n\ndata: {\"choices\":[{\"finish_reason\":\"tool_calls\",\"index\":0}]}\n\ndata: [DONE]\n\n";
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(sse_body))
+        .mount(&mock_server)
+        .await;
+
+    let _env = EnvVarGuard::set("TEST_KEY_OAI_SANITIZED_TC", "test-key");
+    let client =
+        OpenAiCompatibleClient::new(test_config(mock_server.uri(), "TEST_KEY_OAI_SANITIZED_TC"));
+    let stream = client
+        .stream(ModelRequest::user_text("fast", "list files").with_tools(vec![shell_tool()]))
+        .await
+        .unwrap();
+
+    let events: Vec<ModelEvent> = stream
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .collect();
+    let tool_call = events
+        .iter()
+        .find_map(|event| match event {
+            ModelEvent::ToolCallRequested {
+                tool_call_id,
+                tool_id,
+                arguments,
+            } => Some((tool_call_id, tool_id, arguments)),
+            _ => None,
+        })
+        .expect("expected ToolCallRequested");
+
+    assert_eq!(tool_call.0, "call_sanitized");
+    assert_eq!(tool_call.1, "shell.exec");
+    assert_eq!(tool_call.2["command"], "ls");
 }
 
 #[tokio::test]

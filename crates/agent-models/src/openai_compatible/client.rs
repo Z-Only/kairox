@@ -1,5 +1,6 @@
 use super::config::OpenAiCompatibleConfig;
 use super::streaming::stream_openai_response;
+use super::tool_names::OpenAiToolNameMap;
 use crate::{ModelError, ModelEvent, ModelRequest, Result};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
@@ -27,6 +28,7 @@ impl OpenAiCompatibleClient {
         &self,
         request: ModelRequest,
     ) -> Result<BoxStream<'static, Result<ModelEvent>>> {
+        let tool_name_map = OpenAiToolNameMap::from_tools(&request.tools);
         let body = self.build_chat_request(&request)?;
         let url = build_chat_completions_url(&self.config.base_url);
 
@@ -57,7 +59,7 @@ impl OpenAiCompatibleClient {
             });
         }
 
-        Ok(stream_openai_response(response))
+        Ok(stream_openai_response(response, tool_name_map))
     }
 }
 
