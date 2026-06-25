@@ -20,15 +20,18 @@ use agent_core::facade::{
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
-    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult, GuiSettingsView,
-    InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
-    McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
-    McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
-    ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
-    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    SaveDraftRequest, SendMessageToSessionIfIdleResponse, ServerEntryResponse, SessionInfoResponse,
-    TaskSnapshotResponse, TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse,
-    WorkspaceInfoResponse,
+    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult,
+    EventTypeCountResponse, GuiSettingsView, InstallOutcomeResponse, InstallRequestPayload,
+    InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
+    McpServerStatusResponse, McpToolCallDiagnosticsResponse, McpToolDefResponse,
+    McpToolStatesResponse, MemoryEntryResponse, ModelToolCallDiagnosticsResponse,
+    MonitorInfoResponse, ProfileDetailResponse, ProjectGitDiffSectionResponse,
+    ProjectGitFileChangeResponse, ProjectGitReviewResponse, ProjectGitStatusResponse,
+    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest,
+    SendMessageToSessionIfIdleResponse, ServerEntryResponse, SessionDiagnosticsMessageResponse,
+    SessionDiagnosticsResponse, SessionInfoResponse, TaskSnapshotResponse,
+    TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse, TrajectoryStepResponse,
+    WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
@@ -56,6 +59,7 @@ fn main() {
             agent_gui_tauri::commands::send_message_to_session_and_wait,
             agent_gui_tauri::commands::send_message_to_session_if_idle,
             agent_gui_tauri::commands::export_trace,
+            agent_gui_tauri::commands::export_session_diagnostics,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands
             agent_gui_tauri::commands::list_projects,
@@ -224,6 +228,12 @@ fn main() {
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
+        .typ::<SessionDiagnosticsResponse>()
+        .typ::<EventTypeCountResponse>()
+        .typ::<SessionDiagnosticsMessageResponse>()
+        .typ::<ModelToolCallDiagnosticsResponse>()
+        .typ::<McpToolCallDiagnosticsResponse>()
+        .typ::<TrajectoryCompletedDiagnosticsResponse>()
         .typ::<BuildInfoResponse>()
         .typ::<GuiSettingsView>()
         .typ::<MonitorInfoResponse>()

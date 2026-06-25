@@ -127,6 +127,53 @@ impl From<agent_core::TrajectoryStep> for TrajectoryStepResponse {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct EventTypeCountResponse {
+    pub event_type: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct SessionDiagnosticsMessageResponse {
+    pub message_id: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct ModelToolCallDiagnosticsResponse {
+    pub tool_call_id: String,
+    pub tool_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct McpToolCallDiagnosticsResponse {
+    pub server_id: String,
+    pub tool_name: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct TrajectoryCompletedDiagnosticsResponse {
+    pub trajectory_id: String,
+    pub step_count: u32,
+    pub outcome: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct SessionDiagnosticsResponse {
+    pub session_id: String,
+    pub event_count: u32,
+    pub event_type_counts: Vec<EventTypeCountResponse>,
+    pub last_event_type: Option<String>,
+    pub user_messages: Vec<SessionDiagnosticsMessageResponse>,
+    pub assistant_messages: Vec<SessionDiagnosticsMessageResponse>,
+    pub model_tool_calls: Vec<ModelToolCallDiagnosticsResponse>,
+    pub mcp_tool_calls: Vec<McpToolCallDiagnosticsResponse>,
+    pub trajectory_started_count: u32,
+    pub trajectory_completed_count: u32,
+    pub trajectory_completed_outcomes: Vec<TrajectoryCompletedDiagnosticsResponse>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProjectInfoResponse {
     pub project_id: String,
