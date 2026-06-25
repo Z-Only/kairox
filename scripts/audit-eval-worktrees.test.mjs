@@ -3,10 +3,12 @@ import test from "node:test";
 
 import {
   auditEvalWorktrees,
+  filterAuditResults,
   filterEvalWorktrees,
   formatHumanTable,
   parseWorktreePorcelain,
-  runCli
+  runCli,
+  summarizeAudit
 } from "./audit-eval-worktrees.mjs";
 
 const PORCELAIN = `worktree /repo
@@ -89,6 +91,44 @@ test("filterEvalWorktrees selects eval branches or eval-kairox path basenames", 
   ]);
 });
 
+test("summarizeAudit counts total and dirty status buckets", () => {
+  assert.deepEqual(
+    summarizeAudit([
+      { dirty_status: "clean" },
+      { dirty_status: "dirty" },
+      { dirty_status: "missing" },
+      { dirty_status: "error" },
+      { dirty_status: "dirty" }
+    ]),
+    {
+      total: 5,
+      clean: 1,
+      dirty: 2,
+      missing: 1,
+      error: 1
+    }
+  );
+});
+
+test("filterAuditResults applies dirty and clean filters", () => {
+  const worktrees = [
+    { path: "/clean", dirty_status: "clean" },
+    { path: "/dirty", dirty_status: "dirty" },
+    { path: "/missing", dirty_status: "missing" },
+    { path: "/error", dirty_status: "error" }
+  ];
+
+  assert.deepEqual(filterAuditResults(worktrees), worktrees);
+  assert.deepEqual(filterAuditResults(worktrees, { dirtyOnly: true }), [
+    { path: "/dirty", dirty_status: "dirty" },
+    { path: "/missing", dirty_status: "missing" },
+    { path: "/error", dirty_status: "error" }
+  ]);
+  assert.deepEqual(filterAuditResults(worktrees, { cleanOnly: true }), [
+    { path: "/clean", dirty_status: "clean" }
+  ]);
+});
+
 test("auditEvalWorktrees marks dirty, clean, and missing worktrees without deleting anything", async () => {
   const commands = [];
   const existingPaths = new Set(["/repo/.worktrees/eval-a", "/repo/.worktrees/eval-kairox-b"]);
@@ -164,6 +204,7 @@ test("formatHumanTable emits a stable table with path, branch, head, exists, and
     }
   ]);
 
+  assert.match(table, /^Summary: total=2 clean=1 dirty=0 missing=1 error=0$/m);
   assert.match(table, /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS/m);
   assert.match(table, /\/repo\/\.worktrees\/eval-a\s+eval\/a\s+222222222222\s+yes\s+clean/);
   assert.match(
@@ -190,29 +231,204 @@ test("runCli writes stable JSON without touching the real Git repository", async
 
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
-  assert.deepEqual(JSON.parse(stdout.content), [
-    {
-      path: "/repo/.worktrees/eval-a",
-      branch: "eval/a",
-      head: "2222222222222222222222222222222222222222",
-      dirty_status: "clean",
-      path_exists: true
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 3,
+      clean: 2,
+      dirty: 0,
+      missing: 1,
+      error: 0
     },
-    {
-      path: "/repo/.worktrees/eval-kairox-b",
-      branch: "codex/not-eval",
-      head: "3333333333333333333333333333333333333333",
-      dirty_status: "clean",
-      path_exists: true
-    },
-    {
-      path: "/repo/.worktrees/eval-kairox-detached",
-      branch: null,
-      head: "5555555555555555555555555555555555555555",
-      dirty_status: "missing",
-      path_exists: false
+    worktrees: [
+      {
+        path: "/repo/.worktrees/eval-a",
+        branch: "eval/a",
+        head: "2222222222222222222222222222222222222222",
+        dirty_status: "clean",
+        path_exists: true
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-b",
+        branch: "codex/not-eval",
+        head: "3333333333333333333333333333333333333333",
+        dirty_status: "clean",
+        path_exists: true
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-detached",
+        branch: null,
+        head: "5555555555555555555555555555555555555555",
+        dirty_status: "missing",
+        path_exists: false
+      }
+    ]
+  });
+});
+
+test("runCli filters JSON output with --dirty-only", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--dirty-only"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      return { stdout: "" };
     }
-  ]);
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 2,
+      clean: 0,
+      dirty: 1,
+      missing: 1,
+      error: 0
+    },
+    worktrees: [
+      {
+        path: "/repo/.worktrees/eval-kairox-b",
+        branch: "codex/not-eval",
+        head: "3333333333333333333333333333333333333333",
+        dirty_status: "dirty",
+        path_exists: true
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-detached",
+        branch: null,
+        head: "5555555555555555555555555555555555555555",
+        dirty_status: "missing",
+        path_exists: false
+      }
+    ]
+  });
+});
+
+test("runCli filters JSON output with --clean-only", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--clean-only"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      return { stdout: "" };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 1,
+      clean: 1,
+      dirty: 0,
+      missing: 0,
+      error: 0
+    },
+    worktrees: [
+      {
+        path: "/repo/.worktrees/eval-a",
+        branch: "eval/a",
+        head: "2222222222222222222222222222222222222222",
+        dirty_status: "clean",
+        path_exists: true
+      }
+    ]
+  });
+});
+
+test("runCli prints only the summary with --summary", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--summary"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      return { stdout: "" };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(stdout.content, "Summary: total=3 clean=1 dirty=1 missing=1 error=0\n");
+});
+
+test("runCli prints stable summary JSON with --json --summary", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--summary", "--dirty-only"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      return { stdout: "" };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 2,
+      clean: 0,
+      dirty: 1,
+      missing: 1,
+      error: 0
+    }
+  });
+});
+
+test("runCli rejects conflicting dirty-only and clean-only filters", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  let invoked = false;
+
+  const exitCode = await runCli(["--dirty-only", "--clean-only"], {
+    stdout,
+    stderr,
+    execFile: async () => {
+      invoked = true;
+      throw new Error("git should not be invoked for invalid filters");
+    }
+  });
+
+  assert.equal(exitCode, 1);
+  assert.equal(stdout.content, "");
+  assert.equal(invoked, false);
+  assert.match(stderr.content, /Error: --dirty-only and --clean-only cannot be used together/);
+  assert.match(stderr.content, /Usage: node scripts\/audit-eval-worktrees\.mjs/);
 });
 
 test("runCli prints help without invoking git", async () => {
@@ -232,5 +448,8 @@ test("runCli prints help without invoking git", async () => {
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
   assert.equal(invoked, false);
-  assert.match(stdout.content, /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\]/);
+  assert.match(
+    stdout.content,
+    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\]/
+  );
 });
