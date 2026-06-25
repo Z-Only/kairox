@@ -142,7 +142,7 @@ test("auditEvalWorktrees marks dirty, clean, and missing worktrees without delet
         return { stdout: "" };
       }
       if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
-        return { stdout: " M crates/agent-eval/src/main.rs\n?? scratch.txt\n" };
+        return { stdout: " M crates/agent-runtime/src/lib.rs\n?? scratch.txt\n" };
       }
       throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
     },
@@ -155,21 +155,27 @@ test("auditEvalWorktrees marks dirty, clean, and missing worktrees without delet
       branch: "eval/a",
       head: "2222222222222222222222222222222222222222",
       dirty_status: "clean",
-      path_exists: true
+      path_exists: true,
+      dirty_file_count: 0,
+      dirty_files: []
     },
     {
       path: "/repo/.worktrees/eval-kairox-b",
       branch: "codex/not-eval",
       head: "3333333333333333333333333333333333333333",
       dirty_status: "dirty",
-      path_exists: true
+      path_exists: true,
+      dirty_file_count: 2,
+      dirty_files: ["crates/agent-runtime/src/lib.rs", "scratch.txt"]
     },
     {
       path: "/repo/.worktrees/eval-kairox-detached",
       branch: null,
       head: "5555555555555555555555555555555555555555",
       dirty_status: "missing",
-      path_exists: false
+      path_exists: false,
+      dirty_file_count: 0,
+      dirty_files: []
     }
   ]);
   assert.deepEqual(
@@ -186,30 +192,114 @@ test("auditEvalWorktrees marks dirty, clean, and missing worktrees without delet
   }
 });
 
-test("formatHumanTable emits a stable table with path, branch, head, exists, and dirty columns", () => {
+test("auditEvalWorktrees reports empty dirty file details when status lookup errors", async () => {
+  const existingPaths = new Set([
+    "/repo/.worktrees/eval-a",
+    "/repo/.worktrees/eval-kairox-b",
+    "/repo/.worktrees/eval-kairox-detached"
+  ]);
+  const audited = await auditEvalWorktrees({
+    execFile: async (command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        throw new Error("status failed");
+      }
+      if (command === "git" && args.includes("status")) {
+        return { stdout: "" };
+      }
+      throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
+    },
+    pathExists: (path) => existingPaths.has(path)
+  });
+
+  assert.deepEqual(audited[1], {
+    path: "/repo/.worktrees/eval-kairox-b",
+    branch: "codex/not-eval",
+    head: "3333333333333333333333333333333333333333",
+    dirty_status: "error",
+    path_exists: true,
+    dirty_file_count: 0,
+    dirty_files: []
+  });
+});
+
+test("auditEvalWorktrees caps dirty file details while counting every status line", async () => {
+  const existingPaths = new Set(["/repo/.worktrees/eval-kairox-b"]);
+  const audited = await auditEvalWorktrees({
+    execFile: async (_command, args) => {
+      if (args.join(" ") === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (args.join(" ") === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return {
+          stdout: [
+            " M one.txt",
+            " M two.txt",
+            " M three.txt",
+            " M four.txt",
+            " M five.txt",
+            " M six.txt"
+          ].join("\n")
+        };
+      }
+      throw new Error(`unexpected command: ${args.join(" ")}`);
+    },
+    pathExists: (path) => existingPaths.has(path)
+  });
+
+  assert.equal(audited[1].dirty_file_count, 6);
+  assert.deepEqual(audited[1].dirty_files, [
+    "one.txt",
+    "two.txt",
+    "three.txt",
+    "four.txt",
+    "five.txt"
+  ]);
+});
+
+test("formatHumanTable emits a stable table with path, branch, head, exists, dirty, and dirty files columns", () => {
   const table = formatHumanTable([
     {
       path: "/repo/.worktrees/eval-a",
       branch: "eval/a",
       head: "2222222222222222222222222222222222222222",
       dirty_status: "clean",
-      path_exists: true
+      path_exists: true,
+      dirty_file_count: 0,
+      dirty_files: []
+    },
+    {
+      path: "/repo/.worktrees/eval-kairox-b",
+      branch: "codex/not-eval",
+      head: "3333333333333333333333333333333333333333",
+      dirty_status: "dirty",
+      path_exists: true,
+      dirty_file_count: 2,
+      dirty_files: ["crates/agent-runtime/src/lib.rs", "scratch.txt"]
     },
     {
       path: "/repo/.worktrees/eval-kairox-detached",
       branch: null,
       head: "5555555555555555555555555555555555555555",
       dirty_status: "missing",
-      path_exists: false
+      path_exists: false,
+      dirty_file_count: 0,
+      dirty_files: []
     }
   ]);
 
-  assert.match(table, /^Summary: total=2 clean=1 dirty=0 missing=1 error=0$/m);
-  assert.match(table, /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS/m);
-  assert.match(table, /\/repo\/\.worktrees\/eval-a\s+eval\/a\s+222222222222\s+yes\s+clean/);
+  assert.match(table, /^Summary: total=3 clean=1 dirty=1 missing=1 error=0$/m);
+  assert.match(table, /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES/m);
+  assert.match(table, /\/repo\/\.worktrees\/eval-a\s+eval\/a\s+222222222222\s+yes\s+clean\s+-/);
   assert.match(
     table,
-    /\/repo\/\.worktrees\/eval-kairox-detached\s+-\s+555555555555\s+no\s+missing/
+    /\/repo\/\.worktrees\/eval-kairox-b\s+codex\/not-eval\s+333333333333\s+yes\s+dirty\s+2: crates\/agent-runtime\/src\/lib\.rs, scratch\.txt/
+  );
+  assert.match(
+    table,
+    /\/repo\/\.worktrees\/eval-kairox-detached\s+-\s+555555555555\s+no\s+missing\s+-/
   );
 });
 
@@ -245,21 +335,27 @@ test("runCli writes stable JSON without touching the real Git repository", async
         branch: "eval/a",
         head: "2222222222222222222222222222222222222222",
         dirty_status: "clean",
-        path_exists: true
+        path_exists: true,
+        dirty_file_count: 0,
+        dirty_files: []
       },
       {
         path: "/repo/.worktrees/eval-kairox-b",
         branch: "codex/not-eval",
         head: "3333333333333333333333333333333333333333",
         dirty_status: "clean",
-        path_exists: true
+        path_exists: true,
+        dirty_file_count: 0,
+        dirty_files: []
       },
       {
         path: "/repo/.worktrees/eval-kairox-detached",
         branch: null,
         head: "5555555555555555555555555555555555555555",
         dirty_status: "missing",
-        path_exists: false
+        path_exists: false,
+        dirty_file_count: 0,
+        dirty_files: []
       }
     ]
   });
@@ -300,14 +396,18 @@ test("runCli filters JSON output with --dirty-only", async () => {
         branch: "codex/not-eval",
         head: "3333333333333333333333333333333333333333",
         dirty_status: "dirty",
-        path_exists: true
+        path_exists: true,
+        dirty_file_count: 1,
+        dirty_files: ["changed.txt"]
       },
       {
         path: "/repo/.worktrees/eval-kairox-detached",
         branch: null,
         head: "5555555555555555555555555555555555555555",
         dirty_status: "missing",
-        path_exists: false
+        path_exists: false,
+        dirty_file_count: 0,
+        dirty_files: []
       }
     ]
   });
@@ -348,7 +448,9 @@ test("runCli filters JSON output with --clean-only", async () => {
         branch: "eval/a",
         head: "2222222222222222222222222222222222222222",
         dirty_status: "clean",
-        path_exists: true
+        path_exists: true,
+        dirty_file_count: 0,
+        dirty_files: []
       }
     ]
   });
