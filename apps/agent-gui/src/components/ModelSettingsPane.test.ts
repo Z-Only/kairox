@@ -618,6 +618,65 @@ describe("ModelSettingsPane", () => {
     );
   });
 
+  it("shows actionable empty-response diagnostics without failed response previews", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: {
+        ok: false,
+        error: "model returned an empty response; check model availability, quota, or plan",
+        status: "empty_response",
+        message: "Model my-model returned no chat output.",
+        response_preview: "this failed preview should stay hidden"
+      }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    const result = wrapper.find('[data-test="model-health-result"]');
+    expect(result.exists()).toBe(true);
+    expect(result.text()).toContain("Empty response");
+    expect(result.text()).toContain("Check model availability, quota, or plan access.");
+    expect(wrapper.find('[data-test="model-health-detail"]').text()).toContain(
+      "model returned an empty response"
+    );
+    expect(wrapper.find('[data-test="model-health-response-preview"]').exists()).toBe(false);
+    expect(result.text()).not.toContain("this failed preview should stay hidden");
+    expect(mockNotify).toHaveBeenCalledWith(
+      "error",
+      expect.stringContaining("Check model availability")
+    );
+  });
+
+  it("shows chat-ready response previews only for successful probes", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: {
+        ok: true,
+        error: null,
+        status: "chat_ready",
+        message: "Model my-model is ready to chat.",
+        response_preview: "ready response"
+      }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    const result = wrapper.find('[data-test="model-health-result"]');
+    expect(result.exists()).toBe(true);
+    expect(result.text()).toContain("Chat ready");
+    expect(result.text()).toContain("Model responded to a chat probe.");
+    expect(wrapper.find('[data-test="model-health-response-preview"]').text()).toContain(
+      "ready response"
+    );
+    expect(wrapper.find('[data-test="model-health-detail"]').exists()).toBe(false);
+  });
+
   it("notifies error when test profile connectivity returns error status", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "error",
@@ -630,6 +689,10 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     expect(mockNotify).toHaveBeenCalledWith("error", "API key invalid");
+    const result = wrapper.find('[data-test="model-health-result"]');
+    expect(result.exists()).toBe(true);
+    expect(result.text()).toContain("Connectivity check failed");
+    expect(wrapper.find('[data-test="model-health-detail"]').text()).toContain("API key invalid");
   });
 
   it("notifies error when test profile connectivity returns ok with error message", async () => {

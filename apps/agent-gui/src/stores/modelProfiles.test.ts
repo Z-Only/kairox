@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useModelProfilesStore } from "@/stores/modelProfiles";
+import { modelHealthAdvice, useModelProfilesStore } from "@/stores/modelProfiles";
 import type { ProfileSettingsView, ProfileSettingsInput } from "@/generated/commands";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -261,6 +261,63 @@ describe("useModelProfilesStore", () => {
   });
 
   describe("testModelConnectivity", () => {
+    it("normalizes actionable health advice for failed connectivity statuses", () => {
+      const cases = [
+        {
+          status: "empty_response",
+          expected: {
+            tone: "warning",
+            label: "Empty response",
+            recommendation: "Check model availability, quota, or plan access."
+          }
+        },
+        {
+          status: "auth_failed",
+          expected: {
+            tone: "danger",
+            label: "Authentication failed",
+            recommendation: "Check the API key or configured API key environment variable."
+          }
+        },
+        {
+          status: "quota_or_plan_blocked",
+          expected: {
+            tone: "danger",
+            label: "Quota or plan blocked",
+            recommendation: "Check quota, billing, and model access for this account."
+          }
+        },
+        {
+          status: "rate_limited",
+          expected: {
+            tone: "warning",
+            label: "Rate limited",
+            recommendation: "Wait and retry, or reduce request rate."
+          }
+        },
+        {
+          status: "network_error",
+          expected: {
+            tone: "warning",
+            label: "Network error",
+            recommendation: "Check network connectivity and the endpoint URL."
+          }
+        }
+      ];
+
+      for (const { status, expected } of cases) {
+        expect(
+          modelHealthAdvice({
+            ok: false,
+            status,
+            error: "raw detail",
+            message: "backend message",
+            response_preview: "must not matter"
+          })
+        ).toEqual(expected);
+      }
+    });
+
     it("returns connectivity result", async () => {
       const store = useModelProfilesStore();
       const result = { success: true, latency_ms: 42, error: null };
@@ -269,6 +326,7 @@ describe("useModelProfilesStore", () => {
       const res = await store.testModelConnectivity("default");
 
       expect(mockedCommands.testModelConnectivity).toHaveBeenCalledWith("default", null);
+      expect(res).toEqual(ok(result));
       expect(store.busyAlias).toBeNull();
     });
 

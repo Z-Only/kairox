@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import type { ProfileSettingsView } from "@/generated/commands";
+import type { ConnectivityTestResult, ProfileSettingsView } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
 import ModelProfileCard from "@/components/ModelProfileCard.vue";
 import ModelProfileFormDialog from "@/components/ModelProfileFormDialog.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import { storeToRefs } from "pinia";
-import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
+import {
+  useModelProfilesStore,
+  formatError,
+  modelHealthAdvice,
+  type ModelHealthAdvice
+} from "@/stores/modelProfiles";
 import { useProjectStore } from "@/stores/project";
 
 type ModelProfileSort = "original" | "alias" | "provider" | "source" | "status";
@@ -13,6 +18,12 @@ type ModelProfileSort = "original" | "alias" | "provider" | "source" | "status";
 interface SortOption {
   value: ModelProfileSort;
   label: string;
+}
+
+interface ModelHealthResult {
+  subject: string;
+  result: ConnectivityTestResult;
+  advice: ModelHealthAdvice;
 }
 
 const { t } = useI18n();
@@ -43,6 +54,7 @@ const formSupportsReasoning = ref(false);
 const formSupportsReasoningExplicit = ref(false);
 const searchQuery = ref("");
 const profileSort = ref<ModelProfileSort>("original");
+const lastModelHealthResult = ref<ModelHealthResult | null>(null);
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function isClaudeCodeIdentity(value: string | null | undefined): boolean {
@@ -279,6 +291,28 @@ function localizeConnectivityResult(
   return result.message || result.error || t("models.testFailed", { alias });
 }
 
+function modelHealthStateTone(tone: ModelHealthAdvice["tone"]): "success" | "warning" | "error" {
+  return tone === "danger" ? "error" : tone;
+}
+
+function recordModelHealthResult(subject: string, result: ConnectivityTestResult): void {
+  lastModelHealthResult.value = {
+    subject,
+    result,
+    advice: modelHealthAdvice(result)
+  };
+}
+
+function recordModelHealthError(subject: string, error: string): void {
+  recordModelHealthResult(subject, {
+    ok: false,
+    status: "request_failed",
+    error,
+    message: error,
+    response_preview: null
+  });
+}
+
 async function saveNewProfile(): Promise<void> {
   const alias = formAlias.value.trim();
   if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) return;
@@ -297,15 +331,22 @@ async function testProfileConnectivity(profile: ProfileSettingsView): Promise<vo
   try {
     const result = await store.testModelConnectivity(profile.alias, projectRoot.value);
     if (result.status === "ok" && result.data.ok === true) {
+      recordModelHealthResult(profile.alias, result.data);
       notify("success", localizeConnectivityResult(result.data, profile.alias));
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
           : localizeConnectivityResult(result.data, profile.alias);
+      if (result.status === "ok") {
+        recordModelHealthResult(profile.alias, result.data);
+      } else {
+        recordModelHealthError(profile.alias, String(result.error));
+      }
       notify("error", msg);
     }
   } catch (caughtError) {
+    recordModelHealthError(profile.alias, formatError(caughtError));
     notify(
       "error",
       t("models.testFailed", { alias: profile.alias, error: formatError(caughtError) })
@@ -319,15 +360,22 @@ async function testFormConnectivity(): Promise<void> {
   try {
     const result = await store.testUrlConnectivity(url);
     if (result.status === "ok" && result.data.ok === true) {
+      recordModelHealthResult(url, result.data);
       notify("success", localizeConnectivityResult(result.data, url));
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
           : localizeConnectivityResult(result.data, url);
+      if (result.status === "ok") {
+        recordModelHealthResult(url, result.data);
+      } else {
+        recordModelHealthError(url, String(result.error));
+      }
       notify("error", msg);
     }
   } catch (caughtError) {
+    recordModelHealthError(url, formatError(caughtError));
     notify("error", t("models.testFailed", { alias: url, error: formatError(caughtError) }));
   }
 }
@@ -362,6 +410,34 @@ function toggleProfile(profile: ProfileSettingsView): void {
         {{ t("models.addProfile") }}
       </KxToolbarAction>
     </SettingsToolbar>
+
+    <SettingsState
+      v-if="lastModelHealthResult"
+      class="model-health-result"
+      :tone="modelHealthStateTone(lastModelHealthResult.advice.tone)"
+      data-test="model-health-result"
+    >
+      <span class="model-health-result__body">
+        <strong data-test="model-health-label">{{ lastModelHealthResult.advice.label }}</strong>
+        <span data-test="model-health-recommendation">
+          {{ lastModelHealthResult.advice.recommendation }}
+        </span>
+        <span
+          v-if="!lastModelHealthResult.result.ok && lastModelHealthResult.result.error"
+          class="model-health-result__detail"
+          data-test="model-health-detail"
+        >
+          {{ lastModelHealthResult.result.error }}
+        </span>
+        <span
+          v-if="lastModelHealthResult.result.ok && lastModelHealthResult.result.response_preview"
+          class="model-health-result__preview"
+          data-test="model-health-response-preview"
+        >
+          {{ lastModelHealthResult.result.response_preview }}
+        </span>
+      </span>
+    </SettingsState>
 
     <SettingsState v-if="loading" tone="loading" data-test="model-loading-state">
       {{ t("models.loading") }}
@@ -488,5 +564,16 @@ function toggleProfile(profile: ProfileSettingsView): void {
 
 .model-settings__sort-select {
   flex: 0 0 160px;
+}
+
+.model-health-result__body {
+  display: grid;
+  gap: 4px;
+}
+
+.model-health-result__detail,
+.model-health-result__preview {
+  color: var(--app-text-color-2);
+  font-size: 12px;
 }
 </style>

@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
+  type ConnectivityTestResult,
   type ProfileSettingsView,
   type ProfileSettingsInput
 } from "@/generated/commands";
@@ -27,6 +28,67 @@ async function unwrapCommandResult<T>(resultPromise: Promise<T | CommandResult<T
 
 export function formatError(caughtError: unknown): string {
   return caughtError instanceof Error ? caughtError.message : String(caughtError);
+}
+
+export interface ModelHealthAdvice {
+  tone: "success" | "warning" | "danger";
+  label: string;
+  recommendation: string;
+}
+
+const MODEL_HEALTH_ADVICE_BY_STATUS: Record<string, ModelHealthAdvice> = {
+  chat_ready: {
+    tone: "success",
+    label: "Chat ready",
+    recommendation: "Model responded to a chat probe."
+  },
+  endpoint_reachable: {
+    tone: "success",
+    label: "Endpoint reachable",
+    recommendation: "Endpoint accepted the connectivity probe."
+  },
+  empty_response: {
+    tone: "warning",
+    label: "Empty response",
+    recommendation: "Check model availability, quota, or plan access."
+  },
+  auth_failed: {
+    tone: "danger",
+    label: "Authentication failed",
+    recommendation: "Check the API key or configured API key environment variable."
+  },
+  quota_or_plan_blocked: {
+    tone: "danger",
+    label: "Quota or plan blocked",
+    recommendation: "Check quota, billing, and model access for this account."
+  },
+  rate_limited: {
+    tone: "warning",
+    label: "Rate limited",
+    recommendation: "Wait and retry, or reduce request rate."
+  },
+  network_error: {
+    tone: "warning",
+    label: "Network error",
+    recommendation: "Check network connectivity and the endpoint URL."
+  }
+};
+
+export function modelHealthAdvice(result: ConnectivityTestResult): ModelHealthAdvice {
+  const knownAdvice = MODEL_HEALTH_ADVICE_BY_STATUS[result.status];
+  if (knownAdvice) return knownAdvice;
+  if (result.ok) {
+    return {
+      tone: "success",
+      label: "Connectivity check passed",
+      recommendation: "The profile responded successfully."
+    };
+  }
+  return {
+    tone: "danger",
+    label: "Connectivity check failed",
+    recommendation: "Review the raw error and model configuration."
+  };
 }
 
 export const useModelProfilesStore = defineStore("modelProfiles", () => {
