@@ -362,7 +362,7 @@ export function formatHumanSummary(summaries) {
   const rows = summaries.map((summary) => [
     `#${summary.number}`,
     summary.state || "-",
-    summary.merge_state_status || "-",
+    summary.state === "MERGED" ? "MERGED" : summary.merge_state_status || "-",
     headLabel(summary),
     summary.checks.counts.success,
     summary.checks.counts.failure,
