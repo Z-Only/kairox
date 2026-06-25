@@ -650,6 +650,29 @@ describe("ModelSettingsPane", () => {
     );
   });
 
+  it("localizes model health advice", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: {
+        ok: false,
+        error: "配置缺少 Base URL",
+        status: "invalid_config",
+        message: "Model my-model configuration error.",
+        response_preview: null
+      }
+    });
+    const wrapper = mountPane("user", undefined, "zh-CN");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    const result = wrapper.find('[data-test="model-health-result"]');
+    expect(result.text()).toContain("配置无效");
+    expect(result.text()).toContain("检查提供商、Base URL、API Key 设置和模型 ID。");
+    expect(wrapper.find('[data-test="model-health-detail"]').text()).toContain("配置缺少 Base URL");
+  });
+
   it("shows chat-ready response previews only for successful probes", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "ok",
@@ -691,7 +714,7 @@ describe("ModelSettingsPane", () => {
     expect(mockNotify).toHaveBeenCalledWith("error", "API key invalid");
     const result = wrapper.find('[data-test="model-health-result"]');
     expect(result.exists()).toBe(true);
-    expect(result.text()).toContain("Connectivity check failed");
+    expect(result.text()).toContain("Request failed");
     expect(wrapper.find('[data-test="model-health-detail"]').text()).toContain("API key invalid");
   });
 

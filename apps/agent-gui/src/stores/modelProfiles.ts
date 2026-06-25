@@ -36,59 +36,137 @@ export interface ModelHealthAdvice {
   recommendation: string;
 }
 
-const MODEL_HEALTH_ADVICE_BY_STATUS: Record<string, ModelHealthAdvice> = {
+type HealthAdviceTranslator = (key: string) => string;
+
+interface ModelHealthAdviceDefinition extends ModelHealthAdvice {
+  labelKey: string;
+  recommendationKey: string;
+}
+
+const MODEL_HEALTH_ADVICE_BY_STATUS: Record<string, ModelHealthAdviceDefinition> = {
   chat_ready: {
     tone: "success",
+    labelKey: "models.healthAdvice_chat_ready_label",
     label: "Chat ready",
+    recommendationKey: "models.healthAdvice_chat_ready_recommendation",
     recommendation: "Model responded to a chat probe."
   },
   endpoint_reachable: {
     tone: "success",
+    labelKey: "models.healthAdvice_endpoint_reachable_label",
     label: "Endpoint reachable",
+    recommendationKey: "models.healthAdvice_endpoint_reachable_recommendation",
     recommendation: "Endpoint accepted the connectivity probe."
   },
   empty_response: {
     tone: "warning",
+    labelKey: "models.healthAdvice_empty_response_label",
     label: "Empty response",
+    recommendationKey: "models.healthAdvice_empty_response_recommendation",
     recommendation: "Check model availability, quota, or plan access."
   },
   auth_failed: {
     tone: "danger",
+    labelKey: "models.healthAdvice_auth_failed_label",
     label: "Authentication failed",
+    recommendationKey: "models.healthAdvice_auth_failed_recommendation",
     recommendation: "Check the API key or configured API key environment variable."
   },
   quota_or_plan_blocked: {
     tone: "danger",
+    labelKey: "models.healthAdvice_quota_or_plan_blocked_label",
     label: "Quota or plan blocked",
+    recommendationKey: "models.healthAdvice_quota_or_plan_blocked_recommendation",
     recommendation: "Check quota, billing, and model access for this account."
   },
   rate_limited: {
     tone: "warning",
+    labelKey: "models.healthAdvice_rate_limited_label",
     label: "Rate limited",
+    recommendationKey: "models.healthAdvice_rate_limited_recommendation",
     recommendation: "Wait and retry, or reduce request rate."
   },
   network_error: {
     tone: "warning",
+    labelKey: "models.healthAdvice_network_error_label",
     label: "Network error",
+    recommendationKey: "models.healthAdvice_network_error_recommendation",
     recommendation: "Check network connectivity and the endpoint URL."
+  },
+  permission_denied: {
+    tone: "danger",
+    labelKey: "models.healthAdvice_permission_denied_label",
+    label: "Permission denied",
+    recommendationKey: "models.healthAdvice_permission_denied_recommendation",
+    recommendation: "Use an API key with access to this model or endpoint."
+  },
+  model_unavailable: {
+    tone: "danger",
+    labelKey: "models.healthAdvice_model_unavailable_label",
+    label: "Model unavailable",
+    recommendationKey: "models.healthAdvice_model_unavailable_recommendation",
+    recommendation: "Check the model ID, provider, and account access."
+  },
+  server_error: {
+    tone: "warning",
+    labelKey: "models.healthAdvice_server_error_label",
+    label: "Server error",
+    recommendationKey: "models.healthAdvice_server_error_recommendation",
+    recommendation: "Retry later or check provider status."
+  },
+  invalid_config: {
+    tone: "danger",
+    labelKey: "models.healthAdvice_invalid_config_label",
+    label: "Invalid configuration",
+    recommendationKey: "models.healthAdvice_invalid_config_recommendation",
+    recommendation: "Check provider, base URL, API key settings, and model ID."
+  },
+  request_failed: {
+    tone: "danger",
+    labelKey: "models.healthAdvice_request_failed_label",
+    label: "Request failed",
+    recommendationKey: "models.healthAdvice_request_failed_recommendation",
+    recommendation: "Review the raw error and model configuration."
   }
 };
 
-export function modelHealthAdvice(result: ConnectivityTestResult): ModelHealthAdvice {
-  const knownAdvice = MODEL_HEALTH_ADVICE_BY_STATUS[result.status];
-  if (knownAdvice) return knownAdvice;
-  if (result.ok) {
-    return {
-      tone: "success",
-      label: "Connectivity check passed",
-      recommendation: "The profile responded successfully."
-    };
-  }
+const PASSED_HEALTH_ADVICE: ModelHealthAdviceDefinition = {
+  tone: "success",
+  labelKey: "models.healthAdvice_passed_label",
+  label: "Connectivity check passed",
+  recommendationKey: "models.healthAdvice_passed_recommendation",
+  recommendation: "The profile responded successfully."
+};
+
+const FAILED_HEALTH_ADVICE: ModelHealthAdviceDefinition = {
+  tone: "danger",
+  labelKey: "models.healthAdvice_failed_label",
+  label: "Connectivity check failed",
+  recommendationKey: "models.healthAdvice_failed_recommendation",
+  recommendation: "Review the raw error and model configuration."
+};
+
+function resolveModelHealthAdvice(
+  advice: ModelHealthAdviceDefinition,
+  translate?: HealthAdviceTranslator
+): ModelHealthAdvice {
   return {
-    tone: "danger",
-    label: "Connectivity check failed",
-    recommendation: "Review the raw error and model configuration."
+    tone: advice.tone,
+    label: translate ? translate(advice.labelKey) : advice.label,
+    recommendation: translate ? translate(advice.recommendationKey) : advice.recommendation
   };
+}
+
+export function modelHealthAdvice(
+  result: ConnectivityTestResult,
+  translate?: HealthAdviceTranslator
+): ModelHealthAdvice {
+  const knownAdvice = MODEL_HEALTH_ADVICE_BY_STATUS[result.status];
+  if (knownAdvice) return resolveModelHealthAdvice(knownAdvice, translate);
+  if (result.ok) {
+    return resolveModelHealthAdvice(PASSED_HEALTH_ADVICE, translate);
+  }
+  return resolveModelHealthAdvice(FAILED_HEALTH_ADVICE, translate);
 }
 
 export const useModelProfilesStore = defineStore("modelProfiles", () => {

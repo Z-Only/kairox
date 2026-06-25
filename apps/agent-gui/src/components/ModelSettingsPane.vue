@@ -299,7 +299,7 @@ function recordModelHealthResult(subject: string, result: ConnectivityTestResult
   lastModelHealthResult.value = {
     subject,
     result,
-    advice: modelHealthAdvice(result)
+    advice: modelHealthAdvice(result, (key) => t(key))
   };
 }
 
