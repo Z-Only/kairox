@@ -9,9 +9,10 @@ const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
 const GH_PR_VIEW_FIELDS = "number,state,mergeCommit,headRefName,headRefOid";
 
-export const USAGE = `Usage: node scripts/cleanup-merged-worktree.mjs --branch <branch> [--worktree <path>] [--pr <number>] [--force-dirty]
+export const USAGE = `Usage: node scripts/cleanup-merged-worktree.mjs [--branch <branch>] [--worktree <path>] [--pr <number>] [--force-dirty] [--dry-run] [--json]
 
 Removes a merged feature worktree, then force-deletes its local and remote branch.
+When --branch is omitted, the current git branch is used.
 
 Safety checks:
   - GitHub must report the PR as MERGED.
@@ -20,10 +21,12 @@ Safety checks:
   - Dirty worktrees are refused unless --force-dirty is supplied.
 
 Options:
-  --branch <branch>    Local branch to clean up.
+  --branch <branch>    Local branch to clean up. Defaults to current branch.
   --worktree <path>   Worktree path. Defaults to the worktree owning --branch.
   --pr <number>       PR number to verify. Defaults to resolving by --branch.
   --force-dirty       Force-remove a dirty worktree.
+  --dry-run           Print the planned cleanup without deleting anything.
+  --json              Write the cleanup result as JSON. No human output is written on success.
   --help, -h          Show this help.
 `;
 
@@ -42,7 +45,9 @@ export function parseArgs(argv) {
     branch: undefined,
     worktree: undefined,
     pr: undefined,
-    forceDirty: false
+    forceDirty: false,
+    dryRun: false,
+    json: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -53,6 +58,14 @@ export function parseArgs(argv) {
     }
     if (arg === "--force-dirty") {
       parsed.forceDirty = true;
+      continue;
+    }
+    if (arg === "--dry-run") {
+      parsed.dryRun = true;
+      continue;
+    }
+    if (arg === "--json") {
+      parsed.json = true;
       continue;
     }
     if (arg === "--branch" || arg === "--worktree" || arg === "--pr") {
@@ -88,8 +101,8 @@ export function parseArgs(argv) {
   if (parsed.help) {
     return parsed;
   }
-  if (!parsed.branch) {
-    throw new UsageError("Missing required --branch <branch>.");
+  if (parsed.branch === "") {
+    throw new UsageError("--branch requires a non-empty value.");
   }
   if (parsed.worktree === "") {
     throw new UsageError("--worktree requires a non-empty path.");
@@ -149,6 +162,18 @@ async function readCurrentWorktreeRoot({ execFile, cwd, env }) {
     throw new Error("git rev-parse --show-toplevel returned an empty path");
   }
   return worktreeRoot;
+}
+
+async function readCurrentBranch({ execFile, cwd, env }) {
+  const result = await execChecked(execFile, "git", ["branch", "--show-current"], {
+    cwd,
+    env
+  });
+  const branch = trimStdout(result);
+  if (!branch) {
+    throw new UsageError("Unable to infer current branch. Pass --branch <branch>.");
+  }
+  return branch;
 }
 
 function resolveGitPath(path, cwd) {
@@ -264,20 +289,114 @@ function remoteBranchMissing(error) {
   return /remote ref does not exist|not found|unable to delete/i.test(text);
 }
 
-async function deleteRemoteBranch(execFile, branch, { cwd, env, stdout }) {
+async function deleteRemoteBranch(execFile, branch, { cwd, env, stdout, quiet = false }) {
   try {
     await execFile("git", ["push", "origin", "--delete", branch], {
       cwd,
       env,
       maxBuffer: GIT_BUFFER
     });
-    stdout.write(`deleted remote branch: ${branch}\n`);
+    if (!quiet) {
+      stdout.write(`deleted remote branch: ${branch}\n`);
+    }
+    return { status: "completed" };
   } catch (error) {
     if (remoteBranchMissing(error)) {
-      stdout.write(`remote branch already absent: ${branch}\n`);
-      return;
+      if (!quiet) {
+        stdout.write(`remote branch already absent: ${branch}\n`);
+      }
+      return {
+        status: "skipped",
+        reason: "remote branch already absent"
+      };
     }
     throw new Error(commandFailureMessage(error, "git", ["push", "origin", "--delete", branch]));
+  }
+}
+
+function createCleanupPlan({ branch, worktreePath, prNumber, mergeOid, forceDirty, dryRun }) {
+  const removeArgs = forceDirty
+    ? ["worktree", "remove", "--force", worktreePath]
+    : ["worktree", "remove", worktreePath];
+  const status = dryRun ? "planned" : "pending";
+
+  return {
+    branch,
+    worktree_path: worktreePath,
+    pr_number: prNumber,
+    merge_commit_oid: mergeOid,
+    dry_run: dryRun,
+    actions: [
+      {
+        action: "remove_worktree",
+        command: "git",
+        args: removeArgs,
+        status,
+        target: worktreePath
+      },
+      {
+        action: "prune_worktrees",
+        command: "git",
+        args: ["worktree", "prune"],
+        status
+      },
+      {
+        action: "delete_local_branch",
+        command: "git",
+        args: ["branch", "-D", branch],
+        status,
+        target: branch
+      },
+      {
+        action: "delete_remote_branch",
+        command: "git",
+        args: ["push", "origin", "--delete", branch],
+        status,
+        target: branch
+      }
+    ]
+  };
+}
+
+function writeHumanDryRunPlan(plan, stdout) {
+  stdout.write(`dry-run: planned cleanup for ${plan.branch}\n`);
+  stdout.write(`dry-run: would remove worktree: ${plan.worktree_path}\n`);
+  stdout.write("dry-run: would prune worktree metadata\n");
+  stdout.write(`dry-run: would delete local branch: ${plan.branch}\n`);
+  stdout.write(`dry-run: would delete remote branch: ${plan.branch}\n`);
+}
+
+async function executeCleanupPlan(plan, { execFile, cwd, env, stdout, quiet }) {
+  const [removeWorktree, pruneWorktrees, deleteLocalBranch, deleteRemoteBranchAction] =
+    plan.actions;
+
+  await execChecked(execFile, "git", removeWorktree.args, { cwd, env });
+  removeWorktree.status = "completed";
+  if (!quiet) {
+    stdout.write(`removed worktree: ${plan.worktree_path}\n`);
+  }
+
+  await execChecked(execFile, "git", pruneWorktrees.args, { cwd, env });
+  pruneWorktrees.status = "completed";
+  if (!quiet) {
+    stdout.write("pruned worktree metadata\n");
+  }
+
+  await execChecked(execFile, "git", deleteLocalBranch.args, { cwd, env });
+  deleteLocalBranch.status = "completed";
+  if (!quiet) {
+    stdout.write(`deleted local branch: ${plan.branch}\n`);
+  }
+
+  const remoteResult = await deleteRemoteBranch(execFile, plan.branch, {
+    cwd,
+    env,
+    stdout,
+    quiet
+  });
+  deleteRemoteBranchAction.status = remoteResult.status;
+  if (remoteResult.reason) {
+    deleteRemoteBranchAction.reason = remoteResult.reason;
   }
 }
 
@@ -286,6 +405,8 @@ export async function cleanupMergedWorktree({
   worktree,
   pr,
   forceDirty = false,
+  dryRun = false,
+  json = false,
   stdout = process.stdout,
   execFile = execFileAsync,
   cwd = process.cwd(),
@@ -305,19 +426,30 @@ export async function cleanupMergedWorktree({
   const dirtyStatus = await readDirtyStatus(worktreePath, { execFile, env });
   assertCleanWorktree(dirtyStatus, worktreePath, forceDirty);
 
-  const removeArgs = forceDirty
-    ? ["worktree", "remove", "--force", worktreePath]
-    : ["worktree", "remove", worktreePath];
-  await execChecked(execFile, "git", removeArgs, { cwd: repoRoot, env });
-  stdout.write(`removed worktree: ${worktreePath}\n`);
+  const result = createCleanupPlan({
+    branch,
+    worktreePath,
+    prNumber: Number(pullRequest.number),
+    mergeOid,
+    forceDirty,
+    dryRun
+  });
 
-  await execChecked(execFile, "git", ["worktree", "prune"], { cwd: repoRoot, env });
-  stdout.write("pruned worktree metadata\n");
+  if (dryRun) {
+    if (!json) {
+      writeHumanDryRunPlan(result, stdout);
+    }
+    return result;
+  }
 
-  await execChecked(execFile, "git", ["branch", "-D", branch], { cwd: repoRoot, env });
-  stdout.write(`deleted local branch: ${branch}\n`);
-
-  await deleteRemoteBranch(execFile, branch, { cwd: repoRoot, env, stdout });
+  await executeCleanupPlan(result, {
+    execFile,
+    cwd: repoRoot,
+    env,
+    stdout,
+    quiet: json
+  });
+  return result;
 }
 
 export async function runCli(
@@ -337,16 +469,22 @@ export async function runCli(
       return 0;
     }
 
-    await cleanupMergedWorktree({
-      branch: args.branch,
+    const branch = args.branch ?? (await readCurrentBranch({ execFile, cwd, env }));
+    const result = await cleanupMergedWorktree({
+      branch,
       worktree: args.worktree,
       pr: args.pr,
       forceDirty: args.forceDirty,
+      dryRun: args.dryRun,
+      json: args.json,
       stdout,
       execFile,
       cwd,
       env
     });
+    if (args.json) {
+      stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    }
     return 0;
   } catch (error) {
     const usage = error instanceof UsageError ? `\n\n${USAGE}` : "";
