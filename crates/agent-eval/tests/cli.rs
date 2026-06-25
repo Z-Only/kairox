@@ -203,6 +203,24 @@ fn smoke_tool_call_fixture_runs_clean_through_cli() {
 }
 
 #[test]
+fn noop_guard_fixture_runs_clean_through_cli() {
+    let fixture = fixture_path("noop-guard.jsonl");
+    let summary = run_cli(
+        &fixture,
+        [
+            "--fake-emit-tool-call",
+            "--fake-tool-id",
+            "fs.write",
+            "--fake-tool-arguments",
+            r#"{"path":"target/noop-guard/output.txt","content":"ok\n"}"#,
+            "--wait-timeout-ms",
+            "5000",
+        ],
+    );
+    assert_all_passed(&summary, 1);
+}
+
+#[test]
 fn smoke_compaction_fixture_runs_clean_through_cli() {
     let fixture = fixture_path("smoke-compaction.jsonl");
     let summary = run_cli(
