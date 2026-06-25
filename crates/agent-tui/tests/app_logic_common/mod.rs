@@ -124,6 +124,49 @@ pub fn write_test_skill(root: &std::path::Path, name: &str, description: &str, b
     .expect("skill file should be written");
 }
 
+pub fn plugin_settings_view(settings_id: &str) -> agent_core::facade::PluginSettingsView {
+    agent_core::facade::PluginSettingsView {
+        settings_id: settings_id.into(),
+        id: settings_id
+            .split(':')
+            .next_back()
+            .unwrap_or(settings_id)
+            .into(),
+        name: settings_id
+            .split(':')
+            .next_back()
+            .unwrap_or(settings_id)
+            .into(),
+        description: "Test plugin".into(),
+        version: Some("0.1.0".into()),
+        scope: agent_core::ConfigScope::User,
+        path: format!("/tmp/{settings_id}"),
+        enabled: true,
+        install_source: Some("/tmp/local-market/delta".into()),
+        marketplace: Some("local-market".into()),
+        effective: true,
+        shadowed_by: None,
+        valid: true,
+        validation_error: None,
+        inventory: agent_core::facade::PluginComponentInventoryView {
+            skill_count: 1,
+            skill_names: vec!["delta".into()],
+            mcp_server_count: 0,
+            app_count: 0,
+            agent_count: 0,
+            hook_count: 0,
+        },
+        manifest_kind: "plugin".into(),
+        security: agent_core::facade::PluginSecurityMetadataView {
+            publisher: Some("Kairox".into()),
+            trust: Some("local".into()),
+            signature: None,
+            checksum: None,
+            sha256: None,
+        },
+    }
+}
+
 #[async_trait::async_trait]
 impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
     async fn list_mcp_server_settings(
@@ -722,7 +765,21 @@ impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {
         &self,
     ) -> agent_core::Result<Vec<agent_core::facade::PluginSettingsView>> {
         self.record("list_plugin_settings");
-        Ok(Vec::new())
+        Ok(vec![plugin_settings_view("User:delta")])
+    }
+
+    async fn set_plugin_enabled(
+        &self,
+        settings_id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        self.record(format!("set_plugin_enabled:{settings_id}:{enabled}"));
+        Ok(())
+    }
+
+    async fn delete_plugin_settings(&self, settings_id: String) -> agent_core::Result<()> {
+        self.record(format!("delete_plugin_settings:{settings_id}"));
+        Ok(())
     }
 
     async fn list_plugin_marketplace_sources(
@@ -736,6 +793,17 @@ impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {
             enabled: true,
             builtin: false,
         }])
+    }
+
+    async fn set_plugin_marketplace_source_enabled(
+        &self,
+        source_id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        self.record(format!(
+            "set_plugin_marketplace_source_enabled:{source_id}:{enabled}"
+        ));
+        Ok(())
     }
 
     async fn list_plugin_catalog(
@@ -753,6 +821,20 @@ impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {
             version: Some("0.1.0".into()),
             source: "/tmp/local-market/delta".into(),
         }])
+    }
+
+    async fn install_plugin(
+        &self,
+        request: agent_core::facade::InstallPluginRequest,
+    ) -> agent_core::Result<agent_core::facade::PluginSettingsView> {
+        self.record(format!(
+            "install_plugin:{}:{}:{:?}",
+            request.marketplace_id, request.plugin_name, request.target
+        ));
+        Ok(plugin_settings_view(&format!(
+            "User:{}",
+            request.plugin_name
+        )))
     }
 }
 

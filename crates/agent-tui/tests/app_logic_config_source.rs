@@ -210,6 +210,46 @@ async fn config_source_instructions_overlay_uses_selected_project_config_path() 
 }
 
 #[tokio::test]
+async fn config_source_instructions_save_uses_selected_project_config_path() {
+    use agent_core::ConfigScope;
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::app_state::SettingsConfigSource;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let project_root = unique_temp_dir("kairox-tui-instructions-save-source");
+    let mut app = App::new("fake", WorkspaceId::new());
+    let project = test_project("prj_save_instructions", &project_root);
+    let project_id = project.id.clone();
+    app.state.projects = vec![project];
+    app.state
+        .set_settings_config_source(SettingsConfigSource::Project);
+    app.state.select_settings_project(project_id);
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::SaveInstructions {
+            scope: ConfigScope::Project,
+            text: "Prefer project-local guidance.".into(),
+        }],
+    )
+    .await;
+
+    let config_path = project_root.join(".kairox").join("config.toml");
+    let raw = std::fs::read_to_string(&config_path)
+        .expect("selected project config should receive instructions");
+    assert!(raw.contains("instructions = \"Prefer project-local guidance.\""));
+    assert_eq!(
+        app.instructions_overlay.project_text(),
+        "Prefer project-local guidance."
+    );
+
+    std::fs::remove_dir_all(project_root).expect("temp project should be removed");
+}
+
+#[tokio::test]
 async fn config_source_hooks_overlay_uses_selected_project_config_path() {
     use agent_core::WorkspaceId;
     use agent_tui::app::App;
@@ -243,6 +283,78 @@ async fn config_source_hooks_overlay_uses_selected_project_config_path() {
     assert_eq!(
         hooks[0].config_path.as_deref(),
         Some(config_path.display().to_string().as_str())
+    );
+
+    std::fs::remove_dir_all(project_root).expect("temp project should be removed");
+}
+
+#[tokio::test]
+async fn config_source_hooks_save_and_delete_use_selected_project_config_path() {
+    use agent_core::ConfigScope;
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::app_state::SettingsConfigSource;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let project_root = unique_temp_dir("kairox-tui-hooks-save-source");
+    let mut app = App::new("fake", WorkspaceId::new());
+    let project = test_project("prj_save_hooks", &project_root);
+    let project_id = project.id.clone();
+    app.state.projects = vec![project];
+    app.state
+        .set_settings_config_source(SettingsConfigSource::Project);
+    app.state.select_settings_project(project_id);
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::SaveHookSettings {
+            input: agent_core::facade::HookSettingsInput {
+                scope: ConfigScope::Project,
+                id: "verify".into(),
+                event: "Stop".into(),
+                matcher: Some("*".into()),
+                command: "cargo test -p agent-tui".into(),
+                status_message: Some("Checking TUI".into()),
+                timeout_secs: Some(120),
+                enabled: true,
+            },
+        }],
+    )
+    .await;
+
+    let config_path = project_root.join(".kairox").join("config.toml");
+    let raw = std::fs::read_to_string(&config_path)
+        .expect("selected project config should receive hook settings");
+    assert!(raw.contains("[hooks.Stop.verify]"));
+    assert!(raw.contains("command = \"cargo test -p agent-tui\""));
+    assert_eq!(
+        app.state
+            .latest_status_message()
+            .map(|entry| entry.message.as_str()),
+        Some("saved hook Stop.verify")
+    );
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::DeleteHookSettings {
+            scope: ConfigScope::Project,
+            event: "Stop".into(),
+            id: "verify".into(),
+        }],
+    )
+    .await;
+
+    let raw = std::fs::read_to_string(&config_path)
+        .expect("selected project config should remain readable after delete");
+    assert!(!raw.contains("[hooks.Stop.verify]"));
+    assert_eq!(
+        app.state
+            .latest_status_message()
+            .map(|entry| entry.message.as_str()),
+        Some("deleted hook Stop.verify")
     );
 
     std::fs::remove_dir_all(project_root).expect("temp project should be removed");
