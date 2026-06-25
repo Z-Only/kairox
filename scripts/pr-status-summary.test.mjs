@@ -495,6 +495,22 @@ test("formatHumanSummary renders a readable table with counts and check rows", (
   assert.match(output, /branch protection\s+-\s+-\s+SUCCESS\s+success/);
 });
 
+test("formatHumanSummary shows merged pull requests as merged when merge state is absent", () => {
+  const summary = summarizePullRequest(
+    samplePullRequest({
+      state: "MERGED",
+      mergeStateStatus: null
+    })
+  );
+  const output = formatHumanSummary([summary]);
+
+  assert.equal(summary.merge_state_status, null);
+  assert.match(
+    output,
+    /#42\s+MERGED\s+MERGED\s+codex\/pr-status-summary@abcdef12\s+2\s+1\s+1\s+1\s+1\s+0\s+Add watcher status summary/
+  );
+});
+
 test("runCli reports missing PR number as usage error", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();
