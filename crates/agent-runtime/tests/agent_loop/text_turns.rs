@@ -167,6 +167,110 @@ async fn slash_skill_execution_contract_without_tools_is_not_marked_completed() 
 }
 
 #[tokio::test]
+async fn rewritten_goal_execution_prompt_without_tools_is_not_marked_completed() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["我会开始推进这个目标并验证结果。".into()]);
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-no-progress-goal-task".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "# Goal\n\n修复一个小 bug\n\nWork toward this goal until it is complete. Track progress, verify concrete changes, and report blockers explicitly.".into(),
+            display_content: Some("/goal 修复一个小 bug".into()),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<_> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
+
+    assert!(
+        event_types.contains(&"AssistantMessageCompleted"),
+        "model text should still be persisted for diagnostics: {event_types:?}"
+    );
+    assert!(
+        event_types.contains(&"AgentTaskFailed"),
+        "rewritten goal prompts with no tool progress should fail: {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"AgentTaskCompleted"),
+        "rewritten goal prompts with no tool progress must not complete: {event_types:?}"
+    );
+
+    let failure = trace
+        .iter()
+        .find_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::AgentTaskFailed { error, .. } => Some(error.as_str()),
+            _ => None,
+        })
+        .expect("AgentTaskFailed should include a diagnostic reason");
+    assert!(
+        failure.contains("no tool progress"),
+        "failure should explain the missing execution progress, got: {failure}"
+    );
+}
+
+#[tokio::test]
+async fn ordinary_markdown_goal_heading_without_execution_footer_can_complete() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["Here is a concise goal summary.".into()]);
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-markdown-goal-heading".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "# Goal\n\nSummarize this goal without changing files.".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<_> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
+
+    assert!(
+        event_types.contains(&"AgentTaskCompleted"),
+        "ordinary markdown headings should complete when the model only answers text: {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"AgentTaskFailed"),
+        "ordinary markdown headings should not be treated as execution contracts: {event_types:?}"
+    );
+}
+
+#[tokio::test]
 async fn slash_skill_text_request_without_execution_contract_can_complete() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["Here is a concise summary.".into()]);

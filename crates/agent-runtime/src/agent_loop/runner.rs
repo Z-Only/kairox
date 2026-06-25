@@ -611,6 +611,10 @@ where
 
 fn requires_execution_progress(content: &str) -> bool {
     let trimmed = content.trim_start();
+    if is_rewritten_goal_execution_prompt(trimmed) {
+        return true;
+    }
+
     let Some(command_text) = trimmed.strip_prefix('/') else {
         return false;
     };
@@ -639,6 +643,14 @@ fn requires_execution_progress(content: &str) -> bool {
     ]
     .iter()
     .any(|marker| lower.contains(marker))
+}
+
+fn is_rewritten_goal_execution_prompt(trimmed: &str) -> bool {
+    let lower = trimmed.to_lowercase();
+    lower.starts_with("# goal")
+        && lower.contains("work toward this goal until it is complete")
+        && lower.contains("verify concrete changes")
+        && lower.contains("report blockers explicitly")
 }
 
 async fn run_lifecycle_hooks(
