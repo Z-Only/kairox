@@ -940,6 +940,93 @@ describe("project store — additional coverage", () => {
     expect(store.sidebarProjects.map((project) => project.projectId)).toEqual(["p1"]);
   });
 
+  it("removeMissingProjects removes only active projects whose root path is missing", async () => {
+    const listProjectsResponses = [
+      [
+        {
+          project_id: "p1",
+          display_name: "Existing",
+          root_path: "/existing",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true,
+          path_exists: true
+        },
+        {
+          project_id: "p2",
+          display_name: "Missing",
+          root_path: "/missing",
+          removed_at: null,
+          sort_order: 1,
+          expanded: true,
+          path_exists: false
+        },
+        {
+          project_id: "p3",
+          display_name: "Removed Missing",
+          root_path: "/removed-missing",
+          removed_at: "2026-01-01T00:00:00Z",
+          sort_order: 2,
+          expanded: true,
+          path_exists: false
+        }
+      ],
+      [
+        {
+          project_id: "p1",
+          display_name: "Existing",
+          root_path: "/existing",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true,
+          path_exists: true
+        },
+        {
+          project_id: "p2",
+          display_name: "Missing",
+          root_path: "/missing",
+          removed_at: "2026-06-26T00:00:00Z",
+          sort_order: 1,
+          expanded: true,
+          path_exists: false
+        },
+        {
+          project_id: "p3",
+          display_name: "Removed Missing",
+          root_path: "/removed-missing",
+          removed_at: "2026-01-01T00:00:00Z",
+          sort_order: 2,
+          expanded: true,
+          path_exists: false
+        }
+      ]
+    ];
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_projects") {
+        return listProjectsResponses.shift() ?? [];
+      }
+      if (command === "remove_project") {
+        return null;
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    await store.loadProjects();
+    expect(store.missingProjects.map((project) => project.projectId)).toEqual(["p2"]);
+
+    await store.removeMissingProjects();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("remove_project", {
+      projectId: "p2"
+    });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("remove_project", {
+      projectId: "p3"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("list_projects");
+    expect(store.missingProjects).toHaveLength(0);
+  });
+
   it("loadProjects keeps missing projects in raw state while excluding them from sidebarProjects", async () => {
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_projects") {

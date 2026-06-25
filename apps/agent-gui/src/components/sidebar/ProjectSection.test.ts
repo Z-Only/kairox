@@ -54,6 +54,7 @@ function makeRenameController(
 
 interface MountOptions {
   activeProjects?: ProjectInfo[];
+  missingProjects?: ProjectInfo[];
   archivedSessions?: ProjectSessionInfo[];
   activeSessionId?: string | null;
   pendingDeleteProjectId?: string | null;
@@ -64,6 +65,7 @@ interface MountOptions {
   getProjectSessions?: (projectId: string) => ProjectSessionInfo[];
   createBlankProject?: () => Promise<void> | void;
   importExistingProject?: () => Promise<void> | void;
+  removeMissingProjects?: () => Promise<void> | void;
   toggleProjectExpanded?: (project: ProjectInfo) => Promise<void> | void;
   createProjectSession?: (projectId: string) => Promise<void> | void;
   requestDeleteProject?: (projectId: string) => Promise<void> | void;
@@ -82,6 +84,7 @@ function mountProjectSection(opts: MountOptions = {}) {
     mount: {
       props: {
         activeProjects: opts.activeProjects ?? [],
+        missingProjects: opts.missingProjects ?? [],
         archivedSessions: opts.archivedSessions ?? [],
         activeSessionId: opts.activeSessionId ?? null,
         pendingDeleteProjectId: opts.pendingDeleteProjectId ?? null,
@@ -92,6 +95,7 @@ function mountProjectSection(opts: MountOptions = {}) {
         getProjectSessions: opts.getProjectSessions ?? (() => []),
         createBlankProject: opts.createBlankProject ?? vi.fn(),
         importExistingProject: opts.importExistingProject ?? vi.fn(),
+        removeMissingProjects: opts.removeMissingProjects ?? vi.fn(),
         toggleProjectExpanded: opts.toggleProjectExpanded ?? vi.fn(),
         createProjectSession: opts.createProjectSession ?? vi.fn(),
         requestDeleteProject: opts.requestDeleteProject ?? vi.fn(),
@@ -176,6 +180,36 @@ describe("ProjectSection", () => {
     it("shows empty list when no projects", () => {
       const { wrapper } = mountProjectSection({ activeProjects: [] });
       expect(wrapper.findAll('[data-test="project-item"]')).toHaveLength(0);
+    });
+
+    it("shows a cleanup notice for missing projects hidden from the sidebar list", async () => {
+      const existingProject = makeProject({
+        projectId: "p-existing",
+        displayName: "Existing",
+        rootPath: "/tmp/existing",
+        pathExists: true
+      });
+      const missingProject = makeProject({
+        projectId: "p-missing",
+        displayName: "Missing",
+        rootPath: "/tmp/missing",
+        pathExists: false
+      });
+      const removeMissingProjects = vi.fn();
+      const { wrapper } = mountProjectSection({
+        activeProjects: [existingProject],
+        missingProjects: [missingProject],
+        removeMissingProjects
+      });
+
+      const notice = wrapper.find('[data-test="missing-projects-notice"]');
+      expect(notice.exists()).toBe(true);
+      expect(notice.text()).toContain("1");
+      expect(wrapper.findAll('[data-test="project-item"]')).toHaveLength(1);
+      expect(wrapper.text()).not.toContain("Missing");
+
+      await wrapper.find('[data-test="remove-missing-projects"]').trigger("click");
+      expect(removeMissingProjects).toHaveBeenCalledTimes(1);
     });
   });
 

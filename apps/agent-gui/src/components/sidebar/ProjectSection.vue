@@ -8,6 +8,7 @@ const projectCreateMenuOpen = defineModel<boolean>("projectCreateMenuOpen", { re
 
 defineProps<{
   activeProjects: ProjectInfo[];
+  missingProjects: ProjectInfo[];
   archivedSessions: ProjectSessionInfo[];
   activeSessionId: string | null;
   pendingDeleteProjectId: string | null;
@@ -18,6 +19,7 @@ defineProps<{
   getProjectSessions: (projectId: string) => ProjectSessionInfo[];
   createBlankProject: () => Promise<void> | void;
   importExistingProject: () => Promise<void> | void;
+  removeMissingProjects: () => Promise<void> | void;
   toggleProjectExpanded: (project: ProjectInfo) => Promise<void> | void;
   createProjectSession: (projectId: string) => Promise<void> | void;
   requestDeleteProject: (projectId: string) => Promise<void> | void;
@@ -72,6 +74,22 @@ defineProps<{
     </div>
 
     <div class="sidebar-section-scroll" data-test="projects-scroll-region">
+      <div
+        v-if="missingProjects.length > 0"
+        class="missing-projects-notice"
+        data-test="missing-projects-notice"
+      >
+        <span>{{ t("sessions.missingProjectNotice", { count: missingProjects.length }) }}</span>
+        <KxButton
+          size="sm"
+          variant="danger-ghost"
+          data-test="remove-missing-projects"
+          @click="removeMissingProjects"
+        >
+          {{ t("sessions.removeMissingProjects") }}
+        </KxButton>
+      </div>
+
       <ul class="project-list">
         <li
           v-for="project in activeProjects"
