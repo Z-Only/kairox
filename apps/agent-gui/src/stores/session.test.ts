@@ -1007,6 +1007,78 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo?.profile).toBe("ali-mo-claude");
   });
 
+  it("maps current metadata default profile to the first selectable profile", async () => {
+    const session = useSessionStore();
+    session.profileInfos = [
+      {
+        alias: "tokensflow",
+        provider: "openai_compatible",
+        model_id: "tokensflow-chat",
+        local: false,
+        has_api_key: true
+      }
+    ];
+    session.currentSessionId = "ses_current";
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = "high";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            id: "ses_current",
+            title: "Current",
+            profile: "default",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.loadSessions();
+
+    expect(session.currentProfile).toBe("tokensflow");
+    expect(session.currentReasoningEffort).toBeNull();
+    expect(session.currentSessionInfo?.profile).toBe("default");
+  });
+
+  it("keeps reasoning effort when current metadata profile already matches", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_current";
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = "high";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            id: "ses_current",
+            title: "Current",
+            profile: "fast",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.loadSessions();
+
+    expect(session.currentProfile).toBe("fast");
+    expect(session.currentReasoningEffort).toBe("high");
+  });
+
   it("does not sync currentProfile from non-current ordinary session metadata", async () => {
     const session = useSessionStore();
     session.currentSessionId = "ses_current";
