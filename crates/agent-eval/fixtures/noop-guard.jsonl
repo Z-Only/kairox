@@ -1,0 +1,3 @@
+# Deterministic guard against intent-only completions that skip tool execution.
+# Drive with: --fake-emit-tool-call --fake-tool-id fs.write --fake-tool-arguments {"path":"target/noop-guard/output.txt","content":"ok\n"} --wait-timeout-ms 5000
+{"id":"noop-guard-fs-write","prompt":"Create target/noop-guard/output.txt containing ok. Use the workspace file tool rather than only saying you will do it.","profile":"fake","tags":["smoke","tools","noop-guard"],"expected":{"min_tool_invocations":1,"max_tool_failures":0,"workspace_files":[{"path":"target/noop-guard/output.txt","contains":["ok"]}]}}
