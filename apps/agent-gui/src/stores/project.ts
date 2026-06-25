@@ -237,7 +237,9 @@ export const useProjectStore = defineStore("project", () => {
   const archivedSessions = ref<ProjectSessionInfo[]>([]);
   const instructionSummariesByProject = ref(new Map<string, ProjectInstructionSummaryInfo>());
 
-  const activeProjects = computed(() => projects.value.filter((project) => !project.removedAt));
+  const activeProjects = computed(() =>
+    projects.value.filter((project) => !project.removedAt && project.pathExists)
+  );
 
   async function loadProjects(): Promise<void> {
     const responses = await invoke<ProjectInfoResponse[]>("list_projects");

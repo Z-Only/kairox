@@ -24,7 +24,8 @@ function mockDefaultInvoke(): void {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ];
       }
@@ -36,7 +37,8 @@ function mockDefaultInvoke(): void {
           root_path: "/tmp/scratch",
           removed_at: null,
           sort_order: 1,
-          expanded: true
+          expanded: true,
+          path_exists: true
         };
       }
       if (command === "list_project_sessions") {
@@ -139,7 +141,8 @@ describe("project store", () => {
             root_path: "/tmp/demo",
             removed_at: "2026-05-10T00:00:00Z",
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ];
       }
@@ -166,7 +169,8 @@ describe("project store", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ];
       }
@@ -224,7 +228,8 @@ describe("project store", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ];
       }
@@ -881,5 +886,66 @@ describe("project store — additional coverage", () => {
 
     expect(store.activeProjects).toHaveLength(1);
     expect(store.activeProjects[0].projectId).toBe("p1");
+  });
+
+  it("activeProjects filters out projects whose root path is missing", () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "Existing",
+        rootPath: "/existing",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p2",
+        displayName: "Missing",
+        rootPath: "/missing",
+        removedAt: null,
+        sortOrder: 1,
+        expanded: true,
+        pathExists: false
+      }
+    ];
+
+    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1"]);
+  });
+
+  it("loadProjects keeps missing projects in raw state while excluding them from activeProjects", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_projects") {
+        return [
+          {
+            project_id: "p1",
+            display_name: "Existing",
+            root_path: "/existing",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          },
+          {
+            project_id: "p2",
+            display_name: "Missing",
+            root_path: "/missing",
+            removed_at: null,
+            sort_order: 1,
+            expanded: true,
+            path_exists: false
+          }
+        ];
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    await store.loadProjects();
+
+    expect(store.projects.map((project) => project.projectId)).toEqual(["p1", "p2"]);
+    expect(store.projects.find((project) => project.projectId === "p2")?.pathExists).toBe(false);
+    expect(store.activeProjects.map((project) => project.projectId)).toEqual(["p1"]);
   });
 });
