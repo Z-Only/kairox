@@ -6,6 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 DRY_RUN="${KAIROX_DEV_PILOT_DRY_RUN:-0}"
+SKIP_DEPS="${KAIROX_DEV_PILOT_SKIP_DEPS:-0}"
 PING_TIMEOUT_SECS="${KAIROX_DEV_PILOT_TIMEOUT_SECS:-240}"
 PING_INTERVAL_SECS="${KAIROX_DEV_PILOT_PING_INTERVAL_SECS:-2}"
 VITE_READY_TIMEOUT_SECS="${KAIROX_DEV_PILOT_VITE_TIMEOUT_SECS:-60}"
@@ -58,6 +59,151 @@ _require_command() {
 _tauri_cli_available() {
     [[ -e "$REPO_ROOT/apps/agent-gui/node_modules/.bin/tauri" ]] ||
         command -v tauri >/dev/null 2>&1
+}
+
+_dependency_marker_ready() {
+    local root="$1"
+    local marker="$2"
+    case "$marker" in
+        node_modules/.bun) [[ -d "$root/$marker" ]] ;;
+        *) [[ -e "$root/$marker" ]] ;;
+    esac
+}
+
+_workspace_deps_ready() {
+    local root="$1"
+    _dependency_marker_ready "$root" "node_modules/.bun" &&
+        _dependency_marker_ready "$root" "apps/agent-gui/node_modules/.bin/tauri"
+}
+
+_print_dependency_ready_status() {
+    echo "Dependencies ready: node_modules/.bun and apps/agent-gui/node_modules/.bin/tauri found."
+}
+
+_print_missing_dependency_markers() {
+    local root="$1"
+    local marker
+    for marker in "node_modules/.bun" "apps/agent-gui/node_modules/.bin/tauri"; do
+        if ! _dependency_marker_ready "$root" "$marker"; then
+            echo "  missing: $root/$marker" >&2
+        fi
+    done
+}
+
+_warn_existing_unready_dependency_dirs() {
+    local rel_dir marker dest
+    for rel_dir in "node_modules" "apps/agent-gui/node_modules"; do
+        case "$rel_dir" in
+            node_modules) marker="node_modules/.bun" ;;
+            *) marker="apps/agent-gui/node_modules/.bin/tauri" ;;
+        esac
+
+        dest="$REPO_ROOT/$rel_dir"
+        if ! _dependency_marker_ready "$REPO_ROOT" "$marker" && [[ -e "$dest" || -L "$dest" ]]; then
+            echo "WARN: dependency path exists but is not ready; leaving it unchanged: $dest" >&2
+        fi
+    done
+}
+
+_find_dependency_donor_worktree() {
+    command -v git >/dev/null 2>&1 || return 1
+
+    local current_root="$REPO_ROOT"
+    local line candidate candidate_root
+    while IFS= read -r line; do
+        case "$line" in
+            worktree\ *)
+                candidate="${line#worktree }"
+                if ! candidate_root="$(cd "$candidate" 2>/dev/null && pwd -P)"; then
+                    continue
+                fi
+                if [[ "$candidate_root" == "$current_root" ]]; then
+                    continue
+                fi
+                if _workspace_deps_ready "$candidate_root"; then
+                    printf "%s\n" "$candidate_root"
+                    return 0
+                fi
+                ;;
+        esac
+    done < <(git worktree list --porcelain 2>/dev/null || true)
+
+    return 1
+}
+
+_link_dependency_dir_from_donor() {
+    local donor_root="$1"
+    local rel_dir="$2"
+    local marker="$3"
+    local dest="$REPO_ROOT/$rel_dir"
+    local src="$donor_root/$rel_dir"
+
+    if _dependency_marker_ready "$REPO_ROOT" "$marker"; then
+        return 0
+    fi
+
+    if [[ -e "$dest" || -L "$dest" ]]; then
+        echo "WARN: dependency path exists but is not ready; leaving it unchanged: $dest" >&2
+        return 1
+    fi
+
+    if ! git check-ignore -q "$rel_dir" 2>/dev/null; then
+        echo "WARN: dependency path is not ignored; refusing to link: $dest" >&2
+        return 1
+    fi
+
+    if [[ ! -d "$src" && ! -L "$src" ]]; then
+        echo "WARN: dependency donor path is not available: $src" >&2
+        return 1
+    fi
+
+    if _is_enabled "$DRY_RUN"; then
+        echo "Dry run: would link dependency path: $dest -> $src"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$src" "$dest"
+    echo "Linked dependency path: $dest -> $src"
+}
+
+_bootstrap_workspace_deps() {
+    if _is_enabled "$SKIP_DEPS"; then
+        echo "Dependency bootstrap skipped by KAIROX_DEV_PILOT_SKIP_DEPS=1."
+        return 0
+    fi
+
+    if _workspace_deps_ready "$REPO_ROOT"; then
+        _print_dependency_ready_status
+        return 0
+    fi
+
+    echo "Workspace dependencies are not ready; searching sibling worktrees for a donor."
+    _print_missing_dependency_markers "$REPO_ROOT"
+    _warn_existing_unready_dependency_dirs
+
+    local donor_root
+    if ! donor_root="$(_find_dependency_donor_worktree)"; then
+        echo "WARN: no dependency donor worktree found; continuing with existing fallback behavior." >&2
+        return 0
+    fi
+
+    echo "Dependency donor worktree: $donor_root"
+    _link_dependency_dir_from_donor "$donor_root" "node_modules" "node_modules/.bun" || true
+    _link_dependency_dir_from_donor "$donor_root" "apps/agent-gui/node_modules" "apps/agent-gui/node_modules/.bin/tauri" || true
+
+    if _is_enabled "$DRY_RUN"; then
+        echo "Dry run: dependency links were not created."
+        return 0
+    fi
+
+    if _workspace_deps_ready "$REPO_ROOT"; then
+        _print_dependency_ready_status
+        return 0
+    fi
+
+    echo "WARN: dependency bootstrap did not make all dependency markers ready; continuing with existing fallback behavior." >&2
+    _print_missing_dependency_markers "$REPO_ROOT"
 }
 
 _stop_tree() {
@@ -286,6 +432,8 @@ cd "$REPO_ROOT"
 _require_command bun "Install Bun and run 'bun install' from the repo root."
 _require_command cargo "Install the Rust toolchain with rustup."
 _require_command node "Install Node.js; Bun workspace tooling expects it for helper scripts."
+
+_bootstrap_workspace_deps
 
 if [[ -z "${KAIROX_HOME:-}" ]]; then
     KAIROX_HOME="$(mktemp -d /tmp/kairox-dev-home.XXXXXX)"
