@@ -62,6 +62,10 @@ gui-dev: gen-types
 tauri-dev: gen-types
     bun --filter agent-gui tauri:dev
 
+# Run the Tauri desktop app with pilot enabled and split fallback diagnostics
+dev-pilot:
+    bun run dev:pilot
+
 # Build GUI web assets
 gui-build: gen-types
     bun --filter agent-gui build
