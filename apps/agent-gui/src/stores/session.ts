@@ -296,6 +296,31 @@ export const useSessionStore = defineStore("session", () => {
     );
   }
 
+  function selectableProfileFromMetadata(profile: string): string {
+    if (profile === "default" && profileInfos.value.length > 0) {
+      return profileInfos.value[0].alias;
+    }
+    return profile;
+  }
+
+  function syncCurrentProfileFromSessionMetadata(
+    sessionInfo: SessionInfoResponse | null | undefined
+  ): void {
+    if (!currentSessionId.value || pendingSessionDraft.value) return;
+    if (!sessionInfo || sessionInfo.id !== currentSessionId.value) return;
+
+    const nextProfile = selectableProfileFromMetadata(sessionInfo.profile);
+    if (currentProfile.value === nextProfile) return;
+
+    currentProfile.value = nextProfile;
+    currentReasoningEffort.value = null;
+  }
+
+  function syncCurrentProfileFromMetadataStore(): void {
+    if (!currentSessionId.value || pendingSessionDraft.value) return;
+    syncCurrentProfileFromSessionMetadata(findSessionInfo(currentSessionId.value));
+  }
+
   function capturePendingSessionSettings(): PendingSessionSettings {
     return {
       profile: currentProfile.value,
@@ -503,6 +528,15 @@ export const useSessionStore = defineStore("session", () => {
     target: SessionInfoResponse
   ): Promise<void> {
     pendingSessionDraft.value = null;
+    if (sessionId === currentSessionId.value) {
+      syncCurrentProfileFromSessionMetadata(target);
+      writePersistedWorkbenchState({
+        kind: "session",
+        sessionId,
+        projectId: target.project_id ?? null
+      });
+      return;
+    }
     await switchToKnownSessionImpl(sessionId, target, sessionActionDeps);
     writePersistedWorkbenchState({
       kind: "session",
@@ -731,11 +765,13 @@ export const useSessionStore = defineStore("session", () => {
     const target = findSessionInfo(sessionId);
     if (target?.project_id) {
       await useProjectStore().loadProjectSessions(target.project_id);
+      syncCurrentProfileFromMetadataStore();
       return;
     }
 
     if (target) {
       sessions.value = await listOrdinarySessions();
+      syncCurrentProfileFromMetadataStore();
     }
   }
 
@@ -788,6 +824,7 @@ export const useSessionStore = defineStore("session", () => {
 
   async function loadSessions(): Promise<void> {
     sessions.value = await listOrdinarySessions();
+    syncCurrentProfileFromMetadataStore();
   }
 
   async function loadProfileInfo(options: LoadProfileInfoOptions = {}): Promise<void> {

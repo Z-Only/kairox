@@ -961,6 +961,191 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo?.title).toBe("请严格按顺序调用工具验证工作区写入");
   });
 
+  it("syncs the current ordinary session profile after loading session metadata", async () => {
+    const session = useSessionStore();
+    session.sessions = [
+      {
+        id: "ses_current",
+        title: "Current",
+        profile: "fast",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: null,
+        deleted_at: null,
+        approval_policy: "on_request",
+        sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+      }
+    ];
+    session.currentSessionId = "ses_current";
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = "high";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            id: "ses_current",
+            title: "Current",
+            profile: "ali-mo-claude",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.loadSessions();
+
+    expect(session.currentProfile).toBe("ali-mo-claude");
+    expect(session.currentReasoningEffort).toBeNull();
+    expect(session.currentSessionInfo?.profile).toBe("ali-mo-claude");
+  });
+
+  it("does not sync currentProfile from non-current ordinary session metadata", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_current";
+    session.currentProfile = "fast";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            id: "ses_current",
+            title: "Current",
+            profile: "fast",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          },
+          {
+            id: "ses_other",
+            title: "Other",
+            profile: "ali-mo-claude",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.loadSessions();
+
+    expect(session.currentProfile).toBe("fast");
+  });
+
+  it("syncs the current project session profile after refreshing project metadata", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    projectStore.sessionsByProject = new Map([
+      [
+        "project-1",
+        [
+          {
+            sessionId: "project-session-1",
+            title: "Project task",
+            profile: "fast",
+            projectId: "project-1",
+            worktreePath: "/repo",
+            branch: "main",
+            visibility: "visible",
+            deletedAt: null,
+            approvalPolicy: "on_request",
+            sandboxPolicy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]
+      ]
+    ]);
+    session.currentSessionId = "project-session-1";
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = "xhigh";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "list_project_sessions") {
+        return Promise.resolve([
+          {
+            id: "project-session-1",
+            title: "Project task",
+            profile: "ali-mo-claude",
+            project_id: "project-1",
+            worktree_path: "/repo",
+            branch: "main",
+            visibility: "visible",
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.refreshCurrentSessionMetadata();
+
+    expect(session.currentProfile).toBe("ali-mo-claude");
+    expect(session.currentReasoningEffort).toBeNull();
+    expect(session.currentSessionInfo?.profile).toBe("ali-mo-claude");
+  });
+
+  it("does not overwrite a pending draft model selection from background metadata loads", async () => {
+    const session = useSessionStore();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "refresh_config") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "list_sessions") {
+        return Promise.resolve([
+          {
+            id: "ses_background",
+            title: "Background",
+            profile: "ali-mo-claude",
+            project_id: null,
+            worktree_path: null,
+            branch: null,
+            visibility: null,
+            deleted_at: null,
+            approval_policy: "on_request",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startOrdinaryDraftSession();
+    session.setPendingModelSelection("draft-model", "high");
+    await session.loadSessions();
+
+    expect(session.currentSessionId).toBeNull();
+    expect(session.currentProfile).toBe("draft-model");
+    expect(session.currentReasoningEffort).toBe("high");
+  });
+
   it("optimistically titles a materialized project session from the first message", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();
