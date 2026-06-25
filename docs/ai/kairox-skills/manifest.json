@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "kairox-dev-workflow",
+      "path": ".agents/skills/kairox-dev-workflow/SKILL.md",
+      "sha256": "ce1339e2ee14b49350c530334a758e389acdc08137d7fb7bec3ca2ed9924e296",
+      "updated_at": "2026-06-26"
+    },
+    {
+      "name": "kairox-evaluate-kairox",
+      "path": ".agents/skills/kairox-evaluate-kairox/SKILL.md",
+      "sha256": "0ec2edda450970791c9b62e32676e3f649f70d3577679a923129c6ca41f4c81c",
+      "updated_at": "2026-06-26"
+    },
+    {
+      "name": "kairox-skill-proxy",
+      "path": ".agents/skills/kairox-skill-proxy/SKILL.md",
+      "sha256": "4a4da49dfce8ab5af6e372d8d07ea075850d8aa7dcc2bf35b4275e79d9876064",
+      "updated_at": "2026-06-26"
+    }
+  ]
+}
