@@ -864,7 +864,10 @@
     "searchAria": "搜索追踪事件",
     "searchPlaceholder": "搜索追踪事件",
     "densityLabel": "详细程度：",
-    "tabTrajectory": "轨迹"
+    "tabTrajectory": "轨迹",
+    "copyDiagnostics": "复制会话诊断",
+    "diagnosticsCopied": "会话诊断已复制",
+    "diagnosticsCopyFailed": "复制会话诊断失败：{error}"
   },
   "tasks": {
     "filterAll": "全部",

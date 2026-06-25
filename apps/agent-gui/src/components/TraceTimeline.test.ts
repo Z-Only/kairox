@@ -5,11 +5,23 @@ import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useWorkspaceUiStore } from "@/stores/workspaceUi";
+import { useSessionStore } from "@/stores/session";
+import { useUiStore } from "@/stores/ui";
 import type { TraceEntryData } from "../types/trace";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
+const mockGeneratedCommands = vi.hoisted(() => ({
+  exportSessionDiagnostics: vi.fn(),
+  listTrajectories: vi.fn(),
+  getTrajectorySteps: vi.fn(),
+  exportTrajectory: vi.fn()
+}));
+
+vi.mock("@/generated/commands", () => ({
+  commands: mockGeneratedCommands
+}));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
@@ -110,6 +122,10 @@ beforeEach(() => {
   // default so any invoke call this test file does not override stays
   // well-typed.
   mockedInvoke.mockResolvedValue([]);
+  mockGeneratedCommands.exportSessionDiagnostics.mockReset();
+  mockGeneratedCommands.listTrajectories.mockReset();
+  mockGeneratedCommands.getTrajectorySteps.mockReset();
+  mockGeneratedCommands.exportTrajectory.mockReset();
 });
 
 describe("TraceTimeline", () => {
@@ -188,6 +204,75 @@ describe("TraceTimeline", () => {
     expect(wrapper.get('[data-test="trace-tab-changes"]').classes()).toContain("active");
     expect(wrapper.get('[data-test="git-review-panel"]').text()).toContain("README.md");
     expect(wrapper.get('[data-test="git-review-panel"]').text()).toContain("local agent edit");
+  });
+
+  it("copies active session diagnostics to clipboard", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_trace";
+    const ui = useUiStore();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    mockGeneratedCommands.exportSessionDiagnostics.mockResolvedValue({
+      status: "ok",
+      data: {
+        session_id: "ses_trace",
+        event_count: 2,
+        event_type_counts: [{ event_type: "UserMessage", count: 1 }],
+        last_event_type: "AssistantMessageCompleted",
+        user_messages: [],
+        assistant_messages: [],
+        model_tool_calls: [],
+        mcp_tool_calls: [],
+        trajectory_started_count: 0,
+        trajectory_completed_count: 0,
+        trajectory_completed_outcomes: [],
+        running_model_requests: 0,
+        running_tool_invocations: 0,
+        trajectory_failed_count: 0,
+        has_terminal_assistant_message: true
+      }
+    });
+
+    const wrapper = mountTimeline();
+
+    await wrapper.get('[data-test="trace-copy-diagnostics"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(mockGeneratedCommands.exportSessionDiagnostics).toHaveBeenCalledWith("ses_trace");
+    expect(writeText).toHaveBeenCalledWith(
+      JSON.stringify({
+        session_id: "ses_trace",
+        event_count: 2,
+        event_type_counts: [{ event_type: "UserMessage", count: 1 }],
+        last_event_type: "AssistantMessageCompleted",
+        user_messages: [],
+        assistant_messages: [],
+        model_tool_calls: [],
+        mcp_tool_calls: [],
+        trajectory_started_count: 0,
+        trajectory_completed_count: 0,
+        trajectory_completed_outcomes: [],
+        running_model_requests: 0,
+        running_tool_invocations: 0,
+        trajectory_failed_count: 0,
+        has_terminal_assistant_message: true
+      })
+    );
+    expect(ui.toasts.at(-1)).toMatchObject({
+      message: "Session diagnostics copied",
+      type: "success"
+    });
+  });
+
+  it("disables diagnostics copy when no session is active", () => {
+    const session = useSessionStore();
+    session.currentSessionId = null;
+
+    const wrapper = mountTimeline();
+    const copyButton = wrapper.get('[data-test="trace-copy-diagnostics"]');
+
+    expect(copyButton.attributes("disabled")).toBeDefined();
+    expect(mockGeneratedCommands.exportSessionDiagnostics).not.toHaveBeenCalled();
   });
 
   it("cycles density when density buttons are clicked", async () => {

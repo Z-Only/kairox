@@ -8,6 +8,9 @@ import TrajectoryViewer from "./TrajectoryViewer.vue";
 import GitReviewSidebarPanel from "./GitReviewSidebarPanel.vue";
 import { traceState } from "../composables/useTraceStore";
 import { useWorkspaceUiStore } from "@/stores/workspaceUi";
+import { useSessionStore } from "@/stores/session";
+import { useToast } from "@/composables/useToast";
+import { commands } from "@/generated/commands";
 import type { TraceEntryData } from "../types/trace";
 
 type TraceStatusFilter = "all" | "active" | "failed" | "done";
@@ -15,10 +18,13 @@ type TraceKindFilter = "all" | "tool" | "permission" | "memory";
 
 const { t } = useI18n();
 const workspaceUi = useWorkspaceUiStore();
+const session = useSessionStore();
+const toast = useToast();
 const { rightPanelTab } = storeToRefs(workspaceUi);
 const selectedTraceFilter = ref<TraceStatusFilter>("all");
 const selectedTraceKindFilter = ref<TraceKindFilter>("all");
 const traceSearchQuery = ref("");
+const copyingDiagnostics = ref(false);
 const normalizedTraceSearchQuery = computed(() => traceSearchQuery.value.trim().toLowerCase());
 const activeTraceStatuses = new Set(["pending", "running"]);
 
@@ -92,6 +98,25 @@ const visibleTraceEntries = computed(() =>
       traceMatchesSearch(entry, normalizedTraceSearchQuery.value)
   )
 );
+
+async function copySessionDiagnostics() {
+  const sessionId = session.currentSessionId;
+  if (!sessionId || copyingDiagnostics.value) return;
+
+  copyingDiagnostics.value = true;
+  try {
+    const result = await commands.exportSessionDiagnostics(sessionId);
+    if (result.status === "error") {
+      throw new Error(result.error);
+    }
+    await navigator.clipboard.writeText(JSON.stringify(result.data));
+    toast.success(t("trace.diagnosticsCopied"));
+  } catch (error) {
+    toast.error(t("trace.diagnosticsCopyFailed", { error: String(error) }));
+  } finally {
+    copyingDiagnostics.value = false;
+  }
+}
 </script>
 
 <template>
@@ -159,6 +184,24 @@ const visibleTraceEntries = computed(() =>
         >
           {{ t("trace.tabTrajectory") }}
         </KxButton>
+      </div>
+      <div class="trace-header-actions">
+        <KxIconButton
+          size="sm"
+          variant="default"
+          :label="t('trace.copyDiagnostics')"
+          :title="t('trace.copyDiagnostics')"
+          :disabled="!session.currentSessionId"
+          :busy="copyingDiagnostics"
+          data-test="trace-copy-diagnostics"
+          @click="copySessionDiagnostics"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path
+              d="M6 2h7.5L17 5.5V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.8V6h2.2L13 3.8ZM6 4v12h9V8h-4V4H6Zm1.5 6h6v1.4h-6V10Zm0 3h4.5v1.4H7.5V13Z"
+            />
+          </svg>
+        </KxIconButton>
       </div>
     </header>
     <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
@@ -270,6 +313,12 @@ const visibleTraceEntries = computed(() =>
   gap: 4px;
   max-width: 100%;
   min-width: 0;
+}
+.trace-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding-left: 8px;
 }
 .trace-entries {
   box-sizing: border-box;
