@@ -232,6 +232,30 @@ eval-smoke:
         --seed-synthetic-pairs 4 \
         --wait-timeout-ms 5000
 
+# Run the executable noop guard fixture that fails intent-only completions.
+# It requires both a deterministic tool invocation and a workspace artifact.
+eval-noop-guard:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --quiet -p agent-eval --bin kairox-eval
+    KAIROX_EVAL_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
+    KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
+    KAIROX_EVAL_HOME="$(mktemp -d)"
+    KAIROX_EVAL_WS="$(mktemp -d)"
+    trap 'rm -rf "$KAIROX_EVAL_HOME" "$KAIROX_EVAL_WS"' EXIT
+    mkdir -p target/eval-noop-guard
+    HOME="$KAIROX_EVAL_HOME" USERPROFILE="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/noop-guard.jsonl \
+        --output target/eval-noop-guard/results.jsonl \
+        --summary target/eval-noop-guard/summary.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --profile fake \
+        --fake-emit-tool-call \
+        --fake-tool-id fs.write \
+        --fake-tool-arguments '{"path":"target/noop-guard/output.txt","content":"ok\n"}' \
+        --wait-timeout-ms 5000
+
 # Run the extended kairox-eval fixtures (expectations-extended + multi-turn
 # + trajectory). Same fake-profile setup as eval-smoke; no network needed.
 eval-extended:
