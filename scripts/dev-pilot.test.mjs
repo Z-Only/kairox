@@ -30,6 +30,31 @@ test("dev-pilot dry run reports default and fallback launch commands", async () 
   assert.match(stdout, /Default command:/);
   assert.match(stdout, /bun --filter agent-gui tauri dev --features pilot/);
   assert.match(stdout, /Fallback commands:/);
-  assert.match(stdout, /cd apps\/agent-gui && bun run dev/);
+  assert.match(stdout, /cd apps\/agent-gui && KAIROX_DEV_PORT=\d+ .*bun run dev/);
   assert.match(stdout, /cargo run --no-default-features --features pilot --/);
+});
+
+test("dev-pilot split fallback reuses the selected dynamic port and identifier", async () => {
+  const { stdout } = await execFileAsync("bash", ["scripts/dev-pilot.sh"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      KAIROX_DEV_PILOT_DRY_RUN: "1",
+      KAIROX_DEV_PILOT_SKIP_DEPS: "1",
+      KAIROX_DEV_PORT: "14217",
+      KAIROX_DEV_STRICT_PORT: "1"
+    },
+    timeout: 10_000
+  });
+
+  assert.match(stdout, /Default pilot target:\n  port:\s+14217/);
+  assert.match(stdout, /Fallback pilot target:\n  port:\s+14217/);
+  assert.match(stdout, /identifier: dev\.kairox\.agent\.dev14217/);
+  const socketMatches = [
+    ...stdout.matchAll(/socket:\s+(\S*tauri-pilot-dev\.kairox\.agent\.dev14217\.sock)/g)
+  ].map((match) => match[1]);
+  assert.equal(socketMatches.length, 2);
+  assert.equal(socketMatches[0], socketMatches[1]);
+  assert.match(stdout, /KAIROX_DEV_PORT=14217 .*bun run dev/);
+  assert.match(stdout, /TAURI_CONFIG=.*devUrl.*localhost:14217/);
 });

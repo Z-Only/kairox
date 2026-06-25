@@ -13,13 +13,15 @@ VITE_READY_TIMEOUT_SECS="${KAIROX_DEV_PILOT_VITE_TIMEOUT_SECS:-60}"
 APP_LOG="${KAIROX_DEV_PILOT_APP_LOG:-/tmp/kairox-dev-pilot-app.log}"
 VITE_LOG="${KAIROX_DEV_PILOT_VITE_LOG:-/tmp/kairox-dev-pilot-vite.log}"
 TAURI_LOG="${KAIROX_DEV_PILOT_TAURI_LOG:-/tmp/kairox-dev-pilot-tauri.log}"
-FALLBACK_DEV_PORT="1420"
 
 DEFAULT_PID=""
 VITE_PID=""
 TAURI_PID=""
 DEFAULT_SOCKET=""
+FALLBACK_DEV_PORT=""
+FALLBACK_IDENTIFIER=""
 FALLBACK_SOCKET=""
+FALLBACK_TAURI_CONFIG=""
 SELECTED_DEV_PORT=""
 
 _is_enabled() {
@@ -275,6 +277,20 @@ console.log(`${port}\n${identifier}\n${buildTauriPilotSocketPath(identifier, pro
 EOF
 }
 
+_resolve_tauri_dev_config() {
+    local port="$1"
+    KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
+        KAIROX_DEV_SELECTED_PORT="$port" \
+        node --input-type=module <<'EOF'
+const { buildTauriDevConfig } = await import(process.env.KAIROX_DEV_HELPER);
+const config = buildTauriDevConfig({
+  port: process.env.KAIROX_DEV_SELECTED_PORT,
+  enablePilotIdentifier: true
+});
+console.log(JSON.stringify(config));
+EOF
+}
+
 _run_with_timeout() {
     local timeout_secs="$1"
     shift
@@ -400,18 +416,24 @@ _start_fallback() {
         return 1
     fi
 
-    _print_shell_command "(cd apps/agent-gui && bun run dev)"
+    _print_shell_command "(cd apps/agent-gui && KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 bun run dev)"
     (
         cd "$REPO_ROOT/apps/agent-gui"
-        bun run dev
+        KAIROX_DEV_PORT="$FALLBACK_DEV_PORT" \
+            KAIROX_DEV_STRICT_PORT=1 \
+            bun run dev
     ) >"$VITE_LOG" 2>&1 &
     VITE_PID=$!
     _wait_for_vite
 
-    _print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") cargo run --no-default-features --features pilot --)"
+    _print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 TAURI_CONFIG=$(_quote "$FALLBACK_TAURI_CONFIG") cargo run --no-default-features --features pilot --)"
     (
         cd "$REPO_ROOT/apps/agent-gui/src-tauri"
-        KAIROX_HOME="$KAIROX_HOME" cargo run --no-default-features --features pilot --
+        KAIROX_HOME="$KAIROX_HOME" \
+            KAIROX_DEV_PORT="$FALLBACK_DEV_PORT" \
+            KAIROX_DEV_STRICT_PORT=1 \
+            TAURI_CONFIG="$FALLBACK_TAURI_CONFIG" \
+            cargo run --no-default-features --features pilot --
     ) >"$TAURI_LOG" 2>&1 &
     TAURI_PID=$!
 }
@@ -449,22 +471,25 @@ DEFAULT_INFO="$(_resolve_default_launch)"
 SELECTED_DEV_PORT="$(printf "%s\n" "$DEFAULT_INFO" | sed -n '1p')"
 DEFAULT_IDENTIFIER="$(printf "%s\n" "$DEFAULT_INFO" | sed -n '2p')"
 DEFAULT_SOCKET="$(printf "%s\n" "$DEFAULT_INFO" | sed -n '3p')"
-FALLBACK_IDENTIFIER="dev.kairox.agent"
-FALLBACK_SOCKET="$(_resolve_socket "$FALLBACK_IDENTIFIER")"
+FALLBACK_DEV_PORT="$SELECTED_DEV_PORT"
+FALLBACK_IDENTIFIER="$DEFAULT_IDENTIFIER"
+FALLBACK_SOCKET="$DEFAULT_SOCKET"
+FALLBACK_TAURI_CONFIG="$(_resolve_tauri_dev_config "$FALLBACK_DEV_PORT")"
 
 echo "Default pilot target:"
 echo "  port:       $SELECTED_DEV_PORT"
 echo "  identifier: $DEFAULT_IDENTIFIER"
 echo "  socket:     $DEFAULT_SOCKET"
 echo "Fallback pilot target:"
+echo "  port:       $FALLBACK_DEV_PORT"
 echo "  identifier: $FALLBACK_IDENTIFIER"
 echo "  socket:     $FALLBACK_SOCKET"
 
 echo "Default command:"
 _print_command bun --filter agent-gui tauri dev --features pilot
 echo "Fallback commands:"
-_print_shell_command "(cd apps/agent-gui && bun run dev)"
-_print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") cargo run --no-default-features --features pilot --)"
+_print_shell_command "(cd apps/agent-gui && KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 bun run dev)"
+_print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 TAURI_CONFIG=$(_quote "$FALLBACK_TAURI_CONFIG") cargo run --no-default-features --features pilot --)"
 
 if _is_enabled "$DRY_RUN"; then
     if _tauri_cli_available; then
@@ -505,7 +530,7 @@ echo "Diagnostics:" >&2
 echo "  KAIROX_HOME=$KAIROX_HOME" >&2
 echo "  Vite log:  $VITE_LOG" >&2
 echo "  Tauri log: $TAURI_LOG" >&2
-echo "  Check port 1420 with: lsof -nP -iTCP:1420 -sTCP:LISTEN" >&2
+echo "  Check port $FALLBACK_DEV_PORT with: lsof -nP -iTCP:$FALLBACK_DEV_PORT -sTCP:LISTEN" >&2
 echo "  Check pilot with: TAURI_PILOT_SOCKET=\"$FALLBACK_SOCKET\" tauri-pilot ping" >&2
 _tail_log_hint "$VITE_LOG"
 _tail_log_hint "$TAURI_LOG"
