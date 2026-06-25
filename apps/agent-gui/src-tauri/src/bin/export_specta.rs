@@ -26,8 +26,9 @@ use agent_gui_tauri::commands::{
     McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
     ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
     ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
-    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    SaveDraftRequest, SendMessageToSessionIfIdleResponse, ServerEntryResponse, SessionInfoResponse,
+    TaskSnapshotResponse, TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse,
+    WorkspaceInfoResponse,
 };
 use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
@@ -53,6 +54,7 @@ fn main() {
             agent_gui_tauri::commands::send_message,
             agent_gui_tauri::commands::send_message_to_session,
             agent_gui_tauri::commands::send_message_to_session_and_wait,
+            agent_gui_tauri::commands::send_message_to_session_if_idle,
             agent_gui_tauri::commands::export_trace,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands
@@ -210,6 +212,7 @@ fn main() {
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
+        .typ::<SendMessageToSessionIfIdleResponse>()
         .typ::<ProjectInfoResponse>()
         .typ::<ProjectGitFileChangeResponse>()
         .typ::<ProjectGitDiffSectionResponse>()

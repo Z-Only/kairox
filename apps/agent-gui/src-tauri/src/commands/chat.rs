@@ -1,5 +1,36 @@
 use super::*;
 use agent_runtime::ui_bootstrap::ensure_workspace_session;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+pub struct SendMessageToSessionIfIdleResponse {
+    pub session_id: String,
+    pub client_request_id: Option<String>,
+    pub accepted: bool,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct IdleSendClientRequestKey {
+    session_id: String,
+    client_request_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdleSendClientRequestState {
+    InFlight,
+    Accepted,
+}
+
+static IDLE_SEND_CLIENT_REQUESTS: OnceLock<
+    tokio::sync::Mutex<HashMap<IdleSendClientRequestKey, IdleSendClientRequestState>>,
+> = OnceLock::new();
+
+fn accepted_idle_send_client_requests(
+) -> &'static tokio::sync::Mutex<HashMap<IdleSendClientRequestKey, IdleSendClientRequestState>> {
+    IDLE_SEND_CLIENT_REQUESTS.get_or_init(|| tokio::sync::Mutex::new(HashMap::new()))
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -187,12 +218,14 @@ pub async fn send_message_to_session_and_wait(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn send_message_to_session_if_idle(
     session_id: String,
     content: String,
     attachments: Vec<agent_core::AttachmentInfo>,
+    client_request_id: Option<String>,
     state: State<'_, GuiState>,
-) -> Result<(), String> {
+) -> Result<SendMessageToSessionIfIdleResponse, String> {
     let workspace_id = {
         let ws = state.workspace_id.lock().await;
         ws.clone().ok_or("Workspace not initialized")?
@@ -205,6 +238,7 @@ pub async fn send_message_to_session_if_idle(
         session_id,
         content,
         attachments,
+        client_request_id,
     )
     .await
 }
@@ -267,18 +301,105 @@ async fn send_message_to_session_if_idle_inner<S, M>(
     session_id: agent_core::SessionId,
     content: String,
     attachments: Vec<agent_core::AttachmentInfo>,
-) -> Result<(), String>
+    client_request_id: Option<String>,
+) -> Result<SendMessageToSessionIfIdleResponse, String>
 where
     S: agent_store::EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    let request =
-        build_send_message_request(runtime, workspace_id, session_id, content, attachments).await?;
+    let session_id_str = session_id.to_string();
+    let request_key =
+        client_request_id
+            .as_ref()
+            .map(|client_request_id| IdleSendClientRequestKey {
+                session_id: session_id_str.clone(),
+                client_request_id: client_request_id.clone(),
+            });
+    if let Some(key) = request_key.clone() {
+        let mut requests = accepted_idle_send_client_requests().lock().await;
+        match requests.get(&key) {
+            Some(IdleSendClientRequestState::Accepted) => {
+                return Ok(idle_send_response(
+                    session_id_str,
+                    client_request_id,
+                    true,
+                    "accepted",
+                ));
+            }
+            Some(IdleSendClientRequestState::InFlight) => {
+                return Ok(idle_send_response(
+                    session_id_str,
+                    client_request_id,
+                    false,
+                    "in_flight",
+                ));
+            }
+            None => {
+                requests.insert(key, IdleSendClientRequestState::InFlight);
+            }
+        }
+    }
 
-    runtime
-        .send_message_if_idle(request)
-        .await
-        .map_err(|e| e.to_string())
+    let request = match build_send_message_request(
+        runtime,
+        workspace_id,
+        session_id.clone(),
+        content,
+        attachments,
+    )
+    .await
+    {
+        Ok(request) => request,
+        Err(error) => {
+            clear_idle_send_client_request_key(request_key).await;
+            return Err(error);
+        }
+    };
+
+    if let Err(error) = runtime.send_message_if_idle(request).await {
+        clear_idle_send_client_request_key(request_key).await;
+        return Err(error.to_string());
+    }
+
+    mark_idle_send_client_request_accepted(request_key).await;
+    Ok(idle_send_response(
+        session_id_str,
+        client_request_id,
+        true,
+        "accepted",
+    ))
+}
+
+async fn clear_idle_send_client_request_key(key: Option<IdleSendClientRequestKey>) {
+    if let Some(key) = key {
+        accepted_idle_send_client_requests()
+            .lock()
+            .await
+            .remove(&key);
+    }
+}
+
+async fn mark_idle_send_client_request_accepted(key: Option<IdleSendClientRequestKey>) {
+    if let Some(key) = key {
+        accepted_idle_send_client_requests()
+            .lock()
+            .await
+            .insert(key, IdleSendClientRequestState::Accepted);
+    }
+}
+
+fn idle_send_response(
+    session_id: String,
+    client_request_id: Option<String>,
+    accepted: bool,
+    status: &str,
+) -> SendMessageToSessionIfIdleResponse {
+    SendMessageToSessionIfIdleResponse {
+        session_id,
+        client_request_id,
+        accepted,
+        status: status.to_string(),
+    }
 }
 
 async fn build_send_message_request<S, M>(
@@ -516,6 +637,58 @@ fn is_text_mime(mime: &str) -> bool {
 #[cfg(test)]
 mod chat_attachment_tests {
     use super::*;
+    use async_trait::async_trait;
+    use futures::stream::BoxStream;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use tokio::sync::{oneshot, Mutex as TokioMutex};
+
+    struct BlockingModelClient {
+        started: TokioMutex<Option<oneshot::Sender<()>>>,
+        release: TokioMutex<Option<oneshot::Receiver<()>>>,
+        stream_calls: Arc<AtomicUsize>,
+    }
+
+    impl BlockingModelClient {
+        fn new(
+            started: oneshot::Sender<()>,
+            release: oneshot::Receiver<()>,
+            stream_calls: Arc<AtomicUsize>,
+        ) -> Self {
+            Self {
+                started: TokioMutex::new(Some(started)),
+                release: TokioMutex::new(Some(release)),
+                stream_calls,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl agent_models::ModelClient for BlockingModelClient {
+        async fn stream(
+            &self,
+            _request: agent_models::ModelRequest,
+        ) -> agent_models::Result<BoxStream<'static, agent_models::Result<agent_models::ModelEvent>>>
+        {
+            self.stream_calls.fetch_add(1, Ordering::SeqCst);
+            if let Some(started) = self.started.lock().await.take() {
+                let _ = started.send(());
+            }
+            let release = self
+                .release
+                .lock()
+                .await
+                .take()
+                .expect("blocking stream should be released once");
+            let _ = release.await;
+            Ok(Box::pin(futures::stream::iter(vec![
+                Ok(agent_models::ModelEvent::TokenDelta(
+                    "blocked-response".into(),
+                )),
+                Ok(agent_models::ModelEvent::Completed { usage: None }),
+            ])))
+        }
+    }
 
     fn attachment(
         path: &std::path::Path,
@@ -591,6 +764,7 @@ mod chat_attachment_tests {
             session_id.clone(),
             "idle ipc path".to_string(),
             vec![],
+            None,
         )
         .await
         .expect("idle send should run");
@@ -609,6 +783,189 @@ mod chat_attachment_tests {
             agent_core::EventPayload::AssistantMessageCompleted { content, .. }
                 if content == "ipc-ok"
         )));
+    }
+
+    #[tokio::test]
+    async fn send_message_to_session_if_idle_reuses_existing_client_request_id() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let runtime = agent_runtime::LocalRuntime::new(
+            store,
+            agent_models::FakeModelClient::new(vec![
+                "first-response".into(),
+                "second-response".into(),
+            ]),
+        );
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+        let client_request_id = Some("automation-send-1".to_string());
+
+        let first = send_message_to_session_if_idle_inner(
+            &runtime,
+            workspace.workspace_id.clone(),
+            session_id.clone(),
+            "first body".to_string(),
+            vec![],
+            client_request_id.clone(),
+        )
+        .await
+        .expect("first idle send should be accepted");
+        let second = send_message_to_session_if_idle_inner(
+            &runtime,
+            workspace.workspace_id,
+            session_id.clone(),
+            "duplicate body must not append".to_string(),
+            vec![],
+            client_request_id.clone(),
+        )
+        .await
+        .expect("duplicate idle send should reuse acknowledgement");
+
+        assert!(first.accepted);
+        assert_eq!(first.status, "accepted");
+        assert_eq!(first.session_id, session_id.to_string());
+        assert_eq!(
+            first.client_request_id.as_deref(),
+            Some("automation-send-1")
+        );
+        assert!(second.accepted);
+        assert_eq!(second.status, "accepted");
+        assert_eq!(second.session_id, session_id.to_string());
+        assert_eq!(
+            second.client_request_id.as_deref(),
+            Some("automation-send-1")
+        );
+
+        let trace = runtime
+            .get_trace(session_id)
+            .await
+            .expect("trace should load");
+        let user_messages: Vec<_> = trace
+            .iter()
+            .filter_map(|entry| match &entry.event.payload {
+                agent_core::EventPayload::UserMessageAdded { content, .. } => {
+                    Some(content.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(user_messages, vec!["first body"]);
+        assert!(!user_messages.contains(&"duplicate body must not append"));
+        let assistant_messages = trace
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    &entry.event.payload,
+                    agent_core::EventPayload::AssistantMessageCompleted { .. }
+                )
+            })
+            .count();
+        assert_eq!(assistant_messages, 1);
+    }
+
+    #[tokio::test]
+    async fn send_message_to_session_if_idle_inflight_duplicate_is_not_accepted() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let runtime = Arc::new(agent_runtime::LocalRuntime::new(
+            store,
+            BlockingModelClient::new(started_tx, release_rx, stream_calls.clone()),
+        ));
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+        let client_request_id = Some("automation-send-inflight".to_string());
+
+        let first_runtime = runtime.clone();
+        let first_workspace_id = workspace.workspace_id.clone();
+        let first_session_id = session_id.clone();
+        let first_client_request_id = client_request_id.clone();
+        let first = tokio::spawn(async move {
+            send_message_to_session_if_idle_inner(
+                first_runtime.as_ref(),
+                first_workspace_id,
+                first_session_id,
+                "blocked body".to_string(),
+                vec![],
+                first_client_request_id,
+            )
+            .await
+        });
+        started_rx
+            .await
+            .expect("first request should reach the blocking model stream");
+
+        let duplicate = send_message_to_session_if_idle_inner(
+            runtime.as_ref(),
+            workspace.workspace_id,
+            session_id.clone(),
+            "duplicate body must not append".to_string(),
+            vec![],
+            client_request_id.clone(),
+        )
+        .await
+        .expect("in-flight duplicate should produce an explicit acknowledgement state");
+
+        assert!(!duplicate.accepted);
+        assert_eq!(duplicate.status, "in_flight");
+        assert_eq!(duplicate.session_id, session_id.to_string());
+        assert_eq!(
+            duplicate.client_request_id.as_deref(),
+            Some("automation-send-inflight")
+        );
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+
+        release_tx.send(()).expect("blocking stream should release");
+        let first = first
+            .await
+            .expect("first send task should join")
+            .expect("first send should be accepted after release");
+        assert!(first.accepted);
+        assert_eq!(first.status, "accepted");
+
+        let trace = runtime
+            .get_trace(session_id)
+            .await
+            .expect("trace should load");
+        let user_messages: Vec<_> = trace
+            .iter()
+            .filter_map(|entry| match &entry.event.payload {
+                agent_core::EventPayload::UserMessageAdded { content, .. } => {
+                    Some(content.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(user_messages, vec!["blocked body"]);
+        assert!(!user_messages.contains(&"duplicate body must not append"));
     }
 
     #[test]
