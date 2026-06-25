@@ -969,6 +969,8 @@
       "output": "Output",
       "duration": "Duration",
       "diffPreview": "Diff preview",
+      "exitCode": "exit {code}",
+      "commandExited": "command exited {code}",
       "status": {
         "running": "Running",
         "completed": "Completed",

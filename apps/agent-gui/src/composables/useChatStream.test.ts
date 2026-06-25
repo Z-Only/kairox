@@ -196,6 +196,38 @@ describe("buildChatStream", () => {
     });
   });
 
+  it("carries tool exit codes into chat tool-call stream items", () => {
+    const entries: TraceEntryData[] = [
+      toolEntry({
+        id: "tool-exit-101",
+        toolId: "shell.exec",
+        status: "completed",
+        exitCode: 101,
+        startedAt: 1
+      }),
+      toolEntry({
+        id: "tool-exit-0",
+        toolId: "shell.exec",
+        status: "completed",
+        exitCode: 0,
+        startedAt: 2
+      }),
+      toolEntry({
+        id: "tool-exit-null",
+        toolId: "shell.exec",
+        status: "completed",
+        exitCode: null,
+        startedAt: 3
+      })
+    ];
+
+    const result = buildChatStream([], entries, idle);
+
+    expect((result[0] as ChatToolCallStreamItem).exitCode).toBe(101);
+    expect((result[1] as ChatToolCallStreamItem).exitCode).toBe(0);
+    expect((result[2] as ChatToolCallStreamItem).exitCode).toBeNull();
+  });
+
   it("maps pending task confirmation trace entries to inline confirmation items", () => {
     const entries: TraceEntryData[] = [
       taskConfirmationEntry({

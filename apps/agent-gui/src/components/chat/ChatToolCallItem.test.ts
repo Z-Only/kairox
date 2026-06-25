@@ -115,6 +115,36 @@ describe("ChatToolCallItem", () => {
     );
   });
 
+  it("uses failed visual treatment and an exit label for completed commands with non-zero exit codes", () => {
+    const wrapper = mountItem({ toolId: "shell_exec", status: "completed", exitCode: 101 });
+    const item = wrapper.find('[data-test="chat-tool-call-item"]');
+    const status = wrapper.find(".chat-tool-call__status");
+    const exitLabel = wrapper.find('[data-test="chat-tool-call-exit-code"]');
+
+    expect(item.classes()).toContain("chat-tool-call--failed");
+    expect(item.classes()).not.toContain("chat-tool-call--completed");
+    expect(status.text()).toBe("❌");
+    expect(status.attributes("title")).toBe("command exited 101");
+    expect(exitLabel.exists()).toBe(true);
+    expect(exitLabel.text()).toBe("exit 101");
+  });
+
+  it.each([0, null])(
+    "keeps completed commands with exitCode=%s visually completed without an exit label",
+    (exitCode) => {
+      const wrapper = mountItem({ toolId: "shell_exec", status: "completed", exitCode });
+      const item = wrapper.find('[data-test="chat-tool-call-item"]');
+      const status = wrapper.find(".chat-tool-call__status");
+
+      expect(item.classes()).toContain("chat-tool-call--completed");
+      expect(item.classes()).not.toContain("chat-tool-call--failed");
+      expect(status.text()).toBe("✅");
+      expect(status.attributes("title")).toBe("Completed");
+      expect(wrapper.find('[data-test="chat-tool-call-exit-code"]').exists()).toBe(false);
+      expect(wrapper.text()).not.toContain("exit ");
+    }
+  );
+
   it("renders duration as `1.2s` when durationMs=1234", () => {
     const wrapper = mountItem({
       toolId: "shell_exec",

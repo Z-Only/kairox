@@ -202,6 +202,7 @@ function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
       item.startedAt = entry.startedAt;
       if (entry.input !== undefined) item.input = entry.input;
       if (entry.outputPreview !== undefined) item.outputPreview = entry.outputPreview;
+      if (entry.exitCode !== undefined) item.exitCode = entry.exitCode;
       if (entry.scope !== undefined) item.scope = entry.scope;
       if (entry.images !== undefined && entry.images.length > 0) item.images = entry.images;
       return item;
