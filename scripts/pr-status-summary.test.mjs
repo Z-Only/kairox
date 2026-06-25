@@ -46,7 +46,8 @@ test("normalizeStatusCheckRollup counts outcomes and preserves raw fields", () =
     failure: 1,
     pending: 1,
     skipped: 1,
-    unknown: 1
+    neutral: 1,
+    unknown: 0
   });
   assert.deepEqual(normalized.checks, [
     {
@@ -89,7 +90,7 @@ test("normalizeStatusCheckRollup counts outcomes and preserves raw fields", () =
       status: "COMPLETED",
       conclusion: "NEUTRAL",
       state: null,
-      result: "unknown"
+      result: "neutral"
     }
   ]);
 });
@@ -109,7 +110,8 @@ test("summarizePullRequest emits stable snake_case fields", () => {
         failure: 1,
         pending: 1,
         skipped: 1,
-        unknown: 1
+        neutral: 1,
+        unknown: 0
       },
       items: [
         {
@@ -152,7 +154,7 @@ test("summarizePullRequest emits stable snake_case fields", () => {
           status: "COMPLETED",
           conclusion: "NEUTRAL",
           state: null,
-          result: "unknown"
+          result: "neutral"
         }
       ]
     }
@@ -199,16 +201,176 @@ test("runCli prints stable JSON and invokes gh pr view with required fields", as
   );
 });
 
+test("runCli watch waits until every PR has no pending or failing checks", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const calls = [];
+  const sleeps = [];
+  let currentTime = 0;
+
+  const pendingPullRequest = samplePullRequest({
+    statusCheckRollup: [{ name: "build", status: "IN_PROGRESS", conclusion: null }]
+  });
+  const readyPullRequest = samplePullRequest({
+    mergeStateStatus: "CLEAN",
+    statusCheckRollup: [{ name: "build", status: "COMPLETED", conclusion: "SUCCESS" }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "100", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async (command, args) => {
+        calls.push([command, args]);
+        return {
+          stdout: JSON.stringify(calls.length === 1 ? pendingPullRequest : readyPullRequest)
+        };
+      }
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(sleeps, [5]);
+  assert.equal(calls.length, 2);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(readyPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
+test("runCli watch exits 1 immediately when any PR has failing checks", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const sleeps = [];
+  const failingPullRequest = samplePullRequest({
+    statusCheckRollup: [{ name: "unit", status: "COMPLETED", conclusion: "FAILURE" }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "100", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => 0,
+      sleep: async (ms) => sleeps.push(ms),
+      execFile: async () => ({ stdout: JSON.stringify(failingPullRequest) })
+    }
+  );
+
+  assert.equal(exitCode, 1);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(sleeps, []);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(failingPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
+test("runCli watch exits 1 on timeout and prints the last summary", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const sleeps = [];
+  let currentTime = 0;
+  const pendingPullRequest = samplePullRequest({
+    statusCheckRollup: [{ name: "build", status: "IN_PROGRESS", conclusion: null }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "10", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async () => ({ stdout: JSON.stringify(pendingPullRequest) })
+    }
+  );
+
+  assert.equal(exitCode, 1);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(sleeps, [5, 5]);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(pendingPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
+test("runCli watch treats unknown checks as not ready", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const sleeps = [];
+  let currentTime = 0;
+  const unknownPullRequest = samplePullRequest({
+    statusCheckRollup: [{ name: "new-status", status: "COMPLETED", conclusion: "NEW_CONCLUSION" }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "5", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async () => ({ stdout: JSON.stringify(unknownPullRequest) })
+    }
+  );
+
+  assert.equal(exitCode, 1);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(sleeps, [5]);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(unknownPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
 test("formatHumanSummary renders a readable table with counts and check rows", () => {
   const output = formatHumanSummary([summarizePullRequest(samplePullRequest())]);
 
   assert.match(
     output,
-    /PR\s+State\s+Merge\s+Head\s+Success\s+Failure\s+Pending\s+Skipped\s+Unknown\s+Title/
+    /PR\s+State\s+Merge\s+Head\s+Success\s+Failure\s+Pending\s+Skipped\s+Neutral\s+Unknown\s+Title/
   );
   assert.match(
     output,
-    /#42\s+OPEN\s+BLOCKED\s+codex\/pr-status-summary@abcdef12\s+2\s+1\s+1\s+1\s+1\s+Add watcher status summary/
+    /#42\s+OPEN\s+BLOCKED\s+codex\/pr-status-summary@abcdef12\s+2\s+1\s+1\s+1\s+1\s+0\s+Add watcher status summary/
   );
   assert.match(output, /Checks for #42/);
   assert.match(output, /lint\s+COMPLETED\s+SUCCESS\s+-\s+success/);
