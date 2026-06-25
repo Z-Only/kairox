@@ -41,7 +41,15 @@ impl OpenAiToolCallAccumulator {
     /// Process a raw chunk event and return zero or more completed model events.
     pub(super) fn process(&mut self, raw: OpenAiChunkEvent) -> Vec<ModelEvent> {
         match raw {
-            OpenAiChunkEvent::Event(e) => vec![e],
+            OpenAiChunkEvent::Event(e) => {
+                if matches!(e, ModelEvent::Completed { .. }) && !self.pending.is_empty() {
+                    let mut events = self.flush();
+                    events.push(e);
+                    events
+                } else {
+                    vec![e]
+                }
+            }
             OpenAiChunkEvent::ToolCallStarted { index, id, name } => {
                 // If there was a previous tool call at this index (shouldn't happen
                 // in normal streaming, but be safe), emit it before starting a new one.

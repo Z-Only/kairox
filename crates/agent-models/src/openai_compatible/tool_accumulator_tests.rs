@@ -32,10 +32,8 @@ fn accumulates_tool_call_across_chunks() {
     let events = acc.process(OpenAiChunkEvent::Event(ModelEvent::Completed {
         usage: None,
     }));
-    assert_eq!(events.len(), 1);
+    assert_eq!(events.len(), 2);
 
-    let events = acc.flush();
-    assert_eq!(events.len(), 1);
     match &events[0] {
         ModelEvent::ToolCallRequested {
             tool_call_id,
@@ -48,6 +46,9 @@ fn accumulates_tool_call_across_chunks() {
         }
         _ => panic!("expected ToolCallRequested"),
     }
+    assert!(matches!(&events[1], ModelEvent::Completed { usage: None }));
+
+    assert!(acc.flush().is_empty());
 }
 
 #[test]
