@@ -126,6 +126,7 @@ async fn upsert_writes_profile_settings() {
     assert_eq!(view.provider, "openai_compatible");
     assert_eq!(view.model_id, "gpt-4.1");
     assert!(view.enabled);
+    assert_eq!(view.source, "user_config");
     assert_eq!(view.temperature, Some(0.7));
     assert_eq!(view.supports_reasoning, Some(true));
 
@@ -138,6 +139,35 @@ async fn upsert_writes_profile_settings() {
     assert!(raw.contains("temperature = "));
     assert!(raw.contains("client_identity = \"claude_code\""));
     assert!(raw.contains("supports_reasoning = true"));
+}
+
+#[tokio::test]
+async fn upsert_masks_api_key_but_reports_presence() {
+    let config_path = write_profiles_config_fixture("");
+    let input = ProfileSettingsInput {
+        alias: "keyed".to_string(),
+        provider: "openai_compatible".to_string(),
+        model_id: "gpt-4.1".to_string(),
+        enabled: true,
+        context_window: None,
+        output_limit: None,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        max_tokens: None,
+        base_url: Some("https://api.example.test/v1".to_string()),
+        api_key: Some("secret-key".to_string()),
+        api_key_env: None,
+        client_identity: None,
+        supports_reasoning: None,
+    };
+
+    let view = upsert_profile_settings_in_file(&config_path, &input)
+        .await
+        .expect("profile should be written");
+
+    assert_eq!(view.api_key, None);
+    assert!(view.has_api_key);
 }
 
 #[tokio::test]
