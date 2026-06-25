@@ -66,7 +66,7 @@ function clearSessionSearch() {
   sessionSearch.value = "";
 }
 
-function projectMatchesSearch(project: (typeof projects.activeProjects)[number]): boolean {
+function projectMatchesSearch(project: (typeof projects.sidebarProjects)[number]): boolean {
   return matchesSessionSearch([project.displayName, project.rootPath]);
 }
 
@@ -86,9 +86,9 @@ const filteredSessions = computed(() =>
 );
 
 const filteredActiveProjects = computed(() => {
-  if (!normalizedSessionSearch.value) return projects.activeProjects;
+  if (!normalizedSessionSearch.value) return projects.sidebarProjects;
 
-  return projects.activeProjects.filter(
+  return projects.sidebarProjects.filter(
     (project) =>
       projectMatchesSearch(project) ||
       getProjectSessions(project.projectId).some(projectSessionMatchesSearch)
@@ -103,7 +103,7 @@ function getFilteredProjectSessions(projectId: string) {
   const projectSessions = getProjectSessions(projectId);
   if (!normalizedSessionSearch.value) return projectSessions;
 
-  const project = projects.activeProjects.find((entry) => entry.projectId === projectId);
+  const project = projects.sidebarProjects.find((entry) => entry.projectId === projectId);
   if (project && projectMatchesSearch(project)) return projectSessions;
 
   return projectSessions.filter(projectSessionMatchesSearch);
@@ -156,7 +156,7 @@ onMounted(() => {
     </div>
     <div class="session-scroll">
       <KxEmptyState
-        v-if="projects.activeProjects.length === 0 && session.sessions.length === 0"
+        v-if="projects.sidebarProjects.length === 0 && session.sessions.length === 0"
         class="sessions-empty-state"
         density="inline"
         data-test="sessions-root-empty"

@@ -104,7 +104,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/demo",
           removed_at: null,
           sort_order: 0,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ]
     });
@@ -176,7 +177,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/compiler",
           removed_at: null,
           sort_order: 0,
-          expanded: true
+          expanded: true,
+          path_exists: true
         },
         {
           project_id: "project-2",
@@ -184,7 +186,8 @@ describe("SessionsSidebar", () => {
           root_path: "/tmp/docs",
           removed_at: null,
           sort_order: 1,
-          expanded: false
+          expanded: false,
+          path_exists: true
         }
       ],
       list_project_sessions: [

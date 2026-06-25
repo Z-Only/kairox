@@ -60,7 +60,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -97,7 +98,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ],
         list_project_sessions: [
@@ -196,7 +198,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ],
         list_archived_sessions: [
@@ -248,7 +251,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -320,7 +324,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ],
         list_project_sessions: [
@@ -365,7 +370,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ],
         list_project_sessions: [
@@ -406,7 +412,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ],
         list_project_sessions: [
@@ -443,7 +450,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/demo",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           }
         ],
         list_project_sessions: [
@@ -486,7 +494,8 @@ describe("SessionsSidebar", () => {
             root_path: "/home/user/projects/cool-app",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -507,7 +516,8 @@ describe("SessionsSidebar", () => {
             root_path: "/home/user/extremely/deep/nested/path/to/project",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -535,7 +545,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -555,7 +566,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/p",
             removed_at: null,
             sort_order: 0,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });
@@ -584,7 +596,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/expanded",
             removed_at: null,
             sort_order: 0,
-            expanded: true
+            expanded: true,
+            path_exists: true
           },
           {
             project_id: "p2",
@@ -592,7 +605,8 @@ describe("SessionsSidebar", () => {
             root_path: "/tmp/collapsed",
             removed_at: null,
             sort_order: 1,
-            expanded: false
+            expanded: false,
+            path_exists: true
           }
         ]
       });

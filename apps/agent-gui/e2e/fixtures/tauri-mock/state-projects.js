@@ -12,7 +12,8 @@ state.projects = [
     root_path: "/mock/workspace",
     removed_at: null,
     sort_order: 0,
-    expanded: true
+    expanded: true,
+    path_exists: true
   }
 ];
 state.projectSessions = new Map();
