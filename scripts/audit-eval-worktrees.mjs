@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
 
-export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json]
+export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only]
 
 Audits local eval worktrees without deleting worktrees or branches.
 
@@ -16,8 +16,11 @@ Selection:
   starts with "eval-kairox-".
 
 Options:
-  --json       Print a stable JSON array.
-  --help, -h   Show this help.
+  --json        Print a stable JSON object.
+  --summary     Only print summary counts.
+  --dirty-only  Only show dirty, missing, or error worktrees.
+  --clean-only  Only show clean worktrees.
+  --help, -h    Show this help.
 `;
 
 class UsageError extends Error {}
@@ -145,6 +148,36 @@ export async function auditEvalWorktrees({
   return audited;
 }
 
+export function summarizeAudit(worktrees) {
+  const summary = {
+    total: worktrees.length,
+    clean: 0,
+    dirty: 0,
+    missing: 0,
+    error: 0
+  };
+
+  for (const worktree of worktrees) {
+    if (Object.hasOwn(summary, worktree.dirty_status)) {
+      summary[worktree.dirty_status] += 1;
+    }
+  }
+
+  return summary;
+}
+
+export function filterAuditResults(worktrees, { dirtyOnly = false, cleanOnly = false } = {}) {
+  if (dirtyOnly) {
+    return worktrees.filter((worktree) =>
+      ["dirty", "missing", "error"].includes(worktree.dirty_status)
+    );
+  }
+  if (cleanOnly) {
+    return worktrees.filter((worktree) => worktree.dirty_status === "clean");
+  }
+  return worktrees;
+}
+
 function shortHead(head) {
   return head ? head.slice(0, 12) : "-";
 }
@@ -154,8 +187,11 @@ function pad(value, width) {
 }
 
 export function formatHumanTable(worktrees) {
+  const summary = summarizeAudit(worktrees);
+  const summaryLine = `${formatSummaryLine(summary)}\n`;
+
   if (worktrees.length === 0) {
-    return "No eval worktrees found.\n";
+    return `${summaryLine}No eval worktrees found.\n`;
   }
 
   const headers = ["PATH", "BRANCH", "HEAD", "PATH_EXISTS", "DIRTY_STATUS"];
@@ -172,13 +208,20 @@ export function formatHumanTable(worktrees) {
   const formatRow = (row) => row.map((value, index) => pad(value, widths[index])).join("  ");
   const separator = widths.map((width) => "-".repeat(width)).join("  ");
 
-  return `${[formatRow(headers), separator, ...rows.map(formatRow)].join("\n")}\n`;
+  return `${summaryLine}${[formatRow(headers), separator, ...rows.map(formatRow)].join("\n")}\n`;
+}
+
+export function formatSummaryLine(summary) {
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} missing=${summary.missing} error=${summary.error}`;
 }
 
 export function parseArgs(argv) {
   const parsed = {
     help: false,
-    json: false
+    json: false,
+    summaryOnly: false,
+    dirtyOnly: false,
+    cleanOnly: false
   };
 
   for (const arg of argv) {
@@ -190,7 +233,23 @@ export function parseArgs(argv) {
       parsed.json = true;
       continue;
     }
+    if (arg === "--summary") {
+      parsed.summaryOnly = true;
+      continue;
+    }
+    if (arg === "--dirty-only") {
+      parsed.dirtyOnly = true;
+      continue;
+    }
+    if (arg === "--clean-only") {
+      parsed.cleanOnly = true;
+      continue;
+    }
     throw new UsageError(`Unknown argument: ${arg}`);
+  }
+
+  if (parsed.dirtyOnly && parsed.cleanOnly) {
+    throw new UsageError("--dirty-only and --clean-only cannot be used together");
   }
 
   return parsed;
@@ -214,8 +273,25 @@ export async function runCli(
       return 0;
     }
 
-    const audited = await auditEvalWorktrees({ execFile, pathExists, cwd, env });
-    stdout.write(args.json ? `${JSON.stringify(audited, null, 2)}\n` : formatHumanTable(audited));
+    const audited = filterAuditResults(
+      await auditEvalWorktrees({ execFile, pathExists, cwd, env }),
+      args
+    );
+    const summary = summarizeAudit(audited);
+    const output = args.summaryOnly
+      ? { summary }
+      : {
+          summary,
+          worktrees: audited
+        };
+
+    if (args.json) {
+      stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    } else if (args.summaryOnly) {
+      stdout.write(`${formatSummaryLine(summary)}\n`);
+    } else {
+      stdout.write(formatHumanTable(audited));
+    }
     return 0;
   } catch (error) {
     const usage = error instanceof UsageError ? `\n\n${USAGE}` : "";
