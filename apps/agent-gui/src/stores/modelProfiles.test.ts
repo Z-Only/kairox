@@ -302,6 +302,46 @@ describe("useModelProfilesStore", () => {
             label: "Network error",
             recommendation: "Check network connectivity and the endpoint URL."
           }
+        },
+        {
+          status: "permission_denied",
+          expected: {
+            tone: "danger",
+            label: "Permission denied",
+            recommendation: "Use an API key with access to this model or endpoint."
+          }
+        },
+        {
+          status: "model_unavailable",
+          expected: {
+            tone: "danger",
+            label: "Model unavailable",
+            recommendation: "Check the model ID, provider, and account access."
+          }
+        },
+        {
+          status: "server_error",
+          expected: {
+            tone: "warning",
+            label: "Server error",
+            recommendation: "Retry later or check provider status."
+          }
+        },
+        {
+          status: "invalid_config",
+          expected: {
+            tone: "danger",
+            label: "Invalid configuration",
+            recommendation: "Check provider, base URL, API key settings, and model ID."
+          }
+        },
+        {
+          status: "request_failed",
+          expected: {
+            tone: "danger",
+            label: "Request failed",
+            recommendation: "Review the raw error and model configuration."
+          }
         }
       ];
 
@@ -316,6 +356,31 @@ describe("useModelProfilesStore", () => {
           })
         ).toEqual(expected);
       }
+    });
+
+    it("localizes health advice with the provided translator", () => {
+      const translations: Record<string, string> = {
+        "models.healthAdvice_invalid_config_label": "配置无效",
+        "models.healthAdvice_invalid_config_recommendation":
+          "检查提供商、Base URL、API Key 设置和模型 ID。"
+      };
+
+      expect(
+        modelHealthAdvice(
+          {
+            ok: false,
+            status: "invalid_config",
+            error: "missing base URL",
+            message: "configuration error",
+            response_preview: null
+          },
+          (key) => translations[key] ?? key
+        )
+      ).toEqual({
+        tone: "danger",
+        label: "配置无效",
+        recommendation: "检查提供商、Base URL、API Key 设置和模型 ID。"
+      });
     });
 
     it("returns connectivity result", async () => {
