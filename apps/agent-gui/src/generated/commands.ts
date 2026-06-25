@@ -49,6 +49,11 @@ export const commands = {
   /**  Returns a structured trace export envelope for diagnostics and replay tools. */
   exportTrace: (sessionId: string) =>
     typedError<TraceExport_Serialize, string>(__TAURI_INVOKE("export_trace", { sessionId })),
+  /**  Returns compact trace diagnostics for eval and pilot assertions. */
+  exportSessionDiagnostics: (sessionId: string) =>
+    typedError<SessionDiagnosticsResponse, string>(
+      __TAURI_INVOKE("export_session_diagnostics", { sessionId })
+    ),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
   listProjects: () => typedError<ProjectInfoResponse[], string>(__TAURI_INVOKE("list_projects")),
   createBlankProject: (displayName: string | null) =>
@@ -18394,6 +18399,11 @@ export type EventPayload_Serialize =
       verdict?: never;
     });
 
+export type EventTypeCountResponse = {
+  event_type: string;
+  count: number;
+};
+
 export type GuiSettingsView = {
   devtools_enabled: boolean;
   default_devtools_enabled: boolean;
@@ -18585,6 +18595,12 @@ export type McpServerStatusResponse = {
   tool_count: number;
 };
 
+export type McpToolCallDiagnosticsResponse = {
+  server_id: string;
+  tool_name: string;
+  status: string;
+};
+
 export type McpToolDefResponse = {
   name: string;
   description: string | null;
@@ -18602,6 +18618,11 @@ export type MemoryEntryResponse = {
   content: string;
   accepted: boolean;
   branch: string | null;
+};
+
+export type ModelToolCallDiagnosticsResponse = {
+  tool_call_id: string;
+  tool_id: string;
 };
 
 export type MonitorInfoResponse = {
@@ -18880,6 +18901,25 @@ export type ServerEntryResponse = {
   default_env_json: string;
 };
 
+export type SessionDiagnosticsMessageResponse = {
+  message_id: string;
+  content: string;
+};
+
+export type SessionDiagnosticsResponse = {
+  session_id: string;
+  event_count: number;
+  event_type_counts: EventTypeCountResponse[];
+  last_event_type: string | null;
+  user_messages: SessionDiagnosticsMessageResponse[];
+  assistant_messages: SessionDiagnosticsMessageResponse[];
+  model_tool_calls: ModelToolCallDiagnosticsResponse[];
+  mcp_tool_calls: McpToolCallDiagnosticsResponse[];
+  trajectory_started_count: number;
+  trajectory_completed_count: number;
+  trajectory_completed_outcomes: TrajectoryCompletedDiagnosticsResponse[];
+};
+
 export type SessionInfoResponse = {
   id: string;
   title: string;
@@ -19070,6 +19110,12 @@ export type TraceExport_Serialize = {
   generated_at: string;
   event_count: number;
   events: DomainEvent_Serialize[];
+};
+
+export type TrajectoryCompletedDiagnosticsResponse = {
+  trajectory_id: string;
+  step_count: number;
+  outcome: string;
 };
 
 export type TrajectoryMetaResponse = {

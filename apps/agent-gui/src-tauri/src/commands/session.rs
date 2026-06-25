@@ -52,6 +52,124 @@ pub async fn export_trace(
         .map_err(|e| format!("Failed to export trace: {e}"))
 }
 
+/// Returns compact trace diagnostics for eval and pilot assertions.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_session_diagnostics(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<SessionDiagnosticsResponse, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let trace = state
+        .runtime
+        .export_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to export session diagnostics: {e}"))?;
+    Ok(summarize_trace_export(&trace))
+}
+
+fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
+    let mut event_type_counts = std::collections::BTreeMap::<String, u32>::new();
+    let mut user_messages = Vec::new();
+    let mut assistant_messages = Vec::new();
+    let mut model_tool_calls = Vec::new();
+    let mut mcp_tool_calls = Vec::new();
+    let mut trajectory_started_count = 0_u32;
+    let mut trajectory_completed_count = 0_u32;
+    let mut trajectory_completed_outcomes = Vec::new();
+
+    for event in &trace.events {
+        let count = event_type_counts
+            .entry(event.event_type.clone())
+            .or_insert(0);
+        *count = count.saturating_add(1);
+
+        match &event.payload {
+            agent_core::EventPayload::UserMessageAdded {
+                message_id,
+                content,
+                ..
+            } => user_messages.push(SessionDiagnosticsMessageResponse {
+                message_id: message_id.clone(),
+                content: content.clone(),
+            }),
+            agent_core::EventPayload::AssistantMessageCompleted {
+                message_id,
+                content,
+            } => assistant_messages.push(SessionDiagnosticsMessageResponse {
+                message_id: message_id.clone(),
+                content: content.clone(),
+            }),
+            agent_core::EventPayload::ModelToolCallRequested {
+                tool_call_id,
+                tool_id,
+            } => model_tool_calls.push(ModelToolCallDiagnosticsResponse {
+                tool_call_id: tool_call_id.clone(),
+                tool_id: tool_id.clone(),
+            }),
+            agent_core::EventPayload::McpToolCallStarted {
+                server_id,
+                tool_name,
+            } => mcp_tool_calls.push(McpToolCallDiagnosticsResponse {
+                server_id: server_id.clone(),
+                tool_name: tool_name.clone(),
+                status: "started".into(),
+            }),
+            agent_core::EventPayload::McpToolCallCompleted {
+                server_id,
+                tool_name,
+                ..
+            } => mcp_tool_calls.push(McpToolCallDiagnosticsResponse {
+                server_id: server_id.clone(),
+                tool_name: tool_name.clone(),
+                status: "completed".into(),
+            }),
+            agent_core::EventPayload::TrajectoryStarted { .. } => {
+                trajectory_started_count = trajectory_started_count.saturating_add(1);
+            }
+            agent_core::EventPayload::TrajectoryCompleted {
+                trajectory_id,
+                step_count,
+                outcome,
+            } => {
+                trajectory_completed_count = trajectory_completed_count.saturating_add(1);
+                trajectory_completed_outcomes.push(TrajectoryCompletedDiagnosticsResponse {
+                    trajectory_id: trajectory_id.clone(),
+                    step_count: *step_count,
+                    outcome: trajectory_outcome_to_string(outcome).into(),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    SessionDiagnosticsResponse {
+        session_id: trace.session_id.to_string(),
+        event_count: trace.event_count as u32,
+        event_type_counts: event_type_counts
+            .into_iter()
+            .map(|(event_type, count)| EventTypeCountResponse { event_type, count })
+            .collect(),
+        last_event_type: trace.events.last().map(|event| event.event_type.clone()),
+        user_messages,
+        assistant_messages,
+        model_tool_calls,
+        mcp_tool_calls,
+        trajectory_started_count,
+        trajectory_completed_count,
+        trajectory_completed_outcomes,
+    }
+}
+
+fn trajectory_outcome_to_string(outcome: &agent_core::TrajectoryOutcome) -> &'static str {
+    match outcome {
+        agent_core::TrajectoryOutcome::Success => "success",
+        agent_core::TrajectoryOutcome::Failed => "failed",
+        agent_core::TrajectoryOutcome::Cancelled => "cancelled",
+        agent_core::TrajectoryOutcome::InProgress => "in_progress",
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfoResponse>, String> {
@@ -664,6 +782,98 @@ pub async fn export_trajectory(
         .await
         .map_err(|e| format!("Failed to export trajectory: {e}"))?;
     serde_json::to_string_pretty(&json).map_err(|e| format!("Failed to serialize: {e}"))
+}
+
+#[cfg(test)]
+mod session_diagnostics_tests {
+    use super::summarize_trace_export;
+    use agent_core::{
+        DomainEvent, EventPayload, PrivacyClassification, SessionId, TraceExport, WorkspaceId,
+    };
+
+    fn event(payload: EventPayload) -> DomainEvent {
+        DomainEvent::new(
+            WorkspaceId::from_string("wrk_diag".to_string()),
+            SessionId::from_string("ses_diag".to_string()),
+            agent_core::AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+    }
+
+    #[test]
+    fn summarize_trace_export_counts_messages_and_tool_calls() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::SessionInitialized {
+                    model_profile: "default".into(),
+                }),
+                event(EventPayload::UserMessageAdded {
+                    message_id: "u1".into(),
+                    content: "hello".into(),
+                    display_content: None,
+                }),
+                event(EventPayload::ModelToolCallRequested {
+                    tool_call_id: "call_1".into(),
+                    tool_id: "shell.exec".into(),
+                }),
+                event(EventPayload::McpToolCallStarted {
+                    server_id: "srv".into(),
+                    tool_name: "lookup".into(),
+                }),
+                event(EventPayload::McpToolCallCompleted {
+                    server_id: "srv".into(),
+                    tool_name: "lookup".into(),
+                    duration_ms: 42,
+                }),
+                event(EventPayload::AssistantMessageCompleted {
+                    message_id: "a1".into(),
+                    content: "done".into(),
+                }),
+                event(EventPayload::TrajectoryStarted {
+                    trajectory_id: "traj_1".into(),
+                    task_id: "task_1".into(),
+                }),
+                event(EventPayload::TrajectoryCompleted {
+                    trajectory_id: "traj_1".into(),
+                    step_count: 3,
+                    outcome: agent_core::TrajectoryOutcome::Success,
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.session_id, "ses_diag");
+        assert_eq!(summary.event_count, 8);
+        assert_eq!(
+            summary.last_event_type.as_deref(),
+            Some("TrajectoryCompleted")
+        );
+        assert_eq!(summary.user_messages[0].message_id, "u1");
+        assert_eq!(summary.user_messages[0].content, "hello");
+        assert_eq!(summary.assistant_messages[0].message_id, "a1");
+        assert_eq!(summary.assistant_messages[0].content, "done");
+        assert_eq!(summary.model_tool_calls[0].tool_call_id, "call_1");
+        assert_eq!(summary.model_tool_calls[0].tool_id, "shell.exec");
+        assert_eq!(summary.mcp_tool_calls[0].status, "started");
+        assert_eq!(summary.mcp_tool_calls[1].status, "completed");
+        assert_eq!(summary.trajectory_started_count, 1);
+        assert_eq!(summary.trajectory_completed_count, 1);
+        assert_eq!(summary.trajectory_completed_outcomes[0].outcome, "success");
+
+        let counts: std::collections::BTreeMap<_, _> = summary
+            .event_type_counts
+            .into_iter()
+            .map(|entry| (entry.event_type, entry.count))
+            .collect();
+        assert_eq!(counts.get("UserMessageAdded"), Some(&1));
+        assert_eq!(counts.get("AssistantMessageCompleted"), Some(&1));
+        assert_eq!(counts.get("ModelToolCallRequested"), Some(&1));
+        assert_eq!(counts.get("McpToolCallStarted"), Some(&1));
+        assert_eq!(counts.get("McpToolCallCompleted"), Some(&1));
+    }
 }
 
 #[cfg(test)]
