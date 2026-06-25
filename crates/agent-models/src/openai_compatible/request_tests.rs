@@ -70,7 +70,7 @@ fn tool_definitions_use_function_format() {
     let tools = body["tools"].as_array().unwrap();
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0]["type"], "function");
-    assert_eq!(tools[0]["function"]["name"], "fs.read");
+    assert_eq!(tools[0]["function"]["name"], "fs_read");
     assert_eq!(tools[0]["function"]["description"], "Read a file");
 }
 
@@ -96,7 +96,7 @@ fn assistant_with_tool_calls_includes_tool_calls_array() {
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0]["id"], "call_1");
     assert_eq!(tool_calls[0]["type"], "function");
-    assert_eq!(tool_calls[0]["function"]["name"], "shell.exec");
+    assert_eq!(tool_calls[0]["function"]["name"], "shell_exec");
 }
 
 #[test]

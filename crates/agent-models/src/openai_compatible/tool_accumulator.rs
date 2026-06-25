@@ -1,4 +1,5 @@
 use super::streaming::OpenAiChunkEvent;
+use super::tool_names::OpenAiToolNameMap;
 use crate::ModelEvent;
 use std::collections::HashMap;
 
@@ -15,6 +16,7 @@ use std::collections::HashMap;
 pub(super) struct OpenAiToolCallAccumulator {
     /// Tool calls being accumulated, keyed by their index in the `tool_calls` array.
     pending: HashMap<usize, PendingOpenAiToolCall>,
+    tool_name_map: OpenAiToolNameMap,
 }
 
 struct PendingOpenAiToolCall {
@@ -24,9 +26,15 @@ struct PendingOpenAiToolCall {
 }
 
 impl OpenAiToolCallAccumulator {
+    #[cfg(test)]
     pub(super) fn new() -> Self {
+        Self::with_tool_name_map(OpenAiToolNameMap::default())
+    }
+
+    pub(super) fn with_tool_name_map(tool_name_map: OpenAiToolNameMap) -> Self {
         Self {
             pending: HashMap::new(),
+            tool_name_map,
         }
     }
 
@@ -69,7 +77,7 @@ impl OpenAiToolCallAccumulator {
             serde_json::from_str(&pending.arguments_buffer).unwrap_or(serde_json::json!({}));
         ModelEvent::ToolCallRequested {
             tool_call_id: pending.id,
-            tool_id: pending.name,
+            tool_id: self.tool_name_map.internal_name(&pending.name),
             arguments,
         }
     }

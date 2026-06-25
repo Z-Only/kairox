@@ -1,4 +1,5 @@
 use super::tool_accumulator::OpenAiToolCallAccumulator;
+use super::tool_names::OpenAiToolNameMap;
 use crate::{ModelError, ModelEvent, Result};
 use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
@@ -151,6 +152,7 @@ fn openai_stream_error_message(chunk: &serde_json::Value) -> Option<String> {
 
 pub(super) fn stream_openai_response(
     response: reqwest::Response,
+    tool_name_map: OpenAiToolNameMap,
 ) -> BoxStream<'static, Result<ModelEvent>> {
     let raw_stream = response
         .bytes_stream()
@@ -177,7 +179,7 @@ pub(super) fn stream_openai_response(
         .flatten()
         .boxed();
 
-    let mut accumulator = OpenAiToolCallAccumulator::new();
+    let mut accumulator = OpenAiToolCallAccumulator::with_tool_name_map(tool_name_map);
     Box::pin(async_stream::stream! {
         let mut raw_stream = raw_stream;
 
