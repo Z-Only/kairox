@@ -123,7 +123,12 @@ async fn settings_view_from_file(
     let item = profiles
         .get(alias)
         .ok_or_else(|| CoreError::InvalidState(format!("saved profile not found: {alias}")))?;
-    let row = row::profile_row_from_toml_table(item, "profiles_toml", true);
+    let row = row::profile_row_from_toml_table(item, "user_config", true);
+    let has_api_key = row.api_key.is_some()
+        || row
+            .api_key_env
+            .as_ref()
+            .is_some_and(|value| std::env::var(value).is_ok());
     Ok(ProfileSettingsView {
         alias: alias.to_string(),
         provider: row.provider,
@@ -140,7 +145,7 @@ async fn settings_view_from_file(
         api_key_env: row.api_key_env,
         client_identity: row.client_identity,
         supports_reasoning: row.supports_reasoning,
-        has_api_key: false,
+        has_api_key,
         writable: true,
         config_path: Some(config_path.display().to_string()),
         source: row.source,
