@@ -172,6 +172,10 @@ pub struct SessionDiagnosticsResponse {
     pub trajectory_started_count: u32,
     pub trajectory_completed_count: u32,
     pub trajectory_completed_outcomes: Vec<TrajectoryCompletedDiagnosticsResponse>,
+    pub running_model_requests: u32,
+    pub running_tool_invocations: u32,
+    pub trajectory_failed_count: u32,
+    pub has_terminal_assistant_message: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
