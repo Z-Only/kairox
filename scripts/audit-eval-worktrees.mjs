@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
+const DIRTY_FILE_LIMIT = 5;
 
 export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only]
 
@@ -44,6 +45,27 @@ function pushWorktree(worktrees, current) {
     branch: current.branch ?? null,
     head: current.head ?? null
   });
+}
+
+function parseDirtyStatusPath(line) {
+  const path = line.length > 3 ? line.slice(3) : line.trim();
+  const renameSeparator = " -> ";
+  if (path.includes(renameSeparator)) {
+    return path.slice(path.lastIndexOf(renameSeparator) + renameSeparator.length).trim();
+  }
+  return path.trim();
+}
+
+function summarizeDirtyStatus(output) {
+  const dirtyFiles = output
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== "")
+    .map(parseDirtyStatusPath);
+
+  return {
+    dirty_file_count: dirtyFiles.length,
+    dirty_files: dirtyFiles.slice(0, DIRTY_FILE_LIMIT)
+  };
 }
 
 export function parseWorktreePorcelain(output) {
@@ -101,7 +123,9 @@ async function dirtyStatus(worktreePath, { execFile, env, pathExists }) {
   if (!exists) {
     return {
       dirty_status: "missing",
-      path_exists: false
+      path_exists: false,
+      dirty_file_count: 0,
+      dirty_files: []
     };
   }
 
@@ -110,14 +134,18 @@ async function dirtyStatus(worktreePath, { execFile, env, pathExists }) {
       env,
       maxBuffer: GIT_BUFFER
     });
+    const dirtySummary = summarizeDirtyStatus(result.stdout);
     return {
-      dirty_status: result.stdout.trim() === "" ? "clean" : "dirty",
-      path_exists: true
+      dirty_status: dirtySummary.dirty_file_count === 0 ? "clean" : "dirty",
+      path_exists: true,
+      ...dirtySummary
     };
   } catch {
     return {
       dirty_status: "error",
-      path_exists: true
+      path_exists: true,
+      dirty_file_count: 0,
+      dirty_files: []
     };
   }
 }
@@ -186,6 +214,18 @@ function pad(value, width) {
   return String(value).padEnd(width, " ");
 }
 
+function formatDirtyFiles(worktree) {
+  const dirtyFiles = Array.isArray(worktree.dirty_files) ? worktree.dirty_files : [];
+  if (dirtyFiles.length === 0) {
+    return "-";
+  }
+
+  const dirtyFileCount = worktree.dirty_file_count ?? dirtyFiles.length;
+  const remaining = dirtyFileCount - dirtyFiles.length;
+  const suffix = remaining > 0 ? `, +${remaining} more` : "";
+  return `${dirtyFileCount}: ${dirtyFiles.join(", ")}${suffix}`;
+}
+
 export function formatHumanTable(worktrees) {
   const summary = summarizeAudit(worktrees);
   const summaryLine = `${formatSummaryLine(summary)}\n`;
@@ -194,13 +234,14 @@ export function formatHumanTable(worktrees) {
     return `${summaryLine}No eval worktrees found.\n`;
   }
 
-  const headers = ["PATH", "BRANCH", "HEAD", "PATH_EXISTS", "DIRTY_STATUS"];
+  const headers = ["PATH", "BRANCH", "HEAD", "PATH_EXISTS", "DIRTY_STATUS", "DIRTY_FILES"];
   const rows = worktrees.map((worktree) => [
     worktree.path,
     worktree.branch ?? "-",
     shortHead(worktree.head),
     worktree.path_exists ? "yes" : "no",
-    worktree.dirty_status
+    worktree.dirty_status,
+    formatDirtyFiles(worktree)
   ]);
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => String(row[index]).length))
