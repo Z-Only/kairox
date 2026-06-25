@@ -7,13 +7,19 @@ const execFileAsync = promisify(execFileCallback);
 export const GH_PR_VIEW_FIELDS =
   "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup";
 
-const USAGE = `Usage: node scripts/pr-status-summary.mjs [--json] <pr-number> [<pr-number> ...]
+const DEFAULT_WATCH_INTERVAL_MS = 30_000;
+const DEFAULT_WATCH_TIMEOUT_MS = 30 * 60_000;
+
+const USAGE = `Usage: node scripts/pr-status-summary.mjs [--json] [--watch] [--interval-ms <n>] [--timeout-ms <n>] <pr-number> [<pr-number> ...]
 
 Summarizes GitHub PR merge and status check state for watcher or manual review.
 
 Options:
-  --json       Print stable JSON instead of a human-readable table.
-  --help, -h   Show this help.
+  --json             Print stable JSON instead of a human-readable table.
+  --watch            Poll until checks finish or fail.
+  --interval-ms <n>  Poll interval for --watch. Default: ${DEFAULT_WATCH_INTERVAL_MS}.
+  --timeout-ms <n>   Overall timeout for --watch. Default: ${DEFAULT_WATCH_TIMEOUT_MS}.
+  --help, -h         Show this help.
 `;
 
 class UsageError extends Error {}
@@ -46,6 +52,7 @@ const FAILURE_CONCLUSIONS = new Set([
   "STARTUP_FAILURE",
   "TIMED_OUT"
 ]);
+const NEUTRAL_CONCLUSIONS = new Set(["NEUTRAL"]);
 const SKIPPED_CONCLUSIONS = new Set(["SKIPPED"]);
 const PENDING_STATUSES = new Set(["EXPECTED", "IN_PROGRESS", "PENDING", "QUEUED", "REQUESTED"]);
 const SUCCESS_STATES = new Set(["SUCCESS"]);
@@ -62,6 +69,9 @@ function classifyCheck({ status, conclusion, state }) {
   }
   if (SKIPPED_CONCLUSIONS.has(normalizedConclusion)) {
     return "skipped";
+  }
+  if (NEUTRAL_CONCLUSIONS.has(normalizedConclusion)) {
+    return "neutral";
   }
 
   const normalizedState = upperOrEmpty(state);
@@ -88,6 +98,7 @@ function createCounts() {
     failure: 0,
     pending: 0,
     skipped: 0,
+    neutral: 0,
     unknown: 0
   };
 }
@@ -155,16 +166,37 @@ function parseArgs(argv) {
   const parsed = {
     help: false,
     json: false,
+    watch: false,
+    intervalMs: DEFAULT_WATCH_INTERVAL_MS,
+    timeoutMs: DEFAULT_WATCH_TIMEOUT_MS,
     prNumbers: []
   };
 
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
       parsed.help = true;
       continue;
     }
     if (arg === "--json") {
       parsed.json = true;
+      continue;
+    }
+    if (arg === "--watch") {
+      parsed.watch = true;
+      continue;
+    }
+    if (arg === "--interval-ms" || arg === "--timeout-ms") {
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith("-")) {
+        throw new UsageError(`${arg} requires a positive integer value.`);
+      }
+      if (arg === "--interval-ms") {
+        parsed.intervalMs = parsePositiveIntegerOption(arg, value);
+      } else {
+        parsed.timeoutMs = parsePositiveIntegerOption(arg, value);
+      }
+      index += 1;
       continue;
     }
     if (arg.startsWith("-")) {
@@ -187,6 +219,13 @@ function parseArgs(argv) {
   }
 
   return parsed;
+}
+
+function parsePositiveIntegerOption(name, value) {
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw new UsageError(`${name} must be a positive integer: ${value}`);
+  }
+  return Number(value);
 }
 
 function parseGhStdout(stdout, prNumber) {
@@ -240,6 +279,12 @@ function headLabel(summary) {
   return `${branch}@${shortOid(summary.head_ref_oid)}`;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function formatTable(headers, rows) {
   const stringRows = rows.map((row) => row.map((cell) => String(cell ?? "-")));
   const widths = headers.map((header, index) =>
@@ -272,6 +317,7 @@ export function formatHumanSummary(summaries) {
     "Failure",
     "Pending",
     "Skipped",
+    "Neutral",
     "Unknown",
     "Title"
   ];
@@ -284,6 +330,7 @@ export function formatHumanSummary(summaries) {
     summary.checks.counts.failure,
     summary.checks.counts.pending,
     summary.checks.counts.skipped,
+    summary.checks.counts.neutral,
     summary.checks.counts.unknown,
     summary.title
   ]);
@@ -308,6 +355,57 @@ export function formatHumanSummary(summaries) {
   return sections.join("\n");
 }
 
+async function readPullRequestSummaries(prNumbers, { execFile, env, cwd }) {
+  const summaries = [];
+  for (const prNumber of prNumbers) {
+    summaries.push(summarizePullRequest(await readPullRequest(prNumber, { execFile, env, cwd })));
+  }
+  return summaries;
+}
+
+function hasFailures(summaries) {
+  return summaries.some((summary) => summary.checks.counts.failure > 0);
+}
+
+function allReady(summaries) {
+  return summaries.every(
+    (summary) =>
+      summary.checks.counts.pending === 0 &&
+      summary.checks.counts.failure === 0 &&
+      summary.checks.counts.unknown === 0
+  );
+}
+
+async function watchPullRequests(
+  prNumbers,
+  { execFile, env, cwd, intervalMs, timeoutMs, sleepFn = sleep, now = Date.now }
+) {
+  const deadline = now() + timeoutMs;
+
+  while (true) {
+    const summaries = await readPullRequestSummaries(prNumbers, { execFile, env, cwd });
+    if (hasFailures(summaries)) {
+      return { exitCode: 1, summaries };
+    }
+    if (allReady(summaries)) {
+      return { exitCode: 0, summaries };
+    }
+    if (now() >= deadline) {
+      return { exitCode: 1, summaries };
+    }
+
+    await sleepFn(intervalMs);
+  }
+}
+
+function writeSummaries(stdout, summaries, { json }) {
+  if (json) {
+    stdout.write(`${JSON.stringify({ pull_requests: summaries }, null, 2)}\n`);
+  } else {
+    stdout.write(`${formatHumanSummary(summaries)}\n`);
+  }
+}
+
 export async function runCli(
   argv = process.argv.slice(2),
   {
@@ -315,7 +413,9 @@ export async function runCli(
     stderr = process.stderr,
     execFile = execFileAsync,
     env = process.env,
-    cwd = process.cwd()
+    cwd = process.cwd(),
+    sleep: sleepFn = sleep,
+    now = Date.now
   } = {}
 ) {
   try {
@@ -325,16 +425,22 @@ export async function runCli(
       return 0;
     }
 
-    const summaries = [];
-    for (const prNumber of args.prNumbers) {
-      summaries.push(summarizePullRequest(await readPullRequest(prNumber, { execFile, env, cwd })));
+    if (args.watch) {
+      const result = await watchPullRequests(args.prNumbers, {
+        execFile,
+        env,
+        cwd,
+        intervalMs: args.intervalMs,
+        timeoutMs: args.timeoutMs,
+        sleepFn,
+        now
+      });
+      writeSummaries(stdout, result.summaries, args);
+      return result.exitCode;
     }
 
-    if (args.json) {
-      stdout.write(`${JSON.stringify({ pull_requests: summaries }, null, 2)}\n`);
-    } else {
-      stdout.write(`${formatHumanSummary(summaries)}\n`);
-    }
+    const summaries = await readPullRequestSummaries(args.prNumbers, { execFile, env, cwd });
+    writeSummaries(stdout, summaries, args);
     return 0;
   } catch (error) {
     const usage = error instanceof UsageError ? `\n\n${USAGE}` : "";
