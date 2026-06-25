@@ -44,6 +44,8 @@ export interface ChatToolCallStreamItem {
   startedAt?: number;
   input?: string;
   outputPreview?: string;
+  /** Process exit code reported by completed command-style tools. */
+  exitCode?: number | null;
   scope?: string;
   /** Structured image attachments from tool output (e.g. screenshots). */
   images?: Array<{ media_type: string; data: string; label?: string | null }>;

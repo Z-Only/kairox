@@ -969,6 +969,8 @@
       "output": "输出",
       "duration": "耗时",
       "diffPreview": "差异预览",
+      "exitCode": "退出 {code}",
+      "commandExited": "命令退出 {code}",
       "status": {
         "running": "运行中",
         "completed": "已完成",

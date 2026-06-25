@@ -681,6 +681,7 @@ watch(
               :started-at="item.startedAt"
               :input="item.input"
               :output-preview="item.outputPreview"
+              :exit-code="item.exitCode"
               :scope="item.scope"
               :images="item.images"
               :default-expanded="!!(item.images && item.images.length > 0)"

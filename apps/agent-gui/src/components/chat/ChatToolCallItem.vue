@@ -42,6 +42,7 @@ interface ChatToolCallItemProps {
   startedAt?: number;
   input?: string;
   outputPreview?: string;
+  exitCode?: number | null;
   scope?: string;
   /** Structured image attachments from the tool output (e.g. screenshots). */
   images?: ImageAttachmentProp[];
@@ -58,6 +59,7 @@ const props = withDefaults(defineProps<ChatToolCallItemProps>(), {
   startedAt: undefined,
   input: undefined,
   outputPreview: undefined,
+  exitCode: undefined,
   scope: undefined,
   images: undefined,
   expanded: undefined,
@@ -155,7 +157,29 @@ const statusIcon: Record<ChatToolCallItemProps["status"], string> = {
 const { iconFor } = useToolIcon();
 const toolIcon = computed(() => iconFor(props.toolId));
 
-const statusLabel = computed(() => t(`chatStream.toolCall.status.${props.status}`));
+type ToolCallStatus = ChatToolCallItemProps["status"];
+
+const commandExitCode = computed<number | null>(() => {
+  if (props.status !== "completed") return null;
+  if (props.exitCode == null || props.exitCode === 0) return null;
+  return props.exitCode;
+});
+const effectiveStatus = computed<ToolCallStatus>(() =>
+  commandExitCode.value == null ? props.status : "failed"
+);
+const exitCodeLabel = computed<string | null>(() =>
+  commandExitCode.value == null
+    ? null
+    : t("chatStream.toolCall.exitCode", { code: commandExitCode.value })
+);
+const commandExitedLabel = computed<string | null>(() =>
+  commandExitCode.value == null
+    ? null
+    : t("chatStream.toolCall.commandExited", { code: commandExitCode.value })
+);
+const statusLabel = computed(
+  () => commandExitedLabel.value ?? t(`chatStream.toolCall.status.${effectiveStatus.value}`)
+);
 
 const durationLabel = computed(() => {
   if (props.durationMs == null) return null;
@@ -300,7 +324,7 @@ const sanitizedOutputPreview = computed<string | undefined>(() => {
 
 <template>
   <div
-    :class="['chat-tool-call', `chat-tool-call--${props.status}`]"
+    :class="['chat-tool-call', `chat-tool-call--${effectiveStatus}`]"
     data-test="chat-tool-call-item"
   >
     <div
@@ -318,7 +342,7 @@ const sanitizedOutputPreview = computed<string | undefined>(() => {
         :aria-label="statusLabel"
         :title="statusLabel"
       >
-        {{ statusIcon[props.status] }}
+        {{ statusIcon[effectiveStatus] }}
       </span>
       <span
         class="chat-tool-call__tool-icon"
@@ -346,6 +370,15 @@ const sanitizedOutputPreview = computed<string | undefined>(() => {
       </span>
       <KxBadge v-if="props.status === 'pending'" class="chat-tool-call__badge" tone="warning">
         {{ statusLabel }}
+      </KxBadge>
+      <KxBadge
+        v-if="exitCodeLabel"
+        class="chat-tool-call__exit-code"
+        tone="error"
+        data-test="chat-tool-call-exit-code"
+        :title="commandExitedLabel || undefined"
+      >
+        {{ exitCodeLabel }}
       </KxBadge>
       <KxIconButton
         :label="toggleLabel"
@@ -457,6 +490,9 @@ const sanitizedOutputPreview = computed<string | undefined>(() => {
   font-variant-numeric: tabular-nums;
 }
 .chat-tool-call__badge {
+  font-size: 10px;
+}
+.chat-tool-call__exit-code {
   font-size: 10px;
 }
 .chat-tool-call__detail {
