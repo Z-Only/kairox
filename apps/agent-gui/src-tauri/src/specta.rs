@@ -42,6 +42,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             send_message,
             send_message_to_session,
             send_message_to_session_and_wait,
+            send_message_to_session_if_idle,
             export_trace,
             list_sessions,
             // Project workspace commands
@@ -200,6 +201,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<WorkspaceInfoResponse>()
         .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
+        .typ::<SendMessageToSessionIfIdleResponse>()
         .typ::<ProjectInfoResponse>()
         .typ::<ProjectGitFileChangeResponse>()
         .typ::<ProjectGitDiffSectionResponse>()

@@ -32,6 +32,20 @@ export const commands = {
     typedError<null, string>(
       __TAURI_INVOKE("send_message_to_session_and_wait", { sessionId, content, attachments })
     ),
+  sendMessageToSessionIfIdle: (
+    sessionId: string,
+    content: string,
+    attachments: AttachmentInfo[],
+    clientRequestId: string | null
+  ) =>
+    typedError<SendMessageToSessionIfIdleResponse, string>(
+      __TAURI_INVOKE("send_message_to_session_if_idle", {
+        sessionId,
+        content,
+        attachments,
+        clientRequestId
+      })
+    ),
   /**  Returns a structured trace export envelope for diagnostics and replay tools. */
   exportTrace: (sessionId: string) =>
     typedError<TraceExport_Serialize, string>(__TAURI_INVOKE("export_trace", { sessionId })),
@@ -18810,6 +18824,13 @@ export type RemoteSkillSearchResult = {
 export type SaveDraftRequest = {
   session_id: string;
   draft_text: string;
+};
+
+export type SendMessageToSessionIfIdleResponse = {
+  session_id: string;
+  client_request_id: string | null;
+  accepted: boolean;
+  status: string;
 };
 
 /**  A single MCP server entry returned by the catalog. */
