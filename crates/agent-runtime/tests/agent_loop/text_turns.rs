@@ -107,6 +107,110 @@ async fn agent_loop_stops_when_no_tool_calls() {
 }
 
 #[tokio::test]
+async fn slash_skill_execution_contract_without_tools_is_not_marked_completed() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["我会先查看代码，然后再实现和运行测试。".into()]);
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-no-progress-skill-task".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "/kairox-dev-workflow 修复一个小 bug\n\n执行约束：\n- 必须完成最小实现、聚焦测试和结果报告；\n- 验证命令不得用 `|| true` 掩盖失败。".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<_> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
+
+    assert!(
+        event_types.contains(&"AssistantMessageCompleted"),
+        "model text should still be persisted for diagnostics: {event_types:?}"
+    );
+    assert!(
+        event_types.contains(&"AgentTaskFailed"),
+        "execution-contract skill tasks with no tool progress should fail: {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"AgentTaskCompleted"),
+        "execution-contract skill tasks with no tool progress must not complete: {event_types:?}"
+    );
+
+    let failure = trace
+        .iter()
+        .find_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::AgentTaskFailed { error, .. } => Some(error.as_str()),
+            _ => None,
+        })
+        .expect("AgentTaskFailed should include a diagnostic reason");
+    assert!(
+        failure.contains("no tool progress"),
+        "failure should explain the missing execution progress, got: {failure}"
+    );
+}
+
+#[tokio::test]
+async fn slash_skill_text_request_without_execution_contract_can_complete() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["Here is a concise summary.".into()]);
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-text-only-skill-task".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "/review summarize this design note".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<_> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
+
+    assert!(
+        event_types.contains(&"AgentTaskCompleted"),
+        "text-only skill requests without execution contracts should still complete: {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"AgentTaskFailed"),
+        "text-only skill requests without execution contracts should not fail: {event_types:?}"
+    );
+}
+
+#[tokio::test]
 async fn reasoning_capable_profile_does_not_default_effort() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let requests = Arc::new(Mutex::new(Vec::new()));
