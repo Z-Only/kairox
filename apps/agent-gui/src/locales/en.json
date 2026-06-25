@@ -765,7 +765,10 @@
     "searchAria": "Search trace events",
     "searchPlaceholder": "Search trace events",
     "densityLabel": "Detail:",
-    "tabTrajectory": "Trajectory"
+    "tabTrajectory": "Trajectory",
+    "copyDiagnostics": "Copy session diagnostics",
+    "diagnosticsCopied": "Session diagnostics copied",
+    "diagnosticsCopyFailed": "Failed to copy session diagnostics: {error}"
   },
   "tasks": {
     "filterAll": "All",
