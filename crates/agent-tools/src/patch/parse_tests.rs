@@ -105,6 +105,36 @@ fn parse_malformed_header_returns_error() {
 }
 
 #[test]
+fn malformed_hunk_header_reports_line_number_expected_format_and_context() {
+    let diff = "\
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -10,2 +oops @@
+ context after malformed header
+-nearby removal
++too far addition
+ trailing line outside context
+";
+
+    let err = parse_unified_diff(diff).unwrap_err().to_string();
+
+    assert!(err.contains("line 3"), "{err}");
+    assert!(err.contains("@@ -10,2 +oops @@"), "{err}");
+    assert!(
+        err.contains("expected format: @@ -old_start,old_count +new_start,new_count @@"),
+        "{err}"
+    );
+    assert!(err.contains("nearby patch context:"), "{err}");
+    assert!(err.contains("1 | --- a/src/lib.rs"), "{err}");
+    assert!(err.contains("2 | +++ b/src/lib.rs"), "{err}");
+    assert!(err.contains("3 | @@ -10,2 +oops @@"), "{err}");
+    assert!(err.contains("4 |  context after malformed header"), "{err}");
+    assert!(err.contains("5 | -nearby removal"), "{err}");
+    assert!(!err.contains("too far addition"), "{err}");
+    assert!(!err.contains("trailing line outside context"), "{err}");
+}
+
+#[test]
 fn parse_strip_a_and_b_prefixes() {
     let diff = "\
 --- a/src/deep/file.rs

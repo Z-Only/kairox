@@ -25,6 +25,9 @@ pub enum PatchLine {
     Add(String),
 }
 
+const EXPECTED_HUNK_HEADER_FORMAT: &str = "@@ -old_start,old_count +new_start,new_count @@";
+const HUNK_HEADER_CONTEXT_RADIUS: usize = 2;
+
 #[derive(Debug, thiserror::Error)]
 pub enum PatchParseError {
     #[error("invalid diff header: {0}")]
@@ -44,7 +47,9 @@ pub fn parse_unified_diff(patch: &str) -> Result<Vec<FilePatch>, PatchParseError
     let mut current: Option<FilePatch> = None;
     let mut current_hunk: Option<Hunk> = None;
 
-    for line in patch.lines() {
+    let lines: Vec<&str> = patch.lines().collect();
+
+    for (line_idx, line) in lines.iter().copied().enumerate() {
         if let Some(rest) = line.strip_prefix("--- ") {
             // Save any in-progress hunk/file before starting a new one
             if let Some(fp) = current.take() {
@@ -79,17 +84,19 @@ pub fn parse_unified_diff(patch: &str) -> Result<Vec<FilePatch>, PatchParseError
             // Parse hunk header: @@ -x,y +a,b @@
             let end = rest
                 .find("@@")
-                .ok_or_else(|| PatchParseError::InvalidHunkHeader(line.to_string()))?;
+                .ok_or_else(|| invalid_hunk_header(&lines, line_idx, None))?;
             let header = &rest[..end].trim();
 
             // Parse the two ranges: -x,y +a,b
             let parts: Vec<&str> = header.split_whitespace().collect();
             if parts.len() != 2 {
-                return Err(PatchParseError::InvalidHunkHeader(line.to_string()));
+                return Err(invalid_hunk_header(&lines, line_idx, None));
             }
 
-            let (old_start, old_count) = parse_range(parts[0])?;
-            let (new_start, new_count) = parse_range(parts[1])?;
+            let (old_start, old_count) = parse_range(parts[0])
+                .map_err(|err| invalid_hunk_header(&lines, line_idx, Some(error_reason(err))))?;
+            let (new_start, new_count) = parse_range(parts[1])
+                .map_err(|err| invalid_hunk_header(&lines, line_idx, Some(error_reason(err))))?;
 
             // Save previous hunk if any
             if let Some(h) = current_hunk.take() {
@@ -140,6 +147,45 @@ fn push_hunk_and_file(fp: FilePatch, hunk: Option<Hunk>, results: &mut Vec<FileP
         fp.hunks.push(h);
     }
     results.push(fp);
+}
+
+fn invalid_hunk_header(lines: &[&str], line_idx: usize, cause: Option<String>) -> PatchParseError {
+    let line_no = line_idx + 1;
+    let line = lines.get(line_idx).copied().unwrap_or_default();
+    let mut message = format!(
+        "line {line_no}: bad header: {line}\nexpected format: {EXPECTED_HUNK_HEADER_FORMAT}"
+    );
+
+    if let Some(cause) = cause {
+        message.push_str(&format!("\nreason: {cause}"));
+    }
+
+    message.push_str("\nnearby patch context:\n");
+    message.push_str(&format_patch_context(lines, line_idx));
+
+    PatchParseError::InvalidHunkHeader(message)
+}
+
+fn error_reason(err: PatchParseError) -> String {
+    match err {
+        PatchParseError::InvalidHunkHeader(reason) => reason,
+        other => other.to_string(),
+    }
+}
+
+fn format_patch_context(lines: &[&str], line_idx: usize) -> String {
+    let start = line_idx.saturating_sub(HUNK_HEADER_CONTEXT_RADIUS);
+    let end = line_idx
+        .saturating_add(HUNK_HEADER_CONTEXT_RADIUS)
+        .saturating_add(1)
+        .min(lines.len());
+
+    lines[start..end]
+        .iter()
+        .enumerate()
+        .map(|(offset, line)| format!("{} | {}", start + offset + 1, line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Strip the `a/` or `b/` prefix from a diff path.
