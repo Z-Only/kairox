@@ -163,6 +163,53 @@ async fn runs_fake_scenario_and_records_trace_metrics() {
 }
 
 #[tokio::test]
+async fn noop_guard_scenario_fails_without_tool_execution() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "noop-guard-fs-write".into(),
+        prompt: "Create target/noop-guard/output.txt containing ok. Use the workspace file tool rather than only saying you will do it.".into(),
+        expected: EvalExpectation {
+            min_tool_invocations: Some(1),
+            max_tool_failures: Some(0),
+            workspace_files: vec![EvalFileExpectation {
+                path: "target/noop-guard/output.txt".into(),
+                contains: vec!["ok".into()],
+                not_contains: Vec::new(),
+            }],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert_eq!(result.tool_invocations, 0);
+    assert_eq!(result.tool_failures, 0);
+    assert!(result
+        .failures
+        .iter()
+        .any(|failure| failure
+            .contains("tool invocations below minimum: expected at least 1, got 0")));
+    assert!(result
+        .failures
+        .iter()
+        .any(|failure| failure.contains("workspace file missing: target/noop-guard/output.txt")));
+}
+
+#[tokio::test]
 async fn scenario_fails_when_forbidden_event_type_is_seen() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let mut harness = EvalHarness::new(EvalRunOptions {
