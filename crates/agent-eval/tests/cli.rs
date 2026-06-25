@@ -221,6 +221,47 @@ fn noop_guard_fixture_runs_clean_through_cli() {
 }
 
 #[test]
+fn eval_noop_guard_recipe_drives_deterministic_tool_artifact_guard() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .expect("agent-eval should live under crates/");
+    let justfile_path = repo_root.join("justfile");
+    let justfile = std::fs::read_to_string(&justfile_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", justfile_path.display()));
+    let recipe = justfile
+        .split("\neval-noop-guard:")
+        .nth(1)
+        .and_then(|tail| {
+            tail.split_once("\n# ")
+                .map(|(recipe, _)| recipe)
+                .or(Some(tail))
+        })
+        .expect("justfile should define eval-noop-guard recipe");
+
+    for expected in [
+        "crates/agent-eval/fixtures/noop-guard.jsonl",
+        "target/eval-noop-guard/results.jsonl",
+        "target/eval-noop-guard/summary.json",
+        "--workspace \"$KAIROX_EVAL_WS\"",
+        "--profile fake",
+        "--fake-emit-tool-call",
+        "--fake-tool-id",
+        "fs.write",
+        "--fake-tool-arguments",
+        "target/noop-guard/output.txt",
+        "ok\\n",
+        "--wait-timeout-ms 5000",
+    ] {
+        assert!(
+            recipe.contains(expected),
+            "eval-noop-guard recipe should contain `{expected}`\n--- recipe ---\n{recipe}"
+        );
+    }
+}
+
+#[test]
 fn smoke_compaction_fixture_runs_clean_through_cli() {
     let fixture = fixture_path("smoke-compaction.jsonl");
     let summary = run_cli(
