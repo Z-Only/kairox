@@ -243,6 +243,8 @@ where
     let mut current_request = model_request;
     let mut iterations = 0;
     let mut previous_iteration_completed_tools = false;
+    let mut observed_tool_calls = false;
+    let execution_progress_required = requires_execution_progress(&request.content);
 
     loop {
         // Guard: cancellation
@@ -401,6 +403,41 @@ where
                 .await;
                 break;
             }
+            if execution_progress_required && !observed_tool_calls {
+                let reason = "no tool progress for execution-contract task";
+                fail_root_task(
+                    &**deps.store,
+                    deps.event_tx,
+                    deps.task_graphs,
+                    request,
+                    &root_task_id,
+                    reason,
+                )
+                .await;
+                complete_trajectory(
+                    deps.trajectory_store,
+                    deps.store,
+                    deps.event_tx,
+                    request,
+                    &trajectory_id,
+                    &trajectory_step_counter,
+                    agent_core::TrajectoryOutcome::Failed,
+                )
+                .await;
+                run_lifecycle_hooks(
+                    deps.config,
+                    agent_config::HookEvent::Stop,
+                    "failed",
+                    deps.root_path.as_deref(),
+                    serde_json::json!({
+                        "workspace_id": request.workspace_id.as_str(),
+                        "session_id": request.session_id.as_str(),
+                        "reason": reason,
+                    }),
+                )
+                .await;
+                break;
+            }
             complete_root_task(
                 &**deps.store,
                 deps.event_tx,
@@ -433,6 +470,7 @@ where
             .await;
             break;
         }
+        observed_tool_calls = true;
 
         // ── Advisor review (optional) ───────────────────────────────
         let advisor_config = &deps.config.advisor;
@@ -570,6 +608,38 @@ where
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
+
+fn requires_execution_progress(content: &str) -> bool {
+    let trimmed = content.trim_start();
+    let Some(command_text) = trimmed.strip_prefix('/') else {
+        return false;
+    };
+    let Some(command) = command_text.split_whitespace().next() else {
+        return false;
+    };
+    if matches!(command, "auto" | "plan") {
+        return false;
+    }
+
+    let lower = trimmed.to_lowercase();
+    [
+        "执行约束",
+        "验证命令",
+        "必须完成最小实现",
+        "聚焦测试",
+        "修改代码",
+        "当前项目 worktree",
+        "execution contract",
+        "verification command",
+        "must complete",
+        "focused test",
+        "modify code",
+        "run tests",
+        "worktree",
+    ]
+    .iter()
+    .any(|marker| lower.contains(marker))
+}
 
 async fn run_lifecycle_hooks(
     config: &agent_config::Config,
