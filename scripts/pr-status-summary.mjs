@@ -9,6 +9,8 @@ export const GH_PR_VIEW_FIELDS =
 
 const DEFAULT_WATCH_INTERVAL_MS = 30_000;
 const DEFAULT_WATCH_TIMEOUT_MS = 30 * 60_000;
+const DEFAULT_TRANSIENT_RETRY_DELAY_MS = 1_000;
+const DEFAULT_TRANSIENT_RETRIES = 2;
 
 const USAGE = `Usage: node scripts/pr-status-summary.mjs [--json] [--watch] [--interval-ms <n>] [--timeout-ms <n>] <pr-number> [<pr-number> ...]
 
@@ -251,6 +253,13 @@ function ghFailureMessage(error, prNumber) {
   return [`gh pr view ${prNumber} failed (exit ${exitCode}).`, detail].filter(Boolean).join("\n");
 }
 
+function isTransientGhFailure(error) {
+  const detail = [error?.stderr, error?.stdout, error?.message].filter(Boolean).join("\n");
+  return /\b(Service Unavailable|Bad Gateway|Gateway Timeout|ECONNRESET|ETIMEDOUT|timeout)\b/i.test(
+    detail
+  );
+}
+
 export async function readPullRequest(
   prNumber,
   { execFile = execFileAsync, env = process.env, cwd = process.cwd() } = {}
@@ -263,10 +272,39 @@ export async function readPullRequest(
       maxBuffer: 10 * 1024 * 1024
     });
   } catch (error) {
-    throw new Error(ghFailureMessage(error, prNumber));
+    const failure = new Error(ghFailureMessage(error, prNumber));
+    failure.transient = isTransientGhFailure(error);
+    throw failure;
   }
 
   return parseGhStdout(result.stdout, prNumber);
+}
+
+async function readPullRequestWithRetry(
+  prNumber,
+  {
+    execFile,
+    env,
+    cwd,
+    sleepFn,
+    stderr,
+    maxTransientRetries = DEFAULT_TRANSIENT_RETRIES,
+    transientRetryDelayMs = DEFAULT_TRANSIENT_RETRY_DELAY_MS
+  }
+) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await readPullRequest(prNumber, { execFile, env, cwd });
+    } catch (error) {
+      if (!error?.transient || attempt >= maxTransientRetries) {
+        throw error;
+      }
+      stderr?.write(
+        `transient gh failure for #${prNumber}; retrying in ${transientRetryDelayMs}ms\n`
+      );
+      await sleepFn(transientRetryDelayMs);
+    }
+  }
 }
 
 function shortOid(oid) {
@@ -355,10 +393,16 @@ export function formatHumanSummary(summaries) {
   return sections.join("\n");
 }
 
-async function readPullRequestSummaries(prNumbers, { execFile, env, cwd }) {
+async function readPullRequestSummaries(
+  prNumbers,
+  { execFile, env, cwd, sleepFn = sleep, stderr, retryTransient = false }
+) {
   const summaries = [];
   for (const prNumber of prNumbers) {
-    summaries.push(summarizePullRequest(await readPullRequest(prNumber, { execFile, env, cwd })));
+    const rawPullRequest = retryTransient
+      ? await readPullRequestWithRetry(prNumber, { execFile, env, cwd, sleepFn, stderr })
+      : await readPullRequest(prNumber, { execFile, env, cwd });
+    summaries.push(summarizePullRequest(rawPullRequest));
   }
   return summaries;
 }
@@ -376,14 +420,43 @@ function allReady(summaries) {
   );
 }
 
+function formatWatchHeartbeatLine(summary) {
+  const pendingChecks = summary.checks.items
+    .filter((check) => check.result === "pending")
+    .map((check) => check.name);
+  const pendingLabel = pendingChecks.length > 0 ? `"${pendingChecks.join(", ")}"` : "-";
+
+  return [
+    `watch #${summary.number}`,
+    shortOid(summary.head_ref_oid),
+    `merge=${summary.merge_state_status ?? "-"}`,
+    `success=${summary.checks.counts.success}`,
+    `failure=${summary.checks.counts.failure}`,
+    `pending=${summary.checks.counts.pending}`,
+    `unknown=${summary.checks.counts.unknown}`,
+    `pending_checks=${pendingLabel}`
+  ].join(" ");
+}
+
+function writeWatchHeartbeat(stderr, summaries) {
+  stderr.write(`${summaries.map(formatWatchHeartbeatLine).join("\n")}\n`);
+}
+
 async function watchPullRequests(
   prNumbers,
-  { execFile, env, cwd, intervalMs, timeoutMs, sleepFn = sleep, now = Date.now }
+  { execFile, env, cwd, intervalMs, timeoutMs, sleepFn = sleep, now = Date.now, stderr }
 ) {
   const deadline = now() + timeoutMs;
 
   while (true) {
-    const summaries = await readPullRequestSummaries(prNumbers, { execFile, env, cwd });
+    const summaries = await readPullRequestSummaries(prNumbers, {
+      execFile,
+      env,
+      cwd,
+      sleepFn,
+      stderr,
+      retryTransient: true
+    });
     if (hasFailures(summaries)) {
       return { exitCode: 1, summaries };
     }
@@ -394,6 +467,7 @@ async function watchPullRequests(
       return { exitCode: 1, summaries };
     }
 
+    writeWatchHeartbeat(stderr, summaries);
     await sleepFn(intervalMs);
   }
 }
@@ -433,7 +507,8 @@ export async function runCli(
         intervalMs: args.intervalMs,
         timeoutMs: args.timeoutMs,
         sleepFn,
-        now
+        now,
+        stderr
       });
       writeSummaries(stdout, result.summaries, args);
       return result.exitCode;

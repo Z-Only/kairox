@@ -217,7 +217,7 @@ test("runCli watch waits until every PR has no pending or failing checks", async
   });
 
   const exitCode = await runCli(
-    ["--watch", "--interval-ms", "5", "--timeout-ms", "100", "--json", "42"],
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "2000", "--json", "42"],
     {
       stdout,
       stderr,
@@ -236,9 +236,121 @@ test("runCli watch waits until every PR has no pending or failing checks", async
   );
 
   assert.equal(exitCode, 0);
-  assert.equal(stderr.content, "");
+  assert.match(
+    stderr.content,
+    /watch #42 abcdef12 merge=BLOCKED success=0 failure=0 pending=1 unknown=0 pending_checks="build"/
+  );
   assert.deepEqual(sleeps, [5]);
   assert.equal(calls.length, 2);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(readyPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
+test("runCli watch prints a heartbeat while checks remain pending", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const sleeps = [];
+  let currentTime = 0;
+
+  const pendingPullRequest = samplePullRequest({
+    mergeStateStatus: "BLOCKED",
+    statusCheckRollup: [
+      { name: "Format", status: "COMPLETED", conclusion: "SUCCESS" },
+      { name: "Coverage (Rust)", status: "IN_PROGRESS", conclusion: null }
+    ]
+  });
+  const readyPullRequest = samplePullRequest({
+    mergeStateStatus: "CLEAN",
+    statusCheckRollup: [{ name: "Format", status: "COMPLETED", conclusion: "SUCCESS" }]
+  });
+
+  const responses = [pendingPullRequest, readyPullRequest];
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "2000", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async () => ({ stdout: JSON.stringify(responses.shift()) })
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(sleeps, [5]);
+  assert.match(
+    stderr.content,
+    /watch #42 abcdef12 merge=BLOCKED success=1 failure=0 pending=1 unknown=0 pending_checks="Coverage \(Rust\)"/
+  );
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(readyPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
+test("runCli watch retries transient gh query failures", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const calls = [];
+  const sleeps = [];
+  let currentTime = 0;
+
+  const transient = new Error("Command failed");
+  transient.code = 1;
+  transient.stderr = 'Post "https://api.github.com/graphql": Service Unavailable';
+
+  const pendingPullRequest = samplePullRequest({
+    statusCheckRollup: [{ name: "Coverage (Rust)", status: "IN_PROGRESS", conclusion: null }]
+  });
+  const readyPullRequest = samplePullRequest({
+    mergeStateStatus: "CLEAN",
+    statusCheckRollup: [{ name: "Coverage (Rust)", status: "COMPLETED", conclusion: "SUCCESS" }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "2000", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async () => {
+        calls.push("gh");
+        if (calls.length === 1) {
+          throw transient;
+        }
+        return {
+          stdout: JSON.stringify(calls.length === 2 ? pendingPullRequest : readyPullRequest)
+        };
+      }
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(sleeps, [1_000, 5]);
+  assert.match(stderr.content, /transient gh failure for #42; retrying in 1000ms/);
   assert.equal(
     stdout.content,
     `${JSON.stringify(
@@ -309,7 +421,10 @@ test("runCli watch exits 1 on timeout and prints the last summary", async () => 
   );
 
   assert.equal(exitCode, 1);
-  assert.equal(stderr.content, "");
+  assert.match(
+    stderr.content,
+    /watch #42 abcdef12 merge=BLOCKED success=0 failure=0 pending=1 unknown=0 pending_checks="build"/
+  );
   assert.deepEqual(sleeps, [5, 5]);
   assert.equal(
     stdout.content,
@@ -347,7 +462,10 @@ test("runCli watch treats unknown checks as not ready", async () => {
   );
 
   assert.equal(exitCode, 1);
-  assert.equal(stderr.content, "");
+  assert.match(
+    stderr.content,
+    /watch #42 abcdef12 merge=BLOCKED success=0 failure=0 pending=0 unknown=1 pending_checks=-/
+  );
   assert.deepEqual(sleeps, [5]);
   assert.equal(
     stdout.content,
