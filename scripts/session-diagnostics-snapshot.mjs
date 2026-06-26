@@ -27,6 +27,10 @@ function firstPresent(source, names) {
   return undefined;
 }
 
+function firstPresentOrNull(source, names) {
+  return firstPresent(source, names) ?? null;
+}
+
 function countValue(value) {
   if (Array.isArray(value)) {
     return value.length;
@@ -197,6 +201,43 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
 
   return {
     session_id: String(firstPresent(diagnostics, ["session_id", "sessionId"]) ?? sessionId ?? ""),
+    workspace_id: firstPresentOrNull(diagnostics, ["workspace_id", "workspaceId"]),
+    project_id: firstPresentOrNull(diagnostics, ["project_id", "projectId"]),
+    worktree_path: firstPresentOrNull(diagnostics, ["worktree_path", "worktreePath"]),
+    branch: firstPresentOrNull(diagnostics, ["branch"]),
+    model_profile: firstPresentOrNull(diagnostics, [
+      "model_profile",
+      "modelProfile",
+      "profile",
+      "current_profile",
+      "currentProfile"
+    ]),
+    model_id: firstPresentOrNull(diagnostics, ["model_id", "modelId"]),
+    provider: firstPresentOrNull(diagnostics, ["provider"]),
+    last_event_id: firstPresentOrNull(diagnostics, ["last_event_id", "lastEventId"]),
+    session_created_at: firstPresentOrNull(diagnostics, [
+      "session_created_at",
+      "sessionCreatedAt",
+      "created_at",
+      "createdAt"
+    ]),
+    generated_at: firstPresentOrNull(diagnostics, ["generated_at", "generatedAt"]),
+    event_db_path: firstPresentOrNull(diagnostics, [
+      "event_db_path",
+      "eventDbPath",
+      "db_path",
+      "dbPath",
+      "database_path",
+      "databasePath"
+    ]),
+    pilot_socket_path: firstPresentOrNull(diagnostics, [
+      "pilot_socket_path",
+      "pilotSocketPath",
+      "dev_app_socket",
+      "devAppSocket",
+      "socket_path",
+      "socketPath"
+    ]),
     event_count:
       explicitEventCount === undefined
         ? sumCounts(eventTypeCounts)
