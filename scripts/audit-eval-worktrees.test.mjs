@@ -95,10 +95,14 @@ test("summarizeAudit counts total and dirty status buckets", () => {
   assert.deepEqual(
     summarizeAudit([
       { dirty_status: "clean" },
-      { dirty_status: "dirty", dirty_scope: "code" },
+      { dirty_status: "dirty", dirty_scope: "code", cleanup_recommendation: "keep" },
       { dirty_status: "missing" },
-      { dirty_status: "error" },
-      { dirty_status: "dirty", dirty_scope: "diagnostics_only" }
+      { dirty_status: "error", cleanup_recommendation: "inspect" },
+      {
+        dirty_status: "dirty",
+        dirty_scope: "diagnostics_only",
+        cleanup_recommendation: "inspect"
+      }
     ]),
     {
       total: 5,
@@ -107,7 +111,11 @@ test("summarizeAudit counts total and dirty status buckets", () => {
       missing: 1,
       error: 1,
       code_dirty: 1,
-      diagnostics_only_dirty: 1
+      diagnostics_only_dirty: 1,
+      cleanup_remove: 0,
+      cleanup_prune: 0,
+      cleanup_keep: 1,
+      cleanup_inspect: 2
     }
   );
 });
@@ -988,6 +996,60 @@ test("runCli skips compare-ref checks for summary-only output", async () => {
   });
   assert(!commands.some((command) => command.includes(" rev-parse ")));
   assert(!commands.some((command) => command.includes(" hash-object ")));
+});
+
+test("runCli includes cleanup recommendation counts in summary-only output", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(
+    ["--json", "--summary", "--compare-ref", "origin/main", "--recommend-cleanup"],
+    {
+      stdout,
+      stderr,
+      pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+      execFile: async (_command, args) => {
+        const joined = args.join(" ");
+        if (joined === "worktree list --porcelain") {
+          return { stdout: PORCELAIN };
+        }
+        if (joined === "-C /repo/.worktrees/eval-a status --short") {
+          return { stdout: "" };
+        }
+        if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+          return { stdout: " M different.txt\n" };
+        }
+        if (joined.includes(" merge-base --is-ancestor ")) {
+          return { stdout: "" };
+        }
+        if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different.txt") {
+          return { stdout: "ref-hash\n" };
+        }
+        if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- different.txt") {
+          return { stdout: "worktree-hash\n" };
+        }
+        throw new Error(`unexpected command: ${joined}`);
+      }
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 3,
+      clean: 1,
+      dirty: 1,
+      missing: 1,
+      error: 0,
+      code_dirty: 1,
+      diagnostics_only_dirty: 0,
+      cleanup_remove: 1,
+      cleanup_prune: 1,
+      cleanup_keep: 1,
+      cleanup_inspect: 0
+    }
+  });
 });
 
 test("runCli rejects conflicting dirty-only and clean-only filters", async () => {
