@@ -300,6 +300,13 @@ export function summarizeAudit(worktrees) {
     if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "diagnostics_only") {
       summary.diagnostics_only_dirty += 1;
     }
+    if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "code") {
+      const unmatchedCount = worktree.compare_ref_unmatched_count;
+      if (typeof unmatchedCount === "number") {
+        summary.code_compare_ref_unmatched_files ??= 0;
+        summary.code_compare_ref_unmatched_files += unmatchedCount;
+      }
+    }
     if (worktree.cleanup_recommendation) {
       summary.cleanup_remove ??= 0;
       summary.cleanup_prune ??= 0;
@@ -507,11 +514,15 @@ export function formatHumanTable(worktrees) {
 }
 
 export function formatSummaryLine(summary) {
+  const unmatched =
+    summary.code_compare_ref_unmatched_files === undefined
+      ? ""
+      : ` code_compare_ref_unmatched_files=${summary.code_compare_ref_unmatched_files}`;
   const cleanup =
     summary.cleanup_remove === undefined
       ? ""
       : ` cleanup_remove=${summary.cleanup_remove} cleanup_prune=${summary.cleanup_prune} cleanup_keep=${summary.cleanup_keep} cleanup_inspect=${summary.cleanup_inspect}`;
-  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty} missing=${summary.missing} error=${summary.error}${cleanup}`;
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty}${unmatched} missing=${summary.missing} error=${summary.error}${cleanup}`;
 }
 
 export function parseArgs(argv) {
