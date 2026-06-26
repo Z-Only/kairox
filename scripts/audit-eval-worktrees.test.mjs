@@ -259,6 +259,74 @@ test("auditEvalWorktrees caps dirty file details while counting every status lin
   ]);
 });
 
+test("runCli prints every dirty and compare-ref file with --all-files", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const dirtyFiles = [
+    "same-one.txt",
+    "same-two.txt",
+    "different-one.txt",
+    "different-two.txt",
+    "scratch-one.txt",
+    "scratch-two.txt"
+  ];
+
+  const exitCode = await runCli(["--json", "--compare-ref", "origin/main", "--all-files"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: dirtyFiles.map((file) => ` M ${file}`).join("\n") };
+      }
+      if (joined.startsWith("-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:same-")) {
+        return { stdout: `${joined.endsWith("same-one.txt") ? "same-one" : "same-two"}\n` };
+      }
+      if (joined.startsWith("-C /repo/.worktrees/eval-kairox-b hash-object -- same-")) {
+        return { stdout: `${joined.endsWith("same-one.txt") ? "same-one" : "same-two"}\n` };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different-one.txt") {
+        return { stdout: "ref-one\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- different-one.txt") {
+        return { stdout: "worktree-one\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different-two.txt") {
+        return { stdout: "ref-two\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- different-two.txt") {
+        return { stdout: "worktree-two\n" };
+      }
+      if (joined.startsWith("-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:scratch-")) {
+        throw new Error("not in ref");
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  const result = JSON.parse(stdout.content);
+  assert.deepEqual(result.worktrees[1].dirty_files, dirtyFiles);
+  assert.deepEqual(result.worktrees[1].compare_ref_matching_files, [
+    "same-one.txt",
+    "same-two.txt"
+  ]);
+  assert.deepEqual(result.worktrees[1].compare_ref_unmatched_files, [
+    "different-one.txt",
+    "different-two.txt",
+    "scratch-one.txt",
+    "scratch-two.txt"
+  ]);
+});
+
 test("runCli annotates dirty files that match a compare ref", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();
@@ -647,6 +715,6 @@ test("runCli prints help without invoking git", async () => {
   assert.equal(invoked, false);
   assert.match(
     stdout.content,
-    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\] \[--compare-ref <ref>\]/
+    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\] \[--compare-ref <ref>\] \[--all-files\]/
   );
 });
