@@ -117,6 +117,10 @@ describe("GitReviewSidebarPanel", () => {
     expect(wrapper.text()).toContain("-old");
     expect(wrapper.text()).toContain("+new");
     expect(wrapper.text()).not.toContain(" keep");
+    expect(wrapper.get('[data-test="diff-view-inline"]').attributes("aria-pressed")).toBe("true");
+    await wrapper.get('[data-test="diff-view-split"]').trigger("click");
+    expect(wrapper.get('[data-test="diff-view-split"]').attributes("aria-pressed")).toBe("true");
+    expect(wrapper.find('[data-test="diff-split-row"]').exists()).toBe(true);
     expect(wrapper.get('[data-test="diff-collapsed-context"]').text()).toBe(
       "Show 1 unchanged line"
     );
