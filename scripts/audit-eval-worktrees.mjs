@@ -71,10 +71,18 @@ function limitFiles(files, fileLimit) {
 }
 
 function summarizeDirtyFiles(dirtyFiles, fileLimit = DIRTY_FILE_LIMIT) {
-  return {
+  const summary = {
     dirty_file_count: dirtyFiles.length,
     dirty_files: limitFiles(dirtyFiles, fileLimit)
   };
+  if (dirtyFiles.length > 0) {
+    summary.dirty_scope = dirtyFiles.every(isDiagnosticsFile) ? "diagnostics_only" : "code";
+  }
+  return summary;
+}
+
+function isDiagnosticsFile(path) {
+  return path === ".kairox-eval" || path === ".kairox-eval/" || path.startsWith(".kairox-eval/");
 }
 
 export function parseWorktreePorcelain(output) {
@@ -389,6 +397,12 @@ function cleanupRecommendation(worktree) {
   if (worktree.dirty_status === "error") {
     return { cleanup_recommendation: "inspect", cleanup_reason: "status_error" };
   }
+  if (worktree.dirty_scope === "diagnostics_only") {
+    return {
+      cleanup_recommendation: "inspect",
+      cleanup_reason: "diagnostics_only_dirty"
+    };
+  }
   if (worktree.compare_ref_unmatched_count === 0) {
     return {
       cleanup_recommendation: "inspect",
@@ -429,12 +443,14 @@ export function formatHumanTable(worktrees) {
 
   const includeCompareRef = worktrees.some((worktree) => worktree.compare_ref);
   const includeCleanup = worktrees.some((worktree) => worktree.cleanup_recommendation);
+  const includeDirtyScope = worktrees.some((worktree) => worktree.dirty_scope);
   const headers = [
     "PATH",
     "BRANCH",
     "HEAD",
     "PATH_EXISTS",
     "DIRTY_STATUS",
+    ...(includeDirtyScope ? ["DIRTY_SCOPE"] : []),
     "DIRTY_FILES",
     ...(includeCompareRef ? ["COMPARE_REF_MATCHES"] : []),
     ...(includeCleanup ? ["CLEANUP"] : [])
@@ -446,6 +462,7 @@ export function formatHumanTable(worktrees) {
       shortHead(worktree.head),
       worktree.path_exists ? "yes" : "no",
       worktree.dirty_status,
+      ...(includeDirtyScope ? [worktree.dirty_scope ?? "-"] : []),
       formatDirtyFiles(worktree)
     ];
     if (includeCompareRef) {

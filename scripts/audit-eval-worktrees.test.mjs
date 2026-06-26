@@ -166,7 +166,8 @@ test("auditEvalWorktrees marks dirty, clean, and missing worktrees without delet
       dirty_status: "dirty",
       path_exists: true,
       dirty_file_count: 2,
-      dirty_files: ["crates/agent-runtime/src/lib.rs", "scratch.txt"]
+      dirty_files: ["crates/agent-runtime/src/lib.rs", "scratch.txt"],
+      dirty_scope: "code"
     },
     {
       path: "/repo/.worktrees/eval-kairox-detached",
@@ -407,6 +408,7 @@ test("runCli annotates dirty files that match a compare ref", async () => {
     path_exists: true,
     dirty_file_count: 3,
     dirty_files: ["crates/agent-runtime/src/lib.rs", "different.txt", "scratch.txt"],
+    dirty_scope: "code",
     compare_ref: "origin/main",
     compare_ref_checked_count: 2,
     compare_ref_match_count: 1,
@@ -543,6 +545,81 @@ test("runCli annotates cleanup recommendations when requested", async () => {
   );
 });
 
+test("runCli distinguishes diagnostics-only dirty worktrees from code dirty worktrees", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--compare-ref", "origin/main", "--recommend-cleanup"], {
+    stdout,
+    stderr,
+    cwd: "/repo",
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "?? .kairox-eval/\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M crates/agent-runtime/src/lib.rs\n" };
+      }
+      if (joined.includes(" merge-base --is-ancestor ")) {
+        return { stdout: "" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a rev-parse origin/main:.kairox-eval/") {
+        throw new Error("not in ref");
+      }
+      if (
+        joined ===
+        "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:crates/agent-runtime/src/lib.rs"
+      ) {
+        return { stdout: "ref-hash\n" };
+      }
+      if (
+        joined ===
+        "-C /repo/.worktrees/eval-kairox-b hash-object -- crates/agent-runtime/src/lib.rs"
+      ) {
+        return { stdout: "worktree-hash\n" };
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  const result = JSON.parse(stdout.content);
+  assert.deepEqual(
+    result.worktrees.map((worktree) => ({
+      path: worktree.path,
+      dirty_scope: worktree.dirty_scope,
+      cleanup_recommendation: worktree.cleanup_recommendation,
+      cleanup_reason: worktree.cleanup_reason
+    })),
+    [
+      {
+        path: "/repo/.worktrees/eval-a",
+        dirty_scope: "diagnostics_only",
+        cleanup_recommendation: "inspect",
+        cleanup_reason: "diagnostics_only_dirty"
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-b",
+        dirty_scope: "code",
+        cleanup_recommendation: "keep",
+        cleanup_reason: "dirty_files_not_in_compare_ref"
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-detached",
+        dirty_scope: undefined,
+        cleanup_recommendation: "prune",
+        cleanup_reason: "missing_path"
+      }
+    ]
+  );
+});
+
 test("formatHumanTable includes cleanup command previews", () => {
   const table = formatHumanTable([
     {
@@ -582,6 +659,7 @@ test("formatHumanTable emits a stable table with path, branch, head, exists, dir
       branch: "codex/not-eval",
       head: "3333333333333333333333333333333333333333",
       dirty_status: "dirty",
+      dirty_scope: "code",
       path_exists: true,
       dirty_file_count: 2,
       dirty_files: ["crates/agent-runtime/src/lib.rs", "scratch.txt"]
@@ -598,15 +676,18 @@ test("formatHumanTable emits a stable table with path, branch, head, exists, dir
   ]);
 
   assert.match(table, /^Summary: total=3 clean=1 dirty=1 missing=1 error=0$/m);
-  assert.match(table, /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES/m);
-  assert.match(table, /\/repo\/\.worktrees\/eval-a\s+eval\/a\s+222222222222\s+yes\s+clean\s+-/);
   assert.match(
     table,
-    /\/repo\/\.worktrees\/eval-kairox-b\s+codex\/not-eval\s+333333333333\s+yes\s+dirty\s+2: crates\/agent-runtime\/src\/lib\.rs, scratch\.txt/
+    /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_SCOPE\s+DIRTY_FILES/m
+  );
+  assert.match(table, /\/repo\/\.worktrees\/eval-a\s+eval\/a\s+222222222222\s+yes\s+clean\s+-\s+-/);
+  assert.match(
+    table,
+    /\/repo\/\.worktrees\/eval-kairox-b\s+codex\/not-eval\s+333333333333\s+yes\s+dirty\s+code\s+2: crates\/agent-runtime\/src\/lib\.rs, scratch\.txt/
   );
   assert.match(
     table,
-    /\/repo\/\.worktrees\/eval-kairox-detached\s+-\s+555555555555\s+no\s+missing\s+-/
+    /\/repo\/\.worktrees\/eval-kairox-detached\s+-\s+555555555555\s+no\s+missing\s+-\s+-/
   );
 });
 
@@ -617,6 +698,7 @@ test("formatHumanTable includes compare ref matches when present", () => {
       branch: "codex/not-eval",
       head: "3333333333333333333333333333333333333333",
       dirty_status: "dirty",
+      dirty_scope: "code",
       path_exists: true,
       dirty_file_count: 2,
       dirty_files: ["same.txt", "different.txt"],
@@ -632,8 +714,9 @@ test("formatHumanTable includes compare ref matches when present", () => {
 
   assert.match(
     table,
-    /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES\s+COMPARE_REF_MATCHES/m
+    /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_SCOPE\s+DIRTY_FILES\s+COMPARE_REF_MATCHES/m
   );
+  assert.match(table, /\sdirty\s+code\s+2: same\.txt, different\.txt/);
   assert.match(table, /origin\/main 1\/2: same\.txt/);
   assert.match(table, /unmatched 1: different\.txt/);
   assert.match(table, /head=no/);
@@ -734,7 +817,8 @@ test("runCli filters JSON output with --dirty-only", async () => {
         dirty_status: "dirty",
         path_exists: true,
         dirty_file_count: 1,
-        dirty_files: ["changed.txt"]
+        dirty_files: ["changed.txt"],
+        dirty_scope: "code"
       },
       {
         path: "/repo/.worktrees/eval-kairox-detached",
