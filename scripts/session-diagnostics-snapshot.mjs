@@ -157,6 +157,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       explicitEventCount === undefined
         ? sumCounts(eventTypeCounts)
         : countValue(explicitEventCount),
+    last_event_type: firstPresent(diagnostics, ["last_event_type", "lastEventType"]) ?? null,
     event_type_counts: eventTypeCounts,
     user_message_count: messageCount(
       diagnostics,

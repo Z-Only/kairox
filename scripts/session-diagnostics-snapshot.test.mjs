@@ -51,6 +51,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
   assert.deepEqual(compact, {
     session_id: "ses_123",
     event_count: 9,
+    last_event_type: "AssistantMessageCompleted",
     event_type_counts: {
       AssistantMessageCompleted: 1,
       TrajectoryCompleted: 2,
@@ -77,6 +78,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
 
   assert.equal(compact.session_id, "ses_legacy");
   assert.equal(compact.event_count, 1);
+  assert.equal(compact.last_event_type, null);
   assert.equal(compact.user_message_count, 1);
   assert.equal(compact.assistant_message_count, 0);
   assert.equal(compact.running_model_requests, 0);
@@ -144,6 +146,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
     `${JSON.stringify({
       session_id: "ses_out",
       event_count: 2,
+      last_event_type: null,
       event_type_counts: { UserMessageAdded: 1 },
       user_message_count: 1,
       assistant_message_count: 0,
