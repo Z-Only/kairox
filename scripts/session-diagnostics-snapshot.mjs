@@ -363,9 +363,17 @@ function parsePilotStdout(stdout) {
 }
 
 async function inferResumeMeta(meta, { execFile, env }) {
+  const inferred = {};
+  if (
+    !firstPresent(meta, ["pilot_socket_path", "pilotSocketPath", "socket_path", "socketPath"]) &&
+    env?.TAURI_PILOT_SOCKET
+  ) {
+    inferred.pilot_socket_path = env.TAURI_PILOT_SOCKET;
+  }
+
   const worktreePath = firstPresent(meta, ["worktree_path", "worktreePath"]);
   if (!worktreePath || meta.branch) {
-    return {};
+    return inferred;
   }
 
   try {
@@ -374,9 +382,9 @@ async function inferResumeMeta(meta, { execFile, env }) {
       maxBuffer: 1024 * 1024
     });
     const branch = result.stdout.trim();
-    return branch ? { branch } : {};
+    return branch ? { ...inferred, branch } : inferred;
   } catch {
-    return {};
+    return inferred;
   }
 }
 

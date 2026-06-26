@@ -363,6 +363,31 @@ test("CLI infers branch metadata from worktree_path", async () => {
   assert.equal(JSON.parse(stdout.content).branch, "eval/foo");
 });
 
+test("CLI infers pilot socket metadata from TAURI_PILOT_SOCKET", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--session", "ses_socket"], {
+    stdout,
+    stderr,
+    env: { TAURI_PILOT_SOCKET: "/tmp/tauri-pilot.sock" },
+    execFile: async (command) => {
+      assert.equal(command, "tauri-pilot");
+      return {
+        stdout: JSON.stringify({
+          session_id: "ses_socket",
+          event_count: 1,
+          event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+        })
+      };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).pilot_socket_path, "/tmp/tauri-pilot.sock");
+});
+
 test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {
   const compact = compactSessionDiagnostics({
     session_id: "ses_no_tools",
