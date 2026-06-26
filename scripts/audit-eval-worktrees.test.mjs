@@ -1175,7 +1175,36 @@ test("runCli includes cleanup recommendation counts in summary-only output", asy
       cleanup_remove: 1,
       cleanup_prune: 1,
       cleanup_keep: 1,
-      cleanup_inspect: 0
+      cleanup_inspect: 0,
+      cleanup_actions: [
+        {
+          action: "remove",
+          reason: "clean_worktree",
+          path: "/repo/.worktrees/eval-a",
+          branch: "eval/a",
+          dirty_status: "clean",
+          cleanup_command: "git worktree remove /repo/.worktrees/eval-a"
+        },
+        {
+          action: "keep",
+          reason: "dirty_files_not_in_compare_ref",
+          path: "/repo/.worktrees/eval-kairox-b",
+          branch: "codex/not-eval",
+          dirty_status: "dirty",
+          dirty_scope: "code",
+          dirty_file_count: 1,
+          compare_ref_unmatched_count: 1,
+          compare_ref_unmatched_files: ["different.txt"]
+        },
+        {
+          action: "prune",
+          reason: "missing_path",
+          path: "/repo/.worktrees/eval-kairox-detached",
+          branch: null,
+          dirty_status: "missing",
+          cleanup_command: "git worktree prune"
+        }
+      ]
     }
   });
 });
