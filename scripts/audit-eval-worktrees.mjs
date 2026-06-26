@@ -379,10 +379,38 @@ export function summarizeAudit(worktrees) {
       if (Object.hasOwn(summary, cleanupKey)) {
         summary[cleanupKey] += 1;
       }
+      if (worktree.path) {
+        summary.cleanup_actions ??= [];
+        summary.cleanup_actions.push(summarizeCleanupAction(worktree));
+      }
     }
   }
 
   return summary;
+}
+
+function summarizeCleanupAction(worktree) {
+  const action = {
+    action: worktree.cleanup_recommendation,
+    reason: worktree.cleanup_reason,
+    path: worktree.path,
+    branch: worktree.branch ?? null,
+    dirty_status: worktree.dirty_status
+  };
+  for (const key of [
+    "dirty_scope",
+    "compare_ref_unmatched_count",
+    "compare_ref_unmatched_files",
+    "cleanup_command"
+  ]) {
+    if (worktree[key] !== undefined) {
+      action[key] = worktree[key];
+    }
+  }
+  if (worktree.dirty_file_count > 0) {
+    action.dirty_file_count = worktree.dirty_file_count;
+  }
+  return action;
 }
 
 export function filterAuditResults(worktrees, { dirtyOnly = false, cleanOnly = false } = {}) {
