@@ -259,6 +259,72 @@ test("auditEvalWorktrees caps dirty file details while counting every status lin
   ]);
 });
 
+test("runCli annotates dirty files that match a compare ref", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--compare-ref", "origin/main"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return {
+          stdout: [" M crates/agent-runtime/src/lib.rs", " M different.txt", "?? scratch.txt"].join(
+            "\n"
+          )
+        };
+      }
+      if (
+        joined ===
+        "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:crates/agent-runtime/src/lib.rs"
+      ) {
+        return { stdout: "same-hash\n" };
+      }
+      if (
+        joined ===
+        "-C /repo/.worktrees/eval-kairox-b hash-object -- crates/agent-runtime/src/lib.rs"
+      ) {
+        return { stdout: "same-hash\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different.txt") {
+        return { stdout: "ref-hash\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- different.txt") {
+        return { stdout: "worktree-hash\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:scratch.txt") {
+        throw new Error("not in ref");
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  const result = JSON.parse(stdout.content);
+  assert.deepEqual(result.worktrees[1], {
+    path: "/repo/.worktrees/eval-kairox-b",
+    branch: "codex/not-eval",
+    head: "3333333333333333333333333333333333333333",
+    dirty_status: "dirty",
+    path_exists: true,
+    dirty_file_count: 3,
+    dirty_files: ["crates/agent-runtime/src/lib.rs", "different.txt", "scratch.txt"],
+    compare_ref: "origin/main",
+    compare_ref_checked_count: 2,
+    compare_ref_match_count: 1,
+    compare_ref_matching_files: ["crates/agent-runtime/src/lib.rs"]
+  });
+});
+
 test("formatHumanTable emits a stable table with path, branch, head, exists, dirty, and dirty files columns", () => {
   const table = formatHumanTable([
     {
@@ -301,6 +367,30 @@ test("formatHumanTable emits a stable table with path, branch, head, exists, dir
     table,
     /\/repo\/\.worktrees\/eval-kairox-detached\s+-\s+555555555555\s+no\s+missing\s+-/
   );
+});
+
+test("formatHumanTable includes compare ref matches when present", () => {
+  const table = formatHumanTable([
+    {
+      path: "/repo/.worktrees/eval-kairox-b",
+      branch: "codex/not-eval",
+      head: "3333333333333333333333333333333333333333",
+      dirty_status: "dirty",
+      path_exists: true,
+      dirty_file_count: 2,
+      dirty_files: ["same.txt", "different.txt"],
+      compare_ref: "origin/main",
+      compare_ref_checked_count: 2,
+      compare_ref_match_count: 1,
+      compare_ref_matching_files: ["same.txt"]
+    }
+  ]);
+
+  assert.match(
+    table,
+    /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES\s+COMPARE_REF_MATCHES/m
+  );
+  assert.match(table, /origin\/main 1\/2: same\.txt/);
 });
 
 test("runCli writes stable JSON without touching the real Git repository", async () => {
@@ -552,6 +642,6 @@ test("runCli prints help without invoking git", async () => {
   assert.equal(invoked, false);
   assert.match(
     stdout.content,
-    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\]/
+    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\] \[--compare-ref <ref>\]/
   );
 });
