@@ -20,6 +20,7 @@ fn from_tool_invocation_started() {
     let event = make_event(EventPayload::ToolInvocationStarted {
         invocation_id: "inv-1".into(),
         tool_id: "fs.write".into(),
+        input_preview: String::new(),
     });
     let stream_event = StreamEvent::from_domain_event(event);
     match stream_event {

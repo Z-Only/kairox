@@ -108,6 +108,7 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
             EventPayload::ToolInvocationStarted {
                 invocation_id,
                 tool_id,
+                ..
             } => {
                 if let Some(idx) = tool_call_index
                     .get(invocation_id)

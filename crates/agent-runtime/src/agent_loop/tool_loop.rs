@@ -65,6 +65,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 EventPayload::ToolInvocationStarted {
                     invocation_id: tc.id.clone(),
                     tool_id: tc.name.clone(),
+                    input_preview: format!("{}({})", tc.name, tc.arguments),
                 },
             );
             append_and_broadcast(&**store, event_tx, &start_event).await?;
@@ -259,6 +260,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 EventPayload::ToolInvocationStarted {
                     invocation_id: tc.id.clone(),
                     tool_id: tc.name.clone(),
+                    input_preview: invocation.preview.clone(),
                 },
             );
             append_and_broadcast(&**store, event_tx, &start_event).await?;

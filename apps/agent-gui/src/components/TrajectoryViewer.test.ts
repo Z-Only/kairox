@@ -131,6 +131,14 @@ describe("TrajectoryViewer", () => {
         step_count: 3,
         started_at: "2026-06-01T11:00:00Z",
         completed_at: null
+      },
+      {
+        trajectory_id: "traj_3",
+        task_id: "task_still_running",
+        outcome: "in_progress",
+        step_count: 1,
+        started_at: "2026-06-01T12:00:00Z",
+        completed_at: null
       }
     ];
 
@@ -144,7 +152,7 @@ describe("TrajectoryViewer", () => {
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
       const cards = wrapper.findAll('[data-test="trajectory-card"]');
-      expect(cards.length).toBe(2);
+      expect(cards.length).toBe(3);
     });
 
     it("displays task_id and outcome for each trajectory", async () => {
@@ -156,6 +164,19 @@ describe("TrajectoryViewer", () => {
       expect(cards[0].text()).toContain(en.trajectory.outcome.success);
       expect(cards[1].text()).toContain("task_fix_bug");
       expect(cards[1].text()).toContain(en.trajectory.outcome.failed);
+    });
+
+    it("renders a compact outcome summary above the trajectory list", async () => {
+      const wrapper = mountViewer();
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      const summary = wrapper.get('[data-test="trajectory-summary"]');
+      expect(summary.text()).toContain("3 trajectories");
+      expect(summary.text()).toContain("1 succeeded");
+      expect(summary.text()).toContain("1 failed");
+      expect(summary.text()).toContain("1 in progress");
+      expect(summary.text()).not.toContain("0 cancelled");
     });
 
     it("applies correct badge class for each outcome", async () => {

@@ -306,6 +306,34 @@ describe("TraceTimeline", () => {
     expect(wrapper.find('[data-test="trace-filter-done"]').text()).toBe("Done 1");
   });
 
+  it("counts non-zero command exits as failed trace entries", async () => {
+    traceState.entries = [
+      makeTraceEntry("red-command", {
+        title: "RED test command",
+        status: "completed",
+        exitCode: 1
+      }),
+      makeTraceEntry("green-command", {
+        title: "GREEN test command",
+        status: "completed",
+        exitCode: 0
+      }),
+      makeTraceEntry("done", { title: "Done trace", status: "completed" })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    expect(wrapper.find('[data-test="trace-filter-failed"]').text()).toBe("Failed 1");
+    expect(wrapper.find('[data-test="trace-filter-done"]').text()).toBe("Done 2");
+
+    await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
+
+    expect(wrapper.text()).toContain("RED test command");
+    expect(wrapper.text()).not.toContain("GREEN test command");
+    expect(wrapper.text()).not.toContain("Done trace");
+  });
+
   it("renders a trace search input with shared input styling", () => {
     traceState.entries = [makeTraceEntry("build", { title: "Build trace", status: "completed" })];
 

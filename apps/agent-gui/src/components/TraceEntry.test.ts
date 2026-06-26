@@ -153,6 +153,51 @@ describe("TraceEntry", () => {
     expect(wrapper.find(".entry-status").text()).toBe("✅");
   });
 
+  it("shows failed treatment for completed commands with non-zero exit codes", () => {
+    const wrapper = mount(TraceEntry, {
+      props: {
+        entry: {
+          ...baseEntry,
+          status: "completed",
+          exitCode: 1,
+          title: "bun test scripts/audit-eval-worktrees.test.mjs"
+        },
+        density: "L2"
+      }
+    });
+
+    expect(wrapper.find(".trace-entry").classes()).toContain("trace-entry--failed");
+    expect(wrapper.find(".entry-status").text()).toBe("❌");
+    expect(wrapper.find(".entry-tool").text()).toContain(
+      "bun test scripts/audit-eval-worktrees.test.mjs"
+    );
+  });
+
+  it("keeps completed treatment for zero exit codes", () => {
+    const wrapper = mount(TraceEntry, {
+      props: {
+        entry: { ...baseEntry, status: "completed", exitCode: 0, title: "cargo fmt --check" },
+        density: "L2"
+      }
+    });
+
+    expect(wrapper.find(".trace-entry").classes()).toContain("trace-entry--completed");
+    expect(wrapper.find(".trace-entry").classes()).not.toContain("trace-entry--failed");
+    expect(wrapper.find(".entry-status").text()).toBe("✅");
+  });
+
+  it("shows descriptive titles before raw tool ids in collapsed rows", () => {
+    const wrapper = mount(TraceEntry, {
+      props: {
+        entry: { ...baseEntry, toolId: "shell.exec", title: "bun test scripts/foo.test.mjs" },
+        density: "L2"
+      }
+    });
+
+    expect(wrapper.find(".entry-tool .truncate").text()).toBe("bun test scripts/foo.test.mjs");
+    expect(wrapper.find(".entry-tool-id").text()).toBe("shell.exec");
+  });
+
   it("shows correct status icon for failed", () => {
     const wrapper = mount(TraceEntry, {
       props: { entry: { ...baseEntry, status: "failed" }, density: "L2" }

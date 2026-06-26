@@ -22,6 +22,7 @@ fn extract_tool_traces_from_events() {
         make_event(EventPayload::ToolInvocationStarted {
             invocation_id: "inv1".into(),
             tool_id: "shell.exec".into(),
+            input_preview: String::new(),
         }),
         make_event(EventPayload::ToolInvocationCompleted {
             invocation_id: "inv1".into(),
@@ -35,6 +36,7 @@ fn extract_tool_traces_from_events() {
         make_event(EventPayload::ToolInvocationStarted {
             invocation_id: "inv2".into(),
             tool_id: "patch.apply".into(),
+            input_preview: String::new(),
         }),
     ];
 
@@ -54,6 +56,7 @@ fn extract_tool_traces_handles_failure() {
         make_event(EventPayload::ToolInvocationStarted {
             invocation_id: "inv1".into(),
             tool_id: "shell.exec".into(),
+            input_preview: String::new(),
         }),
         make_event(EventPayload::ToolInvocationFailed {
             invocation_id: "inv1".into(),

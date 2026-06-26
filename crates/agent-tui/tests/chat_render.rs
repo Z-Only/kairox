@@ -93,6 +93,7 @@ fn renders_messages_then_permission_then_tool_call_then_compaction_running() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "inv_1".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(
@@ -178,6 +179,7 @@ fn tool_call_collapsed_shows_one_line_with_status() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "inv_1".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(

@@ -28,14 +28,21 @@ const copyingDiagnostics = ref(false);
 const normalizedTraceSearchQuery = computed(() => traceSearchQuery.value.trim().toLowerCase());
 const activeTraceStatuses = new Set(["pending", "running"]);
 
+function effectiveTraceStatus(entry: TraceEntryData) {
+  return entry.status === "completed" && entry.exitCode != null && entry.exitCode !== 0
+    ? "failed"
+    : entry.status;
+}
+
 function traceMatchesFilter(entry: TraceEntryData, filter: TraceStatusFilter) {
+  const status = effectiveTraceStatus(entry);
   switch (filter) {
     case "active":
-      return activeTraceStatuses.has(entry.status);
+      return activeTraceStatuses.has(status);
     case "failed":
-      return entry.status === "failed";
+      return status === "failed";
     case "done":
-      return entry.status === "completed";
+      return status === "completed";
     default:
       return true;
   }

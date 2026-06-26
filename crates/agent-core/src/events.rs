@@ -210,6 +210,8 @@ pub enum EventPayload {
     ToolInvocationStarted {
         invocation_id: String,
         tool_id: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        input_preview: String,
     },
     ToolInvocationCompleted {
         invocation_id: String,

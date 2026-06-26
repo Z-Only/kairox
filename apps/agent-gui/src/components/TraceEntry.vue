@@ -7,6 +7,16 @@ const props = defineProps<{
   density: "L1" | "L2" | "L3";
 }>();
 
+const effectiveStatus = computed(() =>
+  props.entry.status === "completed" && props.entry.exitCode != null && props.entry.exitCode !== 0
+    ? "failed"
+    : props.entry.status
+);
+const displayTitle = computed(() => props.entry.title || props.entry.toolId || "");
+const secondaryToolId = computed(() =>
+  props.entry.toolId && props.entry.toolId !== displayTitle.value ? props.entry.toolId : null
+);
+
 function toggle() {
   const found = traceState.entries.find((e) => e.id === props.entry.id);
   if (found) {
@@ -61,7 +71,7 @@ const hasDetail = computed(
 
 <template>
   <div
-    :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]"
+    :class="['trace-entry', `trace-entry--${effectiveStatus}`, `trace-entry--${entry.kind}`]"
     data-test="trace-entry"
   >
     <!-- All entries show as a trace row; pending permission/memory
@@ -73,11 +83,12 @@ const hasDetail = computed(
          primitives inside the row keeps those selectors stable. -->
     <div class="entry-row" @click="toggle">
       <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
-      <span class="entry-status">{{ statusIcon[entry.status] }}</span>
+      <span class="entry-status">{{ statusIcon[effectiveStatus] }}</span>
       <span class="entry-tool">
-        <span class="truncate">
-          {{ entry.toolId || entry.title }}
+        <span class="truncate" :title="displayTitle">
+          {{ displayTitle }}
         </span>
+        <span v-if="secondaryToolId" class="entry-tool-id">{{ secondaryToolId }}</span>
       </span>
       <KxTag v-if="entry.scope" class="entry-scope" tone="info" size="sm">
         {{ entry.scope }}
@@ -169,6 +180,12 @@ const hasDetail = computed(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.entry-tool-id {
+  margin-left: 6px;
+  color: var(--app-text-color-3);
+  font-size: 11px;
+  font-weight: 400;
 }
 .entry-scope {
   font-size: 10px;
