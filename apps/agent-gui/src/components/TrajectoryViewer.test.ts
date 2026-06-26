@@ -4,6 +4,7 @@ import { reactive } from "vue";
 import { setActivePinia, createPinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import en from "@/locales/en.json";
+import { useUiStore } from "@/stores/ui";
 import TrajectoryViewer from "./TrajectoryViewer.vue";
 
 // Mock the generated commands module
@@ -400,6 +401,7 @@ describe("TrajectoryViewer", () => {
     });
 
     it("copies exported trajectory to clipboard on export button click", async () => {
+      const ui = useUiStore();
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.assign(navigator, { clipboard: { writeText } });
       mockExportTrajectory.mockResolvedValue({ status: "ok", data: '{"steps":[]}' });
@@ -414,6 +416,10 @@ describe("TrajectoryViewer", () => {
 
       expect(mockExportTrajectory).toHaveBeenCalledWith("traj_export");
       expect(writeText).toHaveBeenCalledWith('{"steps":[]}');
+      expect(ui.toasts.at(-1)).toMatchObject({
+        message: en.notifications.copySuccess,
+        type: "success"
+      });
     });
 
     it("does not propagate click to card when clicking export", async () => {
@@ -432,17 +438,22 @@ describe("TrajectoryViewer", () => {
       expect(mockGetTrajectorySteps).not.toHaveBeenCalled();
     });
 
-    it("handles export error silently", async () => {
-      mockExportTrajectory.mockRejectedValue(new Error("export failed"));
+    it("shows an error toast when export fails", async () => {
+      const ui = useUiStore();
+      mockExportTrajectory.mockResolvedValue({ status: "error", error: "export failed" });
 
       const wrapper = mountViewer();
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
 
       const exportBtn = wrapper.find('[data-test="trajectory-export"]');
-      // Should not throw
       await exportBtn.trigger("click");
       await wrapper.vm.$nextTick();
+
+      expect(ui.toasts.at(-1)).toMatchObject({
+        message: `${en.notifications.copyFailed}: Error: export failed`,
+        type: "error"
+      });
     });
   });
 
