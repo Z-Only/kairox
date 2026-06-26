@@ -18850,6 +18850,7 @@ export type SaveDraftRequest = {
 export type SendMessageToSessionIfIdleResponse = {
   session_id: string;
   client_request_id: string | null;
+  accepted_message_id: string | null;
   accepted: boolean;
   status: string;
 };
