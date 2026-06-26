@@ -6,13 +6,14 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFileCallback);
 
-const USAGE = `Usage: node scripts/session-diagnostics-snapshot.mjs --session <id> [--out <path>]
+const USAGE = `Usage: node scripts/session-diagnostics-snapshot.mjs --session <id> [--out <path>] [--meta <key=value>...]
 
 Exports compact session diagnostics from a running Kairox app through tauri-pilot.
 
 Options:
   --session <id>  Session id to export.
   --out <path>   Write the same compact JSON to a file.
+  --meta <k=v>   Overlay one resume metadata field into the compact JSON.
   --help, -h     Show this help.
 `;
 
@@ -282,6 +283,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
 export function parseArgs(argv) {
   const parsed = {
     help: false,
+    meta: {},
     out: undefined,
     session: undefined
   };
@@ -310,6 +312,15 @@ export function parseArgs(argv) {
       parsed.out = arg.slice("--out=".length);
       continue;
     }
+    if (arg === "--meta") {
+      addMeta(parsed.meta, argv[index + 1]);
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--meta=")) {
+      addMeta(parsed.meta, arg.slice("--meta=".length));
+      continue;
+    }
     throw new UsageError(`Unknown argument: ${arg}`);
   }
 
@@ -324,6 +335,14 @@ export function parseArgs(argv) {
   }
 
   return parsed;
+}
+
+function addMeta(meta, value) {
+  const separator = String(value ?? "").indexOf("=");
+  if (separator <= 0) {
+    throw new UsageError("--meta requires key=value");
+  }
+  meta[value.slice(0, separator)] = value.slice(separator + 1);
 }
 
 function parsePilotStdout(stdout) {
@@ -398,7 +417,10 @@ export async function runCli(
       return 0;
     }
 
-    const diagnostics = await exportSessionDiagnostics(args.session, { execFile, env, cwd });
+    const diagnostics = {
+      ...(await exportSessionDiagnostics(args.session, { execFile, env, cwd })),
+      ...args.meta
+    };
     const output = `${JSON.stringify(compactSessionDiagnostics(diagnostics, { sessionId: args.session }))}\n`;
 
     if (args.out) {
