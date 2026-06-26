@@ -272,6 +272,13 @@ test("runCli watch waits until every PR has no pending or failing checks", async
   );
   assert.deepEqual(sleeps, [5]);
   assert.equal(calls.length, 2);
+  assert.deepEqual(
+    calls.map(([, args]) => args.at(-1)),
+    [
+      "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup",
+      "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup"
+    ]
+  );
   assert.equal(
     stdout.content,
     `${JSON.stringify(
