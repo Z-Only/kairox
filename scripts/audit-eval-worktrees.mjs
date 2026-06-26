@@ -1,12 +1,13 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { existsSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
 const DIRTY_FILE_LIMIT = 5;
+const DIAGNOSTICS_SIGNAL_FILE_LIMIT = 5;
 
 export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup]
 
@@ -83,6 +84,61 @@ function summarizeDirtyFiles(dirtyFiles, fileLimit = DIRTY_FILE_LIMIT) {
 
 function isDiagnosticsFile(path) {
   return path === ".kairox-eval" || path === ".kairox-eval/" || path.startsWith(".kairox-eval/");
+}
+
+function* walkFiles(root) {
+  let entries = [];
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      yield* walkFiles(path);
+    } else if (entry.isFile()) {
+      yield path;
+    }
+  }
+}
+
+function summarizeDiagnosticsSignals(worktreePath, dirtyFiles) {
+  if (!dirtyFiles.some(isDiagnosticsFile)) {
+    return {};
+  }
+
+  const diagnosticsRoot = join(worktreePath, ".kairox-eval");
+  if (!existsSync(diagnosticsRoot)) {
+    return {};
+  }
+
+  let suspiciousCount = 0;
+  const suspiciousFiles = [];
+  for (const file of walkFiles(diagnosticsRoot)) {
+    if (!file.endsWith(".json")) {
+      continue;
+    }
+    try {
+      const diagnostics = JSON.parse(readFileSync(file, "utf8"));
+      if (diagnostics?.suspicious_no_tool_completion === true) {
+        suspiciousCount += 1;
+        if (suspiciousFiles.length < DIAGNOSTICS_SIGNAL_FILE_LIMIT) {
+          suspiciousFiles.push(relative(worktreePath, file).replaceAll("\\", "/"));
+        }
+      }
+    } catch {
+      // Ignore partial or non-diagnostics JSON files under .kairox-eval.
+    }
+  }
+
+  return suspiciousCount === 0
+    ? {}
+    : {
+        suspicious_no_tool_completion_count: suspiciousCount,
+        suspicious_no_tool_completion_files: suspiciousFiles
+      };
 }
 
 export function parseWorktreePorcelain(output) {
@@ -225,6 +281,7 @@ async function dirtyStatus(worktreePath, { execFile, env, pathExists, compareRef
     });
     const dirtyFiles = parseDirtyStatusPaths(result.stdout);
     const dirtySummary = summarizeDirtyFiles(dirtyFiles, fileLimit);
+    const diagnosticsSummary = summarizeDiagnosticsSignals(worktreePath, dirtyFiles);
     const compareSummary =
       compareRef && dirtyFiles.length > 0
         ? await compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, {
@@ -237,6 +294,7 @@ async function dirtyStatus(worktreePath, { execFile, env, pathExists, compareRef
       dirty_status: dirtySummary.dirty_file_count === 0 ? "clean" : "dirty",
       path_exists: true,
       ...dirtySummary,
+      ...diagnosticsSummary,
       ...compareSummary
     };
   } catch {
@@ -299,6 +357,10 @@ export function summarizeAudit(worktrees) {
     }
     if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "diagnostics_only") {
       summary.diagnostics_only_dirty += 1;
+    }
+    if (worktree.suspicious_no_tool_completion_count > 0) {
+      summary.suspicious_no_tool_completion_count ??= 0;
+      summary.suspicious_no_tool_completion_count += worktree.suspicious_no_tool_completion_count;
     }
     if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "code") {
       const unmatchedCount = worktree.compare_ref_unmatched_count;
@@ -522,7 +584,11 @@ export function formatSummaryLine(summary) {
     summary.cleanup_remove === undefined
       ? ""
       : ` cleanup_remove=${summary.cleanup_remove} cleanup_prune=${summary.cleanup_prune} cleanup_keep=${summary.cleanup_keep} cleanup_inspect=${summary.cleanup_inspect}`;
-  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty}${unmatched} missing=${summary.missing} error=${summary.error}${cleanup}`;
+  const suspicious =
+    summary.suspicious_no_tool_completion_count === undefined
+      ? ""
+      : ` suspicious_no_tool_completion_count=${summary.suspicious_no_tool_completion_count}`;
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty}${unmatched}${suspicious} missing=${summary.missing} error=${summary.error}${cleanup}`;
 }
 
 export function parseArgs(argv) {

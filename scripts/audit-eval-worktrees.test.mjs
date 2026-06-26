@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
+import { tmpdir } from "node:os";
 
 import {
   auditEvalWorktrees,
@@ -639,6 +643,51 @@ test("runCli distinguishes diagnostics-only dirty worktrees from code dirty work
       }
     ]
   );
+});
+
+test("auditEvalWorktrees summarizes suspicious no-tool diagnostics", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-audit-eval-"));
+  const evalPath = join(root, "eval-a");
+  const diagnosticsDir = join(evalPath, ".kairox-eval", "run-a");
+  await mkdir(diagnosticsDir, { recursive: true });
+  await writeFile(
+    join(diagnosticsDir, "session-diagnostics.json"),
+    JSON.stringify({ suspicious_no_tool_completion: true })
+  );
+  await writeFile(
+    join(diagnosticsDir, "other.json"),
+    JSON.stringify({ suspicious_no_tool_completion: false })
+  );
+
+  try {
+    const audited = await auditEvalWorktrees({
+      pathExists: existsSync,
+      execFile: async (_command, args) => {
+        const joined = args.join(" ");
+        if (joined === "worktree list --porcelain") {
+          return {
+            stdout: `worktree ${evalPath}
+HEAD 2222222222222222222222222222222222222222
+branch refs/heads/eval/a
+`
+          };
+        }
+        if (joined === `-C ${evalPath} status --short`) {
+          return { stdout: "?? .kairox-eval/\n" };
+        }
+        throw new Error(`unexpected command: ${joined}`);
+      }
+    });
+
+    assert.equal(audited[0].suspicious_no_tool_completion_count, 1);
+    assert.deepEqual(audited[0].suspicious_no_tool_completion_files, [
+      ".kairox-eval/run-a/session-diagnostics.json"
+    ]);
+    assert.equal(summarizeAudit(audited).suspicious_no_tool_completion_count, 1);
+    assert.match(formatHumanTable(audited), /suspicious_no_tool_completion_count=1/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("formatHumanTable includes cleanup command previews", () => {
