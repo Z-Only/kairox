@@ -8,36 +8,17 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 
 ## Architecture & crate map
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  User Interfaces & Consumers                                          │
-│  ┌──────────────┐  ┌──────────────────────────────┐  ┌────────────┐ │
-│  │  agent-tui   │  │  agent-gui (Tauri 2 + Vue 3) │  │ agent-eval │ │
-│  │  (ratatui)   │  │  Tauri commands ↔ Vue stores  │  │(kairox-eval)│ │
-│  └──────┬───────┘  └──────────────┬───────────────┘  └─────┬──────┘ │
-└─────────┼─────────────────────────┼─────────────────────────┼────────┘
-          │                         │                         │
-          ▼                         ▼                         ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  agent-core (facade, domain types, events, IDs)                      │
-│  └── AppFacade trait — the primary integration point                 │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-  │agent-runtime │     │agent-memory  │     │agent-store   │
-  │LocalRuntime  │     │MemoryStore   │     │EventStore    │
-  │agents, tasks │     │ContextAsmblr │     │SqliteEventSt. │
-  └──────┬───────┘     └──────────────┘     └──────────────┘
-         │
-    ┌────┴─────────────┐
-    ▼                  ▼
-┌──────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────┐   ┌──────────────┐   ┌──────────────┐
-│agent-    │   │agent-models  │   │agent-config  │   │agent-mcp     │   │agent-lsp │   │agent-skills  │   │agent-plugins │
-│tools     │   │ModelClient   │   │ProfileDef    │   │McpClient     │   │LspClient │   │SkillRegistry │   │PluginManifest│
-│Perms,Reg│   │Router,LLMs   │   │Discovery,Load│   │Transport,Lif.│   │DapClient │   │Frontmatter   │   │Inventory     │
-└──────────┘   └──────────────┘   └──────────────┘   └──────────────┘   └──────────┘   └──────────────┘   └──────────────┘
+```text
+Consumers: agent-tui, agent-gui-tauri, agent-eval, agent-sdk
+  -> compose agent-runtime
+agent-runtime
+  -> implements agent-core::AppFacade
+  -> composes agent-memory, agent-store, agent-models, agent-tools,
+     agent-config, agent-mcp, agent-lsp, agent-skills, agent-plugins
+domain helpers:
+  agent-memory -> agent-models
+  agent-tools  -> agent-mcp, agent-lsp
+  agent-config -> agent-models, agent-mcp, agent-lsp
 ```
 
 ### Crate responsibilities
@@ -194,7 +175,7 @@ kairox/
 │       │   ├── src/        # commands.rs, app_state.rs, event_forwarder.rs, specta.rs, lib.rs
 │       │   ├── Cargo.toml  # version.workspace = true
 │       │   └── tauri.conf.json
-│       ├── e2e/            # Playwright E2E specs + tauri-mock.js IPC mock
+│       ├── e2e/            # Playwright E2E specs + tauri-mock bridge/fragments
 │       ├── package.json
 │       └── vite.config.ts
 ├── docs/
@@ -441,7 +422,7 @@ just gen-types
 ### When adding a new feature
 
 1. **Start from `agent-core`** if the feature introduces new domain types, events, or facade methods. Define the types and trait changes there first.
-2. **Implement in the appropriate crate** following the dependency direction: core → store/memory/config → models/tools → runtime → tui/gui. Never create reverse dependencies.
+2. **Implement in the appropriate crate**: contract changes in `agent-core`, domain behavior in the owning crate, orchestration in `agent-runtime`, and consumer wiring last. Never create domain → runtime/UI dependencies.
 3. **Add tests first**: use `FakeModelClient` for runtime tests, `SqliteEventStore`/:`SqliteMemoryStore` with in-memory SQLite for persistence tests.
 4. **Wire up to UIs last**: add Tauri commands in `commands.rs` for GUI, add components/handlers in `app.rs` for TUI.
 5. **Update types**: if adding new event variants, update `EventPayload` and mirror in `apps/agent-gui/src/types/index.ts`.
@@ -478,7 +459,7 @@ just gen-types
 
 ### E2E testing with Playwright
 
-The GUI frontend has comprehensive E2E tests using Playwright that run against the Vite dev server with a browser-side Tauri IPC mock (`apps/agent-gui/e2e/tauri-mock.js`). This mock replaces `@tauri-apps/api` calls so the full Vue frontend can be tested without a real Tauri runtime.
+The GUI frontend has comprehensive E2E tests using Playwright that run against the Vite dev server with a browser-side Tauri IPC mock. The top-level bridge lives in `apps/agent-gui/e2e/tauri-mock.js`; command handlers and mock state live under `apps/agent-gui/e2e/fixtures/tauri-mock/`. This replaces `@tauri-apps/api` calls so the full Vue frontend can be tested without a real Tauri runtime.
 
 **When to update the mock**: if you add or change any `#[tauri::command]` function signature or its parameter/return types, update the domain fragment under `apps/agent-gui/e2e/fixtures/tauri-mock/` and register it through the mock registry. The top-level `apps/agent-gui/e2e/tauri-mock.js` installs the bridge; specs should use `installTauriMock(page)` from `e2e/helpers/tauriMock.ts`. If you add new event types that the frontend listens to, add the corresponding event emission in the mock fixture.
 
@@ -594,7 +575,7 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 | `just fmt-check`          | Check formatting (Rust + web)                                                     |
 | `just lint`               | Run clippy + oxlint + stylelint                                                   |
 | `just test`               | Run all Rust tests                                                                |
-| `just test-gui`           | Run GUI (Vitest) tests                                                            |
+| `just test-gui`           | Run GUI Vitest and GUI script tests                                               |
 | `just fmt`                | Auto-format all code                                                              |
 | `just tui`                | Run the TUI app                                                                   |
 | `just gui-dev`            | Run GUI dev server (Vite)                                                         |
@@ -651,7 +632,7 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 3. **Test the server** by adding a fixture or integration test in `crates/agent-mcp/tests/` or `crates/agent-runtime/tests/mcp_integration.rs`
 4. **Wire into runtime** via `McpServerManager` in `crates/agent-runtime/src/mcp_manager.rs`
 5. **Update permission UI** — TUI: `permission_modal.rs`, GUI: add MCP trust handling in `PermissionPrompt.vue`
-6. **Add E2E test** in `apps/agent-gui/e2e/` — update `tauri-mock.js` with new MCP commands
+6. **Add E2E test** in `apps/agent-gui/e2e/` — update the matching `fixtures/tauri-mock/*-commands.js` fragment and registry if new MCP commands are needed
 7. **Update config example** in `kairox.toml.example` with the new server configuration
 
 ### Adding a new GUI component

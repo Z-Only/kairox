@@ -6,29 +6,34 @@ outline: [2, 3]
 
 # 架构总览
 
-Kairox 是一个 local-first 的 AI agent 工作台。两个用户界面(基于 ratatui 的终端应用,以及基于 Tauri 2 + Vue 3 的桌面应用)运行在同一个 Rust 内核之上。UI 之下的所有内容都是一个由小型 crate 组成的 Rust workspace,彼此之间只通过狭窄的 trait 相连。没有服务端、没有云控制面、也没有任何共享的可变单例 —— 整个技术栈都在你机器上的单一进程中运行,并将状态持久化到本地的 SQLite 数据库。
+Kairox 是一个 local-first 的 AI agent 工作台。两个用户界面(基于 ratatui 的终端应用,以及基于 Tauri 2 + Vue 3 的桌面应用)、headless eval CLI 和可嵌入 SDK 共享同一套 Rust runtime 契约。consumer 之下的所有内容都是一个由小型 crate 组成的 Rust workspace,彼此之间只通过狭窄的 trait 相连。没有服务端、没有云控制面、也没有任何共享的可变单例 —— 整个技术栈都运行在你的机器上,并将状态持久化到本地的 SQLite 数据库。
 
 本页是这套架构的权威地图。它会解释分层示意图、维系分层秩序的依赖规则、每一层中的所有 crate、状态如何以事件的形式在系统中流动,以及背后那些较大设计决策的理由。
 
 ## 分层架构
 
-产品被划分为三层:最上层是 UI,中间是共享的 facade,底部是扇出的领域 crate。
+产品被划分为四个实际层次:用户侧 consumer、runtime/组合层、core 契约层,以及聚焦的领域 crate。
 
 <div class="mermaid">
 
 ```mermaid
 flowchart TB
-  subgraph UI["UI layer"]
+  subgraph UI["Consumers"]
     TUI["agent-tui<br/>(ratatui)"]
     GUI["agent-gui<br/>(Tauri 2 + Vue 3)"]
+    EVAL["agent-eval<br/>(kairox-eval)"]
+    SDK["agent-sdk<br/>(embeddable API)"]
   end
 
-  subgraph CORE["Facade layer"]
+  subgraph RUNTIME_LAYER["Runtime layer"]
+    RUNTIME["agent-runtime<br/>LocalRuntime · agents · DAG · MCP lifecycle"]
+  end
+
+  subgraph CORE["Contract layer"]
     FACADE["agent-core<br/>AppFacade · DomainEvent · IDs · projections"]
   end
 
   subgraph DOMAIN["Domain layer"]
-    RUNTIME["agent-runtime<br/>LocalRuntime · agents · DAG · MCP lifecycle"]
     MEMORY["agent-memory<br/>MemoryStore · ContextAssembler · Compactor"]
     STORE["agent-store<br/>EventStore · SqliteEventStore · metadata"]
     MODELS["agent-models<br/>ModelClient · ModelRouter · ModelRegistry"]
@@ -40,9 +45,11 @@ flowchart TB
     CONFIG["agent-config<br/>ProfileDef · loader · discovery"]
   end
 
-  TUI --> FACADE
-  GUI --> FACADE
-  FACADE --> RUNTIME
+  TUI --> RUNTIME
+  GUI --> RUNTIME
+  EVAL --> RUNTIME
+  SDK --> RUNTIME
+  RUNTIME -. implements .-> FACADE
   RUNTIME --> MEMORY
   RUNTIME --> STORE
   RUNTIME --> MODELS
@@ -52,28 +59,32 @@ flowchart TB
   RUNTIME --> SKILLS
   RUNTIME --> PLUGINS
   RUNTIME --> CONFIG
+  MEMORY --> MODELS
   TOOLS --> MCP
-  CONFIG --> SKILLS
-  CONFIG --> PLUGINS
+  TOOLS --> LSP
+  CONFIG --> MODELS
+  CONFIG --> MCP
+  CONFIG --> LSP
 ```
 
 </div>
 
-请自上而下地阅读这张图。GUI 中的一次点击或 TUI 中的一次按键,最终都会调用 `agent-core`,而绝不会直接调用任何领域 crate。`agent-core` 持有应用接口(`AppFacade`),并定义了描述应用内部行为的"语言"(`DomainEvent`、`EventPayload`、各种类型化 ID、projections)。领域 crate 负责实现这套接口,它们都不依赖任何一个 UI。
+请自上而下地阅读这张图。GUI 中的一次点击或 TUI 中的一次按键会到达一个实现了 `AppFacade` 的 runtime 对象。`agent-core` 持有这套接口,并定义描述应用内部行为的"语言"(`DomainEvent`、`EventPayload`、各种类型化 ID、projections)。`agent-runtime` 实现契约并组合领域 crate。领域 crate 不依赖 UI crate 或 consumer crate。
 
 ## 依赖规则
 
-让这套架构保持稳定的唯一规则是:**依赖只能向内指向**。
+让这套架构保持稳定的唯一规则是:**领域 crate 永远不依赖 consumer 或 runtime**。
 
-| 所在层 | 允许依赖                               | 不允许依赖         |
-| ------ | -------------------------------------- | ------------------ |
-| UI     | facade(`agent-core`)                   | 直接依赖领域 crate |
-| Facade | workspace 内部什么都不依赖             | UI、领域 crate     |
-| Domain | facade,以及其他领域 crate(按 DAG 顺序) | UI                 |
+| 所在层              | 允许依赖                                  | 不允许依赖                     |
+| ------------------- | ----------------------------------------- | ------------------------------ |
+| Contract            | workspace 内部什么都不依赖                | runtime、领域 crate、consumer  |
+| Domain              | `agent-core` 和按顺序排列的其它领域 crate | `agent-runtime`、UI、eval、SDK |
+| Runtime / 组合层    | contract + 领域 crate                     | UI 前端状态或 view 模块        |
+| Consumer Rust crate | runtime + 自己需要的领域 crate            | Vue 内部实现或无关 consumer    |
 
-`agent-core` 在 workspace 内部零依赖。其他每一个 crate 要么依赖 `agent-core`,要么依赖一个已经间接依赖它的领域 crate。任何新增 crate 想去调用 UI 表面,都是错的;正确做法是发出一个 event,让 UI 自己去响应。任何新增 UI 功能想绕过 facade,也是错的;正确做法是把 facade 拓宽。
+`agent-core` 在 workspace 内部零依赖。一些小型领域 crate 也是叶子 crate(`agent-lsp`、`agent-skills`、`agent-plugins`),因为它们只建模独立的数据或协议概念。任何新增领域 crate 想去调用 UI 表面,都是错的;正确做法是发出一个 event,让 consumer 自己响应。任何新增 UI 功能需要 runtime 行为时,应通过 facade 或由 runtime 支撑的类型化 Tauri command。
 
-在代码层面,这条规则由编译期强制保证 —— `cargo` 会拒绝构建一个引用了 UI crate 的领域 crate。在 review 阶段,它体现在 PR 的范围上:一个同时改 `agent-runtime` 和 GUI 的 feature 是正常的;但一个改 `agent-runtime` 又反过来去 `agent-gui` 读取状态的 feature,就是味道不对。
+在代码层面,这条规则由 Cargo 边保证:没有领域 crate 会 import `agent-runtime`、`agent-tui`、`agent-gui-tauri`、`agent-eval` 或 `agent-sdk`。在 review 阶段,它体现在 PR 的范围上:一个同时改 `agent-runtime` 和 GUI 的 feature 是正常的;但一个领域 crate 反过来读取 consumer 状态,就是味道不对。
 
 ## 各层 crate 一览
 
@@ -105,7 +116,7 @@ flowchart TB
 | **agent-store**   | append-only 的 SQLite event store,用于 workspace/session 追踪的 metadata 表,以及 trajectory 持久化。                                                                                                                                           | `EventStore` trait、`SqliteEventStore`、`SessionMeta`、`TrajectoryStore`、`SqliteTrajectoryStore`。                                                                                                  |
 | **agent-config**  | TOML 配置加载、model profile 发现、从 env 中解析 API key、`.kairox/` 项目发现、advisor 策略、skills 配置、instructions 配置。                                                                                                                  | `ProfileDef`、`AdvisorConfig`、`load_from_str`、`build_router`。                                                                                                                                     |
 
-`agent-runtime` 是唯一一个会扇出到所有其他领域 crate 的领域 crate。其余 crate 都保持狭窄:`agent-memory` 不感知 `agent-tools`,`agent-models` 不感知 `agent-mcp`。当一个 runtime 功能同时需要两者时,由 runtime 来组合它们;它从不让某个领域 crate 反过来 import 另一个领域 crate。
+`agent-runtime` 是组合所有领域 crate 的 composition crate。其余 crate 都保持狭窄:`agent-memory` 依赖 model metadata,但不依赖 tools 或 storage;`agent-tools` 依赖 MCP/LSP 协议类型来适配外部工具;`agent-config` 依赖 model/MCP/LSP 定义来解析 TOML。当一个 runtime 功能同时需要多种能力时,由 runtime 来组合。
 
 ### UI 层
 
@@ -163,15 +174,15 @@ sequenceDiagram
 
 Trait 边界不是装饰。Kairox 中每一条跨 crate 的依赖都要通过 trait,这样测试时可以替换为 fake,新加适配器(新的 model provider、新的 transport、新的 event store 后端)时也可以即插即用,不必动到 runtime。
 
-| Trait                   | 定义于        | 使用方                              | 说明                                                                            |
-| ----------------------- | ------------- | ----------------------------------- | ------------------------------------------------------------------------------- |
-| `AppFacade`             | agent-core    | agent-runtime、agent-tui、agent-gui | UI 与 runtime 之间的集成点。                                                    |
-| `EventStore`            | agent-store   | agent-runtime、agent-memory         | 由 `SqliteEventStore` 实现;测试中使用内存版 SQLite(`:memory:`)。                |
-| `MemoryStore`           | agent-memory  | agent-runtime、agent-gui(只读)      | 由 `SqliteMemoryStore` 实现。                                                   |
-| `ModelClient`           | agent-models  | agent-runtime                       | 由 OpenAI 兼容、Anthropic、Ollama 以及 Fake 客户端实现;由 router 进行多路复用。 |
-| `Tool` / `ToolProvider` | agent-tools   | agent-runtime、agent-mcp(经适配器)  | 内置工具与 MCP 暴露的工具都实现 `Tool`。                                        |
-| `Transport`             | agent-mcp     | agent-mcp 内部                      | 由 `StdioTransport`、`SseTransport` 实现。                                      |
-| `AgentStrategy`         | agent-runtime | agent-runtime                       | Planner / Worker / Reviewer 角色。策略之间通过组合搭配,而不是通过继承派生。     |
+| Trait                   | 定义于        | 使用方                               | 说明                                                                            |
+| ----------------------- | ------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
+| `AppFacade`             | agent-core    | agent-runtime、agent-tui、agent-gui  | UI 与 runtime 之间的集成点。                                                    |
+| `EventStore`            | agent-store   | agent-runtime,以及 consumer 接线边界 | 由 `SqliteEventStore` 实现;测试中使用内存版 SQLite(`:memory:`)。                |
+| `MemoryStore`           | agent-memory  | agent-runtime、agent-gui(只读)       | 由 `SqliteMemoryStore` 实现。                                                   |
+| `ModelClient`           | agent-models  | agent-runtime                        | 由 OpenAI 兼容、Anthropic、Ollama 以及 Fake 客户端实现;由 router 进行多路复用。 |
+| `Tool` / `ToolProvider` | agent-tools   | agent-runtime、agent-mcp(经适配器)   | 内置工具与 MCP 暴露的工具都实现 `Tool`。                                        |
+| `Transport`             | agent-mcp     | agent-mcp 内部                       | 由 `StdioTransport`、`SseTransport`、`StreamableHttpTransport` 实现。           |
+| `AgentStrategy`         | agent-runtime | agent-runtime                        | Planner / Worker / Reviewer 角色。策略之间通过组合搭配,而不是通过继承派生。     |
 
 如此严格的纪律有一个具体的理由:`crates/agent-runtime/tests/full_stack.rs` 可以端到端地跑一个真正的 `LocalRuntime<SqliteEventStore, FakeModelClient>`,不需要 model API key、不需要 MCP server、也不需要 GUI 窗口 —— 因为每一个协作者都是一个 trait,而每一个 fake 都只是一次 `cargo test` 的事。
 
@@ -187,17 +198,18 @@ flowchart LR
 
   store["agent-store"] --> core
   memory["agent-memory"] --> core
-  memory --> store
+  memory --> models
   models["agent-models"] --> core
   tools["agent-tools"] --> core
+  tools --> lsp["agent-lsp"]
   mcp["agent-mcp"] --> core
   tools --> mcp
-  skills["agent-skills"] --> core
-  plugins["agent-plugins"] --> core
+  skills["agent-skills"]
+  plugins["agent-plugins"]
   config["agent-config"] --> core
   config --> models
-  config --> skills
-  config --> plugins
+  config --> mcp
+  config --> lsp
   runtime["agent-runtime"] --> core
   runtime --> store
   runtime --> memory
@@ -208,14 +220,47 @@ flowchart LR
   runtime --> plugins
   runtime --> config
 
+  eval["agent-eval"] --> runtime
+  eval --> core
+  eval --> config
+  eval --> memory
+  eval --> models
+  eval --> store
+  eval --> tools
+  sdk["agent-sdk"] --> runtime
+  sdk --> core
+  sdk --> config
+  sdk --> lsp
+  sdk --> mcp
+  sdk --> memory
+  sdk --> models
+  sdk --> plugins
+  sdk --> skills
+  sdk --> store
+  sdk --> tools
   tui["agent-tui"] --> runtime
-  gui["agent-gui"] --> runtime
+  tui --> core
+  tui --> config
+  tui --> mcp
+  tui --> memory
+  tui --> models
+  tui --> skills
+  tui --> store
+  tui --> tools
+  gui["agent-gui-tauri"] --> runtime
   gui --> core
+  gui --> config
+  gui --> mcp
+  gui --> memory
+  gui --> models
+  gui --> skills
+  gui --> store
+  gui --> tools
 ```
 
 </div>
 
-`agent-tui` 和 `agent-gui` 是仅有的两个依赖 `agent-runtime` 的 crate。没有任何 crate 反过来依赖它们。这种不对称正是关键所在 —— 它意味着,只要对应的领域 crate 已经通过它实现的 trait 暴露了能力,新增一个 model provider、新增一个工具、新增一个 MCP transport、或是新增一个 skill 来源,都不需要去碰任何一个 UI。
+`agent-tui`、`agent-gui-tauri`、`agent-eval` 和 `agent-sdk` 是依赖 `agent-runtime` 的 consumer crate。领域层没有任何 crate 反过来依赖它们。这种不对称正是关键所在:新增一个 model provider、工具、MCP transport 或 skill 来源时,可以先放在所属领域 crate 中,再由 runtime 组合,而不必让 storage、memory 或协议 crate 知道 UI 状态。
 
 ## 决策记录
 

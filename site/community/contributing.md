@@ -79,7 +79,7 @@ Individual recipes for focused work:
 | TUI integration      | `just test-tui`                                               |
 | Full-stack runtime   | `just test-fullstack`                                         |
 | MCP focused tests    | `just test-mcp`                                               |
-| GUI unit (Vitest)    | `just test-gui`                                               |
+| GUI tests            | `just test-gui`                                               |
 | GUI E2E (Playwright) | `just test-e2e` / `just test-e2e-headed` / `just test-e2e-ui` |
 | Desktop E2E (pilot)  | `just test-pilot`                                             |
 | Live model smoke     | `just test-live` (self-skips without `GITHUB_TOKEN`)          |
@@ -97,7 +97,7 @@ After changing any `#[tauri::command]` signature, any `EventPayload` variant, or
 
 1. Run `just gen-types`. This regenerates `commands.ts` and `events.ts`.
 2. Run `just check-types`. CI also runs this in the `type-sync` job and will block merge if the generated output drifts.
-3. If you added a new IPC command or event that the frontend listens to, update [`apps/agent-gui/e2e/tauri-mock.js`](https://github.com/Z-Only/kairox/blob/main/apps/agent-gui/e2e/tauri-mock.js) so Playwright E2E still runs against a complete mock.
+3. If you added a new IPC command or event that the frontend listens to, update the matching fragment under [`apps/agent-gui/e2e/fixtures/tauri-mock/`](https://github.com/Z-Only/kairox/tree/main/apps/agent-gui/e2e/fixtures/tauri-mock) and register it so Playwright E2E still runs against a complete mock.
 4. New `#[tauri::command]` functions must be registered in **both** `tauri::generate_handler!` (in `apps/agent-gui/src-tauri/src/lib.rs`) **and** `collect_commands!` (in `apps/agent-gui/src-tauri/src/specta.rs`). Missing either causes runtime or type-gen failures.
 
 ## Commit messages

@@ -32,7 +32,7 @@ Individual commands:
 | Format check         | `just fmt-check` or `bun run format:check`                       |
 | Lint                 | `just lint` or `bun run lint`                                    |
 | Rust tests           | `just test` or `cargo test --workspace --all-targets`            |
-| GUI unit tests       | `just test-gui`                                                  |
+| GUI tests            | `just test-gui`                                                  |
 | TUI integration      | `just test-tui`                                                  |
 | Full-stack tests     | `just test-fullstack`                                            |
 | MCP tests            | `just test-mcp`                                                  |
@@ -71,7 +71,7 @@ TypeScript bindings under `apps/agent-gui/src/generated/` are **auto-generated**
 
 1. Run `just gen-types` to regenerate `commands.ts` and `events.ts`
 2. Run `just check-types` to verify the generated bindings are in sync (this is also enforced by the CI `type-sync` job)
-3. If you added a new IPC command or event the frontend listens to, also update `apps/agent-gui/e2e/tauri-mock.js` so Playwright E2E tests keep passing
+3. If you added a new IPC command or event the frontend listens to, update the matching mock fragment under `apps/agent-gui/e2e/fixtures/tauri-mock/` and its registry entry so Playwright E2E tests keep passing
 4. Make sure new `#[tauri::command]` functions are registered in **both** `generate_handler!` (in `lib.rs`) and `collect_commands!` (in `src/specta.rs`) — missing either one causes runtime or type-gen failures
 
 For full architecture context and per-feature recipes, see [AGENTS.md](./AGENTS.md).

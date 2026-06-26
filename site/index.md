@@ -47,7 +47,7 @@ import { withBase } from "vitepress";
     dark="/screenshots/trajectory-dark.png"
     zhLight="/screenshots/zh/trajectory.png"
     zhDark="/screenshots/zh/trajectory-dark.png"
-    alt="Kairox trajectory viewer showing a recorded filesystem tool step"
+    alt="Kairox trajectory viewer showing an expanded recorded tool step"
     caption="Trajectory viewer for replayable tool steps, including ordered action input, observation output, timing, and outcome state."
   />
   <ThemeScreenshot
@@ -63,8 +63,8 @@ import { withBase } from "vitepress";
     dark="/screenshots/autonomous-dark.png"
     zhLight="/screenshots/zh/autonomous.png"
     zhDark="/screenshots/zh/autonomous-dark.png"
-    alt="Kairox autonomous task settings with checkpoint details"
-    caption="Autonomous task controls expose durable goals, pause/resume state, session budgets, checkpoints, completed work, and remaining items."
+    alt="Kairox autonomous task settings with an active task"
+    caption="Autonomous task controls expose durable goals, pause/cancel state, session budgets, and current progress."
   />
 </div>
 

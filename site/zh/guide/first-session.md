@@ -153,7 +153,7 @@ just tauri-dev
   zhLight="/screenshots/zh/autonomous.png"
   zhDark="/screenshots/zh/autonomous-dark.png"
   alt="Kairox autonomous task 设置"
-  caption="Autonomous task 设置页展示持久化目标、暂停 / 恢复控制、session 次数与 checkpoint 明细。"
+  caption="Autonomous task 设置页展示持久化目标、暂停 / 取消控制、session 次数与当前进度。"
 />
 
 点击 **Models**,确认你的 profile 出现在列表里。点击 profile 把它设为新 session 的默认值。
@@ -197,15 +197,15 @@ just tauri-dev
 
 ## 第三部分 —— 试一下 MCP
 
-marketplace 视图(顶层导航里)列出了精挑细选过的 MCP server——git、GitHub、filesystem、fetch 等等。安装其中一个(marketplace 会处理 runtime 依赖检查、下载 server 并完成注册)。
+MCP 设置页会先展示当前作用域已安装的 server。切到 Marketplace 标签后,可以浏览精选 MCP server——git、GitHub、filesystem、fetch 等等——并按需安装。
 
 <ThemeScreenshot
   light="/screenshots/mcp.png"
   dark="/screenshots/mcp-dark.png"
   zhLight="/screenshots/zh/mcp.png"
   zhDark="/screenshots/zh/mcp-dark.png"
-  alt="Kairox 设置里的 MCP marketplace"
-  caption="MCP 设置页可以在已安装 server 与 curated marketplace 之间切换。"
+  alt="Kairox 设置里的 MCP 已安装 server 视图"
+  caption="MCP 设置页展示当前作用域已安装的 server,并可切换到 curated marketplace。"
 />
 
 安装完成后,server 的 tool 会出现在 registry 里。模型可以调用它们;它们会和内置 tool 一样,经过同一个 policy engine。trace 会标记 tool 调用的来源 server,让你能审计谁在与谁通信。

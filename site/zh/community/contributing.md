@@ -79,7 +79,7 @@ just check
 | TUI 集成测试          | `just test-tui`                                               |
 | 全栈 runtime 测试     | `just test-fullstack`                                         |
 | MCP 专项测试          | `just test-mcp`                                               |
-| GUI 单测（Vitest）    | `just test-gui`                                               |
+| GUI 测试              | `just test-gui`                                               |
 | GUI E2E（Playwright） | `just test-e2e` / `just test-e2e-headed` / `just test-e2e-ui` |
 | 桌面 E2E（pilot）     | `just test-pilot`                                             |
 | 实时模型冒烟          | `just test-live`（未设置 `GITHUB_TOKEN` 时自动跳过）          |
@@ -97,7 +97,7 @@ CI 中的 `ci-success` 任务聚合并行作业，是合并的必需检查项。
 
 1. 运行 `just gen-types`，它会重新生成 `commands.ts` 和 `events.ts`。
 2. 运行 `just check-types`。CI 的 `type-sync` 任务也会跑这一步，如果生成产物有漂移会卡住合并。
-3. 如果你新加了前端会监听的 IPC 命令或 event，请同步更新 [`apps/agent-gui/e2e/tauri-mock.js`](https://github.com/Z-Only/kairox/blob/main/apps/agent-gui/e2e/tauri-mock.js)，让 Playwright E2E 仍然能在完整的 mock 上跑。
+3. 如果你新加了前端会监听的 IPC 命令或 event，请同步更新 [`apps/agent-gui/e2e/fixtures/tauri-mock/`](https://github.com/Z-Only/kairox/tree/main/apps/agent-gui/e2e/fixtures/tauri-mock) 下对应的 mock fragment 并注册它，让 Playwright E2E 仍然能在完整的 mock 上跑。
 4. 新增的 `#[tauri::command]` 函数必须同时注册到 `tauri::generate_handler!`（在 `apps/agent-gui/src-tauri/src/lib.rs`）**和** `collect_commands!`（在 `apps/agent-gui/src-tauri/src/specta.rs`）中。漏掉任一处都会导致运行时或类型生成失败。
 
 ## 提交信息

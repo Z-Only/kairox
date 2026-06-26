@@ -19,7 +19,7 @@ Kairox uses [`just`](https://github.com/casey/just) as the task runner. Install 
 | `just fmt-check` | Run all formatters in check mode (`cargo fmt --check` plus `oxfmt --check`).     |
 | `just lint`      | Run Clippy across the workspace, plus `oxlint` and Stylelint on the GUI sources. |
 | `just test`      | `cargo test --workspace --all-targets`.                                          |
-| `just test-gui`  | Vitest suite for the Vue frontend (`bun --filter agent-gui test`).               |
+| `just test-gui`  | GUI Vitest suite plus GUI script tests.                                          |
 | `just coverage`  | Rust source-based coverage gate plus GUI V8 coverage gate.                       |
 | `just check`     | Format-check + lint + Rust tests. The full local CI gate.                        |
 
@@ -103,11 +103,11 @@ The root `package.json` exposes Bun-runnable scripts. Most of them are wrapped b
 | `bun run coverage:web`       | GUI V8 coverage gate (Vitest).                                                                                   |
 | `bun run prepare`            | Husky install hook. Runs automatically after `bun install`.                                                      |
 
-Inside the GUI app (`apps/agent-gui/package.json`), four more scripts exist:
+Inside the GUI app (`apps/agent-gui/package.json`), these scripts exist:
 
 | Script (run inside `apps/agent-gui` or via `bun --filter agent-gui`) | What it does                                     |
 | -------------------------------------------------------------------- | ------------------------------------------------ |
-| `dev`                                                                | Vite dev server on `0.0.0.0:1420`.               |
+| `dev`                                                                | Vite dev server, defaulting to `0.0.0.0:1420`.   |
 | `build`                                                              | Vite production build.                           |
 | `tauri:dev`                                                          | Tauri dev (Vite + native window).                |
 | `tauri:build`                                                        | Tauri production build (with installer bundles). |
