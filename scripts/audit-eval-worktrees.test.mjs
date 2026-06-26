@@ -95,17 +95,19 @@ test("summarizeAudit counts total and dirty status buckets", () => {
   assert.deepEqual(
     summarizeAudit([
       { dirty_status: "clean" },
-      { dirty_status: "dirty" },
+      { dirty_status: "dirty", dirty_scope: "code" },
       { dirty_status: "missing" },
       { dirty_status: "error" },
-      { dirty_status: "dirty" }
+      { dirty_status: "dirty", dirty_scope: "diagnostics_only" }
     ]),
     {
       total: 5,
       clean: 1,
       dirty: 2,
       missing: 1,
-      error: 1
+      error: 1,
+      code_dirty: 1,
+      diagnostics_only_dirty: 1
     }
   );
 });
@@ -675,7 +677,10 @@ test("formatHumanTable emits a stable table with path, branch, head, exists, dir
     }
   ]);
 
-  assert.match(table, /^Summary: total=3 clean=1 dirty=1 missing=1 error=0$/m);
+  assert.match(
+    table,
+    /^Summary: total=3 clean=1 dirty=1 code_dirty=1 diagnostics_only_dirty=0 missing=1 error=0$/m
+  );
   assert.match(
     table,
     /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_SCOPE\s+DIRTY_FILES/m
@@ -746,7 +751,9 @@ test("runCli writes stable JSON without touching the real Git repository", async
       clean: 2,
       dirty: 0,
       missing: 1,
-      error: 0
+      error: 0,
+      code_dirty: 0,
+      diagnostics_only_dirty: 0
     },
     worktrees: [
       {
@@ -807,7 +814,9 @@ test("runCli filters JSON output with --dirty-only", async () => {
       clean: 0,
       dirty: 1,
       missing: 1,
-      error: 0
+      error: 0,
+      code_dirty: 1,
+      diagnostics_only_dirty: 0
     },
     worktrees: [
       {
@@ -860,7 +869,9 @@ test("runCli filters JSON output with --clean-only", async () => {
       clean: 1,
       dirty: 0,
       missing: 0,
-      error: 0
+      error: 0,
+      code_dirty: 0,
+      diagnostics_only_dirty: 0
     },
     worktrees: [
       {
@@ -897,7 +908,10 @@ test("runCli prints only the summary with --summary", async () => {
 
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
-  assert.equal(stdout.content, "Summary: total=3 clean=1 dirty=1 missing=1 error=0\n");
+  assert.equal(
+    stdout.content,
+    "Summary: total=3 clean=1 dirty=1 code_dirty=1 diagnostics_only_dirty=0 missing=1 error=0\n"
+  );
 });
 
 test("runCli prints stable summary JSON with --json --summary", async () => {
@@ -927,7 +941,9 @@ test("runCli prints stable summary JSON with --json --summary", async () => {
       clean: 0,
       dirty: 1,
       missing: 1,
-      error: 0
+      error: 0,
+      code_dirty: 1,
+      diagnostics_only_dirty: 0
     }
   });
 });
@@ -965,7 +981,9 @@ test("runCli skips compare-ref checks for summary-only output", async () => {
       clean: 1,
       dirty: 1,
       missing: 1,
-      error: 0
+      error: 0,
+      code_dirty: 1,
+      diagnostics_only_dirty: 0
     }
   });
   assert(!commands.some((command) => command.includes(" rev-parse ")));
