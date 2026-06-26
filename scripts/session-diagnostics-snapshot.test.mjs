@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -386,6 +386,36 @@ test("CLI infers pilot socket metadata from TAURI_PILOT_SOCKET", async () => {
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
   assert.equal(JSON.parse(stdout.content).pilot_socket_path, "/tmp/tauri-pilot.sock");
+});
+
+test("CLI infers event DB metadata from KAIROX_HOME", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-home-"));
+  const dataDir = join(root, ".kairox");
+  const dbPath = join(dataDir, "kairox-gui.sqlite");
+  await mkdir(dataDir);
+  await writeFile(dbPath, "");
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--session", "ses_event_db"], {
+    stdout,
+    stderr,
+    env: { KAIROX_HOME: root },
+    execFile: async (command) => {
+      assert.equal(command, "tauri-pilot");
+      return {
+        stdout: JSON.stringify({
+          session_id: "ses_event_db",
+          event_count: 1,
+          event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+        })
+      };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
 });
 
 test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {
