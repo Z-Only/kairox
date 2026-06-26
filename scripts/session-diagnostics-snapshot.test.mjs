@@ -429,6 +429,85 @@ test("CLI infers event DB metadata from KAIROX_HOME", async () => {
   assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
 });
 
+test("CLI infers event DB metadata from runtime instance registry", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-home-registry-"));
+  const dataDir = join(root, ".kairox");
+  const registryDir = join(dataDir, "runtime", "instances");
+  const dbPath = join(dataDir, "custom-runtime.sqlite");
+  await mkdir(registryDir, { recursive: true });
+  await writeFile(dbPath, "");
+  await writeFile(
+    join(registryDir, "gui-123.json"),
+    JSON.stringify({
+      id: "gui-123",
+      pid: 123,
+      kind: "gui",
+      database_filename: "custom-runtime.sqlite",
+      data_dir: dataDir,
+      started_at: "2026-06-26T00:00:00Z"
+    })
+  );
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--session", "ses_runtime_db"], {
+    stdout,
+    stderr,
+    env: { KAIROX_HOME: root },
+    execFile: async (command) => {
+      assert.equal(command, "tauri-pilot");
+      return {
+        stdout: JSON.stringify({
+          session_id: "ses_runtime_db",
+          event_count: 1,
+          event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+        })
+      };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
+});
+
+test("CLI ignores invalid runtime instance registry records", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-home-registry-invalid-"));
+  const dataDir = join(root, ".kairox");
+  const registryDir = join(dataDir, "runtime", "instances");
+  const dbPath = join(dataDir, "valid-runtime.sqlite");
+  await mkdir(registryDir, { recursive: true });
+  await writeFile(join(registryDir, "bad.json"), "{");
+  await writeFile(dbPath, "");
+  await writeFile(
+    join(registryDir, "valid.json"),
+    JSON.stringify({
+      database_filename: "valid-runtime.sqlite",
+      data_dir: dataDir,
+      started_at: "2026-06-26T00:00:00Z"
+    })
+  );
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--session", "ses_valid_registry_db"], {
+    stdout,
+    stderr,
+    env: { KAIROX_HOME: root },
+    execFile: async () => ({
+      stdout: JSON.stringify({
+        session_id: "ses_valid_registry_db",
+        event_count: 1,
+        event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+      })
+    })
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
+});
+
 test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {
   const compact = compactSessionDiagnostics({
     session_id: "ses_no_tools",

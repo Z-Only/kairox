@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -363,14 +363,46 @@ function parsePilotStdout(stdout) {
   }
 }
 
+function inferEventDbPath(kairoxHome, pathExists = existsSync) {
+  const dataDir = join(String(kairoxHome), ".kairox");
+  const registryDir = join(dataDir, "runtime", "instances");
+  try {
+    const records = [];
+    for (const file of readdirSync(registryDir).filter((entry) => entry.endsWith(".json"))) {
+      try {
+        records.push(JSON.parse(readFileSync(join(registryDir, file), "utf8")));
+      } catch {
+        // Match the runtime registry: ignore partial or invalid records.
+      }
+    }
+    records.sort(
+      (left, right) => Date.parse(right.started_at ?? "") - Date.parse(left.started_at ?? "")
+    );
+    for (const record of records) {
+      if (typeof record?.data_dir !== "string" || typeof record?.database_filename !== "string") {
+        continue;
+      }
+      const eventDbPath = join(record.data_dir, record.database_filename);
+      if (pathExists(eventDbPath)) {
+        return eventDbPath;
+      }
+    }
+  } catch {
+    // Fall back to the default GUI database below.
+  }
+
+  const eventDbPath = join(dataDir, "kairox-gui.sqlite");
+  return pathExists(eventDbPath) ? eventDbPath : null;
+}
+
 async function inferResumeMeta(meta, { execFile, env, pathExists = existsSync }) {
   const inferred = {};
   if (
     !firstPresent(meta, ["event_db_path", "eventDbPath", "db_path", "dbPath"]) &&
     env?.KAIROX_HOME
   ) {
-    const eventDbPath = join(String(env.KAIROX_HOME), ".kairox", "kairox-gui.sqlite");
-    if (pathExists(eventDbPath)) {
+    const eventDbPath = inferEventDbPath(env.KAIROX_HOME, pathExists);
+    if (eventDbPath) {
       inferred.event_db_path = eventDbPath;
     }
   }
