@@ -395,6 +395,64 @@ test("runCli annotates dirty files that match a compare ref", async () => {
   });
 });
 
+test("runCli annotates cleanup recommendations when requested", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--compare-ref", "origin/main", "--recommend-cleanup"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M different.txt\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different.txt") {
+        return { stdout: "ref-hash\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- different.txt") {
+        return { stdout: "worktree-hash\n" };
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  const result = JSON.parse(stdout.content);
+  assert.deepEqual(
+    result.worktrees.map((worktree) => ({
+      path: worktree.path,
+      cleanup_recommendation: worktree.cleanup_recommendation,
+      cleanup_reason: worktree.cleanup_reason
+    })),
+    [
+      {
+        path: "/repo/.worktrees/eval-a",
+        cleanup_recommendation: "remove",
+        cleanup_reason: "clean_worktree"
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-b",
+        cleanup_recommendation: "keep",
+        cleanup_reason: "dirty_files_not_in_compare_ref"
+      },
+      {
+        path: "/repo/.worktrees/eval-kairox-detached",
+        cleanup_recommendation: "prune",
+        cleanup_reason: "missing_path"
+      }
+    ]
+  );
+});
+
 test("formatHumanTable emits a stable table with path, branch, head, exists, dirty, and dirty files columns", () => {
   const table = formatHumanTable([
     {
@@ -755,6 +813,6 @@ test("runCli prints help without invoking git", async () => {
   assert.equal(invoked, false);
   assert.match(
     stdout.content,
-    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\] \[--compare-ref <ref>\] \[--all-files\]/
+    /Usage: node scripts\/audit-eval-worktrees\.mjs \[--json\] \[--summary\] \[--dirty-only\|--clean-only\] \[--compare-ref <ref>\] \[--all-files\] \[--recommend-cleanup\]/
   );
 });
