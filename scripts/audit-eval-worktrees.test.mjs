@@ -675,6 +675,46 @@ test("runCli prints stable summary JSON with --json --summary", async () => {
   });
 });
 
+test("runCli skips compare-ref checks for summary-only output", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const commands = [];
+
+  const exitCode = await runCli(["--json", "--summary", "--compare-ref", "origin/main"], {
+    stdout,
+    stderr,
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      commands.push(joined);
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      if (joined.includes(" rev-parse ") || joined.includes(" hash-object ")) {
+        throw new Error(`summary-only should not compare file content: ${joined}`);
+      }
+      return { stdout: "" };
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    summary: {
+      total: 3,
+      clean: 1,
+      dirty: 1,
+      missing: 1,
+      error: 0
+    }
+  });
+  assert(!commands.some((command) => command.includes(" rev-parse ")));
+  assert(!commands.some((command) => command.includes(" hash-object ")));
+});
+
 test("runCli rejects conflicting dirty-only and clean-only filters", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();

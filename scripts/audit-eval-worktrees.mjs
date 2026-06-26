@@ -447,7 +447,7 @@ export async function runCli(
         pathExists,
         cwd,
         env,
-        compareRef: args.compareRef,
+        compareRef: args.summaryOnly ? null : args.compareRef,
         fileLimit: args.allFiles ? null : DIRTY_FILE_LIMIT
       }),
       args
