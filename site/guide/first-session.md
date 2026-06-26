@@ -142,7 +142,7 @@ Click the settings icon (top right). Settings is organized by concern:
   zhLight="/screenshots/zh/settings.png"
   zhDark="/screenshots/zh/settings-dark.png"
   alt="Kairox settings view"
-  caption="Settings surfaces every configurable piece — general app behavior, models, agents, autonomous tasks, MCP, skills, plugins, hooks, instructions, and archives."
+  caption="Settings keeps model profiles and scope controls in the same tabbed surface as agents, autonomous tasks, MCP, skills, plugins, hooks, instructions, and archives."
 />
 
 The same settings surface also exposes autonomous tasks when you let Kairox continue a goal across sessions. Checkpoints keep completed work, remaining items, and verification state inspectable.
