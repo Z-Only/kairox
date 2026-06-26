@@ -25,6 +25,18 @@ function createWritableCapture() {
 test("compactSessionDiagnostics emits stable compact counts from diagnostics JSON", () => {
   const compact = compactSessionDiagnostics({
     session_id: "ses_123",
+    workspaceId: "wrk_123",
+    projectId: "proj_123",
+    worktreePath: "/repo/.worktrees/eval",
+    branch: "eval/foo",
+    modelProfile: "kairox-live",
+    modelId: "gpt-5",
+    provider: "openai",
+    lastEventId: "42",
+    createdAt: "2026-06-26T04:00:00Z",
+    generatedAt: "2026-06-26T04:01:00Z",
+    eventDbPath: "/tmp/kairox/events.sqlite",
+    pilotSocketPath: "/tmp/tauri-pilot.sock",
     event_count: 9,
     event_type_counts: [
       { event_type: "UserMessageAdded", count: 2 },
@@ -55,6 +67,18 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
 
   assert.deepEqual(compact, {
     session_id: "ses_123",
+    workspace_id: "wrk_123",
+    project_id: "proj_123",
+    worktree_path: "/repo/.worktrees/eval",
+    branch: "eval/foo",
+    model_profile: "kairox-live",
+    model_id: "gpt-5",
+    provider: "openai",
+    last_event_id: "42",
+    session_created_at: "2026-06-26T04:00:00Z",
+    generated_at: "2026-06-26T04:01:00Z",
+    event_db_path: "/tmp/kairox/events.sqlite",
+    pilot_socket_path: "/tmp/tauri-pilot.sock",
     event_count: 9,
     last_event_type: "AssistantMessageCompleted",
     event_type_counts: {
@@ -121,6 +145,18 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   });
 
   assert.equal(compact.session_id, "ses_legacy");
+  assert.equal(compact.workspace_id, null);
+  assert.equal(compact.project_id, null);
+  assert.equal(compact.worktree_path, null);
+  assert.equal(compact.branch, null);
+  assert.equal(compact.model_profile, null);
+  assert.equal(compact.model_id, null);
+  assert.equal(compact.provider, null);
+  assert.equal(compact.last_event_id, null);
+  assert.equal(compact.session_created_at, null);
+  assert.equal(compact.generated_at, null);
+  assert.equal(compact.event_db_path, null);
+  assert.equal(compact.pilot_socket_path, null);
   assert.equal(compact.event_count, 1);
   assert.equal(compact.last_event_type, null);
   assert.equal(compact.user_message_count, 1);
@@ -193,6 +229,18 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
     stdout.content,
     `${JSON.stringify({
       session_id: "ses_out",
+      workspace_id: null,
+      project_id: null,
+      worktree_path: null,
+      branch: null,
+      model_profile: null,
+      model_id: null,
+      provider: null,
+      last_event_id: null,
+      session_created_at: null,
+      generated_at: null,
+      event_db_path: null,
+      pilot_socket_path: null,
       event_count: 2,
       last_event_type: null,
       event_type_counts: { UserMessageAdded: 1 },
