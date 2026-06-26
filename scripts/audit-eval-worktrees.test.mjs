@@ -739,6 +739,31 @@ test("formatHumanTable includes compare ref matches when present", () => {
   assert.match(table, /head=no/);
 });
 
+test("formatHumanTable labels diagnostics-only compare ref rows", () => {
+  const table = formatHumanTable([
+    {
+      path: "/repo/.worktrees/eval-a",
+      branch: "eval/a",
+      head: "2222222222222222222222222222222222222222",
+      dirty_status: "dirty",
+      dirty_scope: "diagnostics_only",
+      path_exists: true,
+      dirty_file_count: 1,
+      dirty_files: [".kairox-eval/"],
+      compare_ref: "origin/main",
+      compare_ref_checked_count: 0,
+      compare_ref_match_count: 0,
+      compare_ref_matching_files: [],
+      compare_ref_unmatched_count: 1,
+      compare_ref_unmatched_files: [".kairox-eval/"],
+      head_in_compare_ref: true
+    }
+  ]);
+
+  assert.match(table, /origin\/main diagnostics_only/);
+  assert.doesNotMatch(table, /origin\/main 0\/0/);
+});
+
 test("runCli writes stable JSON without touching the real Git repository", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();
