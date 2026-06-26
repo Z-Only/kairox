@@ -175,6 +175,10 @@ test("summarizePullRequest classifies non-action review bot metadata comments", 
             body: "## Review limit reached\nMore reviews will be available later."
           },
           {
+            author: { login: "coderabbitai" },
+            body: "## Review failed\n\nThe pull request is closed."
+          },
+          {
             author: { login: "alice" },
             body: "Please rename this helper."
           }
@@ -182,10 +186,11 @@ test("summarizePullRequest classifies non-action review bot metadata comments", 
       })
     ).review_notes,
     {
-      non_action_bot_comment_count: 2,
+      non_action_bot_comment_count: 3,
       non_action_bot_comments: [
         { author: "qodo-code-review", reason: "paused_review" },
-        { author: "coderabbitai", reason: "rate_limited_review" }
+        { author: "coderabbitai", reason: "rate_limited_review" },
+        { author: "coderabbitai", reason: "closed_pr_review" }
       ]
     }
   );
