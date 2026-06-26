@@ -188,7 +188,7 @@ Kairox resolves plugin manifests in this order: `.kairox-plugin/plugin.json`, `.
     "tools": ["shell.exec", "fs.read"]
   },
   "compatibility": {
-    "kairoxVersion": ">=0.41.0 <0.42.0",
+    "kairoxVersion": ">=0.42.0 <0.43.0",
     "platforms": ["macos", "linux"],
     "requires": ["node >=20", "git"]
   },

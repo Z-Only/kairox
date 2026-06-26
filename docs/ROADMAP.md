@@ -1,7 +1,7 @@
 # Kairox Roadmap
 
 > Living document. Updated as milestones ship or priorities shift.
-> Current version: **0.41.0** (2026-06-18).
+> Current version: **0.42.0** (2026-06-26).
 
 ## Design principles
 
@@ -232,7 +232,7 @@ Complete. The advisor (self-reflection) system now includes:
 
 ---
 
-## Phase 4 — Knowledge and retrieval (v0.41+) ✅
+## Phase 4 — Knowledge and retrieval (v0.42+) ✅
 
 ### 4.1 Workspace RAG (vector retrieval) ✅
 
