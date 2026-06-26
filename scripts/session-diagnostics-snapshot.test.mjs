@@ -103,6 +103,16 @@ test("compactSessionDiagnostics reports cancelled event signals", () => {
   assert.equal(compact.failure_signal, "session_cancelled");
 });
 
+test("compactSessionDiagnostics reports cancelled trajectory outcomes", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_trajectory_cancelled",
+    trajectory_completed_outcomes: [{ trajectory_id: "t1", step_count: 1, outcome: "cancelled" }]
+  });
+
+  assert.equal(compact.trajectory_failed_count, 0);
+  assert.equal(compact.failure_signal, "trajectory_cancelled");
+});
+
 test("compactSessionDiagnostics defaults missing newer diagnostics fields", () => {
   const compact = compactSessionDiagnostics({
     sessionId: "ses_legacy",

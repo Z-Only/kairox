@@ -95,11 +95,25 @@ function trajectoryFailedCount(source) {
     .length;
 }
 
+function trajectoryCancelledCount(source) {
+  const outcomes = firstPresent(source, [
+    "trajectory_completed_outcomes",
+    "trajectoryCompletedOutcomes"
+  ]);
+  if (!Array.isArray(outcomes)) {
+    return 0;
+  }
+
+  return outcomes.filter((outcome) =>
+    ["cancelled", "canceled"].includes(String(outcome?.outcome ?? "").toLowerCase())
+  ).length;
+}
+
 function snakeCaseEventType(eventType) {
   return eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
-function failureSignal(eventTypeCounts, trajectoryFailedCountValue) {
+function failureSignal(eventTypeCounts, trajectoryFailedCountValue, trajectoryCancelledCountValue) {
   for (const eventType of Object.keys(eventTypeCounts)) {
     if (
       countValue(eventTypeCounts[eventType]) > 0 &&
@@ -108,7 +122,10 @@ function failureSignal(eventTypeCounts, trajectoryFailedCountValue) {
       return snakeCaseEventType(eventType);
     }
   }
-  return trajectoryFailedCountValue > 0 ? "trajectory_failed" : null;
+  if (trajectoryFailedCountValue > 0) {
+    return "trajectory_failed";
+  }
+  return trajectoryCancelledCountValue > 0 ? "trajectory_cancelled" : null;
 }
 
 function hasTerminalAssistantMessage(source) {
@@ -176,6 +193,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])
   );
   const trajectoryFailedCountValue = trajectoryFailedCount(diagnostics);
+  const trajectoryCancelledCountValue = trajectoryCancelledCount(diagnostics);
 
   return {
     session_id: String(firstPresent(diagnostics, ["session_id", "sessionId"]) ?? sessionId ?? ""),
@@ -211,7 +229,11 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
         eventTypeCounts.TrajectoryCompleted
     ),
     trajectory_failed_count: trajectoryFailedCountValue,
-    failure_signal: failureSignal(eventTypeCounts, trajectoryFailedCountValue),
+    failure_signal: failureSignal(
+      eventTypeCounts,
+      trajectoryFailedCountValue,
+      trajectoryCancelledCountValue
+    ),
     has_terminal_assistant_message: hasTerminalAssistantMessage(diagnostics)
   };
 }
