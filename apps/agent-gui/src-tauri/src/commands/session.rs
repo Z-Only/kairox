@@ -65,7 +65,9 @@ pub async fn export_session_diagnostics(
         .export_trace(sid)
         .await
         .map_err(|e| format!("Failed to export session diagnostics: {e}"))?;
-    Ok(summarize_trace_export(&trace))
+    let mut summary = summarize_trace_export(&trace);
+    attach_event_db_metadata(&mut summary, &state.home_dir);
+    Ok(summary)
 }
 
 fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
@@ -172,6 +174,8 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
             .map(|(event_type, count)| EventTypeCountResponse { event_type, count })
             .collect(),
         last_event_type: trace.events.last().map(|event| event.event_type.clone()),
+        event_db_path: None,
+        event_db_path_source: None,
         user_messages,
         assistant_messages,
         model_tool_calls,
@@ -184,6 +188,16 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         trajectory_failed_count,
         has_terminal_assistant_message,
     }
+}
+
+fn attach_event_db_metadata(summary: &mut SessionDiagnosticsResponse, data_dir: &std::path::Path) {
+    summary.event_db_path = Some(
+        data_dir
+            .join("kairox-gui.sqlite")
+            .to_string_lossy()
+            .into_owned(),
+    );
+    summary.event_db_path_source = Some("tauri_state".to_string());
 }
 
 fn trajectory_outcome_to_string(outcome: &agent_core::TrajectoryOutcome) -> &'static str {
@@ -811,10 +825,11 @@ pub async fn export_trajectory(
 
 #[cfg(test)]
 mod session_diagnostics_tests {
-    use super::summarize_trace_export;
+    use super::{attach_event_db_metadata, summarize_trace_export};
     use agent_core::{
         DomainEvent, EventPayload, PrivacyClassification, SessionId, TraceExport, WorkspaceId,
     };
+    use std::path::Path;
 
     fn event(payload: EventPayload) -> DomainEvent {
         DomainEvent::new(
@@ -976,6 +991,25 @@ mod session_diagnostics_tests {
 
         assert_eq!(summary.running_model_requests, 0);
         assert!(summary.has_terminal_assistant_message);
+    }
+
+    #[test]
+    fn session_diagnostics_event_db_metadata() {
+        let trace = TraceExport::new(SessionId::from_string("ses_diag".to_string()), vec![]);
+        let mut summary = summarize_trace_export(&trace);
+        let data_dir = Path::new("/tmp/kairox-home/.kairox");
+        let expected_path = data_dir
+            .join("kairox-gui.sqlite")
+            .to_string_lossy()
+            .into_owned();
+
+        attach_event_db_metadata(&mut summary, data_dir);
+
+        assert_eq!(
+            summary.event_db_path.as_deref(),
+            Some(expected_path.as_str())
+        );
+        assert_eq!(summary.event_db_path_source.as_deref(), Some("tauri_state"));
     }
 }
 

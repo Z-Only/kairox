@@ -645,6 +645,44 @@ test("runCli distinguishes diagnostics-only dirty worktrees from code dirty work
   );
 });
 
+test("runCli cleans only diagnostics-only worktrees when requested", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const commands = [];
+
+  const exitCode = await runCli(["--json", "--clean-diagnostics-only"], {
+    stdout,
+    stderr,
+    cwd: "/repo",
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      commands.push(`git ${joined}`);
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "?? .kairox-eval/\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M crates/agent-runtime/src/lib.rs\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a clean -fd -- .kairox-eval/") {
+        return { stdout: "Removing .kairox-eval/\n" };
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).summary.cleanup_diagnostics_only_cleaned, 1);
+  assert(commands.includes("git -C /repo/.worktrees/eval-a clean -fd -- .kairox-eval/"));
+  assert(
+    !commands.some((command) => command.startsWith("git -C /repo/.worktrees/eval-kairox-b clean"))
+  );
+});
+
 test("auditEvalWorktrees summarizes suspicious no-tool diagnostics", async () => {
   const root = await mkdtemp(join(tmpdir(), "kairox-audit-eval-"));
   const evalPath = join(root, "eval-a");

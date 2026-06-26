@@ -9,9 +9,9 @@ const GIT_BUFFER = 10 * 1024 * 1024;
 const DIRTY_FILE_LIMIT = 5;
 const DIAGNOSTICS_SIGNAL_FILE_LIMIT = 5;
 
-export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup] [--fail-on-suspicious-no-tool]
+export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup] [--clean-diagnostics-only] [--fail-on-suspicious-no-tool]
 
-Audits local eval worktrees without deleting worktrees or branches.
+Audits local eval worktrees without deleting worktrees or branches by default.
 
 Selection:
   Includes worktrees whose branch starts with "eval/" or whose path basename
@@ -25,6 +25,7 @@ Options:
   --compare-ref Compare dirty files with a ref and annotate matching content.
   --all-files   Print every dirty and compare-ref file instead of the first five.
   --recommend-cleanup Annotate each worktree with remove/prune/keep/inspect guidance and safe cleanup command previews.
+  --clean-diagnostics-only Remove .kairox-eval/ from worktrees whose only dirty files are diagnostics.
   --fail-on-suspicious-no-tool Exit 2 when session diagnostics report suspicious no-tool completion.
   --help, -h    Show this help.
 `;
@@ -491,6 +492,14 @@ function shellQuote(value) {
   return /^[A-Za-z0-9_./:@%+=,-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
 }
 
+function diagnosticsCleanArgs(worktreePath, force) {
+  return ["-C", worktreePath, "clean", force ? "-fd" : "-nd", "--", ".kairox-eval/"];
+}
+
+function diagnosticsCleanCommand(worktreePath, force) {
+  return `git ${diagnosticsCleanArgs(worktreePath, force).map(shellQuote).join(" ")}`;
+}
+
 function cleanupCommand(worktree, recommendation) {
   if (recommendation === "remove") {
     return `git worktree remove ${shellQuote(worktree.path)}`;
@@ -499,7 +508,7 @@ function cleanupCommand(worktree, recommendation) {
     return "git worktree prune";
   }
   if (recommendation === "inspect" && worktree.dirty_scope === "diagnostics_only") {
-    return `git -C ${shellQuote(worktree.path)} clean -nd -- .kairox-eval/`;
+    return diagnosticsCleanCommand(worktree.path, false);
   }
   return null;
 }
@@ -617,7 +626,11 @@ export function formatSummaryLine(summary) {
     summary.suspicious_no_tool_completion_count === undefined
       ? ""
       : ` suspicious_no_tool_completion_count=${summary.suspicious_no_tool_completion_count}`;
-  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty}${unmatched}${suspicious} missing=${summary.missing} error=${summary.error}${cleanup}`;
+  const cleaned =
+    summary.cleanup_diagnostics_only_cleaned === undefined
+      ? ""
+      : ` cleanup_diagnostics_only_cleaned=${summary.cleanup_diagnostics_only_cleaned}`;
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty}${unmatched}${suspicious} missing=${summary.missing} error=${summary.error}${cleanup}${cleaned}`;
 }
 
 export function parseArgs(argv) {
@@ -630,6 +643,7 @@ export function parseArgs(argv) {
     compareRef: null,
     allFiles: false,
     recommendCleanup: false,
+    cleanDiagnosticsOnly: false,
     failOnSuspiciousNoTool: false
   };
 
@@ -663,6 +677,10 @@ export function parseArgs(argv) {
       parsed.recommendCleanup = true;
       continue;
     }
+    if (arg === "--clean-diagnostics-only") {
+      parsed.cleanDiagnosticsOnly = true;
+      continue;
+    }
     if (arg === "--fail-on-suspicious-no-tool") {
       parsed.failOnSuspiciousNoTool = true;
       continue;
@@ -684,6 +702,25 @@ export function parseArgs(argv) {
   }
 
   return parsed;
+}
+
+async function cleanDiagnosticsOnlyWorktrees(worktrees, { execFile, env }) {
+  const cleaned = [];
+  for (const worktree of worktrees) {
+    if (worktree.dirty_status !== "dirty" || worktree.dirty_scope !== "diagnostics_only") {
+      continue;
+    }
+    await execFile("git", diagnosticsCleanArgs(worktree.path, true), {
+      env,
+      maxBuffer: GIT_BUFFER
+    });
+    cleaned.push({
+      path: worktree.path,
+      branch: worktree.branch ?? null,
+      cleanup_command: diagnosticsCleanCommand(worktree.path, true)
+    });
+  }
+  return cleaned;
 }
 
 export async function runCli(
@@ -718,12 +755,19 @@ export async function runCli(
     if (args.recommendCleanup) {
       audited = annotateCleanupRecommendations(audited);
     }
+    const cleanupResults = args.cleanDiagnosticsOnly
+      ? await cleanDiagnosticsOnlyWorktrees(audited, { execFile, env })
+      : [];
     const summary = summarizeAudit(audited);
+    if (args.cleanDiagnosticsOnly) {
+      summary.cleanup_diagnostics_only_cleaned = cleanupResults.length;
+    }
     const output = args.summaryOnly
       ? { summary }
       : {
           summary,
-          worktrees: audited
+          worktrees: audited,
+          ...(args.cleanDiagnosticsOnly ? { cleanup_results: cleanupResults } : {})
         };
 
     if (args.json) {
