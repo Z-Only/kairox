@@ -36,6 +36,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     createdAt: "2026-06-26T04:00:00Z",
     generatedAt: "2026-06-26T04:01:00Z",
     eventDbPath: "/tmp/kairox/events.sqlite",
+    eventDbPathSource: "tauri_state",
     pilotSocketPath: "/tmp/tauri-pilot.sock",
     event_count: 9,
     event_type_counts: [
@@ -78,6 +79,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     session_created_at: "2026-06-26T04:00:00Z",
     generated_at: "2026-06-26T04:01:00Z",
     event_db_path: "/tmp/kairox/events.sqlite",
+    event_db_path_source: "tauri_state",
     pilot_socket_path: "/tmp/tauri-pilot.sock",
     event_count: 9,
     last_event_type: "AssistantMessageCompleted",
@@ -157,6 +159,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.session_created_at, null);
   assert.equal(compact.generated_at, null);
   assert.equal(compact.event_db_path, null);
+  assert.equal(compact.event_db_path_source, null);
   assert.equal(compact.pilot_socket_path, null);
   assert.equal(compact.event_count, 1);
   assert.equal(compact.last_event_type, null);
@@ -253,6 +256,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       session_created_at: null,
       generated_at: null,
       event_db_path: null,
+      event_db_path_source: null,
       pilot_socket_path: null,
       event_count: 2,
       last_event_type: null,
@@ -319,6 +323,7 @@ test("CLI overlays explicit resume metadata", async () => {
     session_created_at: null,
     generated_at: null,
     event_db_path: "/tmp/kairox/events.sqlite",
+    event_db_path_source: "explicit_meta",
     pilot_socket_path: "/tmp/tauri-pilot.sock",
     event_count: 1,
     last_event_type: null,
@@ -412,6 +417,7 @@ test("CLI infers event DB metadata from KAIROX_HOME", async () => {
     stdout,
     stderr,
     env: { KAIROX_HOME: root },
+    processIsRunning: () => true,
     execFile: async (command) => {
       assert.equal(command, "tauri-pilot");
       return {
@@ -427,6 +433,7 @@ test("CLI infers event DB metadata from KAIROX_HOME", async () => {
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
   assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
+  assert.equal(JSON.parse(stdout.content).event_db_path_source, "default_kairox_home");
 });
 
 test("CLI infers event DB metadata from runtime instance registry", async () => {
@@ -440,8 +447,8 @@ test("CLI infers event DB metadata from runtime instance registry", async () => 
     join(registryDir, "gui-123.json"),
     JSON.stringify({
       id: "gui-123",
-      pid: 123,
       kind: "gui",
+      pid: 123,
       database_filename: "custom-runtime.sqlite",
       data_dir: dataDir,
       started_at: "2026-06-26T00:00:00Z"
@@ -454,6 +461,7 @@ test("CLI infers event DB metadata from runtime instance registry", async () => 
     stdout,
     stderr,
     env: { KAIROX_HOME: root },
+    processIsRunning: () => true,
     execFile: async (command) => {
       assert.equal(command, "tauri-pilot");
       return {
@@ -469,6 +477,7 @@ test("CLI infers event DB metadata from runtime instance registry", async () => 
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
   assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
+  assert.equal(JSON.parse(stdout.content).event_db_path_source, "runtime_registry");
 });
 
 test("CLI ignores invalid runtime instance registry records", async () => {
@@ -482,6 +491,7 @@ test("CLI ignores invalid runtime instance registry records", async () => {
   await writeFile(
     join(registryDir, "valid.json"),
     JSON.stringify({
+      pid: 123,
       database_filename: "valid-runtime.sqlite",
       data_dir: dataDir,
       started_at: "2026-06-26T00:00:00Z"
@@ -494,6 +504,7 @@ test("CLI ignores invalid runtime instance registry records", async () => {
     stdout,
     stderr,
     env: { KAIROX_HOME: root },
+    processIsRunning: () => true,
     execFile: async () => ({
       stdout: JSON.stringify({
         session_id: "ses_valid_registry_db",
@@ -506,6 +517,57 @@ test("CLI ignores invalid runtime instance registry records", async () => {
   assert.equal(exitCode, 0);
   assert.equal(stderr.content, "");
   assert.equal(JSON.parse(stdout.content).event_db_path, dbPath);
+  assert.equal(JSON.parse(stdout.content).event_db_path_source, "runtime_registry");
+});
+
+test("CLI skips stale runtime instance registry records", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-home-registry-stale-"));
+  const dataDir = join(root, ".kairox");
+  const registryDir = join(dataDir, "runtime", "instances");
+  const staleDbPath = join(dataDir, "stale-runtime.sqlite");
+  const liveDbPath = join(dataDir, "live-runtime.sqlite");
+  await mkdir(registryDir, { recursive: true });
+  await writeFile(staleDbPath, "");
+  await writeFile(liveDbPath, "");
+  await writeFile(
+    join(registryDir, "stale.json"),
+    JSON.stringify({
+      pid: 111,
+      database_filename: "stale-runtime.sqlite",
+      data_dir: dataDir,
+      started_at: "2026-06-26T00:01:00Z"
+    })
+  );
+  await writeFile(
+    join(registryDir, "live.json"),
+    JSON.stringify({
+      pid: 222,
+      database_filename: "live-runtime.sqlite",
+      data_dir: dataDir,
+      started_at: "2026-06-26T00:00:00Z"
+    })
+  );
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--session", "ses_live_registry_db"], {
+    stdout,
+    stderr,
+    env: { KAIROX_HOME: root },
+    processIsRunning: (pid) => pid === 222,
+    execFile: async () => ({
+      stdout: JSON.stringify({
+        session_id: "ses_live_registry_db",
+        event_count: 1,
+        event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+      })
+    })
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).event_db_path, liveDbPath);
+  assert.equal(JSON.parse(stdout.content).event_db_path_source, "runtime_registry");
 });
 
 test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {

@@ -165,6 +165,8 @@ pub struct SessionDiagnosticsResponse {
     pub event_count: u32,
     pub event_type_counts: Vec<EventTypeCountResponse>,
     pub last_event_type: Option<String>,
+    pub event_db_path: Option<String>,
+    pub event_db_path_source: Option<String>,
     pub user_messages: Vec<SessionDiagnosticsMessageResponse>,
     pub assistant_messages: Vec<SessionDiagnosticsMessageResponse>,
     pub model_tool_calls: Vec<ModelToolCallDiagnosticsResponse>,

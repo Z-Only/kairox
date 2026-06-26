@@ -20,6 +20,24 @@ Options:
 
 class UsageError extends Error {}
 
+const EVENT_DB_PATH_KEYS = [
+  "event_db_path",
+  "eventDbPath",
+  "db_path",
+  "dbPath",
+  "database_path",
+  "databasePath"
+];
+
+const EVENT_DB_PATH_SOURCE_KEYS = [
+  "event_db_path_source",
+  "eventDbPathSource",
+  "db_path_source",
+  "dbPathSource",
+  "database_path_source",
+  "databasePathSource"
+];
+
 function firstPresent(source, names) {
   for (const name of names) {
     if (source?.[name] !== undefined && source[name] !== null) {
@@ -227,14 +245,8 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       "createdAt"
     ]),
     generated_at: firstPresentOrNull(diagnostics, ["generated_at", "generatedAt"]),
-    event_db_path: firstPresentOrNull(diagnostics, [
-      "event_db_path",
-      "eventDbPath",
-      "db_path",
-      "dbPath",
-      "database_path",
-      "databasePath"
-    ]),
+    event_db_path: firstPresentOrNull(diagnostics, EVENT_DB_PATH_KEYS),
+    event_db_path_source: firstPresentOrNull(diagnostics, EVENT_DB_PATH_SOURCE_KEYS),
     pilot_socket_path: firstPresentOrNull(diagnostics, [
       "pilot_socket_path",
       "pilotSocketPath",
@@ -363,7 +375,21 @@ function parsePilotStdout(stdout) {
   }
 }
 
-function inferEventDbPath(kairoxHome, pathExists = existsSync) {
+function pidIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function startedAtMillis(record) {
+  const millis = Date.parse(record?.started_at ?? "");
+  return Number.isFinite(millis) ? millis : 0;
+}
+
+function inferEventDbPath(kairoxHome, pathExists = existsSync, processIsRunning = pidIsRunning) {
   const dataDir = join(String(kairoxHome), ".kairox");
   const registryDir = join(dataDir, "runtime", "instances");
   try {
@@ -375,16 +401,22 @@ function inferEventDbPath(kairoxHome, pathExists = existsSync) {
         // Match the runtime registry: ignore partial or invalid records.
       }
     }
-    records.sort(
-      (left, right) => Date.parse(right.started_at ?? "") - Date.parse(left.started_at ?? "")
-    );
+    records.sort((left, right) => startedAtMillis(right) - startedAtMillis(left));
     for (const record of records) {
-      if (typeof record?.data_dir !== "string" || typeof record?.database_filename !== "string") {
+      if (
+        typeof record?.pid !== "number" ||
+        !Number.isFinite(record.pid) ||
+        typeof record?.data_dir !== "string" ||
+        typeof record?.database_filename !== "string"
+      ) {
+        continue;
+      }
+      if (!processIsRunning(record.pid)) {
         continue;
       }
       const eventDbPath = join(record.data_dir, record.database_filename);
       if (pathExists(eventDbPath)) {
-        return eventDbPath;
+        return { path: eventDbPath, source: "runtime_registry" };
       }
     }
   } catch {
@@ -392,18 +424,19 @@ function inferEventDbPath(kairoxHome, pathExists = existsSync) {
   }
 
   const eventDbPath = join(dataDir, "kairox-gui.sqlite");
-  return pathExists(eventDbPath) ? eventDbPath : null;
+  return pathExists(eventDbPath) ? { path: eventDbPath, source: "default_kairox_home" } : null;
 }
 
-async function inferResumeMeta(meta, { execFile, env, pathExists = existsSync }) {
+async function inferResumeMeta(
+  meta,
+  { execFile, env, pathExists = existsSync, processIsRunning = pidIsRunning }
+) {
   const inferred = {};
-  if (
-    !firstPresent(meta, ["event_db_path", "eventDbPath", "db_path", "dbPath"]) &&
-    env?.KAIROX_HOME
-  ) {
-    const eventDbPath = inferEventDbPath(env.KAIROX_HOME, pathExists);
+  if (!firstPresent(meta, EVENT_DB_PATH_KEYS) && env?.KAIROX_HOME) {
+    const eventDbPath = inferEventDbPath(env.KAIROX_HOME, pathExists, processIsRunning);
     if (eventDbPath) {
-      inferred.event_db_path = eventDbPath;
+      inferred.event_db_path = eventDbPath.path;
+      inferred.event_db_path_source = eventDbPath.source;
     }
   }
   if (
@@ -479,6 +512,7 @@ export async function runCli(
     stderr = process.stderr,
     execFile = execFileAsync,
     pathExists = existsSync,
+    processIsRunning = pidIsRunning,
     env = process.env,
     cwd = process.cwd()
   } = {}
@@ -491,11 +525,18 @@ export async function runCli(
     }
 
     const rawDiagnostics = await exportSessionDiagnostics(args.session, { execFile, env, cwd });
-    const resumeMeta = { ...rawDiagnostics, ...args.meta };
+    const explicitMeta = { ...args.meta };
+    if (
+      firstPresent(explicitMeta, EVENT_DB_PATH_KEYS) &&
+      !firstPresent(explicitMeta, EVENT_DB_PATH_SOURCE_KEYS)
+    ) {
+      explicitMeta.event_db_path_source = "explicit_meta";
+    }
+    const resumeMeta = { ...rawDiagnostics, ...explicitMeta };
     const diagnostics = {
       ...resumeMeta,
-      ...(await inferResumeMeta(resumeMeta, { execFile, env, pathExists })),
-      ...args.meta
+      ...(await inferResumeMeta(resumeMeta, { execFile, env, pathExists, processIsRunning })),
+      ...explicitMeta
     };
     const output = `${JSON.stringify(compactSessionDiagnostics(diagnostics, { sessionId: args.session }))}\n`;
 

@@ -18911,6 +18911,8 @@ export type SessionDiagnosticsResponse = {
   event_count: number;
   event_type_counts: EventTypeCountResponse[];
   last_event_type: string | null;
+  event_db_path: string | null;
+  event_db_path_source: string | null;
   user_messages: SessionDiagnosticsMessageResponse[];
   assistant_messages: SessionDiagnosticsMessageResponse[];
   model_tool_calls: ModelToolCallDiagnosticsResponse[];
