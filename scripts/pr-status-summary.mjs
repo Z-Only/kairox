@@ -494,15 +494,20 @@ async function readPullRequestSummaries(
 }
 
 function hasFailures(summaries) {
-  return summaries.some((summary) => summary.checks.counts.failure > 0);
+  return summaries.some((summary) => !isMerged(summary) && summary.checks.counts.failure > 0);
+}
+
+function isMerged(summary) {
+  return summary.state === "MERGED" && Boolean(summary.merge_commit_oid);
 }
 
 function allReady(summaries) {
   return summaries.every(
     (summary) =>
-      summary.checks.counts.pending === 0 &&
-      summary.checks.counts.failure === 0 &&
-      summary.checks.counts.unknown === 0
+      isMerged(summary) ||
+      (summary.checks.counts.pending === 0 &&
+        summary.checks.counts.failure === 0 &&
+        summary.checks.counts.unknown === 0)
   );
 }
 

@@ -444,6 +444,47 @@ test("runCli watch exits 1 immediately when any PR has failing checks", async ()
   );
 });
 
+test("runCli watch treats merged pull requests as terminal with pending checks", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+  const sleeps = [];
+  let currentTime = 0;
+  const mergedPullRequest = samplePullRequest({
+    state: "MERGED",
+    mergeStateStatus: null,
+    mergeCommit: { oid: "merge1234567890" },
+    statusCheckRollup: [{ context: "CodeRabbit", state: "PENDING" }]
+  });
+
+  const exitCode = await runCli(
+    ["--watch", "--interval-ms", "5", "--timeout-ms", "5", "--json", "42"],
+    {
+      stdout,
+      stderr,
+      now: () => currentTime,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        currentTime += ms;
+      },
+      execFile: async () => ({ stdout: JSON.stringify(mergedPullRequest) })
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(sleeps, []);
+  assert.equal(
+    stdout.content,
+    `${JSON.stringify(
+      {
+        pull_requests: [summarizePullRequest(mergedPullRequest)]
+      },
+      null,
+      2
+    )}\n`
+  );
+});
+
 test("runCli watch exits 1 on timeout and prints the last summary", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();
