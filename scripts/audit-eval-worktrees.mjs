@@ -9,7 +9,7 @@ const GIT_BUFFER = 10 * 1024 * 1024;
 const DIRTY_FILE_LIMIT = 5;
 const DIAGNOSTICS_SIGNAL_FILE_LIMIT = 5;
 
-export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup]
+export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup] [--fail-on-suspicious-no-tool]
 
 Audits local eval worktrees without deleting worktrees or branches.
 
@@ -25,6 +25,7 @@ Options:
   --compare-ref Compare dirty files with a ref and annotate matching content.
   --all-files   Print every dirty and compare-ref file instead of the first five.
   --recommend-cleanup Annotate each worktree with remove/prune/keep/inspect guidance and safe cleanup command previews.
+  --fail-on-suspicious-no-tool Exit 2 when session diagnostics report suspicious no-tool completion.
   --help, -h    Show this help.
 `;
 
@@ -600,7 +601,8 @@ export function parseArgs(argv) {
     cleanOnly: false,
     compareRef: null,
     allFiles: false,
-    recommendCleanup: false
+    recommendCleanup: false,
+    failOnSuspiciousNoTool: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -631,6 +633,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--recommend-cleanup") {
       parsed.recommendCleanup = true;
+      continue;
+    }
+    if (arg === "--fail-on-suspicious-no-tool") {
+      parsed.failOnSuspiciousNoTool = true;
       continue;
     }
     if (arg === "--compare-ref") {
@@ -698,6 +704,16 @@ export async function runCli(
       stdout.write(`${formatSummaryLine(summary)}\n`);
     } else {
       stdout.write(formatHumanTable(audited));
+    }
+    if (
+      args.failOnSuspiciousNoTool &&
+      typeof summary.suspicious_no_tool_completion_count === "number" &&
+      summary.suspicious_no_tool_completion_count > 0
+    ) {
+      stderr.write(
+        `Error: suspicious_no_tool_completion_count=${summary.suspicious_no_tool_completion_count}\n`
+      );
+      return 2;
     }
     return 0;
   } catch (error) {

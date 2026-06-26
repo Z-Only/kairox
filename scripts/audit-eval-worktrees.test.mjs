@@ -690,6 +690,48 @@ branch refs/heads/eval/a
   }
 });
 
+test("runCli exits 2 when --fail-on-suspicious-no-tool finds diagnostics", async () => {
+  const root = await mkdtemp(join(tmpdir(), "kairox-audit-eval-"));
+  const evalPath = join(root, "eval-a");
+  const diagnosticsDir = join(evalPath, ".kairox-eval", "run-a");
+  await mkdir(diagnosticsDir, { recursive: true });
+  await writeFile(
+    join(diagnosticsDir, "session-diagnostics.json"),
+    JSON.stringify({ suspicious_no_tool_completion: true })
+  );
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  try {
+    const exitCode = await runCli(["--json", "--fail-on-suspicious-no-tool"], {
+      stdout,
+      stderr,
+      pathExists: existsSync,
+      execFile: async (_command, args) => {
+        const joined = args.join(" ");
+        if (joined === "worktree list --porcelain") {
+          return {
+            stdout: `worktree ${evalPath}
+HEAD 2222222222222222222222222222222222222222
+branch refs/heads/eval/a
+`
+          };
+        }
+        if (joined === `-C ${evalPath} status --short`) {
+          return { stdout: "?? .kairox-eval/\n" };
+        }
+        throw new Error(`unexpected command: ${joined}`);
+      }
+    });
+
+    assert.equal(exitCode, 2);
+    assert.equal(JSON.parse(stdout.content).summary.suspicious_no_tool_completion_count, 1);
+    assert.match(stderr.content, /suspicious_no_tool_completion_count=1/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("formatHumanTable includes cleanup command previews", () => {
   const table = formatHumanTable([
     {
