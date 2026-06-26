@@ -98,7 +98,7 @@ describe("ChatCompactionItem", () => {
     const root = wrapper.find('[data-test="chat-compaction-skipped"]');
     expect(root.exists()).toBe(true);
     expect(root.attributes("data-status")).toBe("skipped");
-    expect(root.text()).toContain("Auto-compaction skipped");
+    expect(root.text()).toContain("Context compaction skipped");
 
     const reason = wrapper.find('[data-test="chat-compaction-skipped-reason"]');
     expect(reason.exists()).toBe(true);

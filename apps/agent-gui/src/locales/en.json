@@ -1040,7 +1040,7 @@
       "duration": "in {value}",
       "fallbackUsed": "Sliding-window fallback",
       "skipped": {
-        "label": "Auto-compaction skipped",
+        "label": "Context compaction skipped",
         "reason": {
           "alreadyCompacting": "another compaction in flight",
           "thresholdDisabled": "threshold disabled",
