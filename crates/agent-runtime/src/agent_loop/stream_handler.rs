@@ -5,14 +5,19 @@ use agent_memory::strip_memory_markers;
 use agent_models::ToolCall;
 use agent_store::EventStore;
 use futures::{stream::BoxStream, StreamExt};
+use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 const EMPTY_MODEL_RESPONSE_ERROR: &str =
     "model returned an empty response; check model availability, quota, or plan";
 const MODEL_STREAM_START_IDLE_RETRIES: usize = 1;
+static THINK_BLOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<think\b[^>]*>.*?</think>\s*").expect("think block regex must compile")
+});
 
 /// Output from processing a single model stream.
 pub(crate) struct StreamOutput {
@@ -457,10 +462,11 @@ where
                         continue;
                     }
                 }
-                let display_content = if assistant_text.is_empty() {
+                let visible_assistant_text = strip_think_blocks(&assistant_text);
+                let display_content = if visible_assistant_text.is_empty() {
                     String::new()
                 } else {
-                    strip_memory_markers(&assistant_text)
+                    strip_memory_markers(&visible_assistant_text)
                 };
                 if !display_content.is_empty() {
                     let event = DomainEvent::new(
@@ -475,6 +481,7 @@ where
                     );
                     append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
                 }
+                assistant_text = visible_assistant_text;
                 break;
             }
             Ok(agent_models::ModelEvent::Failed { message }) => {
@@ -580,6 +587,13 @@ where
         tool_calls,
         empty_response_fallback_used: false,
     })
+}
+
+fn strip_think_blocks(text: &str) -> String {
+    if !text.to_ascii_lowercase().contains("<think") {
+        return text.to_string();
+    }
+    THINK_BLOCK_RE.replace_all(text, "").trim().to_string()
 }
 
 fn model_stream_timeout_error(timeout: std::time::Duration) -> String {

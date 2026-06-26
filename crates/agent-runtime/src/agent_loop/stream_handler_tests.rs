@@ -286,6 +286,75 @@ async fn stream_success_accumulates_assistant_text() {
 }
 
 #[tokio::test]
+async fn stream_strips_think_blocks_from_completed_assistant_text() {
+    let model = ScriptedModelClient::from_ok_events(vec![
+        ModelEvent::TokenDelta("<think>\nprivate reasoning\n</think>\n\nVisible reply".into()),
+        ModelEvent::Completed { usage: None },
+    ]);
+    let harness = StreamTestHarness::new(model).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = process_model_stream(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        None,
+    )
+    .await
+    .expect("stream should succeed");
+
+    assert_eq!(output.assistant_text, "Visible reply");
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .expect("events should load");
+    let completed_contents: Vec<_> = events
+        .iter()
+        .filter_map(|event| match &event.payload {
+            EventPayload::AssistantMessageCompleted { content, .. } => Some(content.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(completed_contents, vec!["Visible reply"]);
+}
+
+#[tokio::test]
+async fn stream_keeps_unclosed_think_text_visible() {
+    let model = ScriptedModelClient::from_ok_events(vec![
+        ModelEvent::TokenDelta("Use <think> literally when explaining tags.".into()),
+        ModelEvent::Completed { usage: None },
+    ]);
+    let harness = StreamTestHarness::new(model).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = process_model_stream(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        None,
+    )
+    .await
+    .expect("stream should succeed");
+
+    assert_eq!(
+        output.assistant_text,
+        "Use <think> literally when explaining tags."
+    );
+}
+
+#[tokio::test]
 async fn stream_collects_tool_calls() {
     let model = ScriptedModelClient::from_ok_events(vec![
         ModelEvent::ToolCallRequested {

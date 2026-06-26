@@ -107,6 +107,59 @@ async fn agent_loop_stops_when_no_tool_calls() {
 }
 
 #[tokio::test]
+async fn agent_loop_strips_think_blocks_from_final_message_projection() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec![
+        "<think>\nprivate reasoning\n</think>\n\nVisible reply".into(),
+    ]);
+    let runtime = LocalRuntime::new(store, model);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-strip-think-final-message".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "hello".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let projection = runtime
+        .get_session_projection(session_id.clone())
+        .await
+        .unwrap();
+    assert_eq!(projection.messages.len(), 2);
+    assert_eq!(projection.messages[1].content, "Visible reply");
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let assistant_contents: Vec<_> = trace
+        .iter()
+        .filter_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::AssistantMessageCompleted { content, .. } => {
+                Some(content.as_str())
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(assistant_contents, vec!["Visible reply"]);
+}
+
+#[tokio::test]
 async fn slash_skill_execution_contract_without_tools_is_not_marked_completed() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["我会先查看代码，然后再实现和运行测试。".into()]);
