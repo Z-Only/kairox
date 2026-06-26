@@ -231,6 +231,7 @@ function toggleContext(key: string): void {
                   v-if="file.diff"
                   :text="file.diff"
                   collapse-unmodified
+                  show-view-toggle
                   :unmodified-expanded="isContextExpanded(fileKey(section, file))"
                   @toggle-unmodified="toggleContext(fileKey(section, file))"
                 />

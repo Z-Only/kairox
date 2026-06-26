@@ -104,6 +104,33 @@ describe("DiffPreview", () => {
     expect(wrapper.emitted("toggle-unmodified")).toHaveLength(2);
   });
 
+  it("keeps inline as the default view and toggles to split old/new columns", async () => {
+    const wrapper = mountDiff({
+      text: "--- a/foo\n+++ b/foo\n@@ -1,3 +1,4 @@\n keep\n-old\n+new\n+extra",
+      showViewToggle: true
+    });
+
+    expect(wrapper.get('[data-test="diff-view-inline"]').attributes("aria-pressed")).toBe("true");
+    expect(wrapper.get('[data-test="diff-view-split"]').attributes("aria-pressed")).toBe("false");
+    expect(wrapper.find('[data-test="diff-split-row"]').exists()).toBe(false);
+
+    await wrapper.get('[data-test="diff-view-split"]').trigger("click");
+
+    expect(wrapper.get('[data-test="diff-view-inline"]').attributes("aria-pressed")).toBe("false");
+    expect(wrapper.get('[data-test="diff-view-split"]').attributes("aria-pressed")).toBe("true");
+    expect(wrapper.get('[data-test="diff-split-old-header"]').text()).toBe("Old");
+    expect(wrapper.get('[data-test="diff-split-new-header"]').text()).toBe("New");
+
+    const rows = wrapper.findAll('[data-test="diff-split-row"]');
+    expect(rows).toHaveLength(3);
+    expect(rows[0].get('[data-test="diff-split-old"]').element.textContent).toBe(" keep");
+    expect(rows[0].get('[data-test="diff-split-new"]').element.textContent).toBe(" keep");
+    expect(rows[1].get('[data-test="diff-split-old"]').element.textContent).toBe("-old");
+    expect(rows[1].get('[data-test="diff-split-new"]').element.textContent).toBe("+new");
+    expect(rows[2].get('[data-test="diff-split-old"]').element.textContent).toBe("");
+    expect(rows[2].get('[data-test="diff-split-new"]').element.textContent).toBe("+extra");
+  });
+
   it("does NOT colorize markdown-style headings starting with `--` or `++`", () => {
     const wrapper = mountDiff({
       text: "-- markdown heading\n++ another heading"

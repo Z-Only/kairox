@@ -16,6 +16,7 @@ interface DiffPreviewProps {
   text: string;
   collapseUnmodified?: boolean;
   unmodifiedExpanded?: boolean;
+  showViewToggle?: boolean;
 }
 
 const props = defineProps<DiffPreviewProps>();
@@ -35,6 +36,15 @@ interface ClassifiedLine {
 type RenderedDiffRow =
   | { type: "line"; key: string; line: ClassifiedLine }
   | { type: "collapsed-context"; key: string; count: number };
+
+type DiffViewMode = "inline" | "split";
+
+type SplitDiffRow =
+  | { type: "meta"; key: string; line: ClassifiedLine }
+  | { type: "pair"; key: string; oldLine: ClassifiedLine | null; newLine: ClassifiedLine | null }
+  | { type: "collapsed-context"; key: string; count: number };
+
+const viewMode = ref<DiffViewMode>("inline");
 
 function classify(line: string): DiffLineKind {
   // File headers require a non-empty path component after the sigil so
@@ -97,7 +107,67 @@ const renderedRows = computed<RenderedDiffRow[]>(() => {
   return rows;
 });
 
+const splitRows = computed<SplitDiffRow[]>(() => {
+  const rows = renderedRows.value;
+  const split: SplitDiffRow[] = [];
+  let idx = 0;
+
+  const lineAt = (index: number): ClassifiedLine | null => {
+    const row = rows[index];
+    return row?.type === "line" ? row.line : null;
+  };
+
+  while (idx < rows.length) {
+    const row = rows[idx];
+    if (row.type === "collapsed-context") {
+      split.push({ type: "collapsed-context", key: `split-${row.key}`, count: row.count });
+      idx += 1;
+      continue;
+    }
+
+    const line = row.line;
+    if (line.kind === "removed") {
+      const removed: ClassifiedLine[] = [];
+      const added: ClassifiedLine[] = [];
+      while (lineAt(idx)?.kind === "removed") {
+        removed.push(lineAt(idx)!);
+        idx += 1;
+      }
+      while (lineAt(idx)?.kind === "added") {
+        added.push(lineAt(idx)!);
+        idx += 1;
+      }
+      const pairCount = Math.max(removed.length, added.length);
+      for (let pairIdx = 0; pairIdx < pairCount; pairIdx += 1) {
+        split.push({
+          type: "pair",
+          key: `split-pair-${idx}-${pairIdx}`,
+          oldLine: removed[pairIdx] ?? null,
+          newLine: added[pairIdx] ?? null
+        });
+      }
+      continue;
+    }
+
+    if (line.kind === "added") {
+      split.push({ type: "pair", key: `split-${row.key}`, oldLine: null, newLine: line });
+    } else if (line.kind === "context") {
+      split.push({ type: "pair", key: `split-${row.key}`, oldLine: line, newLine: line });
+    } else {
+      split.push({ type: "meta", key: `split-${row.key}`, line });
+    }
+    idx += 1;
+  }
+
+  return split;
+});
+
+const isSplitView = computed(() => props.showViewToggle && viewMode.value === "split");
 const ariaLabel = computed(() => t("chatStream.toolCall.diffPreview"));
+
+function setViewMode(mode: DiffViewMode): void {
+  viewMode.value = mode;
+}
 
 function showUnchangedLabel(count: number): string {
   return t(count === 1 ? "chat.gitReview.showUnchangedLine" : "chat.gitReview.showUnchangedLines", {
@@ -107,8 +177,33 @@ function showUnchangedLabel(count: number): string {
 </script>
 
 <template>
+  <div
+    v-if="props.showViewToggle"
+    class="diff-view-toggle"
+    role="group"
+    :aria-label="t('chat.gitReview.diffViewMode')"
+  >
+    <button
+      type="button"
+      class="diff-view-toggle__button"
+      data-test="diff-view-inline"
+      :aria-pressed="viewMode === 'inline'"
+      @click="setViewMode('inline')"
+    >
+      {{ t("chat.gitReview.diffViewInline") }}
+    </button>
+    <button
+      type="button"
+      class="diff-view-toggle__button"
+      data-test="diff-view-split"
+      :aria-pressed="viewMode === 'split'"
+      @click="setViewMode('split')"
+    >
+      {{ t("chat.gitReview.diffViewSplit") }}
+    </button>
+  </div>
   <pre
-    v-if="!props.collapseUnmodified"
+    v-if="!isSplitView && !props.collapseUnmodified"
     class="diff-preview"
     data-test="diff-preview"
     :aria-label="ariaLabel"
@@ -118,7 +213,13 @@ function showUnchangedLabel(count: number): string {
       :class="['diff-line', `diff-line--${line.kind}`]"
       data-test="diff-line"
     >{{ line.text }}<br /></span></pre>
-  <div v-else class="diff-preview" data-test="diff-preview" role="region" :aria-label="ariaLabel">
+  <div
+    v-else-if="!isSplitView"
+    class="diff-preview"
+    data-test="diff-preview"
+    role="region"
+    :aria-label="ariaLabel"
+  >
     <button
       v-if="props.unmodifiedExpanded && hasContextLines"
       type="button"
@@ -146,9 +247,92 @@ function showUnchangedLabel(count: number): string {
       </button>
     </template>
   </div>
+  <div
+    v-else
+    class="diff-preview diff-preview--split"
+    data-test="diff-preview"
+    role="region"
+    :aria-label="ariaLabel"
+  >
+    <span class="diff-split-heading" data-test="diff-split-old-header">{{
+      t("chat.gitReview.diffViewOld")
+    }}</span>
+    <span class="diff-split-heading" data-test="diff-split-new-header">{{
+      t("chat.gitReview.diffViewNew")
+    }}</span>
+    <template v-for="row in splitRows" :key="row.key">
+      <span
+        v-if="row.type === 'meta'"
+        :class="['diff-split-meta', `diff-line--${row.line.kind}`]"
+        data-test="diff-split-meta"
+        >{{ row.line.text }}</span
+      >
+      <span v-else-if="row.type === 'pair'" class="diff-split-row" data-test="diff-split-row">
+        <span
+          :class="[
+            'diff-split-cell',
+            'diff-split-cell--old',
+            row.oldLine ? `diff-line--${row.oldLine.kind}` : 'diff-split-cell--empty'
+          ]"
+          data-test="diff-split-old"
+          >{{ row.oldLine?.text ?? "" }}</span
+        >
+        <span
+          :class="[
+            'diff-split-cell',
+            'diff-split-cell--new',
+            row.newLine ? `diff-line--${row.newLine.kind}` : 'diff-split-cell--empty'
+          ]"
+          data-test="diff-split-new"
+          >{{ row.newLine?.text ?? "" }}</span
+        >
+      </span>
+      <button
+        v-else
+        type="button"
+        class="diff-context-toggle diff-split-context-toggle"
+        data-test="diff-collapsed-context"
+        @click="emit('toggle-unmodified')"
+      >
+        {{ showUnchangedLabel(row.count) }}
+      </button>
+    </template>
+  </div>
 </template>
 
 <style scoped>
+.diff-view-toggle {
+  display: inline-flex;
+  margin: 2px 0 4px;
+  overflow: hidden;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  background: var(--app-panel-color);
+}
+.diff-view-toggle__button {
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 0;
+  border-right: 1px solid var(--app-border-color);
+  background: transparent;
+  color: var(--app-text-color-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+.diff-view-toggle__button:last-child {
+  border-right: 0;
+}
+.diff-view-toggle__button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--app-primary-color) 14%, transparent);
+  color: var(--app-primary-color);
+  font-weight: 600;
+}
+.diff-view-toggle__button:hover,
+.diff-view-toggle__button:focus-visible {
+  outline: none;
+  color: var(--app-text-color);
+}
 .diff-preview {
   margin: 2px 0 0;
   padding: 6px 8px;
@@ -196,6 +380,48 @@ function showUnchangedLabel(count: number): string {
    so it does not introduce extra vertical whitespace. */
 .diff-line br {
   display: none;
+}
+.diff-preview--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  padding: 0;
+}
+.diff-split-heading,
+.diff-split-cell,
+.diff-split-meta {
+  min-width: 0;
+  padding: 2px 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.diff-split-heading {
+  color: var(--app-text-color-3);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-panel-color) 88%, var(--app-code-bg));
+}
+.diff-split-row {
+  display: contents;
+}
+.diff-split-cell {
+  border-top: 1px solid color-mix(in srgb, var(--app-border-color) 60%, transparent);
+}
+.diff-split-cell--old {
+  border-right: 1px solid var(--app-border-color);
+}
+.diff-split-cell--empty {
+  background: transparent;
+}
+.diff-split-meta {
+  grid-column: 1 / -1;
+  border-top: 1px solid color-mix(in srgb, var(--app-border-color) 60%, transparent);
+}
+.diff-split-context-toggle {
+  grid-column: 1 / -1;
+  width: auto;
+  padding: 2px 8px;
 }
 .diff-context-toggle {
   display: block;
