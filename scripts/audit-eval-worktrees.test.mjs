@@ -95,13 +95,19 @@ test("summarizeAudit counts total and dirty status buckets", () => {
   assert.deepEqual(
     summarizeAudit([
       { dirty_status: "clean" },
-      { dirty_status: "dirty", dirty_scope: "code", cleanup_recommendation: "keep" },
+      {
+        dirty_status: "dirty",
+        dirty_scope: "code",
+        cleanup_recommendation: "keep",
+        compare_ref_unmatched_count: 3
+      },
       { dirty_status: "missing" },
       { dirty_status: "error", cleanup_recommendation: "inspect" },
       {
         dirty_status: "dirty",
         dirty_scope: "diagnostics_only",
-        cleanup_recommendation: "inspect"
+        cleanup_recommendation: "inspect",
+        compare_ref_unmatched_count: 1
       }
     ]),
     {
@@ -112,6 +118,7 @@ test("summarizeAudit counts total and dirty status buckets", () => {
       error: 1,
       code_dirty: 1,
       diagnostics_only_dirty: 1,
+      code_compare_ref_unmatched_files: 3,
       cleanup_remove: 0,
       cleanup_prune: 0,
       cleanup_keep: 1,
@@ -1073,6 +1080,7 @@ test("runCli includes cleanup recommendation counts in summary-only output", asy
       error: 0,
       code_dirty: 1,
       diagnostics_only_dirty: 0,
+      code_compare_ref_unmatched_files: 1,
       cleanup_remove: 1,
       cleanup_prune: 1,
       cleanup_keep: 1,
