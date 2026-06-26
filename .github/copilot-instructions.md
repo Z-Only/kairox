@@ -14,10 +14,13 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 
 ## Crate structure & dependency direction
 
-```
-agent-core ← agent-runtime ← agent-tui / agent-gui (Tauri) / agent-eval
-agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp, agent-lsp, agent-skills, agent-plugins, agent-sdk
-agent-tools → agent-mcp (re-exports McpServerDef/McpTransportDef, provides McpToolAdapter)
+```text
+agent-tui / agent-gui-tauri / agent-eval / agent-sdk → agent-runtime
+agent-runtime → agent-core + domain crates
+domain crates must not depend on agent-runtime or consumer crates
+agent-tools → agent-mcp, agent-lsp (adapters/providers)
+agent-config → agent-models, agent-mcp, agent-lsp (TOML schemas/builders)
+agent-memory → agent-models (model metadata/context budgeting)
 agent-skills provides the native skills system for reusable prompt/tool/workflow capabilities
 agent-plugins parses plugin manifests and inventories for plugin-provided skills, tools, hooks, and MCP servers
 agent-eval provides the `kairox-eval` headless JSONL scenario harness with list/tag filtering, fail-fast runs, summaries, combined reports, and expectations
@@ -25,7 +28,6 @@ agent-config supports layered config discovery (defaults → user → project �
 agent-memory owns durable memory, context assembly, workspace RAG, and knowledge-base retriever boundaries
 agent-lsp provides LSP/DAP clients, transports, and server lifecycle for code intelligence and debugging
 agent-sdk provides an embeddable runtime API (`KairoxSdk`, `SdkBuilder`, `SdkSession`) for external harnesses, CI/CD, and custom UIs
-agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config, agent-mcp, agent-lsp, agent-skills
 ```
 
 Never create reverse dependencies. New domain types/events go in `agent-core` first.
@@ -78,5 +80,5 @@ Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`
 - Forgetting to run `just gen-types` after changing `EventPayload`/domain types or `#[tauri::command]` signatures
 - Editing files under `apps/agent-gui/src/generated/` by hand
 - Forgetting to register new Tauri commands in **both** `generate_handler!` (in `lib.rs`) and `collect_commands!` (in `src/specta.rs`)
-- Forgetting to update `apps/agent-gui/e2e/tauri-mock.js` when adding new IPC commands or events
+- Forgetting to update the matching `apps/agent-gui/e2e/fixtures/tauri-mock/` fragment when adding new IPC commands or frontend-listened events
 - Skipping `bun install` after creating a git worktree

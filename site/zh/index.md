@@ -47,7 +47,7 @@ import { withBase } from "vitepress";
     dark="/screenshots/trajectory-dark.png"
     zhLight="/screenshots/zh/trajectory.png"
     zhDark="/screenshots/zh/trajectory-dark.png"
-    alt="Kairox trajectory viewer，展示一次已记录的文件系统 tool step"
+    alt="Kairox trajectory viewer，展示展开后的已记录 tool step"
     caption="Trajectory viewer 用于查看可 replay 的 tool step，包括按顺序记录的 action input、observation output、耗时和 outcome 状态。"
   />
   <ThemeScreenshot
@@ -63,8 +63,8 @@ import { withBase } from "vitepress";
     dark="/screenshots/autonomous-dark.png"
     zhLight="/screenshots/zh/autonomous.png"
     zhDark="/screenshots/zh/autonomous-dark.png"
-    alt="Kairox autonomous task 设置页，展示 checkpoint 详情"
-    caption="Autonomous task 控制页展示持久化目标、暂停 / 恢复状态、session 预算、checkpoint、已完成工作和剩余事项。"
+    alt="Kairox autonomous task 设置页，展示活跃任务"
+    caption="Autonomous task 控制页展示持久化目标、暂停 / 取消状态、session 预算和当前进度。"
   />
 </div>
 

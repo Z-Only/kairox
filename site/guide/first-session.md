@@ -153,7 +153,7 @@ The same settings surface also exposes autonomous tasks when you let Kairox cont
   zhLight="/screenshots/zh/autonomous.png"
   zhDark="/screenshots/zh/autonomous-dark.png"
   alt="Kairox autonomous task settings"
-  caption="Autonomous task settings show durable goals, pause/resume controls, session counts, and checkpoint details."
+  caption="Autonomous task settings show durable goals, pause/cancel controls, session counts, and current progress."
 />
 
 Click **Models** and confirm your profile is listed. Click the profile to make it the default for new sessions.
@@ -197,15 +197,15 @@ Close the window. Reopen with `just tauri-dev`. The session list, the chat histo
 
 ## Part 3 — Try MCP
 
-The marketplace view (top-level navigation) lists curated MCP servers — git, GitHub, filesystem, fetch, and more. Install one (the marketplace handles the runtime requirement check, downloads the server, and registers it).
+The MCP settings page starts with installed servers for the selected scope. Use the Marketplace tab to browse curated MCP servers — git, GitHub, filesystem, fetch, and more — then install one when you need it.
 
 <ThemeScreenshot
   light="/screenshots/mcp.png"
   dark="/screenshots/mcp-dark.png"
   zhLight="/screenshots/zh/mcp.png"
   zhDark="/screenshots/zh/mcp-dark.png"
-  alt="Kairox MCP marketplace in settings"
-  caption="The MCP settings page lets you switch between installed servers and the curated marketplace."
+  alt="Kairox MCP settings installed-server view"
+  caption="The MCP settings page shows installed servers for the selected scope and lets you switch to the curated marketplace."
 />
 
 Once installed, the server's tools appear in the registry. The model can call them; they pass through the same policy engine as the built-ins. The trace marks tool calls with the originating server so you can audit what spoke to what.

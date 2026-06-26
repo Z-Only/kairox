@@ -10,16 +10,16 @@ Kairox is a Cargo workspace with fourteen crates plus a Tauri app crate. This pa
 
 ## The dependency rule
 
-There is exactly one dependency direction in the workspace:
+Read arrows below as "depends on":
 
 ```text
-agent-core → agent-store, agent-memory, agent-models, agent-tools, agent-mcp, agent-lsp, agent-skills, agent-plugins
-agent-config → (uses domain types from agent-core; declarative only)
-agent-runtime → composes all of the above
-agent-tui, agent-gui-tauri, agent-eval → depend on agent-runtime (and the facade in agent-core)
+agent-core has no workspace dependencies.
+Domain crates may depend on agent-core and lower-level protocol/model crates.
+agent-runtime composes the domain crates.
+agent-tui, agent-gui-tauri, agent-eval, and agent-sdk compose the runtime.
 ```
 
-The runtime composes domain crates. UIs and the eval binary compose the runtime. Domain crates do not know about the runtime; the runtime does not know about the UIs. New crates that try to invert this direction are rejected in review.
+Domain crates do not know about the runtime or consumer crates. Consumer crates may depend on runtime and the domain crates they need to wire storage, config, or IPC.
 
 <div class="mermaid">
 
@@ -40,26 +40,64 @@ flowchart TD
   gui["agent-gui-tauri"]
   eval["agent-eval (kairox-eval)"]
 
-  core --> store
-  core --> memory
-  core --> models
-  core --> tools
-  core --> mcp
-  core --> lsp
-  core --> skills
-  core --> plugins
-  store --> runtime
-  memory --> runtime
-  models --> runtime
-  tools --> runtime
-  mcp --> runtime
-  lsp --> runtime
-  skills --> runtime
-  plugins --> runtime
-  config --> runtime
-  runtime --> tui
-  runtime --> gui
-  runtime --> eval
+  store --> core
+  models --> core
+  mcp --> core
+  memory --> core
+  memory --> models
+  tools --> core
+  tools --> mcp
+  tools --> lsp
+  config --> core
+  config --> models
+  config --> mcp
+  config --> lsp
+  runtime --> core
+  runtime --> store
+  runtime --> memory
+  runtime --> models
+  runtime --> tools
+  runtime --> mcp
+  runtime --> lsp
+  runtime --> skills
+  runtime --> plugins
+  runtime --> config
+  tui --> runtime
+  tui --> core
+  tui --> config
+  tui --> mcp
+  tui --> memory
+  tui --> models
+  tui --> skills
+  tui --> store
+  tui --> tools
+  gui --> runtime
+  gui --> core
+  gui --> config
+  gui --> mcp
+  gui --> memory
+  gui --> models
+  gui --> skills
+  gui --> store
+  gui --> tools
+  eval --> runtime
+  eval --> core
+  eval --> config
+  eval --> memory
+  eval --> models
+  eval --> store
+  eval --> tools
+  sdk["agent-sdk"] --> runtime
+  sdk --> core
+  sdk --> config
+  sdk --> lsp
+  sdk --> mcp
+  sdk --> memory
+  sdk --> models
+  sdk --> plugins
+  sdk --> skills
+  sdk --> store
+  sdk --> tools
 ```
 
 </div>
@@ -68,12 +106,12 @@ flowchart TD
 
 ### `agent-core`
 
-| What           | Detail                                                                                                                                                      |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)                                                                         |
-| Purpose        | Domain types, events, the `AppFacade` and `AutonomousFacade` traits, build-info plumbing, trajectory DTOs, autonomous task types, and advisor review types. |
-| Key types      | `AppFacade`, `AutonomousFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo`, `TrajectoryId`, `AutonomousTaskId`, `AdvisorMode` |
-| Depended on by | Every other crate. This is the foundation.                                                                                                                  |
+| What           | Detail                                                                                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-core`](https://github.com/Z-Only/kairox/tree/main/crates/agent-core)                                                                                   |
+| Purpose        | Domain types, events, the `AppFacade` and `AutonomousFacade` traits, build-info plumbing, trajectory DTOs, autonomous task types, and advisor review types.           |
+| Key types      | `AppFacade`, `AutonomousFacade`, `EventPayload`, `DomainEvent`, `SessionId`, `TaskSnapshot`, `BuildInfo`, `TrajectoryId`, `AutonomousTaskId`, `AdvisorMode`           |
+| Depended on by | `agent-config`, `agent-eval`, `agent-gui-tauri`, `agent-mcp`, `agent-memory`, `agent-models`, `agent-runtime`, `agent-sdk`, `agent-store`, `agent-tools`, `agent-tui` |
 
 `agent-core` is intentionally small. It does not know how to persist events, how to call a model, or how to run a tool — it only defines the contracts. The `AppFacade` trait in particular is the single seam between UIs and the runtime, and the `EventPayload` enum is the single seam between the runtime and anything that wants to observe what is happening.
 
@@ -84,7 +122,7 @@ flowchart TD
 | Repo path      | [`crates/agent-store`](https://github.com/Z-Only/kairox/tree/main/crates/agent-store)                        |
 | Purpose        | SQLite-backed event store, metadata tables, and trajectory persistence. Single source of truth for sessions. |
 | Key types      | `EventStore` (trait), `SqliteEventStore`, `SessionMeta`, `TrajectoryStore`, `SqliteTrajectoryStore`          |
-| Depended on by | `agent-runtime`, `agent-tui`, `agent-gui-tauri`                                                              |
+| Depended on by | `agent-runtime`, `agent-eval`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                   |
 
 Event sourcing lives here. The event stream is append-only; nothing in `agent-store` mutates an event after it is appended. Replays for projections (like the GUI's task panel) read events back; archive flips a metadata flag. The same crate also stores task-scoped trajectory steps and can export them as JSON for replay, debugging, and eval.
 
@@ -95,18 +133,18 @@ Event sourcing lives here. The event stream is append-only; nothing in `agent-st
 | Repo path      | [`crates/agent-memory`](https://github.com/Z-Only/kairox/tree/main/crates/agent-memory)                           |
 | Purpose        | Memory store, `<memory>` marker extraction, context assembly under a token budget, image pruning, and compaction. |
 | Key types      | `MemoryStore` (trait), `SqliteMemoryStore`, `ContextAssembler`, `ContextCompactor`, `ImagePruningStrategy`        |
-| Depended on by | `agent-runtime`                                                                                                   |
+| Depended on by | `agent-runtime`, `agent-eval`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                        |
 
 The `extract_memory_markers` function in this crate is where the `<memory scope="...">` protocol meets the runtime. The context assembler uses `tiktoken-rs` for token accounting; the compactor turns the oldest tier of history into a single summary message when the budget is tight. See [Memory & Context](../concepts/memory-and-context).
 
 ### `agent-models`
 
-| What           | Detail                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-models`](https://github.com/Z-Only/kairox/tree/main/crates/agent-models)     |
-| Purpose        | LLM provider clients, the streaming `ModelClient` trait, and the `ModelRouter` multiplexer. |
-| Key types      | `ModelClient`, `ModelRouter`, `ModelRegistry`, `ProfileDef`                                 |
-| Depended on by | `agent-runtime`                                                                             |
+| What           | Detail                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-models`](https://github.com/Z-Only/kairox/tree/main/crates/agent-models)                    |
+| Purpose        | LLM provider clients, the streaming `ModelClient` trait, and the `ModelRouter` multiplexer.                |
+| Key types      | `ModelClient`, `ModelRouter`, `ModelRegistry`, `ProfileDef`                                                |
+| Depended on by | `agent-config`, `agent-memory`, `agent-runtime`, `agent-eval`, `agent-tui`, `agent-gui-tauri`, `agent-sdk` |
 
 One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRegistry` holds curated context-window and capability metadata; the router picks the right client for a session's active profile and forwards stream chunks back through `ModelTokenDelta` and `AssistantMessageCompleted` events.
 
@@ -117,7 +155,7 @@ One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRe
 | Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                                                                                                                                     |
 | Purpose        | The `Tool` trait, the `ToolRegistry`, the orthogonal Approval × Sandbox `PolicyEngine`, and the built-in tools.                                                                                                                           |
 | Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool`, `BrowserTool`, `BrowserBatchTool`, `ComputerUseTool` |
-| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`), `agent-lsp` (via `LspToolProvider` / `DapToolProvider`)                                                                                                                              |
+| Depended on by | `agent-runtime`, `agent-eval`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                                                                                                                                                |
 
 Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, `monitor.stop`, `browser.action`, `browser.batch`, and `computer.use`. Dynamic tool providers register additional tools at runtime: `McpToolAdapter` for MCP servers, `LspToolProvider` for LSP servers, and `DapToolProvider` for DAP servers. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
 
@@ -128,7 +166,7 @@ Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `
 | Repo path      | [`crates/agent-mcp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-mcp)                                                          |
 | Purpose        | MCP client, transports (stdio + SSE + Streamable HTTP), lifecycle state machine, health checks, protocol types, marketplace catalog.       |
 | Key types      | `McpClient`, `Transport`, `StdioTransport`, `SseTransport`, `StreamableHttpTransport`, `ServerLifecycle`, `McpToolAdapter`, `CatalogEntry` |
-| Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                                              |
+| Depended on by | `agent-config`, `agent-tools`, `agent-runtime`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                                |
 
 `McpToolAdapter` wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like a built-in. The marketplace catalog is pluggable (built-in static list + remote `CatalogSource`). See [Extensibility](../concepts/extensibility).
 
@@ -139,7 +177,7 @@ Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `
 | Repo path      | [`crates/agent-lsp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-lsp)                                       |
 | Purpose        | LSP and DAP client implementations with JSON-RPC transport, server lifecycle, and code intelligence / debugger support. |
 | Key types      | `LspClient`, `DapClient`, `LspServerDef`, `DapServerDef`, `LspServerLifecycle`, `DapServerLifecycle`, `ServerStatus`    |
-| Depended on by | `agent-runtime`, `agent-tools` (via `LspToolProvider` / `DapToolProvider`), `agent-config`                              |
+| Depended on by | `agent-config`, `agent-tools`, `agent-runtime`, `agent-sdk`                                                             |
 
 LSP integration provides go-to-definition, references, completions, and diagnostics by managing language server processes. DAP integration supports debugger launch/attach workflows. Both register dynamic tools via their respective tool providers so the agent can use code intelligence as part of its workflow.
 
@@ -150,7 +188,7 @@ LSP integration provides go-to-definition, references, completions, and diagnost
 | Repo path      | [`crates/agent-skills`](https://github.com/Z-Only/kairox/tree/main/crates/agent-skills)                                    |
 | Purpose        | Native skills system. Parses markdown skills with YAML frontmatter into `SkillDef`s and serves them via a scoped registry. |
 | Key types      | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`, `SkillScope`                                                              |
-| Depended on by | `agent-runtime`, `agent-plugins`                                                                                           |
+| Depended on by | `agent-runtime`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                                               |
 
 Discovery is filesystem-driven: `~/.kairox/skills/`, `.kairox/skills/`, plus any directories declared in config. Workspace skills override user skills; session skills override both.
 
@@ -161,7 +199,7 @@ Discovery is filesystem-driven: `~/.kairox/skills/`, `.kairox/skills/`, plus any
 | Repo path      | [`crates/agent-plugins`](https://github.com/Z-Only/kairox/tree/main/crates/agent-plugins)                  |
 | Purpose        | Parses plugin manifests and exposes flat inventories of skills, tools, hooks, and MCP server declarations. |
 | Key types      | `PluginManifest`, plugin inventory helpers                                                                 |
-| Depended on by | `agent-runtime`                                                                                            |
+| Depended on by | `agent-runtime`, `agent-sdk`                                                                               |
 
 A plugin packages multiple contributions in a single install. The runtime routes each contribution to its owning crate (skill → `SkillRegistry`, tool → `ToolRegistry`, MCP server → `McpServerManager`, hook → runtime hook registry).
 
@@ -172,7 +210,7 @@ A plugin packages multiple contributions in a single install. The runtime routes
 | Repo path      | [`crates/agent-config`](https://github.com/Z-Only/kairox/tree/main/crates/agent-config)                              |
 | Purpose        | TOML config parsing, profile discovery, `.kairox/` discovery, advisor policy, instructions, skill/MCP config wiring. |
 | Key types      | `ProfileDef`, `McpServerConfig`, `ContextSettings`, `AdvisorConfig`, `build_router(...)`                             |
-| Depended on by | `agent-runtime`                                                                                                      |
+| Depended on by | `agent-runtime`, `agent-eval`, `agent-tui`, `agent-gui-tauri`, `agent-sdk`                                           |
 
 The runtime calls `build_router(...)` at boot to get a configured `ModelRouter` plus the rest of the static config. Discovery walks up five parents from the cwd looking for `.kairox/config.toml`, then falls back to `~/.kairox/config.toml`, then built-in defaults. See [Configuration](./configuration).
 
@@ -185,11 +223,11 @@ The runtime calls `build_router(...)` at boot to get a configured `ModelRouter` 
 | Repo path      | [`crates/agent-runtime`](https://github.com/Z-Only/kairox/tree/main/crates/agent-runtime)                                                                                                    |
 | Purpose        | The agent loop, session actor, context budgets, compaction, model switching, agent strategies, DAG execution, advisor review, autonomous checkpoints, trajectory capture, and MCP lifecycle. |
 | Key types      | `LocalRuntime<S, M>`, `DagExecutor`, `AgentStrategy`, `McpServerManager`, `advisor::review_tool_calls`, autonomous controller and session actor types                                        |
-| Depended on by | `agent-tui`, `agent-gui-tauri`, `agent-eval`                                                                                                                                                 |
+| Depended on by | `agent-tui`, `agent-gui-tauri`, `agent-eval`, `agent-sdk`                                                                                                                                    |
 
 `LocalRuntime<S, M>` is generic over its event store `S` and model client `M`. Production wires `SqliteEventStore` and a real `ModelRouter`; tests wire `:memory:` SQLite and a `FakeModelClient`. The session actor (PRs [#531](https://github.com/Z-Only/kairox/pull/531), [#532](https://github.com/Z-Only/kairox/pull/532), [#533](https://github.com/Z-Only/kairox/pull/533)) serializes turns, model switches, and compaction against a single session. The same runtime now records trajectories, can review tool calls through the advisor layer, and exposes autonomous task control through facade methods. See [Runtime & Sessions](../concepts/runtime-and-sessions).
 
-## UI crates
+## Consumer crates
 
 ### `agent-tui`
 
@@ -224,7 +262,7 @@ The Vue frontend (`apps/agent-gui/src`) consumes generated TypeScript from `apps
 
 The SDK wraps `LocalRuntime` and exposes a builder pattern for configuration. Sessions produce a `MessageStream` of `StreamEvent` values that callers can consume asynchronously, or collect into a `CollectedResponse`. The `SdkHook` trait lets callers intercept approval and sandbox decisions programmatically.
 
-## Tooling crate
+## Evaluation crate
 
 ### `agent-eval`
 

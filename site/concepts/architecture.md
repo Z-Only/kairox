@@ -6,29 +6,34 @@ outline: [2, 3]
 
 # Architecture
 
-Kairox is a local-first AI agent workbench. Two user interfaces (a ratatui terminal app and a Tauri 2 + Vue 3 desktop app) sit on top of a shared Rust core. Everything below the UIs is a Rust workspace of small crates connected through narrow traits. There is no server, no cloud control plane, and no shared mutable singletons — the whole stack runs in a single process on your machine and persists state to a local SQLite database.
+Kairox is a local-first AI agent workbench. Two user interfaces (a ratatui terminal app and a Tauri 2 + Vue 3 desktop app), a headless eval CLI, and an embeddable SDK share the same Rust runtime contracts. Everything below the consumers is a Rust workspace of small crates connected through narrow traits. There is no server, no cloud control plane, and no shared mutable singletons — the whole stack runs on your machine and persists state to a local SQLite database.
 
 This page is the canonical map. It explains the layered diagram, the dependency rule that keeps the layers honest, every crate that belongs to a layer, how state moves through the system as events, and the design decisions behind the bigger choices.
 
 ## Layered architecture
 
-The product splits into three layers: UIs at the top, a shared facade in the middle, and a fan-out of domain crates at the bottom.
+The product splits into four practical layers: user-facing consumers, a runtime/composition layer, a core contract crate, and focused domain crates.
 
 <div class="mermaid">
 
 ```mermaid
 flowchart TB
-  subgraph UI["UI layer"]
+  subgraph UI["Consumers"]
     TUI["agent-tui<br/>(ratatui)"]
     GUI["agent-gui<br/>(Tauri 2 + Vue 3)"]
+    EVAL["agent-eval<br/>(kairox-eval)"]
+    SDK["agent-sdk<br/>(embeddable API)"]
   end
 
-  subgraph CORE["Facade layer"]
+  subgraph RUNTIME_LAYER["Runtime layer"]
+    RUNTIME["agent-runtime<br/>LocalRuntime · agents · DAG · MCP lifecycle"]
+  end
+
+  subgraph CORE["Contract layer"]
     FACADE["agent-core<br/>AppFacade · DomainEvent · IDs · projections"]
   end
 
   subgraph DOMAIN["Domain layer"]
-    RUNTIME["agent-runtime<br/>LocalRuntime · agents · DAG · MCP lifecycle"]
     MEMORY["agent-memory<br/>MemoryStore · ContextAssembler · Compactor"]
     STORE["agent-store<br/>EventStore · SqliteEventStore · metadata"]
     MODELS["agent-models<br/>ModelClient · ModelRouter · ModelRegistry"]
@@ -40,9 +45,11 @@ flowchart TB
     CONFIG["agent-config<br/>ProfileDef · loader · discovery"]
   end
 
-  TUI --> FACADE
-  GUI --> FACADE
-  FACADE --> RUNTIME
+  TUI --> RUNTIME
+  GUI --> RUNTIME
+  EVAL --> RUNTIME
+  SDK --> RUNTIME
+  RUNTIME -. implements .-> FACADE
   RUNTIME --> MEMORY
   RUNTIME --> STORE
   RUNTIME --> MODELS
@@ -52,28 +59,32 @@ flowchart TB
   RUNTIME --> SKILLS
   RUNTIME --> PLUGINS
   RUNTIME --> CONFIG
+  MEMORY --> MODELS
   TOOLS --> MCP
-  CONFIG --> SKILLS
-  CONFIG --> PLUGINS
+  TOOLS --> LSP
+  CONFIG --> MODELS
+  CONFIG --> MCP
+  CONFIG --> LSP
 ```
 
 </div>
 
-Read the diagram top-down. A click in the GUI or a key in the TUI calls into `agent-core` — never directly into a domain crate. `agent-core` owns the application interface (`AppFacade`) and the language used to describe what happens inside the app (`DomainEvent`, `EventPayload`, typed IDs, projections). The domain crates implement that interface. None of them depend on either UI.
+Read the diagram top-down. A click in the GUI or a key in the TUI reaches a runtime object that implements `AppFacade`. `agent-core` owns that interface and the language used to describe what happens inside the app (`DomainEvent`, `EventPayload`, typed IDs, projections). `agent-runtime` implements the contract and composes the domain crates. Domain crates do not depend on UI crates or consumer crates.
 
 ## The dependency rule
 
-The single rule that keeps the architecture stable: **dependencies point inward only**.
+The single rule that keeps the architecture stable: **domain crates never depend on consumers or the runtime**.
 
-| From layer | May depend on                              | May not depend on      |
-| ---------- | ------------------------------------------ | ---------------------- |
-| UI         | facade (`agent-core`)                      | domain crates directly |
-| Facade     | nothing in this workspace                  | UI, domain crates      |
-| Domain     | facade, other domain crates (in DAG order) | UI                     |
+| From layer           | May depend on                                 | May not depend on                  |
+| -------------------- | --------------------------------------------- | ---------------------------------- |
+| Contract             | nothing in this workspace                     | runtime, domain crates, consumers  |
+| Domain               | `agent-core` and other domain crates in order | `agent-runtime`, UIs, eval, SDK    |
+| Runtime/composition  | contract + domain crates                      | UI frontend state or view modules  |
+| Consumer Rust crates | runtime + needed domain crates                | Vue internals or unrelated clients |
 
-`agent-core` has zero crate-internal dependencies. Every other crate in the workspace either depends on `agent-core` or on another domain crate that already does. A new crate that needs to call a UI surface is a mistake; emit an event instead and let the UI react. A new UI feature that needs to skip the facade is a mistake; widen the facade.
+`agent-core` has zero workspace dependencies. Some small domain crates are also leaf crates (`agent-lsp`, `agent-skills`, `agent-plugins`) because they model standalone data or protocol concepts. A new domain crate that needs to call a UI surface is a mistake; emit an event instead and let the consumer react. A new UI feature that needs runtime behavior should go through the facade or a typed Tauri command backed by the runtime.
 
-In code, the rule is enforced at compile time — `cargo` will refuse to build a domain crate that imports a UI crate. In review, the rule shows up in PR scope: a feature that touches `agent-runtime` plus the GUI is normal; a feature that touches `agent-runtime` and reaches _back_ into `agent-gui` to read state is a smell.
+In code, the rule is enforced by Cargo edges: no domain crate imports `agent-runtime`, `agent-tui`, `agent-gui-tauri`, `agent-eval`, or `agent-sdk`. In review, the rule shows up in PR scope: a feature that touches `agent-runtime` plus the GUI is normal; a feature that makes a domain crate reach _up_ into a consumer is not.
 
 ## Crates, layer by layer
 
@@ -105,7 +116,7 @@ In code, the rule is enforced at compile time — `cargo` will refuse to build a
 | **agent-store**   | Append-only SQLite event store plus metadata tables for workspace/session tracking and trajectory persistence.                                                                                                                                                              | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, `TrajectoryStore`, `SqliteTrajectoryStore`.                                                                                                  |
 | **agent-config**  | TOML config loading, model profile discovery, API key resolution from env, `.kairox/` project discovery, advisor policy, skills config, instructions config.                                                                                                                | `ProfileDef`, `AdvisorConfig`, `load_from_str`, `build_router`.                                                                                                                                     |
 
-`agent-runtime` is the only domain crate that fans out to every other domain crate. The rest stay narrow: `agent-memory` does not know about `agent-tools`, `agent-models` does not know about `agent-mcp`. When a runtime feature needs both, the runtime composes them; it never asks one domain crate to import another.
+`agent-runtime` is the composition crate that fans out to all domain crates. The rest stay narrow: `agent-memory` depends on model metadata but not tools or storage, `agent-tools` depends on MCP/LSP protocol types to adapt external tools, and `agent-config` depends on model/MCP/LSP definitions to parse TOML. When a runtime feature needs several capabilities, the runtime composes them.
 
 ### UI layer
 
@@ -163,15 +174,15 @@ The event taxonomy itself — every variant of `EventPayload` and what emits it 
 
 Trait boundaries are not decoration. Every cross-crate dependency in Kairox goes through a trait so that tests can substitute fakes and so that adapters (a new model provider, a new transport, a new event store backend) plug in without touching the runtime.
 
-| Trait                   | Defined in    | Used in                                | Notes                                                                                          |
-| ----------------------- | ------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `AppFacade`             | agent-core    | agent-runtime, agent-tui, agent-gui    | The integration point between UIs and the runtime.                                             |
-| `EventStore`            | agent-store   | agent-runtime, agent-memory            | Implemented by `SqliteEventStore`; tests use in-memory SQLite (`:memory:`).                    |
-| `MemoryStore`           | agent-memory  | agent-runtime, agent-gui (read-only)   | Implemented by `SqliteMemoryStore`.                                                            |
-| `ModelClient`           | agent-models  | agent-runtime                          | Implemented by OpenAI-compatible, Anthropic, Ollama, and Fake clients; the router multiplexes. |
-| `Tool` / `ToolProvider` | agent-tools   | agent-runtime, agent-mcp (via adapter) | Built-in tools and MCP-exposed tools both implement `Tool`.                                    |
-| `Transport`             | agent-mcp     | agent-mcp internal                     | Implemented by `StdioTransport`, `SseTransport`.                                               |
-| `AgentStrategy`         | agent-runtime | agent-runtime                          | Planner / Worker / Reviewer roles. Strategies compose; they do not subclass.                   |
+| Trait                   | Defined in    | Used in                                          | Notes                                                                                          |
+| ----------------------- | ------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `AppFacade`             | agent-core    | agent-runtime, agent-tui, agent-gui              | The integration point between UIs and the runtime.                                             |
+| `EventStore`            | agent-store   | agent-runtime and consumers at wiring boundaries | Implemented by `SqliteEventStore`; tests use in-memory SQLite (`:memory:`).                    |
+| `MemoryStore`           | agent-memory  | agent-runtime, agent-gui (read-only)             | Implemented by `SqliteMemoryStore`.                                                            |
+| `ModelClient`           | agent-models  | agent-runtime                                    | Implemented by OpenAI-compatible, Anthropic, Ollama, and Fake clients; the router multiplexes. |
+| `Tool` / `ToolProvider` | agent-tools   | agent-runtime, agent-mcp (via adapter)           | Built-in tools and MCP-exposed tools both implement `Tool`.                                    |
+| `Transport`             | agent-mcp     | agent-mcp internal                               | Implemented by `StdioTransport`, `SseTransport`, `StreamableHttpTransport`.                    |
+| `AgentStrategy`         | agent-runtime | agent-runtime                                    | Planner / Worker / Reviewer roles. Strategies compose; they do not subclass.                   |
 
 The reason for the discipline is concrete: `crates/agent-runtime/tests/full_stack.rs` exercises a real `LocalRuntime<SqliteEventStore, FakeModelClient>` end-to-end without a model API key, an MCP server, or a GUI window — because every collaborator is a trait and a fake is one `cargo test` away.
 
@@ -187,17 +198,18 @@ flowchart LR
 
   store["agent-store"] --> core
   memory["agent-memory"] --> core
-  memory --> store
+  memory --> models
   models["agent-models"] --> core
   tools["agent-tools"] --> core
+  tools --> lsp["agent-lsp"]
   mcp["agent-mcp"] --> core
   tools --> mcp
-  skills["agent-skills"] --> core
-  plugins["agent-plugins"] --> core
+  skills["agent-skills"]
+  plugins["agent-plugins"]
   config["agent-config"] --> core
   config --> models
-  config --> skills
-  config --> plugins
+  config --> mcp
+  config --> lsp
   runtime["agent-runtime"] --> core
   runtime --> store
   runtime --> memory
@@ -208,14 +220,47 @@ flowchart LR
   runtime --> plugins
   runtime --> config
 
+  eval["agent-eval"] --> runtime
+  eval --> core
+  eval --> config
+  eval --> memory
+  eval --> models
+  eval --> store
+  eval --> tools
+  sdk["agent-sdk"] --> runtime
+  sdk --> core
+  sdk --> config
+  sdk --> lsp
+  sdk --> mcp
+  sdk --> memory
+  sdk --> models
+  sdk --> plugins
+  sdk --> skills
+  sdk --> store
+  sdk --> tools
   tui["agent-tui"] --> runtime
-  gui["agent-gui"] --> runtime
+  tui --> core
+  tui --> config
+  tui --> mcp
+  tui --> memory
+  tui --> models
+  tui --> skills
+  tui --> store
+  tui --> tools
+  gui["agent-gui-tauri"] --> runtime
   gui --> core
+  gui --> config
+  gui --> mcp
+  gui --> memory
+  gui --> models
+  gui --> skills
+  gui --> store
+  gui --> tools
 ```
 
 </div>
 
-`agent-tui` and `agent-gui` are the only crates that depend on `agent-runtime`. Nothing depends back on them. That asymmetry is the whole point — it means a new model provider, a new tool, a new MCP transport, or a new skill source can be added without touching either UI as long as the corresponding domain crate exposes its capability through the trait it already implements.
+`agent-tui`, `agent-gui-tauri`, `agent-eval`, and `agent-sdk` are consumer crates that depend on `agent-runtime`. Nothing in the domain layer depends back on them. That asymmetry is the point: a new model provider, tool, MCP transport, or skill source can be added in its owning domain crate and then composed by the runtime without teaching storage, memory, or protocol crates about UI state.
 
 ## Decision log
 

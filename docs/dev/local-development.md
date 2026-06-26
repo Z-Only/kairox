@@ -47,6 +47,7 @@ Run Vue unit tests:
 ```bash
 just test-gui
 # or: bun --filter agent-gui test
+# plus: bun --filter agent-gui test:scripts
 ```
 
 Run the Vite development server:
@@ -101,13 +102,13 @@ Beyond `just test` (cargo unit + integration), several focused recipes are avail
 just test-tui         # TUI app logic integration tests (FakeModelClient + in-memory SQLite)
 just test-fullstack   # full-stack runtime integration tests (tools, permissions, memory, persistence)
 just test-mcp         # MCP-focused tests across agent-mcp / agent-tools / agent-config / agent-runtime
-just test-e2e         # Playwright E2E tests for the GUI frontend (uses tauri-mock.js IPC mock)
+just test-e2e         # Playwright E2E tests for the GUI frontend (uses the Tauri IPC mock)
 just test-e2e-headed  # E2E tests in headed mode for debugging
 just test-e2e-ui      # Playwright UI mode
 just test-all         # all layers: unit + integration + fullstack + GUI Vitest
 ```
 
-E2E specs live in `apps/agent-gui/e2e/` and use a browser-side Tauri IPC mock (`apps/agent-gui/e2e/tauri-mock.js`). When you add or change a `#[tauri::command]` or an event the frontend listens to, also update the mock so E2E tests keep passing.
+E2E specs live in `apps/agent-gui/e2e/` and use a browser-side Tauri IPC mock. The top-level bridge is `apps/agent-gui/e2e/tauri-mock.js`; command handlers and mock state live under `apps/agent-gui/e2e/fixtures/tauri-mock/`. When you add or change a `#[tauri::command]` or an event the frontend listens to, update the matching fixture fragment so E2E tests keep passing.
 
 ## Configuration
 
