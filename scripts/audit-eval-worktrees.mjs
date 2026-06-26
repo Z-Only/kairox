@@ -177,6 +177,28 @@ async function compareDirtyFilesToRef(
   };
 }
 
+async function compareHeadToRef(cwd, head, compareRef, { execFile, env }) {
+  if (!compareRef || !head) {
+    return {};
+  }
+
+  try {
+    await execFile("git", ["-C", cwd, "merge-base", "--is-ancestor", head, compareRef], {
+      env,
+      maxBuffer: GIT_BUFFER
+    });
+    return {
+      compare_ref: compareRef,
+      head_in_compare_ref: true
+    };
+  } catch (error) {
+    return {
+      compare_ref: compareRef,
+      head_in_compare_ref: error?.code === 1 ? false : null
+    };
+  }
+}
+
 async function dirtyStatus(worktreePath, { execFile, env, pathExists, compareRef, fileLimit }) {
   const exists = pathExists(worktreePath);
   if (!exists) {
@@ -236,10 +258,12 @@ export async function auditEvalWorktrees({
   const audited = [];
 
   for (const worktree of selected) {
+    const headSummary = await compareHeadToRef(cwd, worktree.head, compareRef, { execFile, env });
     audited.push({
       path: worktree.path,
       branch: worktree.branch,
       head: worktree.head,
+      ...headSummary,
       ...(await dirtyStatus(worktree.path, { execFile, env, pathExists, compareRef, fileLimit }))
     });
   }
@@ -302,6 +326,18 @@ function formatCompareRef(worktree) {
     return "-";
   }
 
+  const headStatus =
+    worktree.head_in_compare_ref === true
+      ? "; head=yes"
+      : worktree.head_in_compare_ref === false
+        ? "; head=no"
+        : worktree.head_in_compare_ref === null
+          ? "; head=unknown"
+          : "";
+  if (worktree.compare_ref_checked_count === undefined) {
+    return `${worktree.compare_ref}${headStatus}`;
+  }
+
   const matchingFiles = Array.isArray(worktree.compare_ref_matching_files)
     ? worktree.compare_ref_matching_files
     : [];
@@ -320,7 +356,7 @@ function formatCompareRef(worktree) {
     unmatchedCount > 0
       ? `; unmatched ${unmatchedCount}: ${unmatchedFiles.join(", ")}${unmatchedSuffix}`
       : "";
-  return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}`;
+  return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}${headStatus}`;
 }
 
 function shellQuote(value) {

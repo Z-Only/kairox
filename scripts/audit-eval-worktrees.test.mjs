@@ -286,6 +286,9 @@ test("runCli prints every dirty and compare-ref file with --all-files", async ()
       if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
         return { stdout: dirtyFiles.map((file) => ` M ${file}`).join("\n") };
       }
+      if (joined.includes(" merge-base --is-ancestor ")) {
+        return { stdout: "" };
+      }
       if (joined.startsWith("-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:same-")) {
         return { stdout: `${joined.endsWith("same-one.txt") ? "same-one" : "same-two"}\n` };
       }
@@ -334,6 +337,7 @@ test("runCli annotates dirty files that match a compare ref", async () => {
   const exitCode = await runCli(["--json", "--compare-ref", "origin/main"], {
     stdout,
     stderr,
+    cwd: "/repo",
     pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
     execFile: async (_command, args) => {
       const joined = args.join(" ");
@@ -349,6 +353,22 @@ test("runCli annotates dirty files that match a compare ref", async () => {
             "\n"
           )
         };
+      }
+      if (
+        joined ===
+          "-C /repo merge-base --is-ancestor 2222222222222222222222222222222222222222 origin/main" ||
+        joined ===
+          "-C /repo merge-base --is-ancestor 5555555555555555555555555555555555555555 origin/main"
+      ) {
+        return { stdout: "" };
+      }
+      if (
+        joined ===
+        "-C /repo merge-base --is-ancestor 3333333333333333333333333333333333333333 origin/main"
+      ) {
+        const error = new Error("not ancestor");
+        error.code = 1;
+        throw error;
       }
       if (
         joined ===
@@ -382,6 +402,7 @@ test("runCli annotates dirty files that match a compare ref", async () => {
     path: "/repo/.worktrees/eval-kairox-b",
     branch: "codex/not-eval",
     head: "3333333333333333333333333333333333333333",
+    head_in_compare_ref: false,
     dirty_status: "dirty",
     path_exists: true,
     dirty_file_count: 3,
@@ -393,6 +414,68 @@ test("runCli annotates dirty files that match a compare ref", async () => {
     compare_ref_unmatched_count: 2,
     compare_ref_unmatched_files: ["different.txt", "scratch.txt"]
   });
+});
+
+test("runCli annotates whether worktree heads are in the compare ref", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(["--json", "--compare-ref", "origin/main"], {
+    stdout,
+    stderr,
+    cwd: "/repo",
+    pathExists: (path) => path !== "/repo/.worktrees/eval-kairox-detached",
+    execFile: async (_command, args) => {
+      const joined = args.join(" ");
+      if (joined === "worktree list --porcelain") {
+        return { stdout: PORCELAIN };
+      }
+      if (joined === "-C /repo/.worktrees/eval-a status --short") {
+        return { stdout: "" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
+        return { stdout: " M changed.txt\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:changed.txt") {
+        return { stdout: "ref-hash\n" };
+      }
+      if (joined === "-C /repo/.worktrees/eval-kairox-b hash-object -- changed.txt") {
+        return { stdout: "worktree-hash\n" };
+      }
+      if (
+        joined ===
+          "-C /repo merge-base --is-ancestor 2222222222222222222222222222222222222222 origin/main" ||
+        joined ===
+          "-C /repo merge-base --is-ancestor 5555555555555555555555555555555555555555 origin/main"
+      ) {
+        return { stdout: "" };
+      }
+      if (
+        joined ===
+        "-C /repo merge-base --is-ancestor 3333333333333333333333333333333333333333 origin/main"
+      ) {
+        const error = new Error("not ancestor");
+        error.code = 1;
+        throw error;
+      }
+      throw new Error(`unexpected command: ${joined}`);
+    }
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  const result = JSON.parse(stdout.content);
+  assert.deepEqual(
+    result.worktrees.map((worktree) => ({
+      path: worktree.path,
+      head_in_compare_ref: worktree.head_in_compare_ref
+    })),
+    [
+      { path: "/repo/.worktrees/eval-a", head_in_compare_ref: true },
+      { path: "/repo/.worktrees/eval-kairox-b", head_in_compare_ref: false },
+      { path: "/repo/.worktrees/eval-kairox-detached", head_in_compare_ref: true }
+    ]
+  );
 });
 
 test("runCli annotates cleanup recommendations when requested", async () => {
@@ -413,6 +496,9 @@ test("runCli annotates cleanup recommendations when requested", async () => {
       }
       if (joined === "-C /repo/.worktrees/eval-kairox-b status --short") {
         return { stdout: " M different.txt\n" };
+      }
+      if (joined.includes(" merge-base --is-ancestor ")) {
+        return { stdout: "" };
       }
       if (joined === "-C /repo/.worktrees/eval-kairox-b rev-parse origin/main:different.txt") {
         return { stdout: "ref-hash\n" };
@@ -539,7 +625,8 @@ test("formatHumanTable includes compare ref matches when present", () => {
       compare_ref_match_count: 1,
       compare_ref_matching_files: ["same.txt"],
       compare_ref_unmatched_count: 1,
-      compare_ref_unmatched_files: ["different.txt"]
+      compare_ref_unmatched_files: ["different.txt"],
+      head_in_compare_ref: false
     }
   ]);
 
@@ -549,6 +636,7 @@ test("formatHumanTable includes compare ref matches when present", () => {
   );
   assert.match(table, /origin\/main 1\/2: same\.txt/);
   assert.match(table, /unmatched 1: different\.txt/);
+  assert.match(table, /head=no/);
 });
 
 test("runCli writes stable JSON without touching the real Git repository", async () => {
