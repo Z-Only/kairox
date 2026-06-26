@@ -259,3 +259,67 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
     })}\n`
   );
 });
+
+test("CLI overlays explicit resume metadata", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(
+    [
+      "--session",
+      "ses_meta",
+      "--meta",
+      "worktree_path=/repo/.worktrees/eval",
+      "--meta",
+      "branch=eval/foo",
+      "--meta",
+      "event_db_path=/tmp/kairox/events.sqlite",
+      "--meta",
+      "pilot_socket_path=/tmp/tauri-pilot.sock"
+    ],
+    {
+      stdout,
+      stderr,
+      execFile: async () => ({
+        stdout: JSON.stringify({
+          session_id: "ses_meta",
+          event_count: 1,
+          event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+        })
+      })
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.deepEqual(JSON.parse(stdout.content), {
+    session_id: "ses_meta",
+    workspace_id: null,
+    project_id: null,
+    worktree_path: "/repo/.worktrees/eval",
+    branch: "eval/foo",
+    model_profile: null,
+    model_id: null,
+    provider: null,
+    last_event_id: null,
+    session_created_at: null,
+    generated_at: null,
+    event_db_path: "/tmp/kairox/events.sqlite",
+    pilot_socket_path: "/tmp/tauri-pilot.sock",
+    event_count: 1,
+    last_event_type: null,
+    event_type_counts: { UserMessageAdded: 1 },
+    user_message_count: 0,
+    assistant_message_count: 0,
+    running_model_requests: 0,
+    running_tool_invocations: 0,
+    model_tool_call_count: 0,
+    mcp_tool_call_count: 0,
+    has_tool_progress: false,
+    trajectory_started_count: 0,
+    trajectory_completed_count: 0,
+    trajectory_failed_count: 0,
+    failure_signal: null,
+    has_terminal_assistant_message: false
+  });
+});
