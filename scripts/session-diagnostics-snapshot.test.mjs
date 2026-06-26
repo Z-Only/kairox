@@ -94,6 +94,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     model_tool_call_count: 2,
     mcp_tool_call_count: 1,
     has_tool_progress: true,
+    suspicious_no_tool_completion: false,
     trajectory_started_count: 2,
     trajectory_completed_count: 2,
     trajectory_failed_count: 1,
@@ -166,6 +167,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.model_tool_call_count, 0);
   assert.equal(compact.mcp_tool_call_count, 0);
   assert.equal(compact.has_tool_progress, false);
+  assert.equal(compact.suspicious_no_tool_completion, false);
   assert.equal(compact.trajectory_started_count, 0);
   assert.equal(compact.trajectory_completed_count, 0);
   assert.equal(compact.trajectory_failed_count, 0);
@@ -251,6 +253,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       model_tool_call_count: 0,
       mcp_tool_call_count: 0,
       has_tool_progress: false,
+      suspicious_no_tool_completion: false,
       trajectory_started_count: 0,
       trajectory_completed_count: 0,
       trajectory_failed_count: 0,
@@ -316,10 +319,27 @@ test("CLI overlays explicit resume metadata", async () => {
     model_tool_call_count: 0,
     mcp_tool_call_count: 0,
     has_tool_progress: false,
+    suspicious_no_tool_completion: false,
     trajectory_started_count: 0,
     trajectory_completed_count: 0,
     trajectory_failed_count: 0,
     failure_signal: null,
     has_terminal_assistant_message: false
   });
+});
+
+test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_no_tools",
+    event_type_counts: {
+      UserMessageAdded: 1,
+      AssistantMessageCompleted: 1
+    },
+    last_event_type: "AssistantMessageCompleted",
+    assistant_messages: [{ message_id: "a1", content: "I will do it" }]
+  });
+
+  assert.equal(compact.has_terminal_assistant_message, true);
+  assert.equal(compact.has_tool_progress, false);
+  assert.equal(compact.suspicious_no_tool_completion, true);
 });

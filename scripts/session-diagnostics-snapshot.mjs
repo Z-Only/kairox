@@ -199,6 +199,9 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
   );
   const trajectoryFailedCountValue = trajectoryFailedCount(diagnostics);
   const trajectoryCancelledCountValue = trajectoryCancelledCount(diagnostics);
+  const hasToolProgress =
+    modelToolCallCount > 0 || mcpToolCallCount > 0 || runningToolInvocations > 0;
+  const terminalAssistantMessage = hasTerminalAssistantMessage(diagnostics);
 
   return {
     session_id: String(firstPresent(diagnostics, ["session_id", "sessionId"]) ?? sessionId ?? ""),
@@ -261,7 +264,8 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     running_tool_invocations: runningToolInvocations,
     model_tool_call_count: modelToolCallCount,
     mcp_tool_call_count: mcpToolCallCount,
-    has_tool_progress: modelToolCallCount > 0 || mcpToolCallCount > 0 || runningToolInvocations > 0,
+    has_tool_progress: hasToolProgress,
+    suspicious_no_tool_completion: terminalAssistantMessage && !hasToolProgress,
     trajectory_started_count: countValue(
       firstPresent(diagnostics, ["trajectory_started_count", "trajectoryStartedCount"]) ??
         eventTypeCounts.TrajectoryStarted
@@ -276,7 +280,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       trajectoryFailedCountValue,
       trajectoryCancelledCountValue
     ),
-    has_terminal_assistant_message: hasTerminalAssistantMessage(diagnostics)
+    has_terminal_assistant_message: terminalAssistantMessage
   };
 }
 
