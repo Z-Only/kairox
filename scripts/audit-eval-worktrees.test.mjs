@@ -605,26 +605,30 @@ test("runCli distinguishes diagnostics-only dirty worktrees from code dirty work
       path: worktree.path,
       dirty_scope: worktree.dirty_scope,
       cleanup_recommendation: worktree.cleanup_recommendation,
-      cleanup_reason: worktree.cleanup_reason
+      cleanup_reason: worktree.cleanup_reason,
+      cleanup_command: worktree.cleanup_command
     })),
     [
       {
         path: "/repo/.worktrees/eval-a",
         dirty_scope: "diagnostics_only",
         cleanup_recommendation: "inspect",
-        cleanup_reason: "diagnostics_only_dirty"
+        cleanup_reason: "diagnostics_only_dirty",
+        cleanup_command: "git -C /repo/.worktrees/eval-a clean -nd -- .kairox-eval/"
       },
       {
         path: "/repo/.worktrees/eval-kairox-b",
         dirty_scope: "code",
         cleanup_recommendation: "keep",
-        cleanup_reason: "dirty_files_not_in_compare_ref"
+        cleanup_reason: "dirty_files_not_in_compare_ref",
+        cleanup_command: undefined
       },
       {
         path: "/repo/.worktrees/eval-kairox-detached",
         dirty_scope: undefined,
         cleanup_recommendation: "prune",
-        cleanup_reason: "missing_path"
+        cleanup_reason: "missing_path",
+        cleanup_command: "git worktree prune"
       }
     ]
   );

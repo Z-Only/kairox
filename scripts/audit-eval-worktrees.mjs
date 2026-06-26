@@ -397,6 +397,9 @@ function cleanupCommand(worktree, recommendation) {
   if (recommendation === "prune") {
     return "git worktree prune";
   }
+  if (recommendation === "inspect" && worktree.dirty_scope === "diagnostics_only") {
+    return `git -C ${shellQuote(worktree.path)} clean -nd -- .kairox-eval/`;
+  }
   return null;
 }
 
@@ -416,10 +419,10 @@ function cleanupRecommendation(worktree) {
     return { cleanup_recommendation: "inspect", cleanup_reason: "status_error" };
   }
   if (worktree.dirty_scope === "diagnostics_only") {
-    return {
+    return withCommand({
       cleanup_recommendation: "inspect",
       cleanup_reason: "diagnostics_only_dirty"
-    };
+    });
   }
   if (worktree.compare_ref_unmatched_count === 0) {
     return {
