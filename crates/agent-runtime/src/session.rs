@@ -112,7 +112,7 @@ pub async fn start_session<S: EventStore>(
     let session_row = SessionRow {
         session_id: session_id.to_string(),
         workspace_id: workspace_id.to_string(),
-        title: format!("Session using {}", model_profile),
+        title: "New conversation".to_string(),
         model_profile,
         model_id: None,
         provider: None,

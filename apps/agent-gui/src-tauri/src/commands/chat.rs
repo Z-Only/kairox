@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 pub struct SendMessageToSessionIfIdleResponse {
     pub session_id: String,
     pub client_request_id: Option<String>,
+    pub accepted_message_id: Option<String>,
     pub accepted: bool,
     pub status: String,
 }
@@ -17,10 +18,10 @@ struct IdleSendClientRequestKey {
     client_request_id: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum IdleSendClientRequestState {
     InFlight,
-    Accepted,
+    Accepted { message_id: Option<String> },
 }
 
 static IDLE_SEND_CLIENT_REQUESTS: OnceLock<
@@ -318,10 +319,11 @@ where
     if let Some(key) = request_key.clone() {
         let mut requests = accepted_idle_send_client_requests().lock().await;
         match requests.get(&key) {
-            Some(IdleSendClientRequestState::Accepted) => {
+            Some(IdleSendClientRequestState::Accepted { message_id }) => {
                 return Ok(idle_send_response(
                     session_id_str,
                     client_request_id,
+                    message_id.clone(),
                     true,
                     "accepted",
                 ));
@@ -330,6 +332,7 @@ where
                 return Ok(idle_send_response(
                     session_id_str,
                     client_request_id,
+                    None,
                     false,
                     "in_flight",
                 ));
@@ -356,15 +359,25 @@ where
         }
     };
 
+    let sent_content = request.content.clone();
+    let sent_display_content = request.display_content.clone();
     if let Err(error) = runtime.send_message_if_idle(request).await {
         clear_idle_send_client_request_key(request_key).await;
         return Err(error.to_string());
     }
 
-    mark_idle_send_client_request_accepted(request_key).await;
+    let accepted_message_id = accepted_user_message_id(
+        runtime,
+        &session_id,
+        &sent_content,
+        sent_display_content.as_deref(),
+    )
+    .await;
+    mark_idle_send_client_request_accepted(request_key, accepted_message_id.clone()).await;
     Ok(idle_send_response(
         session_id_str,
         client_request_id,
+        accepted_message_id,
         true,
         "accepted",
     ))
@@ -379,24 +392,66 @@ async fn clear_idle_send_client_request_key(key: Option<IdleSendClientRequestKey
     }
 }
 
-async fn mark_idle_send_client_request_accepted(key: Option<IdleSendClientRequestKey>) {
+async fn mark_idle_send_client_request_accepted(
+    key: Option<IdleSendClientRequestKey>,
+    message_id: Option<String>,
+) {
     if let Some(key) = key {
         accepted_idle_send_client_requests()
             .lock()
             .await
-            .insert(key, IdleSendClientRequestState::Accepted);
+            .insert(key, IdleSendClientRequestState::Accepted { message_id });
     }
+}
+
+async fn accepted_user_message_id<S, M>(
+    runtime: &agent_runtime::LocalRuntime<S, M>,
+    session_id: &agent_core::SessionId,
+    content: &str,
+    display_content: Option<&str>,
+) -> Option<String>
+where
+    S: agent_store::EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    let trace = match runtime.get_trace(session_id.clone()).await {
+        Ok(trace) => trace,
+        Err(error) => {
+            eprintln!("[commands] accepted idle send trace lookup failed: {error}");
+            return None;
+        }
+    };
+
+    let expected_display_content =
+        display_content.filter(|display_content| *display_content != content);
+    trace
+        .iter()
+        .rev()
+        .find_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::UserMessageAdded {
+                message_id,
+                content: event_content,
+                display_content: event_display_content,
+            } if event_content == content
+                && event_display_content.as_deref() == expected_display_content =>
+            {
+                Some(message_id.clone())
+            }
+            _ => None,
+        })
 }
 
 fn idle_send_response(
     session_id: String,
     client_request_id: Option<String>,
+    accepted_message_id: Option<String>,
     accepted: bool,
     status: &str,
 ) -> SendMessageToSessionIfIdleResponse {
     SendMessageToSessionIfIdleResponse {
         session_id,
         client_request_id,
+        accepted_message_id,
         accepted,
         status: status.to_string(),
     }
@@ -758,7 +813,7 @@ mod chat_attachment_tests {
             .await
             .expect("session should start");
 
-        send_message_to_session_if_idle_inner(
+        let response = send_message_to_session_if_idle_inner(
             &runtime,
             workspace.workspace_id,
             session_id.clone(),
@@ -773,11 +828,17 @@ mod chat_attachment_tests {
             .get_trace(session_id)
             .await
             .expect("trace should load");
-        assert!(trace.iter().any(|entry| matches!(
-            &entry.event.payload,
-            agent_core::EventPayload::UserMessageAdded { content, .. }
-                if content == "idle ipc path"
-        )));
+        let accepted_message_id = trace.iter().find_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::UserMessageAdded {
+                message_id,
+                content,
+                ..
+            } if content == "idle ipc path" => Some(message_id.as_str()),
+            _ => None,
+        });
+        assert!(response.accepted);
+        assert_eq!(response.status, "accepted");
+        assert_eq!(response.accepted_message_id.as_deref(), accepted_message_id);
         assert!(trace.iter().any(|entry| matches!(
             &entry.event.payload,
             agent_core::EventPayload::AssistantMessageCompleted { content, .. }
@@ -841,6 +902,7 @@ mod chat_attachment_tests {
             first.client_request_id.as_deref(),
             Some("automation-send-1")
         );
+        assert!(first.accepted_message_id.is_some());
         assert!(second.accepted);
         assert_eq!(second.status, "accepted");
         assert_eq!(second.session_id, session_id.to_string());
@@ -848,6 +910,7 @@ mod chat_attachment_tests {
             second.client_request_id.as_deref(),
             Some("automation-send-1")
         );
+        assert_eq!(second.accepted_message_id, first.accepted_message_id);
 
         let trace = runtime
             .get_trace(session_id)
@@ -941,6 +1004,7 @@ mod chat_attachment_tests {
             duplicate.client_request_id.as_deref(),
             Some("automation-send-inflight")
         );
+        assert!(duplicate.accepted_message_id.is_none());
         assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
 
         release_tx.send(()).expect("blocking stream should release");
@@ -950,6 +1014,7 @@ mod chat_attachment_tests {
             .expect("first send should be accepted after release");
         assert!(first.accepted);
         assert_eq!(first.status, "accepted");
+        assert!(first.accepted_message_id.is_some());
 
         let trace = runtime
             .get_trace(session_id)

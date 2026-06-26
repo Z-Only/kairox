@@ -9,6 +9,8 @@ DRY_RUN="${KAIROX_DEV_PILOT_DRY_RUN:-0}"
 SKIP_DEPS="${KAIROX_DEV_PILOT_SKIP_DEPS:-0}"
 PING_TIMEOUT_SECS="${KAIROX_DEV_PILOT_TIMEOUT_SECS:-240}"
 PING_INTERVAL_SECS="${KAIROX_DEV_PILOT_PING_INTERVAL_SECS:-2}"
+ACTIVE_STARTUP_EXTRA_WAIT_SECS="${KAIROX_DEV_PILOT_ACTIVE_STARTUP_EXTRA_WAIT_SECS:-180}"
+STARTUP_STATUS_INTERVAL_SECS="${KAIROX_DEV_PILOT_STARTUP_STATUS_INTERVAL_SECS:-30}"
 VITE_READY_TIMEOUT_SECS="${KAIROX_DEV_PILOT_VITE_TIMEOUT_SECS:-60}"
 APP_LOG="${KAIROX_DEV_PILOT_APP_LOG:-/tmp/kairox-dev-pilot-app.log}"
 VITE_LOG="${KAIROX_DEV_PILOT_VITE_LOG:-/tmp/kairox-dev-pilot-vite.log}"
@@ -249,6 +251,92 @@ _tail_log_hint() {
     fi
 }
 
+_log_mtime_epoch() {
+    local log="$1"
+    if stat -f %m "$log" >/dev/null 2>&1; then
+        stat -f %m "$log"
+    else
+        stat -c %Y "$log"
+    fi
+}
+
+_log_recently_updated() {
+    local log="$1"
+    local window_secs="$2"
+    [[ -f "$log" ]] || return 1
+
+    local mtime
+    mtime="$(_log_mtime_epoch "$log" 2>/dev/null || true)"
+    [[ -n "$mtime" ]] || return 1
+
+    local now
+    now="$(date +%s)"
+    ((now - mtime <= window_secs))
+}
+
+_log_has_startup_signal() {
+    local log="$1"
+    [[ -f "$log" ]] || return 1
+    grep -Eiq "(Compiling|Checking|Building|Finished .+ profile|Running .+agent-gui-tauri|tauri dev|cargo run|Waiting for frontend)" "$log"
+}
+
+_startup_still_active() {
+    local main_pid="$1"
+    local log="$2"
+    [[ -n "$main_pid" ]] || return 1
+    kill -0 "$main_pid" 2>/dev/null || return 1
+
+    _log_recently_updated "$log" 45 || _log_has_startup_signal "$log"
+}
+
+_starpoint_helper_path() {
+    local helper="$REPO_ROOT/.agents/skills/starpoint-command-unblock/scripts/check-and-allow.sh"
+    if [[ -f "$helper" ]]; then
+        printf "%s\n" "$helper"
+        return 0
+    fi
+
+    if [[ "$REPO_ROOT" == */.worktrees/* ]]; then
+        local main_root
+        main_root="$(cd "$REPO_ROOT/../.." && pwd -P)"
+        helper="$main_root/.agents/skills/starpoint-command-unblock/scripts/check-and-allow.sh"
+        if [[ -f "$helper" ]]; then
+            printf "%s\n" "$helper"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+_print_starpoint_hint() {
+    local log="$1"
+    local status="${2:-}"
+    if [[ "$status" != "137" && "$status" != "9" ]]; then
+        [[ -f "$log" ]] || return 0
+        grep -Eiq "(Killed: 9|SIGKILL|signal 9)" "$log" || return 0
+    fi
+
+    local helper
+    helper="$(_starpoint_helper_path 2>/dev/null || true)"
+    local expected="$REPO_ROOT/target/debug/agent-gui-tauri"
+    echo "       The Tauri binary may have been blocked by StarPoint." >&2
+    if [[ -n "$helper" ]]; then
+        echo "       Retry after allowing it with:" >&2
+        printf "       STARPOINT_EXPECT=%q bash %q\n" "$expected" "$helper" >&2
+    else
+        echo "       StarPoint helper was not found under this worktree or its main checkout." >&2
+    fi
+}
+
+_prepare_pilot_socket() {
+    local socket="$1"
+    if [[ -S "$socket" ]]; then
+        echo "Removing pre-existing pilot socket for this launch: $socket"
+        rm -f "$socket"
+    fi
+}
+
 _resolve_socket() {
     local identifier="$1"
     KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
@@ -262,6 +350,7 @@ EOF
 _resolve_default_launch() {
     KAIROX_DEV_HELPER="$REPO_ROOT/apps/agent-gui/scripts/dev-port.mjs" \
         KAIROX_DEV_PREFERRED_PORT="${KAIROX_DEV_PORT:-1420}" \
+        KAIROX_DEV_PORT_CHECK_HOST="${KAIROX_DEV_PORT_CHECK_HOST:-0.0.0.0}" \
         node --input-type=module <<'EOF'
 const {
   buildTauriDevIdentifier,
@@ -364,6 +453,9 @@ _wait_for_pilot() {
     local log="$3"
     local label="$4"
     local waited=0
+    local extra_limit=$((PING_TIMEOUT_SECS + ACTIVE_STARTUP_EXTRA_WAIT_SECS))
+    local next_status="$STARTUP_STATUS_INTERVAL_SECS"
+    local extra_notice_printed=0
 
     echo "Waiting for pilot readiness:"
     echo "  socket: $socket"
@@ -373,24 +465,46 @@ _wait_for_pilot() {
         echo "  check:  socket exists (-S); install tauri-pilot for stronger ping validation"
     fi
 
-    while [[ "$waited" -le "$PING_TIMEOUT_SECS" ]]; do
+    while true; do
         if _run_with_timeout 5 _ping_pilot "$socket"; then
             echo "Pilot ready after ${waited}s."
             return 0
         fi
 
         if [[ -n "$main_pid" ]] && ! kill -0 "$main_pid" 2>/dev/null; then
-            echo "WARN: $label exited before pilot became reachable." >&2
+            local exit_status=0
+            set +e
+            wait "$main_pid"
+            exit_status=$?
+            set -e
+            echo "WARN: $label exited with status $exit_status before pilot became reachable." >&2
             _tail_log_hint "$log"
+            _print_starpoint_hint "$log" "$exit_status"
             return 2
+        fi
+
+        if ((waited >= PING_TIMEOUT_SECS)); then
+            if ((waited < extra_limit)) && _startup_still_active "$main_pid" "$log"; then
+                if ((extra_notice_printed == 0)); then
+                    echo "Still waiting: $label appears to be compiling or starting after ${PING_TIMEOUT_SECS}s." >&2
+                    echo "  Extra wait budget: ${ACTIVE_STARTUP_EXTRA_WAIT_SECS}s (KAIROX_DEV_PILOT_ACTIVE_STARTUP_EXTRA_WAIT_SECS)." >&2
+                    extra_notice_printed=1
+                fi
+            else
+                break
+            fi
+        elif ((waited >= next_status)) && _startup_still_active "$main_pid" "$log"; then
+            echo "Still waiting for pilot readiness after ${waited}s; $label is still active." >&2
+            next_status=$((next_status + STARTUP_STATUS_INTERVAL_SECS))
         fi
 
         sleep "$PING_INTERVAL_SECS"
         waited=$((waited + PING_INTERVAL_SECS))
     done
 
-    echo "WARN: pilot did not become reachable within ${PING_TIMEOUT_SECS}s for $label." >&2
+    echo "WARN: pilot did not become reachable after ${waited}s for $label." >&2
     _tail_log_hint "$log"
+    _print_starpoint_hint "$log"
     return 3
 }
 
@@ -501,6 +615,7 @@ if _is_enabled "$DRY_RUN"; then
 fi
 
 if _tauri_cli_available; then
+    _prepare_pilot_socket "$DEFAULT_SOCKET"
     _start_default
     if _wait_for_pilot "$DEFAULT_SOCKET" "$DEFAULT_PID" "$APP_LOG" "default Tauri dev command"; then
         echo "Kairox Dev App is running with pilot enabled."
@@ -517,6 +632,7 @@ else
     echo "Install workspace dependencies with 'bun install' if this was unexpected."
 fi
 
+_prepare_pilot_socket "$FALLBACK_SOCKET"
 _start_fallback
 if _wait_for_pilot "$FALLBACK_SOCKET" "$TAURI_PID" "$TAURI_LOG" "split Tauri cargo command"; then
     echo "Kairox Dev App is running with pilot enabled via split fallback."
