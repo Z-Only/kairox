@@ -300,6 +300,16 @@ export function summarizeAudit(worktrees) {
     if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "diagnostics_only") {
       summary.diagnostics_only_dirty += 1;
     }
+    if (worktree.cleanup_recommendation) {
+      summary.cleanup_remove ??= 0;
+      summary.cleanup_prune ??= 0;
+      summary.cleanup_keep ??= 0;
+      summary.cleanup_inspect ??= 0;
+      const cleanupKey = `cleanup_${worktree.cleanup_recommendation}`;
+      if (Object.hasOwn(summary, cleanupKey)) {
+        summary[cleanupKey] += 1;
+      }
+    }
   }
 
   return summary;
@@ -491,7 +501,11 @@ export function formatHumanTable(worktrees) {
 }
 
 export function formatSummaryLine(summary) {
-  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty} missing=${summary.missing} error=${summary.error}`;
+  const cleanup =
+    summary.cleanup_remove === undefined
+      ? ""
+      : ` cleanup_remove=${summary.cleanup_remove} cleanup_prune=${summary.cleanup_prune} cleanup_keep=${summary.cleanup_keep} cleanup_inspect=${summary.cleanup_inspect}`;
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty} missing=${summary.missing} error=${summary.error}${cleanup}`;
 }
 
 export function parseArgs(argv) {
@@ -579,12 +593,12 @@ export async function runCli(
         pathExists,
         cwd,
         env,
-        compareRef: args.summaryOnly ? null : args.compareRef,
+        compareRef: args.summaryOnly && !args.recommendCleanup ? null : args.compareRef,
         fileLimit: args.allFiles ? null : DIRTY_FILE_LIMIT
       }),
       args
     );
-    if (args.recommendCleanup && !args.summaryOnly) {
+    if (args.recommendCleanup) {
       audited = annotateCleanupRecommendations(audited);
     }
     const summary = summarizeAudit(audited);
