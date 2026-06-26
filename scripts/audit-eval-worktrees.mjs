@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
 const DIRTY_FILE_LIMIT = 5;
 
-export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only]
+export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>]
 
 Audits local eval worktrees without deleting worktrees or branches.
 
@@ -21,6 +21,7 @@ Options:
   --summary     Only print summary counts.
   --dirty-only  Only show dirty, missing, or error worktrees.
   --clean-only  Only show clean worktrees.
+  --compare-ref Compare dirty files with a ref and annotate matching content.
   --help, -h    Show this help.
 `;
 
@@ -56,16 +57,22 @@ function parseDirtyStatusPath(line) {
   return path.trim();
 }
 
-function summarizeDirtyStatus(output) {
-  const dirtyFiles = output
+function parseDirtyStatusPaths(output) {
+  return output
     .split(/\r?\n/)
     .filter((line) => line.trim() !== "")
     .map(parseDirtyStatusPath);
+}
 
+function summarizeDirtyFiles(dirtyFiles) {
   return {
     dirty_file_count: dirtyFiles.length,
     dirty_files: dirtyFiles.slice(0, DIRTY_FILE_LIMIT)
   };
+}
+
+function summarizeDirtyStatus(output) {
+  return summarizeDirtyFiles(parseDirtyStatusPaths(output));
 }
 
 export function parseWorktreePorcelain(output) {
@@ -118,7 +125,46 @@ export function filterEvalWorktrees(worktrees) {
   });
 }
 
-async function dirtyStatus(worktreePath, { execFile, env, pathExists }) {
+async function compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, { execFile, env }) {
+  let checkedCount = 0;
+  const matchingFiles = [];
+
+  for (const dirtyFile of dirtyFiles) {
+    try {
+      const refResult = await execFile(
+        "git",
+        ["-C", worktreePath, "rev-parse", `${compareRef}:${dirtyFile}`],
+        {
+          env,
+          maxBuffer: GIT_BUFFER
+        }
+      );
+      const worktreeResult = await execFile(
+        "git",
+        ["-C", worktreePath, "hash-object", "--", dirtyFile],
+        {
+          env,
+          maxBuffer: GIT_BUFFER
+        }
+      );
+      checkedCount += 1;
+      if (refResult.stdout.trim() === worktreeResult.stdout.trim()) {
+        matchingFiles.push(dirtyFile);
+      }
+    } catch {
+      // Untracked, deleted, or absent-in-ref files are not comparable.
+    }
+  }
+
+  return {
+    compare_ref: compareRef,
+    compare_ref_checked_count: checkedCount,
+    compare_ref_match_count: matchingFiles.length,
+    compare_ref_matching_files: matchingFiles.slice(0, DIRTY_FILE_LIMIT)
+  };
+}
+
+async function dirtyStatus(worktreePath, { execFile, env, pathExists, compareRef }) {
   const exists = pathExists(worktreePath);
   if (!exists) {
     return {
@@ -134,11 +180,17 @@ async function dirtyStatus(worktreePath, { execFile, env, pathExists }) {
       env,
       maxBuffer: GIT_BUFFER
     });
-    const dirtySummary = summarizeDirtyStatus(result.stdout);
+    const dirtyFiles = parseDirtyStatusPaths(result.stdout);
+    const dirtySummary = summarizeDirtyFiles(dirtyFiles);
+    const compareSummary =
+      compareRef && dirtyFiles.length > 0
+        ? await compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, { execFile, env })
+        : {};
     return {
       dirty_status: dirtySummary.dirty_file_count === 0 ? "clean" : "dirty",
       path_exists: true,
-      ...dirtySummary
+      ...dirtySummary,
+      ...compareSummary
     };
   } catch {
     return {
@@ -154,7 +206,8 @@ export async function auditEvalWorktrees({
   execFile = execFileAsync,
   pathExists = existsSync,
   cwd = process.cwd(),
-  env = process.env
+  env = process.env,
+  compareRef = null
 } = {}) {
   const result = await execFile("git", ["worktree", "list", "--porcelain"], {
     cwd,
@@ -169,7 +222,7 @@ export async function auditEvalWorktrees({
       path: worktree.path,
       branch: worktree.branch,
       head: worktree.head,
-      ...(await dirtyStatus(worktree.path, { execFile, env, pathExists }))
+      ...(await dirtyStatus(worktree.path, { execFile, env, pathExists, compareRef }))
     });
   }
 
@@ -226,6 +279,22 @@ function formatDirtyFiles(worktree) {
   return `${dirtyFileCount}: ${dirtyFiles.join(", ")}${suffix}`;
 }
 
+function formatCompareRef(worktree) {
+  if (!worktree.compare_ref) {
+    return "-";
+  }
+
+  const matchingFiles = Array.isArray(worktree.compare_ref_matching_files)
+    ? worktree.compare_ref_matching_files
+    : [];
+  const matchCount = worktree.compare_ref_match_count ?? matchingFiles.length;
+  const checkedCount = worktree.compare_ref_checked_count ?? 0;
+  const remaining = matchCount - matchingFiles.length;
+  const suffix = remaining > 0 ? `, +${remaining} more` : "";
+  const files = matchingFiles.length > 0 ? `: ${matchingFiles.join(", ")}${suffix}` : "";
+  return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}`;
+}
+
 export function formatHumanTable(worktrees) {
   const summary = summarizeAudit(worktrees);
   const summaryLine = `${formatSummaryLine(summary)}\n`;
@@ -234,15 +303,30 @@ export function formatHumanTable(worktrees) {
     return `${summaryLine}No eval worktrees found.\n`;
   }
 
-  const headers = ["PATH", "BRANCH", "HEAD", "PATH_EXISTS", "DIRTY_STATUS", "DIRTY_FILES"];
-  const rows = worktrees.map((worktree) => [
-    worktree.path,
-    worktree.branch ?? "-",
-    shortHead(worktree.head),
-    worktree.path_exists ? "yes" : "no",
-    worktree.dirty_status,
-    formatDirtyFiles(worktree)
-  ]);
+  const includeCompareRef = worktrees.some((worktree) => worktree.compare_ref);
+  const headers = [
+    "PATH",
+    "BRANCH",
+    "HEAD",
+    "PATH_EXISTS",
+    "DIRTY_STATUS",
+    "DIRTY_FILES",
+    ...(includeCompareRef ? ["COMPARE_REF_MATCHES"] : [])
+  ];
+  const rows = worktrees.map((worktree) => {
+    const row = [
+      worktree.path,
+      worktree.branch ?? "-",
+      shortHead(worktree.head),
+      worktree.path_exists ? "yes" : "no",
+      worktree.dirty_status,
+      formatDirtyFiles(worktree)
+    ];
+    if (includeCompareRef) {
+      row.push(formatCompareRef(worktree));
+    }
+    return row;
+  });
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => String(row[index]).length))
   );
@@ -262,10 +346,12 @@ export function parseArgs(argv) {
     json: false,
     summaryOnly: false,
     dirtyOnly: false,
-    cleanOnly: false
+    cleanOnly: false,
+    compareRef: null
   };
 
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
       parsed.help = true;
       continue;
@@ -284,6 +370,15 @@ export function parseArgs(argv) {
     }
     if (arg === "--clean-only") {
       parsed.cleanOnly = true;
+      continue;
+    }
+    if (arg === "--compare-ref") {
+      const compareRef = argv[index + 1];
+      if (!compareRef || compareRef.startsWith("--")) {
+        throw new UsageError("--compare-ref requires a ref");
+      }
+      parsed.compareRef = compareRef;
+      index += 1;
       continue;
     }
     throw new UsageError(`Unknown argument: ${arg}`);
@@ -315,7 +410,7 @@ export async function runCli(
     }
 
     const audited = filterAuditResults(
-      await auditEvalWorktrees({ execFile, pathExists, cwd, env }),
+      await auditEvalWorktrees({ execFile, pathExists, cwd, env, compareRef: args.compareRef }),
       args
     );
     const summary = summarizeAudit(audited);
