@@ -22,9 +22,12 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Format: `cargo fmt`, oxfmt
 
 ## Crate structure & dependency direction
-- agent-core ← agent-runtime ← agent-tui / agent-gui / agent-eval
-- agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp, agent-skills
-- agent-tools → agent-mcp (re-exports `McpServerDef`, `McpTransportDef`; provides `McpToolAdapter`)
+- agent-tui / agent-gui-tauri / agent-eval / agent-sdk → agent-runtime
+- agent-runtime → agent-core + domain crates
+- domain crates must not depend on agent-runtime or consumer crates
+- agent-tools → agent-mcp, agent-lsp (adapters/providers)
+- agent-config → agent-models, agent-mcp, agent-lsp (TOML schemas/builders)
+- agent-memory → agent-models (model metadata/context budgeting)
 - agent-tools owns the `PolicyEngine` (orthogonal `ApprovalPolicy` × `SandboxPolicy`); legacy `PermissionMode` is removed
 - agent-store owns append-only events, metadata, and trajectory persistence (`TrajectoryStore` / `SqliteTrajectoryStore`)
 - agent-runtime owns session execution via `SessionActor` (`execution_runtime/`) with race-free turn-end compaction
@@ -69,6 +72,7 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 3. apps/agent-gui/package.json
 4. apps/agent-gui/src-tauri/tauri.conf.json
 5. package.json (root)
+6. docs/current-release.json and public docs (run `bun run release-docs:sync`, then `bun run release-docs:check`)
 
 ## Common mistakes to avoid
 - Using `npm`, `pnpm`, or `yarn` instead of Bun
@@ -78,4 +82,4 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 - Forgetting to register new Tauri commands in both `generate_handler!` (invocation) and `collect_commands!` (specta type-gen)
 - Skipping `bun install` after creating a git worktree
 - Editing `apps/agent-gui/src/generated/{commands,events}.ts` by hand — these are auto-generated, run `just gen-types`
-- Forgetting to update `apps/agent-gui/e2e/tauri-mock.js` when adding new `#[tauri::command]` or events
+- Forgetting to update the matching `apps/agent-gui/e2e/fixtures/tauri-mock/` fragment when adding new `#[tauri::command]` or events

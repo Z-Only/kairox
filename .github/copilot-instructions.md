@@ -62,7 +62,7 @@ Never create reverse dependencies. New domain types/events go in `agent-core` fi
 
 ## Commit format
 
-Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `plugins`, `eval`, `tui`, `gui`, `docs`, `deps`, `ci`
+Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `lsp`, `skills`, `plugins`, `eval`, `tui`, `gui`, `docs`, `deps`, `ci`
 
 ## Version bump files (must stay in sync)
 
@@ -71,6 +71,7 @@ Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`
 3. `apps/agent-gui/package.json`
 4. `apps/agent-gui/src-tauri/tauri.conf.json`
 5. `package.json` (root)
+6. `docs/current-release.json` and public docs (run `bun run release-docs:sync`, then `bun run release-docs:check`)
 
 ## Common mistakes to avoid
 
