@@ -91,6 +91,18 @@ test("compactSessionDiagnostics reports failed and blocked event signals", () =>
   assert.equal(compact.failure_signal, "task_blocked");
 });
 
+test("compactSessionDiagnostics reports cancelled event signals", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_cancelled",
+    event_type_counts: {
+      SessionCancelled: 1,
+      UserMessageAdded: 1
+    }
+  });
+
+  assert.equal(compact.failure_signal, "session_cancelled");
+});
+
 test("compactSessionDiagnostics defaults missing newer diagnostics fields", () => {
   const compact = compactSessionDiagnostics({
     sessionId: "ses_legacy",

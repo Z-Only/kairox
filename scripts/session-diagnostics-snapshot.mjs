@@ -101,7 +101,10 @@ function snakeCaseEventType(eventType) {
 
 function failureSignal(eventTypeCounts, trajectoryFailedCountValue) {
   for (const eventType of Object.keys(eventTypeCounts)) {
-    if (countValue(eventTypeCounts[eventType]) > 0 && /(Blocked|Failed|Denied)$/.test(eventType)) {
+    if (
+      countValue(eventTypeCounts[eventType]) > 0 &&
+      /(Blocked|Failed|Denied|Cancelled|Canceled)$/.test(eventType)
+    ) {
       return snakeCaseEventType(eventType);
     }
   }
