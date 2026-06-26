@@ -285,12 +285,20 @@ export function summarizeAudit(worktrees) {
     clean: 0,
     dirty: 0,
     missing: 0,
-    error: 0
+    error: 0,
+    code_dirty: 0,
+    diagnostics_only_dirty: 0
   };
 
   for (const worktree of worktrees) {
     if (Object.hasOwn(summary, worktree.dirty_status)) {
       summary[worktree.dirty_status] += 1;
+    }
+    if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "code") {
+      summary.code_dirty += 1;
+    }
+    if (worktree.dirty_status === "dirty" && worktree.dirty_scope === "diagnostics_only") {
+      summary.diagnostics_only_dirty += 1;
     }
   }
 
@@ -483,7 +491,7 @@ export function formatHumanTable(worktrees) {
 }
 
 export function formatSummaryLine(summary) {
-  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} missing=${summary.missing} error=${summary.error}`;
+  return `Summary: total=${summary.total} clean=${summary.clean} dirty=${summary.dirty} code_dirty=${summary.code_dirty} diagnostics_only_dirty=${summary.diagnostics_only_dirty} missing=${summary.missing} error=${summary.error}`;
 }
 
 export function parseArgs(argv) {
