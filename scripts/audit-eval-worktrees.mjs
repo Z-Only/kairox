@@ -128,6 +128,7 @@ export function filterEvalWorktrees(worktrees) {
 async function compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, { execFile, env }) {
   let checkedCount = 0;
   const matchingFiles = [];
+  const unmatchedFiles = [];
 
   for (const dirtyFile of dirtyFiles) {
     try {
@@ -150,9 +151,12 @@ async function compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, { ex
       checkedCount += 1;
       if (refResult.stdout.trim() === worktreeResult.stdout.trim()) {
         matchingFiles.push(dirtyFile);
+      } else {
+        unmatchedFiles.push(dirtyFile);
       }
     } catch {
       // Untracked, deleted, or absent-in-ref files are not comparable.
+      unmatchedFiles.push(dirtyFile);
     }
   }
 
@@ -160,7 +164,9 @@ async function compareDirtyFilesToRef(worktreePath, dirtyFiles, compareRef, { ex
     compare_ref: compareRef,
     compare_ref_checked_count: checkedCount,
     compare_ref_match_count: matchingFiles.length,
-    compare_ref_matching_files: matchingFiles.slice(0, DIRTY_FILE_LIMIT)
+    compare_ref_matching_files: matchingFiles.slice(0, DIRTY_FILE_LIMIT),
+    compare_ref_unmatched_count: unmatchedFiles.length,
+    compare_ref_unmatched_files: unmatchedFiles.slice(0, DIRTY_FILE_LIMIT)
   };
 }
 
@@ -292,7 +298,17 @@ function formatCompareRef(worktree) {
   const remaining = matchCount - matchingFiles.length;
   const suffix = remaining > 0 ? `, +${remaining} more` : "";
   const files = matchingFiles.length > 0 ? `: ${matchingFiles.join(", ")}${suffix}` : "";
-  return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}`;
+  const unmatchedFiles = Array.isArray(worktree.compare_ref_unmatched_files)
+    ? worktree.compare_ref_unmatched_files
+    : [];
+  const unmatchedCount = worktree.compare_ref_unmatched_count ?? unmatchedFiles.length;
+  const unmatchedRemaining = unmatchedCount - unmatchedFiles.length;
+  const unmatchedSuffix = unmatchedRemaining > 0 ? `, +${unmatchedRemaining} more` : "";
+  const unmatched =
+    unmatchedCount > 0
+      ? `; unmatched ${unmatchedCount}: ${unmatchedFiles.join(", ")}${unmatchedSuffix}`
+      : "";
+  return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}`;
 }
 
 export function formatHumanTable(worktrees) {

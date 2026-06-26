@@ -321,7 +321,9 @@ test("runCli annotates dirty files that match a compare ref", async () => {
     compare_ref: "origin/main",
     compare_ref_checked_count: 2,
     compare_ref_match_count: 1,
-    compare_ref_matching_files: ["crates/agent-runtime/src/lib.rs"]
+    compare_ref_matching_files: ["crates/agent-runtime/src/lib.rs"],
+    compare_ref_unmatched_count: 2,
+    compare_ref_unmatched_files: ["different.txt", "scratch.txt"]
   });
 });
 
@@ -382,7 +384,9 @@ test("formatHumanTable includes compare ref matches when present", () => {
       compare_ref: "origin/main",
       compare_ref_checked_count: 2,
       compare_ref_match_count: 1,
-      compare_ref_matching_files: ["same.txt"]
+      compare_ref_matching_files: ["same.txt"],
+      compare_ref_unmatched_count: 1,
+      compare_ref_unmatched_files: ["different.txt"]
     }
   ]);
 
@@ -391,6 +395,7 @@ test("formatHumanTable includes compare ref matches when present", () => {
     /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES\s+COMPARE_REF_MATCHES/m
   );
   assert.match(table, /origin\/main 1\/2: same\.txt/);
+  assert.match(table, /unmatched 1: different\.txt/);
 });
 
 test("runCli writes stable JSON without touching the real Git repository", async () => {
