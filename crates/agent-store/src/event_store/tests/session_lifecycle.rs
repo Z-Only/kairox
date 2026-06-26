@@ -13,7 +13,7 @@ async fn upsert_and_list_active_sessions() {
         .upsert_session(&SessionRow {
             session_id: "ses_1".into(),
             workspace_id: "wrk_1".into(),
-            title: "Session using fast".into(),
+            title: "New conversation".into(),
             model_profile: "fast".into(),
             model_id: Some("gpt-4.1-mini".into()),
             approval_policy: None,
@@ -28,7 +28,7 @@ async fn upsert_and_list_active_sessions() {
 
     let sessions = store.list_active_sessions("wrk_1").await.unwrap();
     assert_eq!(sessions.len(), 1);
-    assert_eq!(sessions[0].title, "Session using fast");
+    assert_eq!(sessions[0].title, "New conversation");
     assert_eq!(sessions[0].model_id, Some("gpt-4.1-mini".into()));
 }
 

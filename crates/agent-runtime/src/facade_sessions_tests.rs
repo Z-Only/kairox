@@ -77,7 +77,7 @@ async fn start_session_persists_metadata() {
         .unwrap();
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].session_id, session_id);
-    assert_eq!(sessions[0].title, "Session using fake");
+    assert_eq!(sessions[0].title, "New conversation");
 }
 
 #[tokio::test]
