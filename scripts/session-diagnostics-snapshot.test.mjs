@@ -328,6 +328,41 @@ test("CLI overlays explicit resume metadata", async () => {
   });
 });
 
+test("CLI infers branch metadata from worktree_path", async () => {
+  const stdout = createWritableCapture();
+  const stderr = createWritableCapture();
+
+  const exitCode = await runCli(
+    ["--session", "ses_branch", "--meta", "worktree_path=/repo/.worktrees/eval"],
+    {
+      stdout,
+      stderr,
+      execFile: async (command, args) => {
+        if (command === "tauri-pilot") {
+          return {
+            stdout: JSON.stringify({
+              session_id: "ses_branch",
+              event_count: 1,
+              event_type_counts: [{ event_type: "UserMessageAdded", count: 1 }]
+            })
+          };
+        }
+        if (
+          command === "git" &&
+          args.join(" ") === "-C /repo/.worktrees/eval branch --show-current"
+        ) {
+          return { stdout: "eval/foo\n" };
+        }
+        throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
+      }
+    }
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(stderr.content, "");
+  assert.equal(JSON.parse(stdout.content).branch, "eval/foo");
+});
+
 test("compactSessionDiagnostics flags terminal assistant messages without tool progress", () => {
   const compact = compactSessionDiagnostics({
     session_id: "ses_no_tools",
