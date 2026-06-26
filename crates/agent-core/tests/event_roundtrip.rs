@@ -213,6 +213,7 @@ fn tool_invocation_started_roundtrips() {
     let event = make_event(EventPayload::ToolInvocationStarted {
         invocation_id: "inv_1".into(),
         tool_id: "shell.exec".into(),
+        input_preview: String::new(),
     });
     assert_eq!(roundtrip(&event), event);
 }

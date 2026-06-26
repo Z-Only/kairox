@@ -264,6 +264,47 @@ describe("trace store", () => {
       expect(trace.entries[0].status).toBe("running");
     });
 
+    it("ToolInvocationStarted stores input previews and upgrades existing tool entries", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelToolCallRequested",
+          tool_call_id: "toolu-1",
+          tool_id: "shell.exec"
+        })
+      );
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationStarted",
+          invocation_id: "toolu-1",
+          tool_id: "shell.exec",
+          input_preview: 'shell.exec({"command":"bun test scripts/audit-eval-worktrees.test.mjs"})'
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0].status).toBe("running");
+      expect(trace.entries[0].input).toContain("bun test scripts/audit-eval-worktrees.test.mjs");
+      expect(trace.entries[0].title).toContain("bun test scripts/audit-eval-worktrees.test.mjs");
+    });
+
+    it("keeps generic tool titles when no input preview is available", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationStarted",
+          invocation_id: "inv-no-preview",
+          tool_id: "fs.read",
+          input_preview: ""
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0].title).toBe("fs.read");
+      expect(trace.entries[0].input).toBeUndefined();
+    });
+
     it("ToolInvocationCompleted updates existing entry", () => {
       const trace = useTraceStore();
       trace.applyTraceEvent(
@@ -326,6 +367,52 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries).toHaveLength(0);
+    });
+  });
+
+  describe("TrajectoryCompleted", () => {
+    it("adds a completed trajectory trace entry for successful outcomes", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "TrajectoryCompleted",
+          trajectory_id: "traj-1",
+          step_count: 12,
+          outcome: "success"
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        id: "trajectory-traj-1",
+        kind: "tool",
+        toolId: "trajectory",
+        status: "completed"
+      });
+      expect(trace.entries[0].title).toContain("success");
+    });
+
+    it("adds a failed trajectory trace entry for failed outcomes", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "TrajectoryCompleted",
+          trajectory_id: "traj-2",
+          step_count: 8,
+          outcome: "failed"
+        } as DomainEvent["payload"])
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        id: "trajectory-traj-2",
+        kind: "tool",
+        toolId: "trajectory",
+        status: "failed"
+      });
+      expect(trace.entries[0].title).toContain("failed");
     });
   });
 

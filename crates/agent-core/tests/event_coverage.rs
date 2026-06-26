@@ -142,6 +142,7 @@ fn every_event_payload_variant_has_event_type() {
         EventPayload::ToolInvocationStarted {
             invocation_id: "inv1".into(),
             tool_id: "shell.exec".into(),
+            input_preview: String::new(),
         },
         EventPayload::ToolInvocationCompleted {
             invocation_id: "inv1".into(),
@@ -437,6 +438,7 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::ToolInvocationStarted {
             invocation_id: "inv-1".into(),
             tool_id: "shell.exec".into(),
+            input_preview: String::new(),
         },
         EventPayload::ToolInvocationCompleted {
             invocation_id: "inv-99".into(),

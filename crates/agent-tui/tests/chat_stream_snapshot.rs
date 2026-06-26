@@ -231,6 +231,7 @@ fn collapsed_tool_call_renders_marker_and_status_after_messages() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "call_1".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(
@@ -878,6 +879,7 @@ fn multiple_stream_items_render_in_chronological_order() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "call_chrono".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(

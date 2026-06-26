@@ -41,6 +41,33 @@ function formatOutcome(outcome: string): string {
   return translated === key ? outcome : translated;
 }
 
+const trajectoryOutcomeCounts = computed(() => {
+  const counts = {
+    success: 0,
+    failed: 0,
+    cancelled: 0,
+    in_progress: 0
+  };
+  for (const trajectory of trajectories.value) {
+    if (trajectory.outcome in counts) {
+      counts[trajectory.outcome as keyof typeof counts]++;
+    }
+  }
+  return counts;
+});
+
+const trajectorySummaryItems = computed(() => {
+  const items: Array<[string, number]> = [
+    ["summarySuccess", trajectoryOutcomeCounts.value.success],
+    ["summaryFailed", trajectoryOutcomeCounts.value.failed],
+    ["summaryInProgress", trajectoryOutcomeCounts.value.in_progress],
+    ["summaryCancelled", trajectoryOutcomeCounts.value.cancelled]
+  ];
+  return items
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => t(`trajectory.${key}`, { count }));
+});
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -167,79 +194,89 @@ watch(() => session.currentSessionId, fetchTrajectories, { immediate: true });
       {{ t("trajectory.empty") }}
     </KxEmptyState>
 
-    <div v-else class="trajectory-list" :style="{ overflowY: 'auto' }">
-      <div
-        v-for="traj in trajectories"
-        :key="traj.trajectory_id"
-        class="trajectory-card"
-        data-test="trajectory-card"
-        @click="toggleTrajectory(traj.trajectory_id)"
-      >
-        <div class="trajectory-card-header">
-          <span class="trajectory-task-id">{{ traj.task_id }}</span>
-          <span class="trajectory-badge" :class="outcomeClass(traj.outcome)">
-            {{ formatOutcome(traj.outcome) }}
-          </span>
-        </div>
-        <div class="trajectory-card-meta">
-          <span class="trajectory-step-count">
-            {{ t("trajectory.stepCount", { count: traj.step_count }) }}
-          </span>
-          <span class="trajectory-time-range">
-            {{ formatTimeRange(traj.started_at, traj.completed_at) }}
-          </span>
-        </div>
-        <div class="trajectory-card-actions">
-          <KxButton
-            size="xs"
-            variant="default"
-            data-test="trajectory-export"
-            @click="exportTrajectory(traj.trajectory_id, $event)"
-          >
-            {{ t("trajectory.export") }}
-          </KxButton>
-        </div>
-
+    <div v-else class="trajectory-results">
+      <div class="trajectory-summary" data-test="trajectory-summary">
+        <span class="trajectory-summary__total">
+          {{ t("trajectory.summary", { count: trajectories.length }) }}
+        </span>
+        <span v-for="item in trajectorySummaryItems" :key="item" class="trajectory-summary__item">
+          {{ item }}
+        </span>
+      </div>
+      <div class="trajectory-list" :style="{ overflowY: 'auto' }">
         <div
-          v-if="expandedTrajectoryId === traj.trajectory_id"
-          class="trajectory-steps"
-          @click.stop
+          v-for="traj in trajectories"
+          :key="traj.trajectory_id"
+          class="trajectory-card"
+          data-test="trajectory-card"
+          @click="toggleTrajectory(traj.trajectory_id)"
         >
-          <KxEmptyState v-if="stepsLoading" compact>
-            {{ t("trajectory.loadingSteps") }}
-          </KxEmptyState>
-          <KxEmptyState v-else-if="steps.length === 0" compact>
-            {{ t("trajectory.noSteps") }}
-          </KxEmptyState>
+          <div class="trajectory-card-header">
+            <span class="trajectory-task-id">{{ traj.task_id }}</span>
+            <span class="trajectory-badge" :class="outcomeClass(traj.outcome)">
+              {{ formatOutcome(traj.outcome) }}
+            </span>
+          </div>
+          <div class="trajectory-card-meta">
+            <span class="trajectory-step-count">
+              {{ t("trajectory.stepCount", { count: traj.step_count }) }}
+            </span>
+            <span class="trajectory-time-range">
+              {{ formatTimeRange(traj.started_at, traj.completed_at) }}
+            </span>
+          </div>
+          <div class="trajectory-card-actions">
+            <KxButton
+              size="xs"
+              variant="default"
+              data-test="trajectory-export"
+              @click="exportTrajectory(traj.trajectory_id, $event)"
+            >
+              {{ t("trajectory.export") }}
+            </KxButton>
+          </div>
+
           <div
-            v-for="step in steps"
-            v-else
-            :key="step.step_index"
-            class="trajectory-step"
-            data-test="trajectory-step"
+            v-if="expandedTrajectoryId === traj.trajectory_id"
+            class="trajectory-steps"
+            @click.stop
           >
-            <div class="step-header">
-              <span class="step-index">#{{ step.step_index }}</span>
-              <span class="step-action">{{ step.action }}</span>
-              <span class="step-duration">{{ formatDuration(step.duration_ms) }}</span>
-              <span class="step-timestamp">{{ formatTime(step.timestamp) }}</span>
-            </div>
-            <div class="step-body">
-              <div class="step-field" @click="toggleInput(step.step_index)">
-                <span class="step-field-label">{{ t("trajectory.input") }}</span>
-                <pre class="step-field-value">{{
-                  expandedInputs.has(step.step_index)
-                    ? step.action_input
-                    : truncate(step.action_input, TRUNCATE_LENGTH)
-                }}</pre>
+            <KxEmptyState v-if="stepsLoading" compact>
+              {{ t("trajectory.loadingSteps") }}
+            </KxEmptyState>
+            <KxEmptyState v-else-if="steps.length === 0" compact>
+              {{ t("trajectory.noSteps") }}
+            </KxEmptyState>
+            <div
+              v-for="step in steps"
+              v-else
+              :key="step.step_index"
+              class="trajectory-step"
+              data-test="trajectory-step"
+            >
+              <div class="step-header">
+                <span class="step-index">#{{ step.step_index }}</span>
+                <span class="step-action">{{ step.action }}</span>
+                <span class="step-duration">{{ formatDuration(step.duration_ms) }}</span>
+                <span class="step-timestamp">{{ formatTime(step.timestamp) }}</span>
               </div>
-              <div class="step-field" @click="toggleObservation(step.step_index)">
-                <span class="step-field-label">{{ t("trajectory.observation") }}</span>
-                <pre class="step-field-value">{{
-                  expandedObservations.has(step.step_index)
-                    ? step.observation
-                    : truncate(step.observation, TRUNCATE_LENGTH)
-                }}</pre>
+              <div class="step-body">
+                <div class="step-field" @click="toggleInput(step.step_index)">
+                  <span class="step-field-label">{{ t("trajectory.input") }}</span>
+                  <pre class="step-field-value">{{
+                    expandedInputs.has(step.step_index)
+                      ? step.action_input
+                      : truncate(step.action_input, TRUNCATE_LENGTH)
+                  }}</pre>
+                </div>
+                <div class="step-field" @click="toggleObservation(step.step_index)">
+                  <span class="step-field-label">{{ t("trajectory.observation") }}</span>
+                  <pre class="step-field-value">{{
+                    expandedObservations.has(step.step_index)
+                      ? step.observation
+                      : truncate(step.observation, TRUNCATE_LENGTH)
+                  }}</pre>
+                </div>
               </div>
             </div>
           </div>
@@ -257,6 +294,30 @@ watch(() => session.currentSessionId, fetchTrajectories, { immediate: true });
   min-width: 0;
   max-width: 100%;
   min-height: 0;
+}
+.trajectory-results {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.trajectory-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color);
+  font-size: 12px;
+  color: var(--app-text-color-2);
+}
+.trajectory-summary__total {
+  color: var(--app-text-color);
+  font-weight: 600;
+}
+.trajectory-summary__item {
+  color: var(--app-text-color-3);
 }
 .trajectory-list {
   box-sizing: border-box;

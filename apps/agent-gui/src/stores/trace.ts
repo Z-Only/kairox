@@ -6,6 +6,40 @@ import { ref } from "vue";
 import type { DomainEvent } from "@/types";
 import type { TraceEntryData } from "@/types/trace";
 
+const TOOL_TITLE_MAX_CHARS = 120;
+
+function compactPreviewLine(value: string): string {
+  return value.trim().split(/\r?\n/).find(Boolean)?.trim() ?? "";
+}
+
+function truncateTitle(value: string): string {
+  if (value.length <= TOOL_TITLE_MAX_CHARS) return value;
+  return `${value.slice(0, TOOL_TITLE_MAX_CHARS - 1)}…`;
+}
+
+function commandFromToolPreview(preview: string): string | null {
+  const trimmed = preview.trim();
+  const jsonArgs = trimmed.match(/^[\w.-]+\((.*)\)$/s)?.[1];
+  if (!jsonArgs) return null;
+  try {
+    const parsed = JSON.parse(jsonArgs);
+    if (parsed && typeof parsed === "object" && typeof parsed.command === "string") {
+      const command = compactPreviewLine(parsed.command);
+      return command ? truncateTitle(command) : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function titleFromToolPreview(toolId: string, inputPreview?: string): string {
+  if (!inputPreview) return toolId;
+  const summary =
+    commandFromToolPreview(inputPreview) ?? truncateTitle(compactPreviewLine(inputPreview));
+  return summary ? `${toolId}: ${summary}` : toolId;
+}
+
 export const useTraceStore = defineStore("trace", () => {
   const entries = ref<TraceEntryData[]>([]);
   const density = ref<"L1" | "L2" | "L3">("L2");
@@ -13,11 +47,13 @@ export const useTraceStore = defineStore("trace", () => {
   /** Set of entry IDs currently in the trace, used for dedup. */
   const entryIds = new Set<string>();
 
-  function updateEntry(id: string, updates: Partial<TraceEntryData>) {
+  function updateEntry(id: string, updates: Partial<TraceEntryData>): boolean {
     const idx = entries.value.findIndex((e) => e.id === id);
     if (idx !== -1) {
       Object.assign(entries.value[idx], updates);
+      return true;
     }
+    return false;
   }
 
   /** Add an entry only if its ID is not already present. Returns true if added. */
@@ -162,13 +198,28 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "ToolInvocationStarted": {
+        const inputPreview = compactPreviewLine(p.input_preview ?? "");
+        const title = titleFromToolPreview(p.tool_id, inputPreview || undefined);
+        const updates: Partial<TraceEntryData> = {
+          status: "running",
+          toolId: p.tool_id,
+          title,
+          rawEvent: rawJson(event)
+        };
+        if (inputPreview) {
+          updates.input = inputPreview;
+        }
+        if (updateEntry(toolEntryId(p.invocation_id), updates)) {
+          break;
+        }
         pushEntry({
           id: toolEntryId(p.invocation_id),
           kind: "tool",
           status: "running",
           toolId: p.tool_id,
-          title: p.tool_id,
+          title,
           startedAt: Date.now(),
+          input: inputPreview || undefined,
           expanded: false,
           rawEvent: rawJson(event)
         });
@@ -196,6 +247,22 @@ export const useTraceStore = defineStore("trace", () => {
         break;
       }
 
+      case "TrajectoryCompleted": {
+        const failed = p.outcome !== "success";
+        pushEntry({
+          id: `trajectory-${p.trajectory_id}`,
+          kind: "tool",
+          status: failed ? "failed" : "completed",
+          toolId: "trajectory",
+          title: `Trajectory completed: ${p.outcome}`,
+          startedAt: Date.now(),
+          expanded: false,
+          outputPreview: `${p.step_count} steps`,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
       case "AgentTaskFailed": {
         updateEntry(p.task_id, {
           status: "failed",
@@ -207,6 +274,12 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "PermissionRequested": {
+        const inputPreview = compactPreviewLine(p.preview);
+        updateEntry(toolEntryId(p.request_id), {
+          input: inputPreview,
+          title: titleFromToolPreview(p.tool_id, inputPreview),
+          rawEvent: rawJson(event)
+        });
         pushEntry({
           id: p.request_id,
           kind: "permission",

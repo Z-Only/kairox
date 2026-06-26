@@ -940,10 +940,12 @@ mod session_diagnostics_tests {
                 event(EventPayload::ToolInvocationStarted {
                     invocation_id: "tool_1".into(),
                     tool_id: "shell.exec".into(),
+                    input_preview: String::new(),
                 }),
                 event(EventPayload::ToolInvocationStarted {
                     invocation_id: "tool_2".into(),
                     tool_id: "fs.read".into(),
+                    input_preview: String::new(),
                 }),
                 event(EventPayload::ToolInvocationFailed {
                     invocation_id: "tool_1".into(),

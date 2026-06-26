@@ -124,6 +124,7 @@ fn folds_tool_call_lifecycle_into_single_completed_item() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "inv_1".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(
@@ -367,6 +368,7 @@ fn chronological_interleaving_across_item_kinds() {
             EventPayload::ToolInvocationStarted {
                 invocation_id: "inv_1".into(),
                 tool_id: "shell.exec".into(),
+                input_preview: String::new(),
             },
         ),
         make_event_at(
