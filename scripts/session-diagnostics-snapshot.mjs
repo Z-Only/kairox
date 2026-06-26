@@ -175,6 +175,10 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     running_tool_invocations: countValue(
       firstPresent(diagnostics, ["running_tool_invocations", "runningToolInvocations"])
     ),
+    model_tool_call_count: countValue(
+      firstPresent(diagnostics, ["model_tool_calls", "modelToolCalls"])
+    ),
+    mcp_tool_call_count: countValue(firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])),
     trajectory_started_count: countValue(
       firstPresent(diagnostics, ["trajectory_started_count", "trajectoryStartedCount"]) ??
         eventTypeCounts.TrajectoryStarted

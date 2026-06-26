@@ -40,6 +40,11 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     assistant_messages: [{ message_id: "a1", content: "done" }],
     running_model_requests: 3,
     running_tool_invocations: 1,
+    model_tool_calls: [
+      { tool_call_id: "call_1", tool_id: "shell.exec" },
+      { tool_call_id: "call_2", tool_id: "fs.read" }
+    ],
+    mcp_tool_calls: [{ server_id: "srv", tool_name: "lookup", status: "completed" }],
     trajectory_started_count: 2,
     trajectory_completed_count: 2,
     trajectory_completed_outcomes: [
@@ -62,6 +67,8 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     assistant_message_count: 1,
     running_model_requests: 3,
     running_tool_invocations: 1,
+    model_tool_call_count: 2,
+    mcp_tool_call_count: 1,
     trajectory_started_count: 2,
     trajectory_completed_count: 2,
     trajectory_failed_count: 1,
@@ -83,6 +90,8 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.assistant_message_count, 0);
   assert.equal(compact.running_model_requests, 0);
   assert.equal(compact.running_tool_invocations, 0);
+  assert.equal(compact.model_tool_call_count, 0);
+  assert.equal(compact.mcp_tool_call_count, 0);
   assert.equal(compact.trajectory_started_count, 0);
   assert.equal(compact.trajectory_completed_count, 0);
   assert.equal(compact.trajectory_failed_count, 0);
@@ -152,6 +161,8 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       assistant_message_count: 0,
       running_model_requests: 0,
       running_tool_invocations: 0,
+      model_tool_call_count: 0,
+      mcp_tool_call_count: 0,
       trajectory_started_count: 0,
       trajectory_completed_count: 0,
       trajectory_failed_count: 0,
