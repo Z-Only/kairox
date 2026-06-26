@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
+import { useToast } from "@/composables/useToast";
 import { commands } from "@/generated/commands";
 import type {
   TrajectoryMetaResponse,
@@ -10,10 +11,12 @@ import type {
 
 const { t } = useI18n();
 const session = useSessionStore();
+const toast = useToast();
 
 const trajectories = ref<TrajectoryMetaResponse[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
+const exportingTrajectoryId = ref<string | null>(null);
 
 const expandedTrajectoryId = ref<string | null>(null);
 const steps = ref<TrajectoryStepResponse[]>([]);
@@ -163,13 +166,19 @@ async function toggleTrajectory(trajectoryId: string) {
 
 async function exportTrajectory(trajectoryId: string, event: Event) {
   event.stopPropagation();
+  if (exportingTrajectoryId.value) return;
+  exportingTrajectoryId.value = trajectoryId;
   try {
     const result = await commands.exportTrajectory(trajectoryId);
-    if (result.status === "ok") {
-      await navigator.clipboard.writeText(result.data);
+    if (result.status === "error") {
+      throw new Error(result.error);
     }
-  } catch {
-    // silent
+    await navigator.clipboard.writeText(result.data);
+    toast.success(t("notifications.copySuccess"));
+  } catch (e) {
+    toast.error(`${t("notifications.copyFailed")}: ${String(e)}`);
+  } finally {
+    exportingTrajectoryId.value = null;
   }
 }
 
@@ -230,6 +239,7 @@ watch(() => session.currentSessionId, fetchTrajectories, { immediate: true });
               size="xs"
               variant="default"
               data-test="trajectory-export"
+              :disabled="exportingTrajectoryId === traj.trajectory_id"
               @click="exportTrajectory(traj.trajectory_id, $event)"
             >
               {{ t("trajectory.export") }}
