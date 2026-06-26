@@ -23,7 +23,7 @@
 | agent-lsp     | LSP/DAP client, transports, server lifecycle management for code intelligence and debugging                                                                                                              | `LspClient`, `DapClient`, `LspServerLifecycle`, `DapServerLifecycle`                                             |
 | agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery                                                                                                               | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`                                                                  |
 | agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers                                                                                                          | `PluginManifest`, plugin inventory helpers                                                                       |
-| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config                                                                                                                    | `ProfileDef`, `build_router`                                                                                     |
+| agent-config  | TOML config, profile discovery, layered user/project/local `.kairox/` discovery, instructions, skills/MCP config                                                                                         | `ProfileDef`, `build_router`                                                                                     |
 | agent-runtime | Agent loop, session-actor execution runtime, context budgets, race-free turn-end compaction, model switching, configurable agents, DAG execution, advisor self-reflection, autonomous task orchestration | `LocalRuntime<S,M>`, `SessionActor`, `DagExecutor`, `AgentStrategy`                                              |
 | agent-sdk     | Embeddable SDK — programmatic runtime API for external harnesses, CI/CD, and custom UIs                                                                                                                  | `KairoxSdk`, `SdkBuilder`, `SdkSession`, `SdkHook`                                                               |
 | agent-eval    | Headless evaluation harness for JSONL scenarios with tag filters, fail-fast runs, summaries, combined reports, and scenario expectations                                                                 | `kairox-eval`, `EvalHarness`, `EvalScenario`, `EvalReport`                                                       |
@@ -61,7 +61,7 @@
 
 ## When bumping versions
 
-Edit all 5 files in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfile`), `apps/agent-gui/package.json`, `apps/agent-gui/src-tauri/tauri.conf.json`, root `package.json`.
+Edit all version surfaces in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfile`), `apps/agent-gui/package.json`, `apps/agent-gui/src-tauri/tauri.conf.json`, root `package.json`, and `docs/current-release.json`/public docs via `bun run release-docs:sync`. Verify with `bun run release-docs:check`.
 
 ## Commit convention
 

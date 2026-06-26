@@ -4,6 +4,149 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2026-06-26
+
+### 🚀 Features
+
+- **gui**: expose profile reasoning toggle (#1055)
+- **runtime**: support KAIROX_HOME override (#1056)
+- **gui**: add session diagnostics export (#1076)
+- **gui**: report stuck session diagnostics (#1080)
+- **gui**: copy trace diagnostics (#1083)
+
+### 🐛 Bug Fixes
+
+- **runtime**: validate task confirmations (#1039)
+- **runtime**: reject duplicate task confirmations (#1040)
+- surface short manual compaction skips (#1046)
+- **agent-models**: handle anthropic start events (#1047)
+- **runtime**: add idle-only session send (#1060)
+- **gui**: show nonzero tool exit codes (#1067)
+- **gui**: sync model from session metadata (#1066)
+- **runtime**: surface exhausted stream start retries (#1065)
+- **models**: sanitize openai tool names (#1069)
+- **models**: flush openai tool calls before completion (#1070)
+- **agent-tools**: improve hunk parse diagnostics (#1072)
+- **gui**: acknowledge idempotent idle sends (#1074)
+- **gui**: hide missing projects from active sidebar (#1075)
+- **runtime**: filter transient memory proposals
+- **gui**: surface missing project cleanup (#1104)
+- **gui**: show model health advice (#1107)
+- **runtime**: fail no-progress execution tasks (#1108)
+- **runtime**: report saved profile metadata (#1110)
+- **gui**: localize model health advice (#1111)
+- **runtime**: guard rewritten goal prompts (#1112)
+- **gui**: hide missing projects from config scope (#1113)
+- **dev**: use dynamic pilot fallback target (#1115)
+- **gui**: clarify compaction skipped label (#1116)
+
+### 📚 Documentation
+
+- sync docs with current code (#1057)
+- plan eval workflow hardening (#1071)
+- plan ops followup lanes (#1077)
+- list diagnostics parity commands (#1078)
+- plan ops followups batch 2 (#1082)
+- plan ops followups batch 3 (#1086)
+- plan ops followups batch 4
+- **security**: triage glib advisory
+- plan dev tooling followups batch 5
+- plan dev tooling followups batch 6
+- plan dev tooling followups batch 7 (#1099)
+- plan dev tooling followups batch 8 (#1103)
+- refresh project docs and screenshots (#1154)
+- refresh site screenshots (#1155)
+- sync AI release guidance
+
+### 🧪 Testing
+
+- **gui**: cover subagent sidebar e2e (#1036)
+- **gui**: cover task confirmation flow (#1037)
+- harden agent confirmation coverage (#1038)
+- **runtime**: cover reviewer parse and diff edge cases (#1041)
+- **lsp**: cover client error paths and edge cases (#1043)
+- **runtime**: cover skill-package direct and npx executors (#1042)
+- **runtime**: cover skill catalog builder and provider (#1044)
+- **runtime**: harden worker strategy edge cases (#1045)
+- **gui**: cover light command DTOs (#1048)
+- **gui**: cover MCP runtime mapper DTOs (#1049)
+- **gui**: cover project mcp config helpers (#1050)
+- **tui**: cover mcp and project command helpers (#1051)
+- **tui**: cover model and skill command helpers (#1052)
+- **tui**: cover overlay command dispatch (#1068)
+- **eval**: add noop guard fixture (#1100)
+- **eval**: cover noop guard failure (#1114)
+- **dev**: cover fallback tauri identifier (#1117)
+
+### 👷 CI
+
+- tighten coverage thresholds (#1059)
+
+### 📦 Dependencies
+
+- **deps**: bump the bun-minor-patch group with 11 updates (#1053)
+- **deps**: bump the cargo-minor-patch group with 4 updates (#1054)
+- **deps**: bump actions/cache from 5 to 6 (#1062)
+- **deps**: bump actions/checkout from 6 to 7 (#1061)
+- **deps-dev**: bump the bun-minor-patch group with 5 updates (#1064)
+- **deps**: bump the cargo-minor-patch group with 2 updates (#1063)
+
+### 🔧 Miscellaneous Tasks
+
+- add dev pilot startup wrapper (#1073)
+- **dev**: bootstrap pilot worktree deps (#1079)
+- add session diagnostics snapshot helper (#1081)
+- **dev**: add eval worktree audit helper (#1084)
+- **dev**: add pr status summary helper (#1085)
+- **dev**: summarize eval worktree audit
+- **dev**: add pr status watch mode
+- **dev**: harden pr status watch
+- **dev**: add merged worktree cleanup script
+- **dev**: clarify merged pr status summary
+- **dev**: add cleanup helper dry run
+- **dev**: summarize dirty eval worktrees
+- **dev**: summarize model health failures (#1101)
+- **dev**: add generated file guardrails (#1102)
+- **skills**: add local sync guard (#1105)
+- **eval**: add noop guard recipe (#1106)
+- **dev**: expose pilot launcher recipe (#1109)
+- **dev**: annotate eval audit refs (#1118)
+- **dev**: list unmatched eval audit files (#1119)
+- **dev**: allow full eval audit files (#1120)
+- **dev**: flag non-action review bot comments (#1121)
+- **dev**: keep PR watch queries lean (#1122)
+- **dev**: classify closed PR review notes (#1123)
+- **dev**: skip unused eval audit compares (#1124)
+- **dev**: classify review progress notes (#1125)
+- **dev**: treat merged PRs as watch terminal (#1126)
+- **dev**: recommend eval worktree cleanup (#1127)
+- **dev**: include last event in session snapshots (#1128)
+- **dev**: count tools in session snapshots (#1129)
+- **dev**: flag tool progress in session snapshots (#1130)
+- **dev**: show eval cleanup commands (#1131)
+- **dev**: signal session diagnostic failures (#1132)
+- **dev**: signal cancelled diagnostics (#1133)
+- **dev**: signal cancelled trajectories (#1134)
+- **dev**: show eval head containment (#1135)
+- **dev**: classify eval dirty scope (#1136)
+- **dev**: summarize eval dirty scope (#1137)
+- **dev**: summarize eval cleanup actions (#1138)
+- **dev**: preview diagnostics eval cleanup (#1139)
+- **dev**: label diagnostics compare output (#1140)
+- **dev**: summarize eval unmatched files (#1141)
+- **dev**: preserve eval diagnostics resume fields (#1142)
+- **dev**: overlay diagnostics snapshot metadata (#1143)
+- **dev**: flag no-tool eval completions (#1144)
+- **dev**: surface no-tool eval diagnostics (#1145)
+- **dev**: gate no-tool eval diagnostics (#1146)
+- **dev**: infer diagnostics branch meta (#1147)
+- **dev**: infer diagnostics pilot socket (#1148)
+- **dev**: summarize eval cleanup actions (#1149)
+- **dev**: infer diagnostics event db (#1150)
+- **dev**: guard diagnostics module import (#1151)
+- **dev**: infer diagnostics db from runtime registry (#1152)
+- **dev**: finish session diagnostics cleanup (#1153)
+
 ## [0.41.0] - 2026-06-16
 
 ### 🚀 Features

@@ -1,7 +1,7 @@
 {
-  "version": "0.41.0",
-  "releaseDate": "2026-06-18",
-  "displayVersion": "v0.41.0",
-  "minorLine": "v0.41.x",
-  "compatRange": ">=0.41.0 <0.42.0"
+  "version": "0.42.0",
+  "releaseDate": "2026-06-26",
+  "displayVersion": "v0.42.0",
+  "minorLine": "v0.42.x",
+  "compatRange": ">=0.42.0 <0.43.0"
 }
