@@ -95,6 +95,19 @@ function trajectoryFailedCount(source) {
     .length;
 }
 
+function snakeCaseEventType(eventType) {
+  return eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
+function failureSignal(eventTypeCounts, trajectoryFailedCountValue) {
+  for (const eventType of Object.keys(eventTypeCounts)) {
+    if (countValue(eventTypeCounts[eventType]) > 0 && /(Blocked|Failed|Denied)$/.test(eventType)) {
+      return snakeCaseEventType(eventType);
+    }
+  }
+  return trajectoryFailedCountValue > 0 ? "trajectory_failed" : null;
+}
+
 function hasTerminalAssistantMessage(source) {
   const explicit = firstPresent(source, [
     "has_terminal_assistant_message",
@@ -159,6 +172,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
   const mcpToolCallCount = countValue(
     firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])
   );
+  const trajectoryFailedCountValue = trajectoryFailedCount(diagnostics);
 
   return {
     session_id: String(firstPresent(diagnostics, ["session_id", "sessionId"]) ?? sessionId ?? ""),
@@ -193,7 +207,8 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       firstPresent(diagnostics, ["trajectory_completed_count", "trajectoryCompletedCount"]) ??
         eventTypeCounts.TrajectoryCompleted
     ),
-    trajectory_failed_count: trajectoryFailedCount(diagnostics),
+    trajectory_failed_count: trajectoryFailedCountValue,
+    failure_signal: failureSignal(eventTypeCounts, trajectoryFailedCountValue),
     has_terminal_assistant_message: hasTerminalAssistantMessage(diagnostics)
   };
 }
