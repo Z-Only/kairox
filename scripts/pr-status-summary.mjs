@@ -161,6 +161,12 @@ function classifyNonActionBotComment(comment) {
   ) {
     return { author, reason: "rate_limited_review" };
   }
+  if (
+    normalizedAuthor.includes("coderabbit") &&
+    /review\s+failed[\s\S]*pull request is closed/i.test(body)
+  ) {
+    return { author, reason: "closed_pr_review" };
+  }
   return null;
 }
 
