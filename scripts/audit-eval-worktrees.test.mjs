@@ -431,26 +431,53 @@ test("runCli annotates cleanup recommendations when requested", async () => {
     result.worktrees.map((worktree) => ({
       path: worktree.path,
       cleanup_recommendation: worktree.cleanup_recommendation,
-      cleanup_reason: worktree.cleanup_reason
+      cleanup_reason: worktree.cleanup_reason,
+      cleanup_command: worktree.cleanup_command
     })),
     [
       {
         path: "/repo/.worktrees/eval-a",
         cleanup_recommendation: "remove",
-        cleanup_reason: "clean_worktree"
+        cleanup_reason: "clean_worktree",
+        cleanup_command: "git worktree remove /repo/.worktrees/eval-a"
       },
       {
         path: "/repo/.worktrees/eval-kairox-b",
         cleanup_recommendation: "keep",
-        cleanup_reason: "dirty_files_not_in_compare_ref"
+        cleanup_reason: "dirty_files_not_in_compare_ref",
+        cleanup_command: undefined
       },
       {
         path: "/repo/.worktrees/eval-kairox-detached",
         cleanup_recommendation: "prune",
-        cleanup_reason: "missing_path"
+        cleanup_reason: "missing_path",
+        cleanup_command: "git worktree prune"
       }
     ]
   );
+});
+
+test("formatHumanTable includes cleanup command previews", () => {
+  const table = formatHumanTable([
+    {
+      path: "/repo/.worktrees/eval-a",
+      branch: "eval/a",
+      head: "2222222222222222222222222222222222222222",
+      dirty_status: "clean",
+      path_exists: true,
+      dirty_file_count: 0,
+      dirty_files: [],
+      cleanup_recommendation: "remove",
+      cleanup_reason: "clean_worktree",
+      cleanup_command: "git worktree remove /repo/.worktrees/eval-a"
+    }
+  ]);
+
+  assert.match(
+    table,
+    /^PATH\s+BRANCH\s+HEAD\s+PATH_EXISTS\s+DIRTY_STATUS\s+DIRTY_FILES\s+CLEANUP/m
+  );
+  assert.match(table, /remove:clean_worktree \(git worktree remove \/repo\/\.worktrees\/eval-a\)/);
 });
 
 test("formatHumanTable emits a stable table with path, branch, head, exists, dirty, and dirty files columns", () => {
