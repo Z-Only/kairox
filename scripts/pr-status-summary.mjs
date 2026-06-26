@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFileCallback);
 
 export const GH_PR_VIEW_FIELDS =
-  "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup";
+  "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup,comments,reviews";
 
 const DEFAULT_WATCH_INTERVAL_MS = 30_000;
 const DEFAULT_WATCH_TIMEOUT_MS = 30 * 60_000;
@@ -142,12 +142,52 @@ function mergeCommitOid(value) {
   return stringOrNull(value);
 }
 
+function commentAuthor(comment) {
+  return stringOrNull(comment?.author?.login ?? comment?.user?.login) ?? "";
+}
+
+function classifyNonActionBotComment(comment) {
+  const author = commentAuthor(comment);
+  const normalizedAuthor = author.toLowerCase();
+  const body = stringOrNull(comment?.body) ?? "";
+
+  if (normalizedAuthor.includes("qodo") && /reviews?\s+are\s+paused|paused/i.test(body)) {
+    return { author, reason: "paused_review" };
+  }
+  if (
+    normalizedAuthor.includes("coderabbit") &&
+    /review\s+limit\s+reached|rate[-\s]?limited?/i.test(body)
+  ) {
+    return { author, reason: "rate_limited_review" };
+  }
+  return null;
+}
+
+function summarizeReviewNotes(rawPullRequest) {
+  const comments = [
+    ...(Array.isArray(rawPullRequest.comments) ? rawPullRequest.comments : []),
+    ...(Array.isArray(rawPullRequest.reviews) ? rawPullRequest.reviews : [])
+  ];
+  const nonActionBotComments = comments.flatMap((comment) => {
+    const classified = classifyNonActionBotComment(comment);
+    return classified ? [classified] : [];
+  });
+
+  return nonActionBotComments.length > 0
+    ? {
+        non_action_bot_comment_count: nonActionBotComments.length,
+        non_action_bot_comments: nonActionBotComments
+      }
+    : null;
+}
+
 export function summarizePullRequest(rawPullRequest) {
   if (!rawPullRequest || typeof rawPullRequest !== "object") {
     throw new Error("Expected gh pr view JSON object");
   }
 
   const normalizedChecks = normalizeStatusCheckRollup(rawPullRequest.statusCheckRollup);
+  const reviewNotes = summarizeReviewNotes(rawPullRequest);
 
   return {
     number: Number(rawPullRequest.number),
@@ -160,7 +200,8 @@ export function summarizePullRequest(rawPullRequest) {
     checks: {
       counts: normalizedChecks.counts,
       items: normalizedChecks.checks
-    }
+    },
+    ...(reviewNotes ? { review_notes: reviewNotes } : {})
   };
 }
 
@@ -388,6 +429,18 @@ export function formatHumanSummary(summaries) {
             check.result
           ]);
     sections.push(formatTable(["Name", "Status", "Conclusion", "State", "Result"], checkRows));
+
+    const reviewNotes = summary.review_notes?.non_action_bot_comments ?? [];
+    if (reviewNotes.length > 0) {
+      sections.push("");
+      sections.push(`Review notes for #${summary.number}`);
+      sections.push(
+        formatTable(
+          ["Author", "Reason"],
+          reviewNotes.map((note) => [note.author, note.reason])
+        )
+      );
+    }
   }
 
   return sections.join("\n");
