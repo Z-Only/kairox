@@ -56,7 +56,7 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/settings.png"
     zhDark="/screenshots/zh/settings-dark.png"
     alt="Kairox 设置界面，展示模型与 agent 配置"
-    caption="覆盖通用行为、model、agent、autonomous task、MCP、skill、plugin、hook、指令与归档的设置面板。"
+    caption="设置页把 model profile、作用域控制和相邻配置区域放在同一个 tabbed surface 中。"
   />
   <ThemeScreenshot
     light="/screenshots/autonomous.png"

@@ -56,7 +56,7 @@ import { withBase } from "vitepress";
     zhLight="/screenshots/zh/settings.png"
     zhDark="/screenshots/zh/settings-dark.png"
     alt="Kairox settings screen showing model and agent configuration"
-    caption="Settings surfaces for general app behavior, models, agents, autonomous tasks, MCP, skills, plugins, hooks, instructions, and archives."
+    caption="Settings keeps model profiles, scope controls, and adjacent configuration areas visible from one tabbed surface."
   />
   <ThemeScreenshot
     light="/screenshots/autonomous.png"

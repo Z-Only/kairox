@@ -142,7 +142,7 @@ just tauri-dev
   zhLight="/screenshots/zh/settings.png"
   zhDark="/screenshots/zh/settings-dark.png"
   alt="Kairox 设置界面"
-  caption="设置把每一处可配置的能力都暴露出来——通用行为、models、agents、autonomous tasks、MCP、skills、plugins、hooks、instructions 和 archives。"
+  caption="设置页把 model profile 和作用域控制,与 agents、autonomous tasks、MCP、skills、plugins、hooks、instructions 和 archives 放在同一个 tabbed surface 中。"
 />
 
 同一个设置入口也会展示 autonomous task。当你让 Kairox 跨 session 继续一个目标时,checkpoint 会保留已完成事项、剩余事项和验证状态,便于检查。
