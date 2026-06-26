@@ -161,6 +161,36 @@ test("summarizePullRequest emits stable snake_case fields", () => {
   });
 });
 
+test("summarizePullRequest classifies non-action review bot metadata comments", () => {
+  assert.deepEqual(
+    summarizePullRequest(
+      samplePullRequest({
+        comments: [
+          {
+            author: { login: "qodo-code-review" },
+            body: "### Qodo reviews are paused for this user."
+          },
+          {
+            author: { login: "coderabbitai" },
+            body: "## Review limit reached\nMore reviews will be available later."
+          },
+          {
+            author: { login: "alice" },
+            body: "Please rename this helper."
+          }
+        ]
+      })
+    ).review_notes,
+    {
+      non_action_bot_comment_count: 2,
+      non_action_bot_comments: [
+        { author: "qodo-code-review", reason: "paused_review" },
+        { author: "coderabbitai", reason: "rate_limited_review" }
+      ]
+    }
+  );
+});
+
 test("runCli prints stable JSON and invokes gh pr view with required fields", async () => {
   const stdout = createWritableCapture();
   const stderr = createWritableCapture();
@@ -185,7 +215,7 @@ test("runCli prints stable JSON and invokes gh pr view with required fields", as
         "view",
         "42",
         "--json",
-        "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup"
+        "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup,comments,reviews"
       ]
     ]
   ]);
@@ -509,6 +539,24 @@ test("formatHumanSummary shows merged pull requests as merged when merge state i
     output,
     /#42\s+MERGED\s+MERGED\s+codex\/pr-status-summary@abcdef12\s+2\s+1\s+1\s+1\s+1\s+0\s+Add watcher status summary/
   );
+});
+
+test("formatHumanSummary includes non-action review bot metadata comments", () => {
+  const output = formatHumanSummary([
+    summarizePullRequest(
+      samplePullRequest({
+        comments: [
+          {
+            author: { login: "coderabbitai" },
+            body: "Review limit reached for this repository."
+          }
+        ]
+      })
+    )
+  ]);
+
+  assert.match(output, /Review notes for #42/);
+  assert.match(output, /coderabbitai\s+rate_limited_review/);
 });
 
 test("runCli reports missing PR number as usage error", async () => {
