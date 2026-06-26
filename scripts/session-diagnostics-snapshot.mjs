@@ -150,6 +150,15 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     firstPresent(diagnostics, ["event_type_counts", "eventTypeCounts"])
   );
   const explicitEventCount = firstPresent(diagnostics, ["event_count", "eventCount"]);
+  const runningToolInvocations = countValue(
+    firstPresent(diagnostics, ["running_tool_invocations", "runningToolInvocations"])
+  );
+  const modelToolCallCount = countValue(
+    firstPresent(diagnostics, ["model_tool_calls", "modelToolCalls"])
+  );
+  const mcpToolCallCount = countValue(
+    firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])
+  );
 
   return {
     session_id: String(firstPresent(diagnostics, ["session_id", "sessionId"]) ?? sessionId ?? ""),
@@ -172,13 +181,10 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     running_model_requests: countValue(
       firstPresent(diagnostics, ["running_model_requests", "runningModelRequests"])
     ),
-    running_tool_invocations: countValue(
-      firstPresent(diagnostics, ["running_tool_invocations", "runningToolInvocations"])
-    ),
-    model_tool_call_count: countValue(
-      firstPresent(diagnostics, ["model_tool_calls", "modelToolCalls"])
-    ),
-    mcp_tool_call_count: countValue(firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])),
+    running_tool_invocations: runningToolInvocations,
+    model_tool_call_count: modelToolCallCount,
+    mcp_tool_call_count: mcpToolCallCount,
+    has_tool_progress: modelToolCallCount > 0 || mcpToolCallCount > 0 || runningToolInvocations > 0,
     trajectory_started_count: countValue(
       firstPresent(diagnostics, ["trajectory_started_count", "trajectoryStartedCount"]) ??
         eventTypeCounts.TrajectoryStarted
