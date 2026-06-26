@@ -362,6 +362,24 @@ function parsePilotStdout(stdout) {
   }
 }
 
+async function inferResumeMeta(meta, { execFile, env }) {
+  const worktreePath = firstPresent(meta, ["worktree_path", "worktreePath"]);
+  if (!worktreePath || meta.branch) {
+    return {};
+  }
+
+  try {
+    const result = await execFile("git", ["-C", worktreePath, "branch", "--show-current"], {
+      env,
+      maxBuffer: 1024 * 1024
+    });
+    const branch = result.stdout.trim();
+    return branch ? { branch } : {};
+  } catch {
+    return {};
+  }
+}
+
 function ipcFailureMessage(error) {
   if (error?.code === "ENOENT" || /spawn tauri-pilot ENOENT/.test(String(error?.message))) {
     return "tauri-pilot was not found on PATH. Install tauri-pilot or add it to PATH, then rerun this command.";
@@ -421,8 +439,11 @@ export async function runCli(
       return 0;
     }
 
+    const rawDiagnostics = await exportSessionDiagnostics(args.session, { execFile, env, cwd });
+    const resumeMeta = { ...rawDiagnostics, ...args.meta };
     const diagnostics = {
-      ...(await exportSessionDiagnostics(args.session, { execFile, env, cwd })),
+      ...resumeMeta,
+      ...(await inferResumeMeta(resumeMeta, { execFile, env })),
       ...args.meta
     };
     const output = `${JSON.stringify(compactSessionDiagnostics(diagnostics, { sessionId: args.session }))}\n`;
