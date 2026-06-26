@@ -382,6 +382,9 @@ function formatCompareRef(worktree) {
     unmatchedCount > 0
       ? `; unmatched ${unmatchedCount}: ${unmatchedFiles.join(", ")}${unmatchedSuffix}`
       : "";
+  if (worktree.dirty_scope === "diagnostics_only" && checkedCount === 0) {
+    return `${worktree.compare_ref} diagnostics_only${unmatched}${headStatus}`;
+  }
   return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}${headStatus}`;
 }
 
