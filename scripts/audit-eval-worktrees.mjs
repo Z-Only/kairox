@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFileCallback);
 const GIT_BUFFER = 10 * 1024 * 1024;
 const DIRTY_FILE_LIMIT = 5;
 
-export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files]
+export const USAGE = `Usage: node scripts/audit-eval-worktrees.mjs [--json] [--summary] [--dirty-only|--clean-only] [--compare-ref <ref>] [--all-files] [--recommend-cleanup]
 
 Audits local eval worktrees without deleting worktrees or branches.
 
@@ -23,6 +23,7 @@ Options:
   --clean-only  Only show clean worktrees.
   --compare-ref Compare dirty files with a ref and annotate matching content.
   --all-files   Print every dirty and compare-ref file instead of the first five.
+  --recommend-cleanup Annotate each worktree with remove/prune/keep/inspect guidance.
   --help, -h    Show this help.
 `;
 
@@ -322,6 +323,45 @@ function formatCompareRef(worktree) {
   return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}`;
 }
 
+function cleanupRecommendation(worktree) {
+  if (worktree.dirty_status === "clean") {
+    return { cleanup_recommendation: "remove", cleanup_reason: "clean_worktree" };
+  }
+  if (worktree.dirty_status === "missing") {
+    return { cleanup_recommendation: "prune", cleanup_reason: "missing_path" };
+  }
+  if (worktree.dirty_status === "error") {
+    return { cleanup_recommendation: "inspect", cleanup_reason: "status_error" };
+  }
+  if (worktree.compare_ref_unmatched_count === 0) {
+    return {
+      cleanup_recommendation: "inspect",
+      cleanup_reason: "dirty_files_match_compare_ref"
+    };
+  }
+  if (worktree.compare_ref_unmatched_count > 0) {
+    return {
+      cleanup_recommendation: "keep",
+      cleanup_reason: "dirty_files_not_in_compare_ref"
+    };
+  }
+  return { cleanup_recommendation: "inspect", cleanup_reason: "dirty_without_compare_ref" };
+}
+
+function annotateCleanupRecommendations(worktrees) {
+  return worktrees.map((worktree) => ({
+    ...worktree,
+    ...cleanupRecommendation(worktree)
+  }));
+}
+
+function formatCleanupRecommendation(worktree) {
+  if (!worktree.cleanup_recommendation) {
+    return "-";
+  }
+  return `${worktree.cleanup_recommendation}:${worktree.cleanup_reason}`;
+}
+
 export function formatHumanTable(worktrees) {
   const summary = summarizeAudit(worktrees);
   const summaryLine = `${formatSummaryLine(summary)}\n`;
@@ -331,6 +371,7 @@ export function formatHumanTable(worktrees) {
   }
 
   const includeCompareRef = worktrees.some((worktree) => worktree.compare_ref);
+  const includeCleanup = worktrees.some((worktree) => worktree.cleanup_recommendation);
   const headers = [
     "PATH",
     "BRANCH",
@@ -338,7 +379,8 @@ export function formatHumanTable(worktrees) {
     "PATH_EXISTS",
     "DIRTY_STATUS",
     "DIRTY_FILES",
-    ...(includeCompareRef ? ["COMPARE_REF_MATCHES"] : [])
+    ...(includeCompareRef ? ["COMPARE_REF_MATCHES"] : []),
+    ...(includeCleanup ? ["CLEANUP"] : [])
   ];
   const rows = worktrees.map((worktree) => {
     const row = [
@@ -351,6 +393,9 @@ export function formatHumanTable(worktrees) {
     ];
     if (includeCompareRef) {
       row.push(formatCompareRef(worktree));
+    }
+    if (includeCleanup) {
+      row.push(formatCleanupRecommendation(worktree));
     }
     return row;
   });
@@ -375,7 +420,8 @@ export function parseArgs(argv) {
     dirtyOnly: false,
     cleanOnly: false,
     compareRef: null,
-    allFiles: false
+    allFiles: false,
+    recommendCleanup: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -402,6 +448,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--all-files") {
       parsed.allFiles = true;
+      continue;
+    }
+    if (arg === "--recommend-cleanup") {
+      parsed.recommendCleanup = true;
       continue;
     }
     if (arg === "--compare-ref") {
@@ -441,7 +491,7 @@ export async function runCli(
       return 0;
     }
 
-    const audited = filterAuditResults(
+    let audited = filterAuditResults(
       await auditEvalWorktrees({
         execFile,
         pathExists,
@@ -452,6 +502,9 @@ export async function runCli(
       }),
       args
     );
+    if (args.recommendCleanup && !args.summaryOnly) {
+      audited = annotateCleanupRecommendations(audited);
+    }
     const summary = summarizeAudit(audited);
     const output = args.summaryOnly
       ? { summary }
