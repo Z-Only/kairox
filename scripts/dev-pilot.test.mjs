@@ -57,4 +57,5 @@ test("dev-pilot split fallback reuses the selected dynamic port and identifier",
   assert.equal(socketMatches[0], socketMatches[1]);
   assert.match(stdout, /KAIROX_DEV_PORT=14217 .*bun run dev/);
   assert.match(stdout, /TAURI_CONFIG=.*devUrl.*localhost:14217/);
+  assert.match(stdout, /TAURI_CONFIG=.*identifier.*dev\.kairox\.agent\.dev14217/);
 });
