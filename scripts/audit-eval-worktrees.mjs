@@ -23,7 +23,7 @@ Options:
   --clean-only  Only show clean worktrees.
   --compare-ref Compare dirty files with a ref and annotate matching content.
   --all-files   Print every dirty and compare-ref file instead of the first five.
-  --recommend-cleanup Annotate each worktree with remove/prune/keep/inspect guidance.
+  --recommend-cleanup Annotate each worktree with remove/prune/keep/inspect guidance and safe cleanup command previews.
   --help, -h    Show this help.
 `;
 
@@ -323,12 +323,32 @@ function formatCompareRef(worktree) {
   return `${worktree.compare_ref} ${matchCount}/${checkedCount}${files}${unmatched}`;
 }
 
+function shellQuote(value) {
+  const text = String(value);
+  return /^[A-Za-z0-9_./:@%+=,-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
+}
+
+function cleanupCommand(worktree, recommendation) {
+  if (recommendation === "remove") {
+    return `git worktree remove ${shellQuote(worktree.path)}`;
+  }
+  if (recommendation === "prune") {
+    return "git worktree prune";
+  }
+  return null;
+}
+
 function cleanupRecommendation(worktree) {
+  const withCommand = (recommendation) => {
+    const command = cleanupCommand(worktree, recommendation.cleanup_recommendation);
+    return command ? { ...recommendation, cleanup_command: command } : recommendation;
+  };
+
   if (worktree.dirty_status === "clean") {
-    return { cleanup_recommendation: "remove", cleanup_reason: "clean_worktree" };
+    return withCommand({ cleanup_recommendation: "remove", cleanup_reason: "clean_worktree" });
   }
   if (worktree.dirty_status === "missing") {
-    return { cleanup_recommendation: "prune", cleanup_reason: "missing_path" };
+    return withCommand({ cleanup_recommendation: "prune", cleanup_reason: "missing_path" });
   }
   if (worktree.dirty_status === "error") {
     return { cleanup_recommendation: "inspect", cleanup_reason: "status_error" };
@@ -359,7 +379,8 @@ function formatCleanupRecommendation(worktree) {
   if (!worktree.cleanup_recommendation) {
     return "-";
   }
-  return `${worktree.cleanup_recommendation}:${worktree.cleanup_reason}`;
+  const label = `${worktree.cleanup_recommendation}:${worktree.cleanup_reason}`;
+  return worktree.cleanup_command ? `${label} (${worktree.cleanup_command})` : label;
 }
 
 export function formatHumanTable(worktrees) {
