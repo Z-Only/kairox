@@ -5,7 +5,8 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFileCallback);
 
 export const GH_PR_VIEW_FIELDS =
-  "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup,comments,reviews";
+  "number,title,state,mergeStateStatus,headRefName,headRefOid,mergeCommit,statusCheckRollup";
+const GH_PR_VIEW_REVIEW_FIELDS = `${GH_PR_VIEW_FIELDS},comments,reviews`;
 
 const DEFAULT_WATCH_INTERVAL_MS = 30_000;
 const DEFAULT_WATCH_TIMEOUT_MS = 30 * 60_000;
@@ -303,15 +304,30 @@ function isTransientGhFailure(error) {
 
 export async function readPullRequest(
   prNumber,
-  { execFile = execFileAsync, env = process.env, cwd = process.cwd() } = {}
+  {
+    execFile = execFileAsync,
+    env = process.env,
+    cwd = process.cwd(),
+    includeReviewNotes = false
+  } = {}
 ) {
   let result;
   try {
-    result = await execFile("gh", ["pr", "view", String(prNumber), "--json", GH_PR_VIEW_FIELDS], {
-      cwd,
-      env,
-      maxBuffer: 10 * 1024 * 1024
-    });
+    result = await execFile(
+      "gh",
+      [
+        "pr",
+        "view",
+        String(prNumber),
+        "--json",
+        includeReviewNotes ? GH_PR_VIEW_REVIEW_FIELDS : GH_PR_VIEW_FIELDS
+      ],
+      {
+        cwd,
+        env,
+        maxBuffer: 10 * 1024 * 1024
+      }
+    );
   } catch (error) {
     const failure = new Error(ghFailureMessage(error, prNumber));
     failure.transient = isTransientGhFailure(error);
@@ -329,13 +345,14 @@ async function readPullRequestWithRetry(
     cwd,
     sleepFn,
     stderr,
+    includeReviewNotes = false,
     maxTransientRetries = DEFAULT_TRANSIENT_RETRIES,
     transientRetryDelayMs = DEFAULT_TRANSIENT_RETRY_DELAY_MS
   }
 ) {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await readPullRequest(prNumber, { execFile, env, cwd });
+      return await readPullRequest(prNumber, { execFile, env, cwd, includeReviewNotes });
     } catch (error) {
       if (!error?.transient || attempt >= maxTransientRetries) {
         throw error;
@@ -448,13 +465,20 @@ export function formatHumanSummary(summaries) {
 
 async function readPullRequestSummaries(
   prNumbers,
-  { execFile, env, cwd, sleepFn = sleep, stderr, retryTransient = false }
+  { execFile, env, cwd, sleepFn = sleep, stderr, retryTransient = false, includeReviewNotes = true }
 ) {
   const summaries = [];
   for (const prNumber of prNumbers) {
     const rawPullRequest = retryTransient
-      ? await readPullRequestWithRetry(prNumber, { execFile, env, cwd, sleepFn, stderr })
-      : await readPullRequest(prNumber, { execFile, env, cwd });
+      ? await readPullRequestWithRetry(prNumber, {
+          execFile,
+          env,
+          cwd,
+          sleepFn,
+          stderr,
+          includeReviewNotes
+        })
+      : await readPullRequest(prNumber, { execFile, env, cwd, includeReviewNotes });
     summaries.push(summarizePullRequest(rawPullRequest));
   }
   return summaries;
@@ -508,7 +532,8 @@ async function watchPullRequests(
       cwd,
       sleepFn,
       stderr,
-      retryTransient: true
+      retryTransient: true,
+      includeReviewNotes: false
     });
     if (hasFailures(summaries)) {
       return { exitCode: 1, summaries };
