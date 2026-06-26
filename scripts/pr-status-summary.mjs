@@ -167,6 +167,9 @@ function classifyNonActionBotComment(comment) {
   ) {
     return { author, reason: "closed_pr_review" };
   }
+  if (normalizedAuthor.includes("coderabbit") && /currently processing new changes/i.test(body)) {
+    return { author, reason: "review_in_progress" };
+  }
   return null;
 }
 
