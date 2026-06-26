@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 
@@ -191,6 +191,17 @@ test("CLI reports missing tauri-pilot and does not create --out", async () => {
   );
 
   assert.equal(existsSync(outPath), false);
+});
+
+test("module import does not require process.argv[1]", async () => {
+  const result = await execFileAsync(process.execPath, [
+    "--input-type=module",
+    "-e",
+    `import ${JSON.stringify(pathToFileURL(scriptPath).href)}; console.log("imported");`
+  ]);
+
+  assert.equal(result.stdout.trim(), "imported");
+  assert.equal(result.stderr, "");
 });
 
 test("CLI writes the same compact JSON to stdout and --out", async () => {
