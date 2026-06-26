@@ -1,6 +1,7 @@
 import { execFile as execFileCallback } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -362,8 +363,17 @@ function parsePilotStdout(stdout) {
   }
 }
 
-async function inferResumeMeta(meta, { execFile, env }) {
+async function inferResumeMeta(meta, { execFile, env, pathExists = existsSync }) {
   const inferred = {};
+  if (
+    !firstPresent(meta, ["event_db_path", "eventDbPath", "db_path", "dbPath"]) &&
+    env?.KAIROX_HOME
+  ) {
+    const eventDbPath = join(String(env.KAIROX_HOME), ".kairox", "kairox-gui.sqlite");
+    if (pathExists(eventDbPath)) {
+      inferred.event_db_path = eventDbPath;
+    }
+  }
   if (
     !firstPresent(meta, ["pilot_socket_path", "pilotSocketPath", "socket_path", "socketPath"]) &&
     env?.TAURI_PILOT_SOCKET
@@ -436,6 +446,7 @@ export async function runCli(
     stdout = process.stdout,
     stderr = process.stderr,
     execFile = execFileAsync,
+    pathExists = existsSync,
     env = process.env,
     cwd = process.cwd()
   } = {}
@@ -451,7 +462,7 @@ export async function runCli(
     const resumeMeta = { ...rawDiagnostics, ...args.meta };
     const diagnostics = {
       ...resumeMeta,
-      ...(await inferResumeMeta(resumeMeta, { execFile, env })),
+      ...(await inferResumeMeta(resumeMeta, { execFile, env, pathExists })),
       ...args.meta
     };
     const output = `${JSON.stringify(compactSessionDiagnostics(diagnostics, { sessionId: args.session }))}\n`;
