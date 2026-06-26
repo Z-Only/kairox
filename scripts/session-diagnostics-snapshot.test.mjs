@@ -73,8 +73,22 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     trajectory_started_count: 2,
     trajectory_completed_count: 2,
     trajectory_failed_count: 1,
+    failure_signal: "trajectory_failed",
     has_terminal_assistant_message: true
   });
+});
+
+test("compactSessionDiagnostics reports failed and blocked event signals", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_failed",
+    event_type_counts: {
+      ToolInvocationFailed: 1,
+      TaskBlocked: 1,
+      UserMessageAdded: 1
+    }
+  });
+
+  assert.equal(compact.failure_signal, "task_blocked");
 });
 
 test("compactSessionDiagnostics defaults missing newer diagnostics fields", () => {
@@ -97,6 +111,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.trajectory_started_count, 0);
   assert.equal(compact.trajectory_completed_count, 0);
   assert.equal(compact.trajectory_failed_count, 0);
+  assert.equal(compact.failure_signal, null);
   assert.equal(compact.has_terminal_assistant_message, false);
 });
 
@@ -169,6 +184,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       trajectory_started_count: 0,
       trajectory_completed_count: 0,
       trajectory_failed_count: 0,
+      failure_signal: null,
       has_terminal_assistant_message: false
     })}\n`
   );
