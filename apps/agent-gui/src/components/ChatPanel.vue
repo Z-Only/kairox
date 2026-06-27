@@ -25,6 +25,7 @@ const scrollbar = ref<HTMLElement | null>(null);
 const composerRef = ref<InstanceType<typeof ChatComposer> | null>(null);
 const LATEST_SCROLL_THRESHOLD_PX = 24;
 const isViewingLatest = ref(true);
+let latestScrollRequest = 0;
 
 function isScrolledToLatest(): boolean {
   const el = scrollbar.value;
@@ -37,11 +38,13 @@ function updateLatestScrollState(): void {
 }
 
 async function scrollToLatest(): Promise<void> {
+  const requestId = ++latestScrollRequest;
   isViewingLatest.value = true;
   await nextTick();
   const el = scrollbar.value;
   if (!el) return;
   const applyScroll = () => {
+    if (requestId !== latestScrollRequest || !isViewingLatest.value) return;
     el.scrollTo({
       top: Math.max(0, el.scrollHeight - el.clientHeight),
       behavior: "auto"
@@ -59,6 +62,7 @@ const showJumpToLatestCta = computed(() => !isViewingLatest.value);
 
 function handleMessageListScroll(): void {
   updateLatestScrollState();
+  if (!isViewingLatest.value) latestScrollRequest++;
 }
 
 async function jumpToLatest(): Promise<void> {
