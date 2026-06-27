@@ -20,6 +20,11 @@ pub(crate) enum ActorMessage {
         executor: Arc<dyn TurnExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
+    StartTurnIfIdle {
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    },
     Cancel {
         reason: String,
         reply: oneshot::Sender<agent_core::Result<()>>,
@@ -153,6 +158,23 @@ impl SessionActorHandle {
         let (reply, result) = oneshot::channel();
         self.sender
             .send(ActorMessage::RunTurnIfIdle {
+                request,
+                executor,
+                reply,
+            })
+            .await
+            .map_err(|_| actor_stopped())?;
+        result.await.map_err(|_| actor_stopped())?
+    }
+
+    pub(crate) async fn start_turn_if_idle(
+        &self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+    ) -> agent_core::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender
+            .send(ActorMessage::StartTurnIfIdle {
                 request,
                 executor,
                 reply,
@@ -310,6 +332,15 @@ impl SessionExecutionActor {
                 self.handle_run_turn_if_idle(request, executor, reply).await;
                 true
             }
+            ActorMessage::StartTurnIfIdle {
+                request,
+                executor,
+                reply,
+            } => {
+                self.handle_start_turn_if_idle(request, executor, reply)
+                    .await;
+                true
+            }
             ActorMessage::Cancel { reason, reply } => {
                 self.handle_cancel(reason, reply);
                 true
@@ -433,6 +464,51 @@ impl SessionExecutionActor {
             reply,
         }))
         .await;
+    }
+
+    async fn handle_start_turn_if_idle(
+        &mut self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    ) {
+        match &self.state {
+            ExecutionState::Running { turn_id } => {
+                let _ = reply.send(Err(actor_busy(
+                    &request.session_id,
+                    format!("session execution running ({turn_id})"),
+                )));
+                return;
+            }
+            ExecutionState::Cancelling { turn_id } => {
+                let _ = reply.send(Err(actor_busy(
+                    &request.session_id,
+                    format!("session execution cancelling ({turn_id})"),
+                )));
+                return;
+            }
+            ExecutionState::Stopped => {
+                let _ = reply.send(Err(actor_stopped()));
+                return;
+            }
+            ExecutionState::Idle => {}
+        }
+
+        if self.running.is_some() {
+            let _ = reply.send(Err(actor_busy(
+                &request.session_id,
+                "session execution running".to_string(),
+            )));
+            return;
+        }
+
+        let (completion_reply, _completion_result) = oneshot::channel();
+        self.start_turn(PendingTurn {
+            request,
+            executor,
+            reply: completion_reply,
+        });
+        let _ = reply.send(Ok(()));
     }
 
     async fn execute_or_start_command(&mut self, command: PendingCommand) {

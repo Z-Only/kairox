@@ -97,6 +97,165 @@ async fn invoke_invalid_action_returns_error() {
     assert!(err.to_string().contains("Invalid browser action"));
 }
 
+#[test]
+fn playwright_preflight_error_explains_missing_dependency() {
+    let message = crate::browser::playwright::playwright_preflight_error(
+        "/repo",
+        "Cannot find module 'playwright'",
+    );
+
+    assert!(message.contains("Playwright dependency preflight failed"));
+    assert!(message.contains("/repo"));
+    assert!(message.contains("Cannot find module 'playwright'"));
+    assert!(message.contains("NODE_PATH"));
+    assert!(message.contains("playwright install chromium"));
+}
+
+#[test]
+fn playwright_process_output_detail_prefers_stderr() {
+    let output = std::process::Output {
+        status: std::process::Command::new("sh")
+            .arg("-c")
+            .arg("exit 7")
+            .status()
+            .expect("status should be available"),
+        stdout: b"stdout detail\n".to_vec(),
+        stderr: b"stderr detail\n".to_vec(),
+    };
+
+    let detail = crate::browser::playwright::process_output_detail(&output);
+    assert_eq!(detail, "stderr detail");
+}
+
+#[test]
+fn playwright_process_output_detail_uses_stdout_when_stderr_empty() {
+    let output = std::process::Output {
+        status: std::process::Command::new("sh")
+            .arg("-c")
+            .arg("exit 7")
+            .status()
+            .expect("status should be available"),
+        stdout: b"stdout detail\n".to_vec(),
+        stderr: Vec::new(),
+    };
+
+    let detail = crate::browser::playwright::process_output_detail(&output);
+    assert_eq!(detail, "stdout detail");
+}
+
+#[test]
+fn playwright_node_path_env_prepends_node_modules() {
+    let value = crate::browser::playwright::node_path_env_with_existing(
+        std::path::Path::new("/repo/node_modules"),
+        Some(std::ffi::OsString::from("/existing/node_modules")),
+    );
+
+    let value = value.to_string_lossy();
+    assert!(value.starts_with("/repo/node_modules"));
+    assert!(value.contains("/existing/node_modules"));
+}
+
+fn fake_playwright_install(root: &std::path::Path) -> std::path::PathBuf {
+    let node_modules = root.join("node_modules");
+    let package_dir = node_modules.join("playwright");
+    std::fs::create_dir_all(&package_dir).expect("playwright package dir should be created");
+    std::fs::write(
+        package_dir.join("package.json"),
+        r#"{"name":"playwright","version":"0.0.0","main":"index.js"}"#,
+    )
+    .expect("package manifest should be written");
+    std::fs::write(package_dir.join("index.js"), "module.exports = {};")
+        .expect("package entrypoint should be written");
+    node_modules
+}
+
+#[tokio::test]
+async fn playwright_resolution_uses_node_path_fallback() {
+    let node_path = std::path::Path::new("node");
+    if !std::process::Command::new(node_path)
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+    {
+        eprintln!("Skipping: Node.js not available");
+        return;
+    }
+
+    let repo_root = tempfile::tempdir().expect("repo root should be created");
+    let node_modules = fake_playwright_install(repo_root.path());
+
+    let isolated_workspace = tempfile::tempdir().expect("isolated workspace should be created");
+    assert!(crate::browser::playwright::playwright_resolves(
+        node_path,
+        isolated_workspace.path(),
+        None
+    )
+    .await
+    .is_err());
+    assert!(crate::browser::playwright::playwright_resolves(
+        node_path,
+        isolated_workspace.path(),
+        Some(&node_modules)
+    )
+    .await
+    .is_ok());
+
+    let resolved =
+        crate::browser::playwright::resolve_playwright_node_modules(node_path, repo_root.path())
+            .await
+            .expect("repo Playwright install should resolve");
+    assert_eq!(
+        std::fs::canonicalize(resolved).expect("resolved path should canonicalize"),
+        std::fs::canonicalize(node_modules).expect("expected path should canonicalize")
+    );
+}
+
+#[tokio::test]
+async fn playwright_preflight_accepts_workspace_playwright_install() {
+    let node_path = std::path::Path::new("node");
+    if !std::process::Command::new(node_path)
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+    {
+        eprintln!("Skipping: Node.js not available");
+        return;
+    }
+
+    let workspace = tempfile::tempdir().expect("workspace should be created");
+    fake_playwright_install(workspace.path());
+
+    let node_path_override =
+        crate::browser::playwright::preflight_playwright_dependencies(node_path, workspace.path())
+            .await
+            .expect("workspace Playwright install should pass preflight");
+    assert!(node_path_override.is_none());
+}
+
+#[tokio::test]
+async fn playwright_preflight_uses_repository_fallback() {
+    let node_path = std::path::Path::new("node");
+    if !playwright_available() {
+        eprintln!("Skipping: repository Playwright not available");
+        return;
+    }
+
+    let isolated_workspace = tempfile::tempdir().expect("isolated workspace should be created");
+    let node_path_override = crate::browser::playwright::preflight_playwright_dependencies(
+        node_path,
+        isolated_workspace.path(),
+    )
+    .await
+    .expect("repository fallback should pass preflight");
+    assert!(node_path_override.is_some());
+}
+
 // --- Integration tests (require Node.js + Playwright) ---
 
 #[tokio::test]

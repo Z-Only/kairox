@@ -361,12 +361,12 @@ where
 
     let sent_content = request.content.clone();
     let sent_display_content = request.display_content.clone();
-    if let Err(error) = runtime.send_message_if_idle(request).await {
+    if let Err(error) = runtime.start_message_if_idle(request).await {
         clear_idle_send_client_request_key(request_key).await;
         return Err(error.to_string());
     }
 
-    let accepted_message_id = accepted_user_message_id(
+    let accepted_message_id = wait_for_accepted_user_message_id(
         runtime,
         &session_id,
         &sent_content,
@@ -381,6 +381,27 @@ where
         true,
         "accepted",
     ))
+}
+
+async fn wait_for_accepted_user_message_id<S, M>(
+    runtime: &agent_runtime::LocalRuntime<S, M>,
+    session_id: &agent_core::SessionId,
+    content: &str,
+    display_content: Option<&str>,
+) -> Option<String>
+where
+    S: agent_store::EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
+    for _ in 0..40 {
+        if let Some(message_id) =
+            accepted_user_message_id(runtime, session_id, content, display_content).await
+        {
+            return Some(message_id);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    accepted_user_message_id(runtime, session_id, content, display_content).await
 }
 
 async fn clear_idle_send_client_request_key(key: Option<IdleSendClientRequestKey>) {
@@ -779,6 +800,69 @@ mod chat_attachment_tests {
         .expect("skill file should be written");
     }
 
+    async fn wait_for_assistant_message<S, M>(
+        runtime: &agent_runtime::LocalRuntime<S, M>,
+        session_id: agent_core::SessionId,
+        expected_content: &str,
+    ) where
+        S: agent_store::EventStore + 'static,
+        M: agent_models::ModelClient + 'static,
+    {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let trace = runtime
+                    .get_trace(session_id.clone())
+                    .await
+                    .expect("trace should load");
+                if trace.iter().any(|entry| {
+                    matches!(
+                        &entry.event.payload,
+                        agent_core::EventPayload::AssistantMessageCompleted { content, .. }
+                            if content == expected_content
+                    )
+                }) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("assistant completion should appear");
+    }
+
+    async fn wait_for_assistant_message_count<S, M>(
+        runtime: &agent_runtime::LocalRuntime<S, M>,
+        session_id: agent_core::SessionId,
+        expected_count: usize,
+    ) where
+        S: agent_store::EventStore + 'static,
+        M: agent_models::ModelClient + 'static,
+    {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let trace = runtime
+                    .get_trace(session_id.clone())
+                    .await
+                    .expect("trace should load");
+                let assistant_count = trace
+                    .iter()
+                    .filter(|entry| {
+                        matches!(
+                            &entry.event.payload,
+                            agent_core::EventPayload::AssistantMessageCompleted { .. }
+                        )
+                    })
+                    .count();
+                if assistant_count >= expected_count {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("assistant completion count should appear");
+    }
+
     #[test]
     fn send_message_to_session_and_wait_command_is_compiled() {
         let _command = send_message_to_session_and_wait;
@@ -825,7 +909,7 @@ mod chat_attachment_tests {
         .expect("idle send should run");
 
         let trace = runtime
-            .get_trace(session_id)
+            .get_trace(session_id.clone())
             .await
             .expect("trace should load");
         let accepted_message_id = trace.iter().find_map(|entry| match &entry.event.payload {
@@ -839,11 +923,91 @@ mod chat_attachment_tests {
         assert!(response.accepted);
         assert_eq!(response.status, "accepted");
         assert_eq!(response.accepted_message_id.as_deref(), accepted_message_id);
+        wait_for_assistant_message(&runtime, session_id, "ipc-ok").await;
+    }
+
+    #[tokio::test]
+    async fn send_message_to_session_if_idle_acknowledges_before_model_completes() {
+        let workspace_root = tempfile::tempdir().expect("workspace root should be created");
+        let store = agent_store::SqliteEventStore::in_memory()
+            .await
+            .expect("store should be created");
+        let (started_tx, _started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let runtime = agent_runtime::LocalRuntime::new(
+            store,
+            BlockingModelClient::new(started_tx, release_rx, stream_calls.clone()),
+        );
+        let workspace = runtime
+            .open_workspace(workspace_root.path().display().to_string())
+            .await
+            .expect("workspace should open");
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .expect("session should start");
+
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            send_message_to_session_if_idle_inner(
+                &runtime,
+                workspace.workspace_id,
+                session_id.clone(),
+                "ack before completion".to_string(),
+                vec![],
+                Some("ack-before-completion".to_string()),
+            ),
+        )
+        .await
+        .expect("idle send should acknowledge before the model stream is released")
+        .expect("idle send should be accepted");
+
+        assert!(response.accepted);
+        assert_eq!(response.status, "accepted");
+        assert!(response.accepted_message_id.is_some());
+
+        let trace = runtime
+            .get_trace(session_id.clone())
+            .await
+            .expect("trace should load");
         assert!(trace.iter().any(|entry| matches!(
             &entry.event.payload,
-            agent_core::EventPayload::AssistantMessageCompleted { content, .. }
-                if content == "ipc-ok"
+            agent_core::EventPayload::UserMessageAdded { content, .. }
+                if content == "ack before completion"
         )));
+        assert!(!trace.iter().any(|entry| matches!(
+            &entry.event.payload,
+            agent_core::EventPayload::AssistantMessageCompleted { .. }
+        )));
+
+        release_tx.send(()).expect("blocking stream should release");
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let trace = runtime
+                    .get_trace(session_id.clone())
+                    .await
+                    .expect("trace should load");
+                if trace.iter().any(|entry| {
+                    matches!(
+                        &entry.event.payload,
+                        agent_core::EventPayload::AssistantMessageCompleted { content, .. }
+                            if content == "blocked-response"
+                    )
+                }) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("assistant completion should appear after release");
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
@@ -912,6 +1076,7 @@ mod chat_attachment_tests {
         );
         assert_eq!(second.accepted_message_id, first.accepted_message_id);
 
+        wait_for_assistant_message_count(&runtime, session_id.clone(), 1).await;
         let trace = runtime
             .get_trace(session_id)
             .await
@@ -940,7 +1105,7 @@ mod chat_attachment_tests {
     }
 
     #[tokio::test]
-    async fn send_message_to_session_if_idle_inflight_duplicate_is_not_accepted() {
+    async fn send_message_to_session_if_idle_duplicate_after_fast_ack_reuses_existing_request_id() {
         let workspace_root = tempfile::tempdir().expect("workspace root should be created");
         let store = agent_store::SqliteEventStore::in_memory()
             .await
@@ -985,6 +1150,11 @@ mod chat_attachment_tests {
         started_rx
             .await
             .expect("first request should reach the blocking model stream");
+        let first = tokio::time::timeout(std::time::Duration::from_secs(5), first)
+            .await
+            .expect("first send should acknowledge while the model stream is blocked")
+            .expect("first send task should join")
+            .expect("first send should be accepted before release");
 
         let duplicate = send_message_to_session_if_idle_inner(
             runtime.as_ref(),
@@ -995,26 +1165,20 @@ mod chat_attachment_tests {
             client_request_id.clone(),
         )
         .await
-        .expect("in-flight duplicate should produce an explicit acknowledgement state");
+        .expect("duplicate idle send should reuse the accepted acknowledgement");
 
-        assert!(!duplicate.accepted);
-        assert_eq!(duplicate.status, "in_flight");
+        assert!(duplicate.accepted);
+        assert_eq!(duplicate.status, "accepted");
         assert_eq!(duplicate.session_id, session_id.to_string());
         assert_eq!(
             duplicate.client_request_id.as_deref(),
             Some("automation-send-inflight")
         );
-        assert!(duplicate.accepted_message_id.is_none());
+        assert_eq!(duplicate.accepted_message_id, first.accepted_message_id);
         assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
 
         release_tx.send(()).expect("blocking stream should release");
-        let first = first
-            .await
-            .expect("first send task should join")
-            .expect("first send should be accepted after release");
-        assert!(first.accepted);
-        assert_eq!(first.status, "accepted");
-        assert!(first.accepted_message_id.is_some());
+        wait_for_assistant_message(runtime.as_ref(), session_id.clone(), "blocked-response").await;
 
         let trace = runtime
             .get_trace(session_id)

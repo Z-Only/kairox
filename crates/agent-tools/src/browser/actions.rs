@@ -8,3 +8,7 @@ pub fn parse_action(args: &serde_json::Value) -> Result<BrowserAction, String> {
     serde_json::from_value(args.clone())
         .map_err(|e| format!("Failed to parse browser action: {}", e))
 }
+
+#[cfg(test)]
+#[path = "actions_tests.rs"]
+mod tests;

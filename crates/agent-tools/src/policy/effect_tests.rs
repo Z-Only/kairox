@@ -3,6 +3,42 @@ use std::path::PathBuf;
 use super::*;
 
 #[test]
+fn builders_accept_cow_tool_ids() {
+    use std::borrow::Cow;
+
+    assert_eq!(
+        PolicyRisk::read(Cow::Borrowed("fs.read")).tool_id,
+        "fs.read"
+    );
+    assert_eq!(
+        PolicyRisk::write(Cow::Borrowed("fs.write")).effect,
+        PolicyEffect::Write { paths: Vec::new() }
+    );
+    assert_eq!(
+        PolicyRisk::write_paths(Cow::Borrowed("fs.write"), Vec::new()).effect,
+        PolicyEffect::Write { paths: Vec::new() }
+    );
+    assert_eq!(
+        PolicyRisk::shell(Cow::Borrowed("shell.exec"), false).effect,
+        PolicyEffect::Shell { destructive: false }
+    );
+    assert_eq!(
+        PolicyRisk::destructive(Cow::Borrowed("shell.exec")).effect,
+        PolicyEffect::Destructive
+    );
+    assert_eq!(
+        PolicyRisk::network(Cow::Borrowed("browser.action"), Vec::new()).effect,
+        PolicyEffect::Network { hosts: Vec::new() }
+    );
+    assert_eq!(
+        PolicyRisk::mcp(Cow::Borrowed("mcp_tool"), Cow::Borrowed("my-server")).effect,
+        PolicyEffect::McpInvoke {
+            server: "my-server".to_string()
+        }
+    );
+}
+
+#[test]
 fn read_builder() {
     let risk = PolicyRisk::read("fs.read");
     assert_eq!(risk.tool_id, "fs.read");
