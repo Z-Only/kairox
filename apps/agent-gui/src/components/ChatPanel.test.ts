@@ -134,6 +134,19 @@ function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionS
   return wrapper;
 }
 
+function setMessageListScroll(
+  element: HTMLElement,
+  {
+    scrollTop,
+    scrollHeight = 1000,
+    clientHeight = 400
+  }: { scrollTop: number; scrollHeight?: number; clientHeight?: number }
+) {
+  Object.defineProperty(element, "scrollHeight", { configurable: true, value: scrollHeight });
+  Object.defineProperty(element, "clientHeight", { configurable: true, value: clientHeight });
+  element.scrollTop = scrollTop;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockedInvoke.mockImplementation(async (command) => {
@@ -283,6 +296,91 @@ describe("ChatPanel", () => {
     expect(streamIndicator.find(".cursor").exists()).toBe(true);
     expect(streamIndicator.find(".message-role").exists()).toBe(false);
     expect(streamIndicator.text()).not.toContain("Agent");
+  });
+
+  it("shows a jump-to-latest button when scrolled away from the latest message", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "question" },
+        { role: "assistant", content: "answer" }
+      ];
+    });
+    await flushPromises();
+
+    const messageList = wrapper.find('[data-test="message-list"]');
+    const messageListEl = messageList.element as HTMLElement;
+    setMessageListScroll(messageListEl, { scrollTop: 160 });
+    const scrollToSpy = vi.fn();
+    messageListEl.scrollTo = scrollToSpy as HTMLElement["scrollTo"];
+
+    await messageList.trigger("scroll");
+    await flushPromises();
+
+    const jumpToLatest = wrapper.find('[data-test="jump-to-latest-cta"]');
+    expect(jumpToLatest.exists()).toBe(true);
+
+    await jumpToLatest.trigger("click");
+    await flushPromises();
+
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: messageListEl.scrollHeight - messageListEl.clientHeight,
+      behavior: "auto"
+    });
+  });
+
+  it("does not auto-scroll streaming updates while the user is reading older messages", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "question" },
+        { role: "assistant", content: "answer" }
+      ];
+      session.projection.token_stream = "first chunk";
+      session.isStreaming = true;
+    });
+    const messageList = wrapper.find('[data-test="message-list"]');
+    const messageListEl = messageList.element as HTMLElement;
+    setMessageListScroll(messageListEl, { scrollTop: 160 });
+    await flushPromises();
+    await messageList.trigger("scroll");
+    await flushPromises();
+
+    const scrollToSpy = vi.fn();
+    messageListEl.scrollTo = scrollToSpy as HTMLElement["scrollTo"];
+    const session = useSessionStore();
+    session.projection.token_stream = "first chunk and second chunk";
+    await flushPromises();
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-test="jump-to-latest-cta"]').exists()).toBe(true);
+  });
+
+  it("keeps auto-scrolling streaming updates while the user is viewing the latest message", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "question" },
+        { role: "assistant", content: "answer" }
+      ];
+      session.projection.token_stream = "first chunk";
+      session.isStreaming = true;
+    });
+    const messageList = wrapper.find('[data-test="message-list"]');
+    const messageListEl = messageList.element as HTMLElement;
+    setMessageListScroll(messageListEl, { scrollTop: 600 });
+    await flushPromises();
+    await messageList.trigger("scroll");
+    await flushPromises();
+
+    const scrollToSpy = vi.fn();
+    messageListEl.scrollTo = scrollToSpy as HTMLElement["scrollTo"];
+    const session = useSessionStore();
+    session.projection.token_stream = "first chunk and second chunk";
+    await flushPromises();
+
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: messageListEl.scrollHeight - messageListEl.clientHeight,
+      behavior: "auto"
+    });
+    expect(wrapper.find('[data-test="jump-to-latest-cta"]').exists()).toBe(false);
   });
 
   it("keeps message bubble styles scoped through ChatMessageItem internals", () => {

@@ -52,10 +52,10 @@ test("clicking the pinned user message scrolls back to its chat turn", async ({ 
     if (!(first instanceof HTMLElement)) {
       throw new Error("missing first user message");
     }
-    const listTop = list.getBoundingClientRect().top;
-    const firstBottom = first.getBoundingClientRect().bottom;
+    first.scrollIntoView({ block: "start" });
+    const firstHeight = first.getBoundingClientRect().height;
     list.scrollTo({
-      top: list.scrollTop + (firstBottom - listTop) + 24,
+      top: list.scrollTop + firstHeight + 24,
       behavior: "auto"
     });
   });
