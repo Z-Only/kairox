@@ -846,6 +846,7 @@ describe("ChatPanel", () => {
     expect(workspaceUi.rightPanelTab).toBe("changes");
     expect(workspaceUi.gitReview?.changedFiles).toEqual(["src/main.ts", "notes.txt"]);
     expect(workspaceUi.gitReview?.unstaged?.label).toBe("Unstaged changes");
+    expect(wrapper.get('[data-test="git-review-summary"]').text()).toBe("2 files +2 -1");
     expect(wrapper.find('[data-test="git-review-panel"]').exists()).toBe(false);
   });
 

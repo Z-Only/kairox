@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
@@ -167,39 +168,64 @@ describe("TraceTimeline", () => {
   });
 
   it("switches to Changes tab and renders repository review", async () => {
-    const wrapper = mountTimeline();
-    useTaskGraphStore().clearTaskGraph();
-    const workspaceUi = useWorkspaceUiStore();
-    workspaceUi.gitReview = {
-      kind: "dirty",
-      branch: "feat/review",
-      worktreePath: "/repo",
-      message: null,
-      fileCount: 1,
-      additions: 1,
-      deletions: 0,
-      changedFiles: ["README.md"],
-      staged: null,
-      unstaged: {
-        label: "Unstaged changes",
-        stat: " README.md | 1 +",
-        diff: "--- a/README.md\n+++ b/README.md\n+local agent edit",
-        additions: 1,
-        deletions: 0,
-        files: [
-          {
-            path: "README.md",
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_session_git_review") {
+        return {
+          kind: "dirty",
+          branch: "feat/review",
+          worktree_path: "/repo",
+          message: null,
+          file_count: 1,
+          additions: 1,
+          deletions: 0,
+          changed_files: ["README.md"],
+          staged: null,
+          unstaged: {
+            label: "Unstaged changes",
+            stat: " README.md | 1 +",
+            diff: "--- a/README.md\n+++ b/README.md\n+local agent edit",
             additions: 1,
             deletions: 0,
-            diff: "--- a/README.md\n+++ b/README.md\n+local agent edit"
-          }
-        ]
-      },
-      untracked: null
-    };
+            files: [
+              {
+                path: "README.md",
+                additions: 1,
+                deletions: 0,
+                diff: "--- a/README.md\n+++ b/README.md\n+local agent edit"
+              }
+            ]
+          },
+          untracked: null
+        };
+      }
+      return [];
+    });
+    const session = useSessionStore();
+    session.currentSessionId = "ses_1";
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Review session",
+        profile: "fast",
+        project_id: "project_1",
+        worktree_path: "/repo",
+        branch: "feat/review",
+        visibility: null,
+        deleted_at: null,
+        approval_policy: null,
+        sandbox_policy: null
+      }
+    ];
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
 
     await wrapper.get('[data-test="trace-tab-changes"]').trigger("click");
+    await flushPromises();
 
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_1"
+    });
+    const workspaceUi = useWorkspaceUiStore();
     expect(workspaceUi.rightPanelTab).toBe("changes");
     expect(wrapper.get('[data-test="trace-tab-changes"]').classes()).toContain("active");
     expect(wrapper.get('[data-test="git-review-panel"]').text()).toContain("README.md");
