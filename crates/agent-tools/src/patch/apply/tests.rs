@@ -213,6 +213,29 @@ async fn patch_apply_tool_rejects_workspace_escape() {
 }
 
 #[tokio::test]
+async fn patch_apply_tool_explains_codex_patch_format() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let patch = "\
+*** Begin Patch
+*** Update File: src/main.rs
+@@
++pub(crate) mod test_helpers;
+*** End Patch
+";
+
+    let err = tool.invoke(make_invocation(patch)).await.unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("Codex apply_patch"), "{message}");
+    assert!(message.contains("unified diff"), "{message}");
+    assert!(message.contains("--- a/path"), "{message}");
+    assert!(
+        message.contains("@@ -old_start,old_count +new_start,new_count @@"),
+        "{message}"
+    );
+}
+
+#[tokio::test]
 async fn patch_apply_tool_creates_new_file() {
     let dir = tempfile::tempdir().unwrap();
     let tool = PatchApplyTool::new(dir.path().to_path_buf());
@@ -465,6 +488,12 @@ fn definition_returns_correct_id() {
     let def = tool.definition();
     assert_eq!(def.tool_id, PATCH_TOOL_ID);
     assert_eq!(def.required_capability, "patch.apply");
+    assert!(def.description.contains("unified diff"));
+    assert!(def.description.contains("*** Begin Patch"));
+    assert!(def.parameters["properties"]["patch"]["description"]
+        .as_str()
+        .unwrap()
+        .contains("--- a/path"));
 }
 
 // ── normalize_path tests ──────────────────────────────────────────

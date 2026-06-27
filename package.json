@@ -22,6 +22,7 @@
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "lint:web": "oxlint && stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "dev:pilot": "bash scripts/dev-pilot.sh",
+    "playwright:node-path": "node scripts/resolve-playwright-node-path.mjs",
     "site:build": "node scripts/ensure-site-release-cache.mjs && vitepress build site && node scripts/generate-llms-txt.mjs",
     "site:dev": "vitepress dev site --host 0.0.0.0",
     "site:preview": "vitepress preview site --host 0.0.0.0",
