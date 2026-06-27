@@ -38,6 +38,15 @@ impl SessionExecutionRuntime {
         actor.run_turn_if_idle(request, executor).await
     }
 
+    pub async fn start_turn_if_idle(
+        &self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+    ) -> agent_core::Result<()> {
+        let actor = self.actor_for(&request.session_id).await;
+        actor.start_turn_if_idle(request, executor).await
+    }
+
     pub async fn cancel_session(
         &self,
         session_id: &SessionId,

@@ -40,6 +40,21 @@ where
             .await
     }
 
+    pub async fn start_message_if_idle(
+        &self,
+        request: SendMessageRequest,
+    ) -> agent_core::Result<()> {
+        self.ensure_session_can_send(&request.session_id, true)
+            .await?;
+        self.mark_project_session_visible_for_request(&request)
+            .await?;
+
+        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
+        self.session_execution
+            .start_turn_if_idle(request, executor)
+            .await
+    }
+
     pub async fn ensure_session_accepts_turn(
         &self,
         session_id: &SessionId,

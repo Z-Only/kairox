@@ -6,7 +6,7 @@
 //! The bridge responds with `{ "id": <u64>, "result": <BrowserResult> }` or
 //! `{ "id": <u64>, "error": "<message>" }`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -60,6 +60,14 @@ impl PlaywrightManager {
             *state = BrowserState::Error(msg.clone());
             msg
         })?;
+        let bridge_node_path =
+            match preflight_playwright_dependencies(&node_path, &self.workspace_root).await {
+                Ok(node_path) => node_path,
+                Err(msg) => {
+                    *state = BrowserState::Error(msg.clone());
+                    return Err(msg);
+                }
+            };
 
         // Write the bridge script to a temp file
         let script_dir = self.workspace_root.join(".kairox").join("tmp");
@@ -72,19 +80,22 @@ impl PlaywrightManager {
             .map_err(|e| format!("Failed to write bridge script: {}", e))?;
 
         // Spawn the Node.js process
-        let mut child = Command::new(&node_path)
+        let mut command = Command::new(&node_path);
+        command
             .arg(&script_path)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .current_dir(&self.workspace_root)
-            .kill_on_drop(true)
-            .spawn()
-            .map_err(|e| {
-                let msg = format!("Failed to spawn Node.js bridge: {}", e);
-                *state = BrowserState::Error(msg.clone());
-                msg
-            })?;
+            .kill_on_drop(true);
+        if let Some(node_path) = bridge_node_path {
+            command.env("NODE_PATH", node_path_env_with(&node_path));
+        }
+        let mut child = command.spawn().map_err(|e| {
+            let msg = format!("Failed to spawn Node.js bridge: {}", e);
+            *state = BrowserState::Error(msg.clone());
+            msg
+        })?;
 
         let stdin = child
             .stdin
@@ -271,4 +282,129 @@ fn find_node() -> Result<PathBuf, String> {
          Install Node.js >= 18: https://nodejs.org/"
             .to_string()
     })
+}
+
+pub(crate) async fn preflight_playwright_dependencies(
+    node_path: &Path,
+    workspace_root: &Path,
+) -> Result<Option<PathBuf>, String> {
+    match playwright_resolves(node_path, workspace_root, None).await {
+        Ok(()) => Ok(None),
+        Err(primary_detail) => {
+            if let Ok(current_dir) = std::env::current_dir() {
+                if current_dir != workspace_root {
+                    match resolve_playwright_node_modules(node_path, &current_dir).await {
+                        Ok(node_modules) => {
+                            if playwright_resolves(node_path, workspace_root, Some(&node_modules))
+                                .await
+                                .is_ok()
+                            {
+                                return Ok(Some(node_modules));
+                            }
+                        }
+                        Err(fallback_detail) => {
+                            let detail = format!(
+                                "{primary_detail}\nRepository fallback failed: {fallback_detail}"
+                            );
+                            return Err(playwright_preflight_error(
+                                &workspace_root.display().to_string(),
+                                &detail,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            Err(playwright_preflight_error(
+                &workspace_root.display().to_string(),
+                &primary_detail,
+            ))
+        }
+    }
+}
+
+pub(crate) async fn playwright_resolves(
+    node_path: &Path,
+    lookup_dir: &Path,
+    node_modules: Option<&Path>,
+) -> Result<(), String> {
+    let mut command = Command::new(node_path);
+    command
+        .arg("-e")
+        .arg("try { require.resolve('playwright'); } catch (_) { require.resolve('playwright-core'); }")
+        .current_dir(lookup_dir);
+    if let Some(node_modules) = node_modules {
+        command.env("NODE_PATH", node_path_env_with(node_modules));
+    }
+    let output = command
+        .output()
+        .await
+        .map_err(|error| format!("failed to run Node.js preflight: {error}"))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(process_output_detail(&output))
+    }
+}
+
+pub(crate) async fn resolve_playwright_node_modules(
+    node_path: &Path,
+    lookup_dir: &Path,
+) -> Result<PathBuf, String> {
+    let output = Command::new(node_path)
+        .arg("-e")
+        .arg(
+            "const path = require('path'); let pkg; try { pkg = require.resolve('playwright/package.json'); } catch (_) { pkg = require.resolve('playwright-core/package.json'); } console.log(path.dirname(path.dirname(pkg)));",
+        )
+        .current_dir(lookup_dir)
+        .output()
+        .await
+        .map_err(|error| format!("failed to locate repository Playwright install: {error}"))?;
+
+    if !output.status.success() {
+        return Err(process_output_detail(&output));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if stdout.is_empty() {
+        Err("repository Playwright install resolved to an empty path".to_string())
+    } else {
+        Ok(PathBuf::from(stdout))
+    }
+}
+
+pub(crate) fn process_output_detail(output: &std::process::Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if stderr.is_empty() {
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    } else {
+        stderr
+    }
+}
+
+pub(crate) fn node_path_env_with(node_modules: &Path) -> std::ffi::OsString {
+    node_path_env_with_existing(node_modules, std::env::var_os("NODE_PATH"))
+}
+
+pub(crate) fn node_path_env_with_existing(
+    node_modules: &Path,
+    existing: Option<std::ffi::OsString>,
+) -> std::ffi::OsString {
+    let mut value = node_modules.as_os_str().to_os_string();
+    if let Some(existing) = existing {
+        if !existing.is_empty() {
+            value.push(if cfg!(windows) { ";" } else { ":" });
+            value.push(existing);
+        }
+    }
+    value
+}
+
+pub(crate) fn playwright_preflight_error(workspace_root: &str, detail: &str) -> String {
+    format!(
+        "Playwright dependency preflight failed in {workspace_root}: {detail}. \
+         Browser tools require Node.js to resolve `playwright` or `playwright-core` before starting the bridge. \
+         If this is a Bun workspace or git worktree, set NODE_PATH to the repository Playwright node_modules path before retrying. \
+         If browser binaries are missing, run `npx playwright install chromium`."
+    )
 }

@@ -93,6 +93,51 @@ function sumCounts(counts) {
   return Object.values(counts).reduce((total, count) => total + countValue(count), 0);
 }
 
+function normalizeContextUsage(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value;
+}
+
+function latestContextUsage(source) {
+  const direct = normalizeContextUsage(
+    firstPresent(source, [
+      "context_usage",
+      "contextUsage",
+      "last_context_usage",
+      "lastContextUsage"
+    ])
+  );
+  if (direct) {
+    return direct;
+  }
+
+  const history = firstPresent(source, [
+    "context_usage_history",
+    "contextUsageHistory",
+    "context_assembled_usages",
+    "contextAssembledUsages"
+  ]);
+  if (!Array.isArray(history)) {
+    return null;
+  }
+
+  for (const entry of history.slice().reverse()) {
+    const usage = normalizeContextUsage(
+      firstPresent(entry, ["usage", "context_usage", "contextUsage"])
+    );
+    if (usage) {
+      return usage;
+    }
+    const entryAsUsage = normalizeContextUsage(entry);
+    if (entryAsUsage) {
+      return entryAsUsage;
+    }
+  }
+  return null;
+}
+
 function messageCount(source, countNames, listNames) {
   const explicit = firstPresent(source, countNames);
   if (explicit !== undefined) {
@@ -216,6 +261,10 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
   const mcpToolCallCount = countValue(
     firstPresent(diagnostics, ["mcp_tool_calls", "mcpToolCalls"])
   );
+  const modelTokenDeltaCount = countValue(
+    firstPresent(diagnostics, ["model_token_delta_count", "modelTokenDeltaCount"]) ??
+      eventTypeCounts.ModelTokenDelta
+  );
   const trajectoryFailedCountValue = trajectoryFailedCount(diagnostics);
   const trajectoryCancelledCountValue = trajectoryCancelledCount(diagnostics);
   const hasToolProgress =
@@ -255,6 +304,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       "socket_path",
       "socketPath"
     ]),
+    context_usage: latestContextUsage(diagnostics),
     event_count:
       explicitEventCount === undefined
         ? sumCounts(eventTypeCounts)
@@ -277,6 +327,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     running_tool_invocations: runningToolInvocations,
     model_tool_call_count: modelToolCallCount,
     mcp_tool_call_count: mcpToolCallCount,
+    model_token_delta_count: modelTokenDeltaCount,
     has_tool_progress: hasToolProgress,
     suspicious_no_tool_completion: terminalAssistantMessage && !hasToolProgress,
     trajectory_started_count: countValue(

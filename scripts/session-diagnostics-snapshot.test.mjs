@@ -38,10 +38,20 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     eventDbPath: "/tmp/kairox/events.sqlite",
     eventDbPathSource: "tauri_state",
     pilotSocketPath: "/tmp/tauri-pilot.sock",
-    event_count: 9,
+    event_count: 14,
+    lastContextUsage: {
+      total_tokens: 41743,
+      budget_tokens: 181616,
+      context_window: 200000,
+      output_reservation: 18384,
+      estimator: "cl100k_base",
+      corrected_by_real_usage: false,
+      by_source: [["system", 185]]
+    },
     event_type_counts: [
       { event_type: "UserMessageAdded", count: 2 },
       { event_type: "AssistantMessageCompleted", count: 1 },
+      { event_type: "ModelTokenDelta", count: 5 },
       { event_type: "TrajectoryStarted", count: 2 },
       { event_type: "TrajectoryCompleted", count: 2 }
     ],
@@ -81,10 +91,20 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     event_db_path: "/tmp/kairox/events.sqlite",
     event_db_path_source: "tauri_state",
     pilot_socket_path: "/tmp/tauri-pilot.sock",
-    event_count: 9,
+    context_usage: {
+      total_tokens: 41743,
+      budget_tokens: 181616,
+      context_window: 200000,
+      output_reservation: 18384,
+      estimator: "cl100k_base",
+      corrected_by_real_usage: false,
+      by_source: [["system", 185]]
+    },
+    event_count: 14,
     last_event_type: "AssistantMessageCompleted",
     event_type_counts: {
       AssistantMessageCompleted: 1,
+      ModelTokenDelta: 5,
       TrajectoryCompleted: 2,
       TrajectoryStarted: 2,
       UserMessageAdded: 2
@@ -95,6 +115,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     running_tool_invocations: 1,
     model_tool_call_count: 2,
     mcp_tool_call_count: 1,
+    model_token_delta_count: 5,
     has_tool_progress: true,
     suspicious_no_tool_completion: false,
     trajectory_started_count: 2,
@@ -161,6 +182,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.event_db_path, null);
   assert.equal(compact.event_db_path_source, null);
   assert.equal(compact.pilot_socket_path, null);
+  assert.equal(compact.context_usage, null);
   assert.equal(compact.event_count, 1);
   assert.equal(compact.last_event_type, null);
   assert.equal(compact.user_message_count, 1);
@@ -169,6 +191,7 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.running_tool_invocations, 0);
   assert.equal(compact.model_tool_call_count, 0);
   assert.equal(compact.mcp_tool_call_count, 0);
+  assert.equal(compact.model_token_delta_count, 0);
   assert.equal(compact.has_tool_progress, false);
   assert.equal(compact.suspicious_no_tool_completion, false);
   assert.equal(compact.trajectory_started_count, 0);
@@ -176,6 +199,20 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.trajectory_failed_count, 0);
   assert.equal(compact.failure_signal, null);
   assert.equal(compact.has_terminal_assistant_message, false);
+});
+
+test("compactSessionDiagnostics uses latest context usage history entry", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_context_history",
+    event_type_counts: { ContextAssembled: 2, ModelTokenDelta: 7 },
+    context_usage_history: [
+      { total_tokens: 10, budget_tokens: 100 },
+      { usage: { total_tokens: 42, budget_tokens: 100 } }
+    ]
+  });
+
+  assert.deepEqual(compact.context_usage, { total_tokens: 42, budget_tokens: 100 });
+  assert.equal(compact.model_token_delta_count, 7);
 });
 
 test("CLI reports missing tauri-pilot and does not create --out", async () => {
@@ -258,6 +295,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       event_db_path: null,
       event_db_path_source: null,
       pilot_socket_path: null,
+      context_usage: null,
       event_count: 2,
       last_event_type: null,
       event_type_counts: { UserMessageAdded: 1 },
@@ -267,6 +305,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       running_tool_invocations: 0,
       model_tool_call_count: 0,
       mcp_tool_call_count: 0,
+      model_token_delta_count: 0,
       has_tool_progress: false,
       suspicious_no_tool_completion: false,
       trajectory_started_count: 0,
@@ -325,6 +364,7 @@ test("CLI overlays explicit resume metadata", async () => {
     event_db_path: "/tmp/kairox/events.sqlite",
     event_db_path_source: "explicit_meta",
     pilot_socket_path: "/tmp/tauri-pilot.sock",
+    context_usage: null,
     event_count: 1,
     last_event_type: null,
     event_type_counts: { UserMessageAdded: 1 },
@@ -334,6 +374,7 @@ test("CLI overlays explicit resume metadata", async () => {
     running_tool_invocations: 0,
     model_tool_call_count: 0,
     mcp_tool_call_count: 0,
+    model_token_delta_count: 0,
     has_tool_progress: false,
     suspicious_no_tool_completion: false,
     trajectory_started_count: 0,
