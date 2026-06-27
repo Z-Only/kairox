@@ -1,6 +1,6 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Kairox banner</title>
-  <desc id="desc">A restrained dark banner for Kairox showing a compact logo mark, local-first AI agent workbench positioning, and abstract task, trace, memory, skills, plugins, hooks, and tool panels.</desc>
+  <desc id="desc">A restrained dark banner for Kairox showing a compact logo mark, local-first AI agent workbench positioning, and abstract runtime, SDK, eval, MCP, LSP/DAP, skills, plugins, memory, and tool panels.</desc>
   <defs>
     <linearGradient id="bannerBg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
       <stop stop-color="#06111F"/>
@@ -51,7 +51,7 @@
   <g aria-label="Kairox title">
     <text x="84" y="286" fill="#F8FAFC" font-size="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="760">Kairox</text>
     <text x="88" y="340" fill="#A7F3D0" font-size="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="520">Local-first AI agent workbench</text>
-    <text x="88" y="394" fill="#CBD5E1" font-size="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core · TUI · Tauri GUI · MCP · Skills · Plugins · Hooks</text>
+    <text x="88" y="394" fill="#CBD5E1" font-size="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core · TUI · Tauri GUI · SDK · Eval · MCP · LSP/DAP</text>
   </g>
 
   <g aria-label="Workbench preview">
@@ -82,20 +82,20 @@
 
   <g aria-label="Capability labels">
     <rect x="84" y="474" width="112" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="106" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core</text>
+    <text x="106" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Runtime</text>
     <rect x="210" y="474" width="80" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="234" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Skills</text>
+    <text x="234" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">SDK</text>
     <rect x="304" y="474" width="70" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="330" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MCP</text>
+    <text x="326" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Eval</text>
     <rect x="388" y="474" width="86" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="418" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Tools</text>
+    <text x="418" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MCP</text>
     <rect x="488" y="474" width="106" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="514" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Plugins</text>
+    <text x="514" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Skills</text>
     <rect x="608" y="474" width="82" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="634" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Hooks</text>
+    <text x="618" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Plugins</text>
     <rect x="704" y="474" width="112" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="732" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Memory</text>
+    <text x="728" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">LSP/DAP</text>
     <rect x="830" y="474" width="134" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
-    <text x="862" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Context</text>
+    <text x="862" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Memory</text>
   </g>
 </svg>
