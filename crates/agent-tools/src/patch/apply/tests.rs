@@ -213,7 +213,38 @@ async fn patch_apply_tool_rejects_workspace_escape() {
 }
 
 #[tokio::test]
-async fn patch_apply_tool_explains_codex_patch_format() {
+async fn patch_apply_tool_applies_simple_codex_update_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("src/main.rs");
+    tokio::fs::create_dir_all(dir.path().join("src"))
+        .await
+        .unwrap();
+    tokio::fs::write(&file_path, "fn main() {\n    println!(\"hello\");\n}\n")
+        .await
+        .unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let patch = "\
+*** Begin Patch
+*** Update File: src/main.rs
+@@
+ fn main() {
+-    println!(\"hello\");
++    println!(\"hello, codex\");
+ }
+*** End Patch
+";
+
+    let result = tool.invoke(make_invocation(patch)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+    assert!(result.text.contains("src/main.rs"));
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, "fn main() {\n    println!(\"hello, codex\");\n}\n");
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_codex_update_hunk_without_context() {
     let dir = tempfile::tempdir().unwrap();
     let tool = PatchApplyTool::new(dir.path().to_path_buf());
     let patch = "\
@@ -227,12 +258,55 @@ async fn patch_apply_tool_explains_codex_patch_format() {
     let err = tool.invoke(make_invocation(patch)).await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("Codex apply_patch"), "{message}");
-    assert!(message.contains("unified diff"), "{message}");
-    assert!(message.contains("--- a/path"), "{message}");
-    assert!(
-        message.contains("@@ -old_start,old_count +new_start,new_count @@"),
-        "{message}"
-    );
+    assert!(message.contains("context"), "{message}");
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_codex_update_for_missing_parent_dir() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let patch = "\
+*** Begin Patch
+*** Update File: src/missing.rs
+@@
+-old
++new
+*** End Patch
+";
+
+    let err = tool.invoke(make_invocation(patch)).await.unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("Codex apply_patch"), "{message}");
+    assert!(message.contains("parent directory not found"), "{message}");
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_codex_update_when_context_is_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("src/main.rs");
+    tokio::fs::create_dir_all(dir.path().join("src"))
+        .await
+        .unwrap();
+    tokio::fs::write(&file_path, "fn main() {\n    println!(\"hello\");\n}\n")
+        .await
+        .unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let patch = "\
+*** Begin Patch
+*** Update File: src/main.rs
+@@
+ fn main() {
+-    println!(\"missing\");
++    println!(\"codex\");
+ }
+*** End Patch
+";
+
+    let err = tool.invoke(make_invocation(patch)).await.unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("Codex apply_patch"), "{message}");
+    assert!(message.contains("Could not locate"), "{message}");
 }
 
 #[tokio::test]
@@ -461,6 +535,26 @@ fn patch_apply_tool_risk_write_for_modify() {
     let inv = make_invocation("--- a/foo.rs\n+++ b/foo.rs\n@@ -1,1 +1,1 @@\n-old\n+new\n");
     let risk = tool.risk(&inv);
     assert_eq!(risk, ToolRisk::write(PATCH_TOOL_ID));
+}
+
+#[test]
+fn patch_apply_tool_risk_write_for_codex_update() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let inv = make_invocation(
+        "*** Begin Patch\n*** Update File: foo.rs\n@@\n-old\n+new\n*** End Patch\n",
+    );
+    let risk = tool.risk(&inv);
+    assert_eq!(risk, ToolRisk::write(PATCH_TOOL_ID));
+}
+
+#[test]
+fn patch_apply_tool_risk_destructive_for_codex_add_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let inv = make_invocation("*** Begin Patch\n*** Add File: foo.rs\n+content\n*** End Patch\n");
+    let risk = tool.risk(&inv);
+    assert_eq!(risk, ToolRisk::destructive(PATCH_TOOL_ID));
 }
 
 #[test]
