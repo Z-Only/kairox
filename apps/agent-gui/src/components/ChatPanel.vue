@@ -533,6 +533,13 @@ const canReviewGit = computed(() => {
   const sessionInfo = currentSession.value;
   return Boolean(sessionInfo?.project_id || sessionInfo?.worktree_path || currentProjectId.value);
 });
+const gitReviewSummary = computed(() => {
+  const review = workspaceUi.gitReview;
+  if (!review) return null;
+  return `${t("chat.gitReview.fileCount", { count: review.fileCount })} +${review.additions} -${
+    review.deletions
+  }`;
+});
 
 async function openGitReview(): Promise<void> {
   const sessionInfo = currentSession.value;
@@ -794,6 +801,9 @@ watch(
         <span aria-hidden="true">▤</span>
         <span>{{ t("chat.gitReview.action") }}</span>
       </button>
+      <span v-if="gitReviewSummary" class="git-review-summary" data-test="git-review-summary">
+        {{ gitReviewSummary }}
+      </span>
     </div>
 
     <ChatComposer
@@ -857,6 +867,13 @@ watch(
 .git-review-toggle:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+.git-review-summary {
+  color: var(--app-text-color-3);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: nowrap;
 }
 /* ── Pinned user message (sticky header) ── */
 .pinned-user-message {

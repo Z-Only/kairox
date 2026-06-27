@@ -124,6 +124,20 @@ async function copySessionDiagnostics() {
     copyingDiagnostics.value = false;
   }
 }
+
+async function openChangesTab(): Promise<void> {
+  const sessionInfo = session.currentSessionInfo;
+  const projectId = sessionInfo?.project_id ?? null;
+  if (!sessionInfo?.id && !projectId) {
+    workspaceUi.setRightPanelTab("changes");
+    return;
+  }
+
+  await workspaceUi.openGitReview({
+    sessionId: sessionInfo?.id ?? null,
+    projectId
+  });
+}
 </script>
 
 <template>
@@ -178,7 +192,7 @@ async function copySessionDiagnostics() {
           :variant="rightPanelTab === 'changes' ? 'primary' : 'default'"
           :class="{ active: rightPanelTab === 'changes' }"
           data-test="trace-tab-changes"
-          @click="rightPanelTab = 'changes'"
+          @click="openChangesTab"
         >
           {{ t("trace.tabChanges") }}
         </KxButton>
