@@ -23,6 +23,47 @@ const workspaceUi = useWorkspaceUiStore();
 const toast = useToast();
 const scrollbar = ref<HTMLElement | null>(null);
 const composerRef = ref<InstanceType<typeof ChatComposer> | null>(null);
+const LATEST_SCROLL_THRESHOLD_PX = 24;
+const isViewingLatest = ref(true);
+
+function isScrolledToLatest(): boolean {
+  const el = scrollbar.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= LATEST_SCROLL_THRESHOLD_PX;
+}
+
+function updateLatestScrollState(): void {
+  isViewingLatest.value = isScrolledToLatest();
+}
+
+async function scrollToLatest(): Promise<void> {
+  isViewingLatest.value = true;
+  await nextTick();
+  const el = scrollbar.value;
+  if (!el) return;
+  const applyScroll = () => {
+    el.scrollTo({
+      top: Math.max(0, el.scrollHeight - el.clientHeight),
+      behavior: "auto"
+    });
+  };
+  applyScroll();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  applyScroll();
+  // ponytail: one delayed pass covers WebView text reflow; use ResizeObserver if rich streaming content needs tighter follow.
+  await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  applyScroll();
+}
+
+const showJumpToLatestCta = computed(() => !isViewingLatest.value);
+
+function handleMessageListScroll(): void {
+  updateLatestScrollState();
+}
+
+async function jumpToLatest(): Promise<void> {
+  await scrollToLatest();
+}
 
 // === Message copy / edit handlers ========================================
 function handleMessageCopy() {
@@ -428,6 +469,7 @@ watch(
   () => session.currentSessionId,
   () => {
     pinnedUserMessage.value = null;
+    isViewingLatest.value = true;
     visibleUserMessageIds.value = new Set();
     userMessageElements.clear();
     visiblePermissionIds.value = new Set();
@@ -598,12 +640,12 @@ watch(
 watch(
   () => [session.projection.messages.length, session.projection.token_stream],
   async () => {
+    const shouldFollowLatest = isScrolledToLatest();
     await nextTick();
-    if (scrollbar.value) {
-      scrollbar.value.scrollTo({
-        top: scrollbar.value.scrollHeight,
-        behavior: "smooth"
-      });
+    if (shouldFollowLatest) {
+      await scrollToLatest();
+    } else {
+      updateLatestScrollState();
     }
   }
 );
@@ -634,7 +676,12 @@ watch(
       <span class="pinned-user-message-text">{{ pinnedUserMessage.content }}</span>
     </button>
 
-    <div ref="scrollbar" class="message-list" data-test="message-list">
+    <div
+      ref="scrollbar"
+      class="message-list"
+      data-test="message-list"
+      @scroll="handleMessageListScroll"
+    >
       <div class="message-list-inner">
         <KxEmptyState
           v-if="session.projection.messages.length === 0 && !session.projection.token_stream"
@@ -777,6 +824,18 @@ watch(
           }}
         </span>
         <span aria-hidden="true" class="jump-pending-permission-cta-arrow">↓</span>
+      </button>
+      <button
+        v-if="showJumpToLatestCta"
+        type="button"
+        class="jump-to-latest-cta"
+        data-test="jump-to-latest-cta"
+        :aria-label="t('chat.jumpToLatest')"
+        :title="t('chat.jumpToLatest')"
+        @click="jumpToLatest"
+      >
+        <span class="jump-to-latest-cta-label">{{ t("chat.jumpToLatest") }}</span>
+        <span aria-hidden="true" class="jump-to-latest-cta-arrow">↓</span>
       </button>
     </div>
 
@@ -924,7 +983,8 @@ watch(
     ),
     var(--app-card-color);
 }
-.jump-pending-permission-cta {
+.jump-pending-permission-cta,
+.jump-to-latest-cta {
   /* Float just above the chat composer, anchored to the bottom of the
      scroll viewport. `position: sticky` keeps the pill pinned to the
      bottom edge of the scrollable region as the user scrolls. */
@@ -950,7 +1010,8 @@ watch(
      against the message-list width. */
 }
 @media (prefers-reduced-motion: no-preference) {
-  .jump-pending-permission-cta {
+  .jump-pending-permission-cta,
+  .jump-to-latest-cta {
     transition:
       opacity 120ms ease,
       color 120ms ease,
@@ -959,16 +1020,20 @@ watch(
   }
 }
 .jump-pending-permission-cta:hover,
-.jump-pending-permission-cta:focus-visible {
+.jump-pending-permission-cta:focus-visible,
+.jump-to-latest-cta:hover,
+.jump-to-latest-cta:focus-visible {
   outline: none;
   border-color: var(--app-primary-color);
   color: var(--app-primary-color);
 }
-.jump-pending-permission-cta-count {
+.jump-pending-permission-cta-count,
+.jump-to-latest-cta-label {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.jump-pending-permission-cta-arrow {
+.jump-pending-permission-cta-arrow,
+.jump-to-latest-cta-arrow {
   font-size: 11px;
   opacity: 0.7;
 }
