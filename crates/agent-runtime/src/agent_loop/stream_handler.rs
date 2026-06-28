@@ -18,6 +18,13 @@ const MODEL_STREAM_START_IDLE_RETRIES: usize = 1;
 static THINK_BLOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)<think\b[^>]*>.*?</think>\s*").expect("think block regex must compile")
 });
+static OPEN_THINK_BLOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<think\b[^>]*>.*$").expect("open think block regex must compile")
+});
+static INCOMPLETE_THINK_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<think\b[^>]*$").expect("incomplete think tag regex must compile")
+});
+const THINK_TAG_PREFIX: &str = "<think";
 
 /// Output from processing a single model stream.
 pub(crate) struct StreamOutput {
@@ -297,6 +304,7 @@ where
     };
 
     let mut assistant_text = String::new();
+    let mut streamed_assistant_text = String::new();
     let mut tool_calls: Vec<ToolCall> = Vec::new();
     let mut last_event_kind = "stream_opened";
     tracing::debug!(
@@ -383,14 +391,24 @@ where
                     "model stream token delta"
                 );
                 assistant_text.push_str(&delta);
-                let event = DomainEvent::new(
-                    request.workspace_id.clone(),
-                    request.session_id.clone(),
-                    AgentId::system(),
-                    PrivacyClassification::FullTrace,
-                    EventPayload::ModelTokenDelta { delta },
-                );
-                append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+                let visible_stream_text = strip_streaming_think_blocks(&assistant_text);
+                let visible_delta = visible_stream_text
+                    .strip_prefix(&streamed_assistant_text)
+                    .unwrap_or_default()
+                    .to_string();
+                streamed_assistant_text = visible_stream_text;
+                if !visible_delta.is_empty() {
+                    let event = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::ModelTokenDelta {
+                            delta: visible_delta,
+                        },
+                    );
+                    append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+                }
                 if cancel_token.is_cancelled() {
                     log_model_stream_cancelled(
                         request,
@@ -594,6 +612,28 @@ fn strip_think_blocks(text: &str) -> String {
         return text.to_string();
     }
     THINK_BLOCK_RE.replace_all(text, "").trim().to_string()
+}
+
+fn strip_streaming_think_blocks(text: &str) -> String {
+    if !text.to_ascii_lowercase().contains("<") {
+        return text.to_string();
+    }
+
+    let without_closed = THINK_BLOCK_RE.replace_all(text, "");
+    let without_open = OPEN_THINK_BLOCK_RE.replace(without_closed.as_ref(), "");
+    let without_incomplete = INCOMPLETE_THINK_TAG_RE.replace(without_open.as_ref(), "");
+    strip_partial_think_tag_suffix(without_incomplete.as_ref()).to_string()
+}
+
+fn strip_partial_think_tag_suffix(text: &str) -> &str {
+    let lower = text.to_ascii_lowercase();
+    for prefix_len in (1..THINK_TAG_PREFIX.len()).rev() {
+        let prefix = &THINK_TAG_PREFIX[..prefix_len];
+        if lower.ends_with(prefix) {
+            return &text[..text.len() - prefix_len];
+        }
+    }
+    text
 }
 
 fn model_stream_timeout_error(timeout: std::time::Duration) -> String {
