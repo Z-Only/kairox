@@ -177,6 +177,21 @@ async fn shell_exec_captures_stderr_on_failure() {
 }
 
 #[tokio::test]
+async fn shell_exec_captures_stdout_when_failure_has_no_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let invocation = make_invocation("echo stdout-detail && exit 7");
+    let result = tool.invoke(invocation).await.unwrap();
+
+    assert_eq!(result.exit_code, Some(7));
+    assert!(
+        result.text.contains("stdout-detail"),
+        "stdout should remain visible when stderr is empty: got '{}'",
+        result.text
+    );
+}
+
+#[tokio::test]
 async fn shell_exec_timeout_returns_error() {
     let dir = tempfile::tempdir().unwrap();
     let tool = ShellExecTool::new(dir.path().to_path_buf());
