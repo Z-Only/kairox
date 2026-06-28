@@ -277,7 +277,7 @@ _log_recently_updated() {
 _log_has_startup_signal() {
     local log="$1"
     [[ -f "$log" ]] || return 1
-    grep -Eiq "(Compiling|Checking|Building|Finished .+ profile|Running .+agent-gui-tauri|tauri dev|cargo run|Waiting for frontend)" "$log"
+    grep -Eiq "(Compiling|Checking|Building|Finished .+ profile|Running.*agent-gui-tauri|tauri dev|cargo run|Waiting for frontend)" "$log"
 }
 
 _startup_still_active() {
@@ -290,6 +290,14 @@ _startup_still_active() {
 }
 
 _starpoint_helper_path() {
+    if [[ -n "${KAIROX_DEV_PILOT_STARPOINT_HELPER:-}" ]]; then
+        if [[ -f "$KAIROX_DEV_PILOT_STARPOINT_HELPER" ]]; then
+            printf "%s\n" "$KAIROX_DEV_PILOT_STARPOINT_HELPER"
+            return 0
+        fi
+        return 1
+    fi
+
     local helper="$REPO_ROOT/.agents/skills/starpoint-command-unblock/scripts/check-and-allow.sh"
     if [[ -f "$helper" ]]; then
         printf "%s\n" "$helper"
@@ -327,6 +335,50 @@ _print_starpoint_hint() {
     else
         echo "       StarPoint helper was not found under this worktree or its main checkout." >&2
     fi
+}
+
+_starpoint_recovery_signal() {
+    local log="$1"
+    local status="${2:-}"
+    if [[ "$status" == "137" || "$status" == "9" ]]; then
+        return 0
+    fi
+
+    [[ -f "$log" ]] || return 1
+    grep -Eiq "(Killed: 9|SIGKILL|signal 9|Running.*agent-gui-tauri)" "$log"
+}
+
+_try_starpoint_allow() {
+    local log="$1"
+    local status="${2:-}"
+    local label="$3"
+    _starpoint_recovery_signal "$log" "$status" || return 1
+
+    local helper
+    helper="$(_starpoint_helper_path 2>/dev/null || true)"
+    if [[ -z "$helper" ]]; then
+        echo "StarPoint helper was not found; continuing without retry for $label." >&2
+        return 1
+    fi
+
+    local expected="$REPO_ROOT/target/debug/agent-gui-tauri"
+    local output helper_status
+    echo "Attempting StarPoint allow for $label." >&2
+    set +e
+    output="$(STARPOINT_EXPECT="$expected" bash "$helper" 2>&1)"
+    helper_status=$?
+    set -e
+    if [[ -n "$output" ]]; then
+        printf "%s\n" "$output" >&2
+    fi
+
+    if [[ "$helper_status" == "0" ]] && grep -Eiq '(^|[^[:alnum:]_])allowed([^[:alnum:]_]|$)' <<<"$output"; then
+        echo "StarPoint helper reported allowed; retrying $label." >&2
+        return 0
+    fi
+
+    echo "StarPoint helper did not allow retry for $label (status $helper_status)." >&2
+    return 1
 }
 
 _prepare_pilot_socket() {
@@ -521,6 +573,19 @@ _start_default() {
     DEFAULT_PID=$!
 }
 
+_start_fallback_tauri() {
+    _print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 TAURI_CONFIG=$(_quote "$FALLBACK_TAURI_CONFIG") cargo run --no-default-features --features pilot --)"
+    (
+        cd "$REPO_ROOT/apps/agent-gui/src-tauri"
+        KAIROX_HOME="$KAIROX_HOME" \
+            KAIROX_DEV_PORT="$FALLBACK_DEV_PORT" \
+            KAIROX_DEV_STRICT_PORT=1 \
+            TAURI_CONFIG="$FALLBACK_TAURI_CONFIG" \
+            cargo run --no-default-features --features pilot --
+    ) >"$TAURI_LOG" 2>&1 &
+    TAURI_PID=$!
+}
+
 _start_fallback() {
     echo "Starting split Vite + Tauri fallback:"
     if _dev_port_listening; then
@@ -540,16 +605,7 @@ _start_fallback() {
     VITE_PID=$!
     _wait_for_vite
 
-    _print_shell_command "(cd apps/agent-gui/src-tauri && KAIROX_HOME=$(_quote "$KAIROX_HOME") KAIROX_DEV_PORT=$(_quote "$FALLBACK_DEV_PORT") KAIROX_DEV_STRICT_PORT=1 TAURI_CONFIG=$(_quote "$FALLBACK_TAURI_CONFIG") cargo run --no-default-features --features pilot --)"
-    (
-        cd "$REPO_ROOT/apps/agent-gui/src-tauri"
-        KAIROX_HOME="$KAIROX_HOME" \
-            KAIROX_DEV_PORT="$FALLBACK_DEV_PORT" \
-            KAIROX_DEV_STRICT_PORT=1 \
-            TAURI_CONFIG="$FALLBACK_TAURI_CONFIG" \
-            cargo run --no-default-features --features pilot --
-    ) >"$TAURI_LOG" 2>&1 &
-    TAURI_PID=$!
+    _start_fallback_tauri
 }
 
 _run_forever_until_exit() {
@@ -617,11 +673,26 @@ fi
 if _tauri_cli_available; then
     _prepare_pilot_socket "$DEFAULT_SOCKET"
     _start_default
+    default_wait_status=0
     if _wait_for_pilot "$DEFAULT_SOCKET" "$DEFAULT_PID" "$APP_LOG" "default Tauri dev command"; then
         echo "Kairox Dev App is running with pilot enabled."
         echo "Press Ctrl-C to stop processes started by this wrapper."
         _run_forever_until_exit "$DEFAULT_PID" "Default Tauri dev command"
         exit $?
+    else
+        default_wait_status=$?
+        if _try_starpoint_allow "$APP_LOG" "$default_wait_status" "default Tauri dev command"; then
+            _cleanup
+            DEFAULT_PID=""
+            _prepare_pilot_socket "$DEFAULT_SOCKET"
+            _start_default
+            if _wait_for_pilot "$DEFAULT_SOCKET" "$DEFAULT_PID" "$APP_LOG" "default Tauri dev command"; then
+                echo "Kairox Dev App is running with pilot enabled."
+                echo "Press Ctrl-C to stop processes started by this wrapper."
+                _run_forever_until_exit "$DEFAULT_PID" "Default Tauri dev command"
+                exit $?
+            fi
+        fi
     fi
 
     echo "Falling back because the default Tauri dev command did not expose pilot readiness."
@@ -634,11 +705,27 @@ fi
 
 _prepare_pilot_socket "$FALLBACK_SOCKET"
 _start_fallback
+fallback_wait_status=0
 if _wait_for_pilot "$FALLBACK_SOCKET" "$TAURI_PID" "$TAURI_LOG" "split Tauri cargo command"; then
     echo "Kairox Dev App is running with pilot enabled via split fallback."
     echo "Press Ctrl-C to stop processes started by this wrapper."
     _run_forever_until_exit "$TAURI_PID" "Split Tauri cargo command"
     exit $?
+else
+    fallback_wait_status=$?
+    if _try_starpoint_allow "$TAURI_LOG" "$fallback_wait_status" "split Tauri cargo command"; then
+        _stop_tree "$TAURI_PID"
+        _wait_for_pid "$TAURI_PID"
+        TAURI_PID=""
+        _prepare_pilot_socket "$FALLBACK_SOCKET"
+        _start_fallback_tauri
+        if _wait_for_pilot "$FALLBACK_SOCKET" "$TAURI_PID" "$TAURI_LOG" "split Tauri cargo command"; then
+            echo "Kairox Dev App is running with pilot enabled via split fallback."
+            echo "Press Ctrl-C to stop processes started by this wrapper."
+            _run_forever_until_exit "$TAURI_PID" "Split Tauri cargo command"
+            exit $?
+        fi
+    fi
 fi
 
 echo "ERROR: split fallback failed to expose pilot readiness." >&2
