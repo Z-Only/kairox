@@ -116,6 +116,18 @@ fn make_invocation_with_timeout(command: &str, timeout_ms: u64) -> ToolInvocatio
     }
 }
 
+fn make_invocation_with_output_limit(command: &str, output_limit_bytes: usize) -> ToolInvocation {
+    ToolInvocation {
+        tool_id: SHELL_TOOL_ID.to_string(),
+        arguments: serde_json::json!({"command": command}),
+        workspace_id: "test".to_string(),
+        session_id: "ses_test".into(),
+        preview: command.to_string(),
+        timeout_ms: 5000,
+        output_limit_bytes,
+    }
+}
+
 #[tokio::test]
 async fn shell_exec_readonly_command_succeeds() {
     let dir = tempfile::tempdir().unwrap();
@@ -187,6 +199,42 @@ async fn shell_exec_captures_stdout_when_failure_has_no_stderr() {
     assert!(
         result.text.contains("stdout-detail"),
         "stdout should remain visible when stderr is empty: got '{}'",
+        result.text
+    );
+}
+
+#[tokio::test]
+async fn shell_exec_preserves_failure_stderr_tail_when_truncated() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let command = "i=0; while [ $i -lt 20 ]; do printf 'noise-%03d\\n' \"$i\" >&2; i=$((i + 1)); done; printf 'FINAL_STDERR_MARKER\\n' >&2; exit 9";
+    let invocation = make_invocation_with_output_limit(command, 80);
+
+    let result = tool.invoke(invocation).await.unwrap();
+
+    assert_eq!(result.exit_code, Some(9));
+    assert!(result.truncated);
+    assert!(
+        result.text.contains("FINAL_STDERR_MARKER"),
+        "truncated failure stderr should keep the tail with the actual error: got '{}'",
+        result.text
+    );
+}
+
+#[tokio::test]
+async fn shell_exec_preserves_failure_stdout_tail_when_stderr_empty() {
+    let dir = tempfile::tempdir().unwrap();
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let command = "i=0; while [ $i -lt 20 ]; do printf 'noise-%03d\\n' \"$i\"; i=$((i + 1)); done; printf 'FINAL_STDOUT_MARKER\\n'; exit 8";
+    let invocation = make_invocation_with_output_limit(command, 80);
+
+    let result = tool.invoke(invocation).await.unwrap();
+
+    assert_eq!(result.exit_code, Some(8));
+    assert!(result.truncated);
+    assert!(
+        result.text.contains("FINAL_STDOUT_MARKER"),
+        "truncated failure stdout fallback should keep the tail with the actual error: got '{}'",
         result.text
     );
 }
