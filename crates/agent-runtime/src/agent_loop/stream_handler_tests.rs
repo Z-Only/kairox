@@ -326,6 +326,51 @@ async fn stream_strips_think_blocks_from_completed_assistant_text() {
 }
 
 #[tokio::test]
+async fn stream_strips_split_think_blocks_from_token_deltas() {
+    let model = ScriptedModelClient::from_ok_events(vec![
+        ModelEvent::TokenDelta("<thi".into()),
+        ModelEvent::TokenDelta("nk>private ".into()),
+        ModelEvent::TokenDelta("reasoning</think>Visible reply".into()),
+        ModelEvent::Completed { usage: None },
+    ]);
+    let harness = StreamTestHarness::new(model).await;
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let output = process_model_stream(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        None,
+    )
+    .await
+    .expect("stream should succeed");
+
+    assert_eq!(output.assistant_text, "Visible reply");
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .expect("events should load");
+    let streamed_deltas: Vec<_> = events
+        .iter()
+        .filter_map(|event| match &event.payload {
+            EventPayload::ModelTokenDelta { delta } => Some(delta.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(streamed_deltas, vec!["Visible reply"]);
+    let streamed_text = streamed_deltas.join("");
+    assert!(!streamed_text.contains("<think"));
+    assert!(!streamed_text.contains("private"));
+}
+
+#[tokio::test]
 async fn stream_keeps_unclosed_think_text_visible() {
     let model = ScriptedModelClient::from_ok_events(vec![
         ModelEvent::TokenDelta("Use <think> literally when explaining tags.".into()),
