@@ -125,13 +125,23 @@ impl Tool for ShellExecTool {
                     })
                 } else {
                     let exit_code = output.status.code().unwrap_or(-1);
-                    let (text, truncated) = truncate_bytes(&output.stderr, output_limit);
-                    let stderr_text = String::from_utf8_lossy(&text);
+                    let (stderr, stderr_truncated) = truncate_bytes(&output.stderr, output_limit);
+                    let stderr_text = String::from_utf8_lossy(&stderr).to_string();
+                    let (failure_text, truncated) = if stderr_text.trim().is_empty() {
+                        let (stdout, stdout_truncated) =
+                            truncate_bytes(&output.stdout, output_limit);
+                        (
+                            String::from_utf8_lossy(&stdout).to_string(),
+                            stdout_truncated,
+                        )
+                    } else {
+                        (stderr_text, stderr_truncated)
+                    };
                     Ok(ToolOutput {
                         text: format!(
                             "exit code {}: {}{}",
                             exit_code,
-                            stderr_text,
+                            failure_text,
                             if truncated { " [truncated]" } else { "" }
                         ),
                         truncated,
