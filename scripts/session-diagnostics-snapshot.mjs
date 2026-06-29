@@ -38,6 +38,8 @@ const EVENT_DB_PATH_SOURCE_KEYS = [
   "databasePathSource"
 ];
 
+const FORBIDDEN_EVAL_TOOL_IDS = new Set(["browser.action", "browser.batch", "computer.use"]);
+
 function firstPresent(source, names) {
   for (const name of names) {
     if (source?.[name] !== undefined && source[name] !== null) {
@@ -81,6 +83,31 @@ function normalizeEventTypeCounts(value) {
   } else if (value && typeof value === "object") {
     for (const [eventType, count] of Object.entries(value)) {
       counts.set(eventType, countValue(count));
+    }
+  }
+
+  return Object.fromEntries(
+    [...counts.entries()].sort(([left], [right]) => left.localeCompare(right))
+  );
+}
+
+function normalizeToolCounts(value) {
+  const counts = new Map();
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const toolId = firstPresent(entry, ["tool_id", "toolId", "id"]);
+      if (typeof toolId !== "string" || toolId.length === 0) {
+        continue;
+      }
+      counts.set(toolId, (counts.get(toolId) ?? 0) + countValue(firstPresent(entry, ["count"])));
+    }
+  } else if (value && typeof value === "object") {
+    for (const [toolId, count] of Object.entries(value)) {
+      if (toolId.length === 0) {
+        continue;
+      }
+      counts.set(toolId, countValue(count));
     }
   }
 
@@ -251,6 +278,9 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
   const eventTypeCounts = normalizeEventTypeCounts(
     firstPresent(diagnostics, ["event_type_counts", "eventTypeCounts"])
   );
+  const permissionDeniedToolCounts = normalizeToolCounts(
+    firstPresent(diagnostics, ["permission_denied_tools", "permissionDeniedTools"])
+  );
   const explicitEventCount = firstPresent(diagnostics, ["event_count", "eventCount"]);
   const runningToolInvocations = countValue(
     firstPresent(diagnostics, ["running_tool_invocations", "runningToolInvocations"])
@@ -327,6 +357,12 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     running_tool_invocations: runningToolInvocations,
     model_tool_call_count: modelToolCallCount,
     mcp_tool_call_count: mcpToolCallCount,
+    permission_denied_tool_counts: permissionDeniedToolCounts,
+    forbidden_tool_denied_count: Object.entries(permissionDeniedToolCounts).reduce(
+      (total, [toolId, count]) =>
+        FORBIDDEN_EVAL_TOOL_IDS.has(toolId) ? total + countValue(count) : total,
+      0
+    ),
     model_token_delta_count: modelTokenDeltaCount,
     has_tool_progress: hasToolProgress,
     suspicious_no_tool_completion: terminalAssistantMessage && !hasToolProgress,

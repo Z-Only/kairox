@@ -17,6 +17,7 @@ use tokio_util::sync::CancellationToken;
 
 const DEFAULT_AGENT_LOOP_TOOL_TIMEOUT_MS: u64 = 30_000;
 const SHELL_EXEC_AGENT_LOOP_TIMEOUT_MS: u64 = 300_000;
+const TOOL_OUTPUT_PREVIEW_CHARS: usize = 500;
 
 /// Result of executing a batch of tool calls.
 pub(crate) struct ToolLoopResult {
@@ -287,7 +288,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                     EventPayload::ToolInvocationCompleted {
                         invocation_id: tc.id.clone(),
                         tool_id: tc.name.clone(),
-                        output_preview: output.text.chars().take(500).collect(),
+                        output_preview: tool_output_preview(output),
                         exit_code: output.exit_code,
                         duration_ms: tool_start.elapsed().as_millis() as u64,
                         truncated: output.truncated,
@@ -472,6 +473,24 @@ fn tool_invocation_timeout_ms(tool_id: &str) -> u64 {
     } else {
         DEFAULT_AGENT_LOOP_TOOL_TIMEOUT_MS
     }
+}
+
+fn tool_output_preview(output: &agent_tools::ToolOutput) -> String {
+    if output.exit_code.is_some_and(|code| code != 0) {
+        tail_chars(&output.text, TOOL_OUTPUT_PREVIEW_CHARS)
+    } else {
+        output
+            .text
+            .chars()
+            .take(TOOL_OUTPUT_PREVIEW_CHARS)
+            .collect()
+    }
+}
+
+fn tail_chars(text: &str, limit: usize) -> String {
+    let mut chars: Vec<char> = text.chars().rev().take(limit).collect();
+    chars.reverse();
+    chars.into_iter().collect()
 }
 
 #[cfg(test)]

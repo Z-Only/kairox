@@ -153,6 +153,12 @@ pub struct McpToolCallDiagnosticsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct PermissionDeniedToolDiagnosticsResponse {
+    pub tool_id: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct TrajectoryCompletedDiagnosticsResponse {
     pub trajectory_id: String,
     pub step_count: u32,
@@ -171,6 +177,7 @@ pub struct SessionDiagnosticsResponse {
     pub assistant_messages: Vec<SessionDiagnosticsMessageResponse>,
     pub model_tool_calls: Vec<ModelToolCallDiagnosticsResponse>,
     pub mcp_tool_calls: Vec<McpToolCallDiagnosticsResponse>,
+    pub permission_denied_tools: Vec<PermissionDeniedToolDiagnosticsResponse>,
     pub trajectory_started_count: u32,
     pub trajectory_completed_count: u32,
     pub trajectory_completed_outcomes: Vec<TrajectoryCompletedDiagnosticsResponse>,

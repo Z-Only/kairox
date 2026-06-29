@@ -54,6 +54,18 @@ impl FakeTool {
             )))),
         }
     }
+
+    fn completed(name: &str, output: &str, exit_code: Option<i32>) -> Self {
+        Self {
+            tool_name: name.to_string(),
+            result: std::sync::Mutex::new(Some(Ok(ToolOutput {
+                text: output.to_string(),
+                truncated: output.chars().count() > 500,
+                exit_code,
+                images: vec![],
+            }))),
+        }
+    }
 }
 
 #[async_trait]
@@ -494,6 +506,44 @@ async fn tool_execution_failure() {
     assert!(
         output.contains("Error") && output.contains("something went wrong"),
         "expected error message, got: {output}"
+    );
+}
+
+#[tokio::test]
+async fn failed_completed_tool_preview_preserves_tail() {
+    let harness = TestHarness::new().await;
+    let mut rx = harness.event_tx.subscribe();
+    let output = format!("HEAD_MARKER\n{}\nTAIL_MARKER", "x".repeat(900));
+    harness.register_tool(Box::new(FakeTool::completed(
+        "shell.exec",
+        &output,
+        Some(101),
+    )));
+
+    let calls = vec![make_tool_call("call-1", "shell.exec", "cargo test")];
+    harness.execute_simple(&calls).await.unwrap();
+
+    let completed = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        loop {
+            let event = rx.recv().await.unwrap();
+            if let agent_core::EventPayload::ToolInvocationCompleted {
+                output_preview,
+                exit_code,
+                ..
+            } = event.payload
+            {
+                break (output_preview, exit_code);
+            }
+        }
+    })
+    .await
+    .expect("completion event should be emitted");
+
+    assert_eq!(completed.1, Some(101));
+    assert!(
+        completed.0.contains("TAIL_MARKER"),
+        "preview should preserve failure tail, got: {}",
+        completed.0
     );
 }
 

@@ -18814,6 +18814,11 @@ export type MonitorStopReason =
   | { type: "UserStopped" }
   | { type: "SessionEnded" };
 
+export type PermissionDeniedToolDiagnosticsResponse = {
+  tool_id: string;
+  count: number;
+};
+
 export type PluginCatalogEntry = {
   marketplace_id: string;
   name: string;
@@ -19092,6 +19097,7 @@ export type SessionDiagnosticsResponse = {
   assistant_messages: SessionDiagnosticsMessageResponse[];
   model_tool_calls: ModelToolCallDiagnosticsResponse[];
   mcp_tool_calls: McpToolCallDiagnosticsResponse[];
+  permission_denied_tools: PermissionDeniedToolDiagnosticsResponse[];
   trajectory_started_count: number;
   trajectory_completed_count: number;
   trajectory_completed_outcomes: TrajectoryCompletedDiagnosticsResponse[];

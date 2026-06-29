@@ -83,6 +83,8 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut running_tool_invocations = 0_u32;
     let mut trajectory_failed_count = 0_u32;
     let mut has_terminal_assistant_message = false;
+    let mut permission_request_tool_ids = std::collections::BTreeMap::<String, String>::new();
+    let mut permission_denied_tool_counts = std::collections::BTreeMap::<String, u32>::new();
 
     for event in &trace.events {
         let count = event_type_counts
@@ -116,10 +118,28 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
             agent_core::EventPayload::ModelToolCallRequested {
                 tool_call_id,
                 tool_id,
-            } => model_tool_calls.push(ModelToolCallDiagnosticsResponse {
-                tool_call_id: tool_call_id.clone(),
-                tool_id: tool_id.clone(),
-            }),
+            } => {
+                permission_request_tool_ids.insert(tool_call_id.clone(), tool_id.clone());
+                model_tool_calls.push(ModelToolCallDiagnosticsResponse {
+                    tool_call_id: tool_call_id.clone(),
+                    tool_id: tool_id.clone(),
+                });
+            }
+            agent_core::EventPayload::PermissionRequested {
+                request_id,
+                tool_id,
+                ..
+            } => {
+                permission_request_tool_ids.insert(request_id.clone(), tool_id.clone());
+            }
+            agent_core::EventPayload::PermissionDenied { request_id, .. } => {
+                if let Some(tool_id) = permission_request_tool_ids.get(request_id) {
+                    let count = permission_denied_tool_counts
+                        .entry(tool_id.clone())
+                        .or_insert(0);
+                    *count = count.saturating_add(1);
+                }
+            }
             agent_core::EventPayload::ToolInvocationStarted { .. } => {
                 running_tool_invocations = running_tool_invocations.saturating_add(1);
             }
@@ -180,6 +200,10 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         assistant_messages,
         model_tool_calls,
         mcp_tool_calls,
+        permission_denied_tools: permission_denied_tool_counts
+            .into_iter()
+            .map(|(tool_id, count)| PermissionDeniedToolDiagnosticsResponse { tool_id, count })
+            .collect(),
         trajectory_started_count,
         trajectory_completed_count,
         trajectory_completed_outcomes,
@@ -913,6 +937,46 @@ mod session_diagnostics_tests {
         assert_eq!(counts.get("ModelToolCallRequested"), Some(&1));
         assert_eq!(counts.get("McpToolCallStarted"), Some(&1));
         assert_eq!(counts.get("McpToolCallCompleted"), Some(&1));
+    }
+
+    #[test]
+    fn summarize_trace_export_counts_denied_permission_tools() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::ModelToolCallRequested {
+                    tool_call_id: "call_browser".into(),
+                    tool_id: "browser.action".into(),
+                }),
+                event(EventPayload::PermissionRequested {
+                    request_id: "call_browser".into(),
+                    tool_id: "browser.action".into(),
+                    preview: "browser.action({})".into(),
+                }),
+                event(EventPayload::PermissionDenied {
+                    request_id: "call_browser".into(),
+                    reason: "forbidden by task".into(),
+                }),
+                event(EventPayload::ModelToolCallRequested {
+                    tool_call_id: "call_write".into(),
+                    tool_id: "fs.write".into(),
+                }),
+                event(EventPayload::PermissionDenied {
+                    request_id: "call_write".into(),
+                    reason: "sandbox denied".into(),
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+        let denied: std::collections::BTreeMap<_, _> = summary
+            .permission_denied_tools
+            .into_iter()
+            .map(|entry| (entry.tool_id, entry.count))
+            .collect();
+
+        assert_eq!(denied.get("browser.action"), Some(&1));
+        assert_eq!(denied.get("fs.write"), Some(&1));
     }
 
     #[test]
