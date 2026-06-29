@@ -115,6 +115,8 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     running_tool_invocations: 1,
     model_tool_call_count: 2,
     mcp_tool_call_count: 1,
+    permission_denied_tool_counts: {},
+    forbidden_tool_denied_count: 0,
     model_token_delta_count: 5,
     has_tool_progress: true,
     suspicious_no_tool_completion: false,
@@ -137,6 +139,28 @@ test("compactSessionDiagnostics reports failed and blocked event signals", () =>
   });
 
   assert.equal(compact.failure_signal, "task_blocked");
+});
+
+test("compactSessionDiagnostics counts forbidden denied tools", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_denied_tools",
+    event_type_counts: {
+      PermissionDenied: 3,
+      PermissionRequested: 2
+    },
+    permission_denied_tools: [
+      { tool_id: "browser.action", count: 1 },
+      { tool_id: "computer.use", count: 1 },
+      { tool_id: "fs.write", count: 1 }
+    ]
+  });
+
+  assert.deepEqual(compact.permission_denied_tool_counts, {
+    "browser.action": 1,
+    "computer.use": 1,
+    "fs.write": 1
+  });
+  assert.equal(compact.forbidden_tool_denied_count, 2);
 });
 
 test("compactSessionDiagnostics reports cancelled event signals", () => {
@@ -191,6 +215,8 @@ test("compactSessionDiagnostics defaults missing newer diagnostics fields", () =
   assert.equal(compact.running_tool_invocations, 0);
   assert.equal(compact.model_tool_call_count, 0);
   assert.equal(compact.mcp_tool_call_count, 0);
+  assert.deepEqual(compact.permission_denied_tool_counts, {});
+  assert.equal(compact.forbidden_tool_denied_count, 0);
   assert.equal(compact.model_token_delta_count, 0);
   assert.equal(compact.has_tool_progress, false);
   assert.equal(compact.suspicious_no_tool_completion, false);
@@ -305,6 +331,8 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       running_tool_invocations: 0,
       model_tool_call_count: 0,
       mcp_tool_call_count: 0,
+      permission_denied_tool_counts: {},
+      forbidden_tool_denied_count: 0,
       model_token_delta_count: 0,
       has_tool_progress: false,
       suspicious_no_tool_completion: false,
@@ -374,6 +402,8 @@ test("CLI overlays explicit resume metadata", async () => {
     running_tool_invocations: 0,
     model_tool_call_count: 0,
     mcp_tool_call_count: 0,
+    permission_denied_tool_counts: {},
+    forbidden_tool_denied_count: 0,
     model_token_delta_count: 0,
     has_tool_progress: false,
     suspicious_no_tool_completion: false,

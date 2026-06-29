@@ -25,13 +25,13 @@ use agent_gui_tauri::commands::{
     InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
     McpServerStatusResponse, McpToolCallDiagnosticsResponse, McpToolDefResponse,
     McpToolStatesResponse, MemoryEntryResponse, ModelToolCallDiagnosticsResponse,
-    MonitorInfoResponse, ProfileDetailResponse, ProjectGitDiffSectionResponse,
-    ProjectGitFileChangeResponse, ProjectGitReviewResponse, ProjectGitStatusResponse,
-    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest,
-    SendMessageToSessionIfIdleResponse, ServerEntryResponse, SessionDiagnosticsMessageResponse,
-    SessionDiagnosticsResponse, SessionInfoResponse, TaskSnapshotResponse,
-    TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse, TrajectoryStepResponse,
-    WorkspaceFilesResponse, WorkspaceInfoResponse,
+    MonitorInfoResponse, PermissionDeniedToolDiagnosticsResponse, ProfileDetailResponse,
+    ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
+    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
+    SaveDraftRequest, SendMessageToSessionIfIdleResponse, ServerEntryResponse,
+    SessionDiagnosticsMessageResponse, SessionDiagnosticsResponse, SessionInfoResponse,
+    TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse,
+    TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
@@ -233,6 +233,7 @@ fn main() {
         .typ::<SessionDiagnosticsMessageResponse>()
         .typ::<ModelToolCallDiagnosticsResponse>()
         .typ::<McpToolCallDiagnosticsResponse>()
+        .typ::<PermissionDeniedToolDiagnosticsResponse>()
         .typ::<TrajectoryCompletedDiagnosticsResponse>()
         .typ::<BuildInfoResponse>()
         .typ::<GuiSettingsView>()

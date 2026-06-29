@@ -219,6 +219,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SessionDiagnosticsMessageResponse>()
         .typ::<ModelToolCallDiagnosticsResponse>()
         .typ::<McpToolCallDiagnosticsResponse>()
+        .typ::<PermissionDeniedToolDiagnosticsResponse>()
         .typ::<TrajectoryCompletedDiagnosticsResponse>()
         .typ::<BuildInfoResponse>()
         .typ::<GuiSettingsView>()
