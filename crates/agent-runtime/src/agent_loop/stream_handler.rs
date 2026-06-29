@@ -205,6 +205,7 @@ where
             _ = tokio::time::sleep(idle_timeout) => {
                 let error_msg = model_stream_timeout_error_with_context(
                     current_request,
+                    deps.config,
                     idle_timeout,
                     "stream_start",
                     0,
@@ -332,6 +333,7 @@ where
             _ = tokio::time::sleep(idle_timeout) => {
                 let error_msg = model_stream_timeout_error_with_context(
                     current_request,
+                    deps.config,
                     idle_timeout,
                     "stream_event",
                     assistant_text.len(),
@@ -636,20 +638,37 @@ fn strip_partial_think_tag_suffix(text: &str) -> &str {
     text
 }
 
-fn model_stream_timeout_error(timeout: std::time::Duration) -> String {
+fn format_duration_for_error(timeout: std::time::Duration) -> String {
     let timeout_ms = timeout.as_millis();
     if timeout_ms >= 1_000 && timeout_ms.is_multiple_of(1_000) {
-        format!(
-            "model stream timed out after {}s without producing an event",
-            timeout_ms / 1_000
-        )
+        format!("{}s", timeout_ms / 1_000)
     } else {
-        format!("model stream timed out after {timeout_ms}ms without producing an event")
+        format!("{timeout_ms}ms")
+    }
+}
+
+fn model_stream_timeout_error(
+    timeout: std::time::Duration,
+    assistant_chars: usize,
+    tool_call_count: usize,
+    last_event_kind: &'static str,
+) -> String {
+    let duration = format_duration_for_error(timeout);
+    if assistant_chars > 0 || tool_call_count > 0 {
+        return format!("model stream stalled after last model event for {duration}");
+    }
+
+    match last_event_kind {
+        "none" | "stream_opened" => {
+            format!("model stream timed out after {duration} without producing an event")
+        }
+        _ => format!("model stream stalled after last model event for {duration}"),
     }
 }
 
 fn model_stream_timeout_error_with_context(
     model_request: &agent_models::ModelRequest,
+    config: &agent_config::Config,
     timeout: std::time::Duration,
     phase: &'static str,
     assistant_chars: usize,
@@ -657,11 +676,13 @@ fn model_stream_timeout_error_with_context(
     last_event_kind: &'static str,
 ) -> String {
     let stats = model_request_stats(model_request);
+    let profile = model_profile_diagnostics(model_request, config);
     format!(
-        "{} (phase={}, last_event={}, messages={}, tools={}, server_tools={}, tool_results={}, assistant_tool_messages={}, assistant_chars={}, emitted_tool_calls={})",
-        model_stream_timeout_error(timeout),
+        "{} (phase={}, last_event={}, {}, messages={}, tools={}, server_tools={}, tool_results={}, assistant_tool_messages={}, assistant_chars={}, emitted_tool_calls={})",
+        model_stream_timeout_error(timeout, assistant_chars, tool_call_count, last_event_kind),
         phase,
         last_event_kind,
+        profile,
         stats.message_count,
         stats.tool_count,
         stats.server_tool_count,
@@ -670,6 +691,25 @@ fn model_stream_timeout_error_with_context(
         assistant_chars,
         tool_call_count,
     )
+}
+
+fn model_profile_diagnostics(
+    model_request: &agent_models::ModelRequest,
+    config: &agent_config::Config,
+) -> String {
+    let mut parts = vec![format!("model_profile={}", model_request.model_profile)];
+    if let Some((_, profile)) = config
+        .profiles
+        .iter()
+        .find(|(alias, _)| alias == &model_request.model_profile)
+    {
+        parts.push(format!("provider={}", profile.provider));
+        parts.push(format!("model_id={}", profile.model_id));
+        if let Some(base_url) = &profile.base_url {
+            parts.push(format!("base_url={base_url}"));
+        }
+    }
+    parts.join(", ")
 }
 
 struct ModelRequestStats {

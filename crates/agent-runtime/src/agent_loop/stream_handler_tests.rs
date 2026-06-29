@@ -88,6 +88,25 @@ impl ModelClient for HangingEventStreamClient {
 }
 
 #[derive(Debug)]
+struct TokenThenHangingEventStreamClient;
+
+#[async_trait]
+impl ModelClient for TokenThenHangingEventStreamClient {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let stream = futures::stream::unfold(0, |state| async move {
+            match state {
+                0 => Some((Ok(ModelEvent::TokenDelta("partial".into())), 1)),
+                _ => futures::future::pending().await,
+            }
+        });
+        Ok(Box::pin(stream))
+    }
+}
+
+#[derive(Debug)]
 struct CompletedThenHangingEventStreamClient;
 
 #[async_trait]
@@ -785,6 +804,10 @@ async fn process_model_stream_uses_configured_idle_timeout() {
         "timeout error should use configured duration, got: {err}"
     );
     assert!(
+        err.to_string().contains("without producing an event"),
+        "stream-open timeout should keep no-event wording, got: {err}"
+    );
+    assert!(
         err.to_string().contains("phase=stream_event"),
         "timeout error should include stall phase, got: {err}"
     );
@@ -795,6 +818,84 @@ async fn process_model_stream_uses_configured_idle_timeout() {
     assert!(
         err.to_string().contains("tool_results=0"),
         "timeout error should include request tool result count, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn stream_event_timeout_after_token_delta_reports_stalled_stream() {
+    let mut harness = StreamTestHarness::new(TokenThenHangingEventStreamClient).await;
+    let config = Arc::get_mut(&mut harness.config).expect("test config should be unshared");
+    let (_, profile) = config
+        .profiles
+        .iter_mut()
+        .find(|(alias, _)| alias == "fake")
+        .expect("default fake profile should exist");
+    profile.model_id = "gpt-5.5".into();
+    profile.base_url = Some("http://127.0.0.1:8000/v1".into());
+
+    let deps = harness.deps();
+    let request = make_request();
+    let cancel_token = CancellationToken::new();
+    let root_task_id = TaskId::new();
+
+    let result = process_model_stream_with_idle_timeout(
+        &deps,
+        &request,
+        &cancel_token,
+        &root_task_id,
+        &minimal_model_request(),
+        None,
+        Duration::from_millis(25),
+    )
+    .await;
+
+    let err = match result {
+        Ok(_) => panic!("hanging stream should time out after token delta"),
+        Err(err) => err,
+    };
+    let error_message = err.to_string();
+    assert!(
+        error_message.contains("stalled after last model event"),
+        "timeout error should identify a stalled in-progress stream, got: {error_message}"
+    );
+    assert!(
+        !error_message.contains("without producing an event"),
+        "post-token timeout should not use no-event wording, got: {error_message}"
+    );
+    assert!(
+        error_message.contains("model_profile=fake"),
+        "timeout error should include model profile, got: {error_message}"
+    );
+    assert!(
+        error_message.contains("model_id=gpt-5.5"),
+        "timeout error should include model id, got: {error_message}"
+    );
+    assert!(
+        error_message.contains("base_url=http://127.0.0.1:8000/v1"),
+        "timeout error should include configured base URL, got: {error_message}"
+    );
+    assert!(
+        error_message.contains("last_event=token_delta"),
+        "timeout error should include last model event kind, got: {error_message}"
+    );
+
+    let events = harness
+        .store
+        .load_session(&request.session_id)
+        .await
+        .unwrap();
+    let status_message = events
+        .iter()
+        .find_map(|event| match &event.payload {
+            EventPayload::ModelStreamStatus { phase, message, .. } if phase == "stream_event" => {
+                Some(message.as_str())
+            }
+            _ => None,
+        })
+        .expect("stream timeout should emit ModelStreamStatus");
+    assert!(
+        status_message.contains("stalled after last model event"),
+        "status event should preserve stalled-stream diagnosis, got: {status_message}"
     );
 }
 
