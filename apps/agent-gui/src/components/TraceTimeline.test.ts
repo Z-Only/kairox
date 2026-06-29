@@ -161,6 +161,37 @@ describe("TraceTimeline", () => {
     expect(wrapper.get('[data-test="subagent-panel"]').exists()).toBe(true);
   });
 
+  it("hides Changes tab for ordinary sessions", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_plain";
+    session.sessions = [
+      {
+        id: "ses_plain",
+        title: "Plain chat",
+        profile: "fast",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: null,
+        deleted_at: null,
+        approval_policy: null,
+        sandbox_policy: null
+      }
+    ];
+    const workspaceUi = useWorkspaceUiStore();
+    workspaceUi.rightPanelTab = "changes";
+
+    const wrapper = mountTimeline();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="trace-tab-changes"]').exists()).toBe(false);
+    expect(workspaceUi.rightPanelTab).toBe("trace");
+    expect(wrapper.find('[data-test="git-review-panel"]').exists()).toBe(false);
+    expect(mockedInvoke).not.toHaveBeenCalledWith("get_session_git_review", {
+      sessionId: "ses_plain"
+    });
+  });
+
   it("keeps right sidebar tabs within the sidebar when they need multiple rows", () => {
     expect(traceTimelineSource).toMatch(/\.trace-header\s*\{[^}]*align-items:\s*flex-start;/s);
     expect(traceTimelineSource).toMatch(/\.tab-group\s*\{[^}]*flex-wrap:\s*wrap;/s);

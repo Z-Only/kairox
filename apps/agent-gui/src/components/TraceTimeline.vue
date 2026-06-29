@@ -27,6 +27,20 @@ const traceSearchQuery = ref("");
 const copyingDiagnostics = ref(false);
 const normalizedTraceSearchQuery = computed(() => traceSearchQuery.value.trim().toLowerCase());
 const activeTraceStatuses = new Set(["pending", "running"]);
+const canOpenChangesTab = computed(() => {
+  const sessionInfo = session.currentSessionInfo;
+  return Boolean(sessionInfo?.project_id || sessionInfo?.worktree_path);
+});
+
+watch(
+  canOpenChangesTab,
+  (canOpen) => {
+    if (canOpen || rightPanelTab.value !== "changes") return;
+    workspaceUi.clearGitReview();
+    rightPanelTab.value = "trace";
+  },
+  { immediate: true }
+);
 
 function effectiveTraceStatus(entry: TraceEntryData) {
   return entry.status === "completed" && entry.exitCode != null && entry.exitCode !== 0
@@ -126,12 +140,11 @@ async function copySessionDiagnostics() {
 }
 
 async function openChangesTab(): Promise<void> {
+  if (!canOpenChangesTab.value) return;
+
   const sessionInfo = session.currentSessionInfo;
   const projectId = sessionInfo?.project_id ?? null;
-  if (!sessionInfo?.id && !projectId) {
-    workspaceUi.setRightPanelTab("changes");
-    return;
-  }
+  if (!sessionInfo?.id && !projectId) return;
 
   await workspaceUi.openGitReview({
     sessionId: sessionInfo?.id ?? null,
@@ -188,6 +201,7 @@ async function openChangesTab(): Promise<void> {
           {{ t("trace.tabSubagents") }}
         </KxButton>
         <KxButton
+          v-if="canOpenChangesTab"
           size="sm"
           :variant="rightPanelTab === 'changes' ? 'primary' : 'default'"
           :class="{ active: rightPanelTab === 'changes' }"
