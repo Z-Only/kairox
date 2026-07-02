@@ -166,6 +166,19 @@ pub enum EventPayload {
         model_profile: String,
         model_id: String,
     },
+    ModelUsageRecorded {
+        model_profile: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        input_tokens: u64,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        output_tokens: u64,
+        #[cfg_attr(feature = "specta", specta(type = Option<u32>))]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_creation_input_tokens: Option<u64>,
+        #[cfg_attr(feature = "specta", specta(type = Option<u32>))]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_read_input_tokens: Option<u64>,
+    },
     ModelStreamStatus {
         phase: String,
         retrying: bool,
@@ -518,6 +531,7 @@ impl EventPayload {
             Self::CompactionSummary { .. } => "CompactionSummary",
             Self::ModelProfileSwitched { .. } => "ModelProfileSwitched",
             Self::ModelRequestStarted { .. } => "ModelRequestStarted",
+            Self::ModelUsageRecorded { .. } => "ModelUsageRecorded",
             Self::ModelStreamStatus { .. } => "ModelStreamStatus",
             Self::ModelTokenDelta { .. } => "ModelTokenDelta",
             Self::ModelToolCallRequested { .. } => "ModelToolCallRequested",

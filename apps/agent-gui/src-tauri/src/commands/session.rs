@@ -87,6 +87,9 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut has_terminal_assistant_message = false;
     let mut permission_request_tool_ids = std::collections::BTreeMap::<String, String>::new();
     let mut permission_denied_tool_counts = std::collections::BTreeMap::<String, u32>::new();
+    let mut model_usage = ModelUsageDiagnosticsResponse::default();
+    let mut model_usage_by_profile =
+        std::collections::BTreeMap::<String, ModelUsageByProfileDiagnosticsResponse>::new();
 
     for event in &trace.events {
         let count = event_type_counts
@@ -105,6 +108,43 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
             }),
             agent_core::EventPayload::ModelRequestStarted { .. } => {
                 running_model_requests = running_model_requests.saturating_add(1);
+            }
+            agent_core::EventPayload::ModelUsageRecorded {
+                model_profile,
+                input_tokens,
+                output_tokens,
+                cache_creation_input_tokens,
+                cache_read_input_tokens,
+            } => {
+                let cache_creation = cache_creation_input_tokens.unwrap_or(0);
+                let cache_read = cache_read_input_tokens.unwrap_or(0);
+                model_usage.request_count = model_usage.request_count.saturating_add(1);
+                saturating_add_tokens(&mut model_usage.total_input_tokens, *input_tokens);
+                saturating_add_tokens(&mut model_usage.total_output_tokens, *output_tokens);
+                saturating_add_tokens(
+                    &mut model_usage.total_cache_creation_input_tokens,
+                    cache_creation,
+                );
+                saturating_add_tokens(&mut model_usage.total_cache_read_input_tokens, cache_read);
+
+                let profile_usage = model_usage_by_profile
+                    .entry(model_profile.clone())
+                    .or_insert_with(|| ModelUsageByProfileDiagnosticsResponse {
+                        model_profile: model_profile.clone(),
+                        request_count: 0,
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0,
+                    });
+                profile_usage.request_count = profile_usage.request_count.saturating_add(1);
+                saturating_add_tokens(&mut profile_usage.input_tokens, *input_tokens);
+                saturating_add_tokens(&mut profile_usage.output_tokens, *output_tokens);
+                saturating_add_tokens(
+                    &mut profile_usage.cache_creation_input_tokens,
+                    cache_creation,
+                );
+                saturating_add_tokens(&mut profile_usage.cache_read_input_tokens, cache_read);
             }
             agent_core::EventPayload::ModelStreamStatus {
                 phase,
@@ -207,6 +247,8 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         }
     }
 
+    model_usage.by_profile = model_usage_by_profile.into_values().collect();
+
     SessionDiagnosticsResponse {
         session_id: trace.session_id.to_string(),
         event_count: trace.event_count as u32,
@@ -233,7 +275,12 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         trajectory_failed_count,
         has_terminal_assistant_message,
         recent_model_stream_statuses: model_stream_statuses.into_iter().collect(),
+        model_usage,
     }
+}
+
+fn saturating_add_tokens(total: &mut u32, amount: u64) {
+    *total = (*total).saturating_add(u32::try_from(amount).unwrap_or(u32::MAX));
 }
 
 fn attach_event_db_metadata(summary: &mut SessionDiagnosticsResponse, data_dir: &std::path::Path) {
@@ -999,6 +1046,41 @@ mod session_diagnostics_tests {
 
         assert_eq!(denied.get("browser.action"), Some(&1));
         assert_eq!(denied.get("fs.write"), Some(&1));
+    }
+
+    #[test]
+    fn summarize_trace_export_totals_model_usage() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::ModelUsageRecorded {
+                    model_profile: "fast".into(),
+                    input_tokens: 100,
+                    output_tokens: 40,
+                    cache_creation_input_tokens: Some(7),
+                    cache_read_input_tokens: Some(11),
+                }),
+                event(EventPayload::ModelUsageRecorded {
+                    model_profile: "fast".into(),
+                    input_tokens: 20,
+                    output_tokens: 5,
+                    cache_creation_input_tokens: None,
+                    cache_read_input_tokens: Some(3),
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.model_usage.total_input_tokens, 120);
+        assert_eq!(summary.model_usage.total_output_tokens, 45);
+        assert_eq!(summary.model_usage.total_cache_creation_input_tokens, 7);
+        assert_eq!(summary.model_usage.total_cache_read_input_tokens, 14);
+        assert_eq!(summary.model_usage.request_count, 2);
+        assert_eq!(summary.model_usage.by_profile.len(), 1);
+        assert_eq!(summary.model_usage.by_profile[0].model_profile, "fast");
+        assert_eq!(summary.model_usage.by_profile[0].input_tokens, 120);
+        assert_eq!(summary.model_usage.by_profile[0].output_tokens, 45);
     }
 
     #[test]

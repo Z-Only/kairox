@@ -547,6 +547,52 @@ async fn agent_loop_ignores_usage_only_completion_before_text() {
     assert_eq!(assistant_contents, vec!["reply"]);
 }
 
+#[tokio::test]
+async fn agent_loop_records_terminal_model_usage() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = LocalRuntime::new(store, EarlyUsageThenTextModel);
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-terminal-model-usage".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "hello".into(),
+            display_content: None,
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let usages = trace
+        .iter()
+        .filter_map(|entry| match &entry.event.payload {
+            agent_core::EventPayload::ModelUsageRecorded {
+                input_tokens,
+                output_tokens,
+                ..
+            } => Some((*input_tokens, *output_tokens)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(usages, vec![(5, 1)]);
+}
+
 /// Verify the exact event sequence for a simple (non-tool-call) completion.
 /// Key events must appear in the expected relative order.
 #[tokio::test]

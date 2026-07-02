@@ -176,6 +176,26 @@ pub struct ModelStreamStatusDiagnosticsResponse {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type, Default)]
+pub struct ModelUsageDiagnosticsResponse {
+    pub request_count: u32,
+    pub total_input_tokens: u32,
+    pub total_output_tokens: u32,
+    pub total_cache_creation_input_tokens: u32,
+    pub total_cache_read_input_tokens: u32,
+    pub by_profile: Vec<ModelUsageByProfileDiagnosticsResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct ModelUsageByProfileDiagnosticsResponse {
+    pub model_profile: String,
+    pub request_count: u32,
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub cache_creation_input_tokens: u32,
+    pub cache_read_input_tokens: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct SessionDiagnosticsResponse {
     pub session_id: String,
@@ -197,6 +217,7 @@ pub struct SessionDiagnosticsResponse {
     pub trajectory_failed_count: u32,
     pub has_terminal_assistant_message: bool,
     pub recent_model_stream_statuses: Vec<ModelStreamStatusDiagnosticsResponse>,
+    pub model_usage: ModelUsageDiagnosticsResponse,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
