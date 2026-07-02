@@ -45,6 +45,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             send_message_to_session_if_idle,
             export_trace,
             export_session_diagnostics,
+            export_session_diagnostics_bundle,
             list_sessions,
             // Project workspace commands
             list_projects,
@@ -215,6 +216,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
         .typ::<SessionDiagnosticsResponse>()
+        .typ::<SessionDiagnosticsBundleResponse>()
+        .typ::<SessionDiagnosticsRedactionResponse>()
         .typ::<EventTypeCountResponse>()
         .typ::<SessionDiagnosticsMessageResponse>()
         .typ::<ModelStreamStatusDiagnosticsResponse>()
