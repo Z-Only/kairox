@@ -22,8 +22,8 @@ mod types_tests;
 
 pub use types::{
     EvalCommandExpectation, EvalComparison, EvalError, EvalExpectation, EvalFileExpectation,
-    EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result, ScenarioImprovement,
-    ScenarioRegression,
+    EvalModelUsage, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result,
+    ScenarioImprovement, ScenarioRegression,
 };
 
 pub struct EvalHarness {
@@ -213,6 +213,7 @@ impl EvalHarness {
         let tool_failures = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::ToolInvocationFailed { .. })
         });
+        let model_usage = model_usage_from_events(&trace_events);
         let context_input_tokens = projection
             .last_context_usage
             .as_ref()
@@ -285,6 +286,7 @@ impl EvalHarness {
             tool_failures,
             context_input_tokens,
             context_window,
+            model_usage,
             trace: self.options.include_trace.then_some(trace_events),
             turns_count,
             trajectory_actions,
@@ -355,6 +357,7 @@ impl EvalHarness {
                         tool_failures: 0,
                         context_input_tokens: None,
                         context_window: None,
+                        model_usage: None,
                         trace: None,
                         turns_count: 0,
                         trajectory_actions: Vec::new(),
@@ -422,6 +425,7 @@ impl EvalHarness {
         let tool_failures = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::ToolInvocationFailed { .. })
         });
+        let model_usage = model_usage_from_events(&trace_events);
         let turns_count = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::AssistantMessageCompleted { .. })
         });
@@ -446,6 +450,7 @@ impl EvalHarness {
             tool_failures,
             context_input_tokens,
             context_window,
+            model_usage,
             trace: self.options.include_trace.then_some(trace_events),
             turns_count,
             trajectory_step_count: Some(tool_invocations as u32),
@@ -980,6 +985,29 @@ fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> boo
         .count()
 }
 
+fn model_usage_from_events(events: &[DomainEvent]) -> Option<EvalModelUsage> {
+    events.iter().fold(None, |acc, event| match &event.payload {
+        EventPayload::ModelUsageRecorded {
+            input_tokens,
+            output_tokens,
+            cache_creation_input_tokens,
+            cache_read_input_tokens,
+            ..
+        } => {
+            let mut total = acc.unwrap_or_default();
+            total.add(&EvalModelUsage {
+                request_count: 1,
+                input_tokens: *input_tokens,
+                output_tokens: *output_tokens,
+                cache_creation_input_tokens: cache_creation_input_tokens.unwrap_or(0),
+                cache_read_input_tokens: cache_read_input_tokens.unwrap_or(0),
+            });
+            Some(total)
+        }
+        _ => acc,
+    })
+}
+
 fn trace_event(entry: TraceEntry) -> DomainEvent {
     entry.event
 }
@@ -1065,5 +1093,51 @@ async fn wait_for_expected_event_types(
             return Ok(trace_events);
         }
         tokio::time::sleep(poll_interval).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn event(payload: EventPayload) -> DomainEvent {
+        DomainEvent::new(
+            WorkspaceId::new(),
+            SessionId::new(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+    }
+
+    #[test]
+    fn model_usage_from_events_aggregates_recorded_usage() {
+        let usage = model_usage_from_events(&[
+            event(EventPayload::ModelUsageRecorded {
+                model_profile: "fast".into(),
+                input_tokens: 100,
+                output_tokens: 25,
+                cache_creation_input_tokens: Some(10),
+                cache_read_input_tokens: Some(40),
+            }),
+            event(EventPayload::ModelUsageRecorded {
+                model_profile: "fast".into(),
+                input_tokens: 50,
+                output_tokens: 5,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: Some(20),
+            }),
+        ]);
+
+        assert_eq!(
+            usage,
+            Some(EvalModelUsage {
+                request_count: 2,
+                input_tokens: 150,
+                output_tokens: 30,
+                cache_creation_input_tokens: 10,
+                cache_read_input_tokens: 60,
+            })
+        );
     }
 }
