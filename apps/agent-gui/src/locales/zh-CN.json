@@ -901,6 +901,9 @@
     "searchPlaceholder": "搜索追踪事件",
     "densityLabel": "详细程度：",
     "tabTrajectory": "轨迹",
+    "copyDiagnosticsBundle": "复制脱敏诊断包",
+    "diagnosticsBundleCopied": "脱敏诊断包已复制",
+    "diagnosticsBundleCopyFailed": "复制脱敏诊断包失败：{error}",
     "copyDiagnostics": "复制会话诊断",
     "diagnosticsCopied": "会话诊断已复制",
     "diagnosticsCopyFailed": "复制会话诊断失败：{error}"
