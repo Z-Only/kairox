@@ -481,6 +481,20 @@ where
                     if usage_only_progress {
                         continue;
                     }
+                    let event = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::ModelUsageRecorded {
+                            model_profile: current_request.model_profile.clone(),
+                            input_tokens: u.input_tokens,
+                            output_tokens: u.output_tokens,
+                            cache_creation_input_tokens: u.cache_creation_input_tokens,
+                            cache_read_input_tokens: u.cache_read_input_tokens,
+                        },
+                    );
+                    append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
                 }
                 let visible_assistant_text = strip_think_blocks(&assistant_text);
                 let display_content = if visible_assistant_text.is_empty() {

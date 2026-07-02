@@ -97,6 +97,13 @@ fn every_event_payload_variant_has_event_type() {
             model_profile: "fast".into(),
             model_id: "gpt-4.1-mini".into(),
         },
+        EventPayload::ModelUsageRecorded {
+            model_profile: "fast".into(),
+            input_tokens: 123,
+            output_tokens: 45,
+            cache_creation_input_tokens: Some(10),
+            cache_read_input_tokens: Some(20),
+        },
         EventPayload::ModelStreamStatus {
             phase: "stream_start".into(),
             retrying: true,
@@ -392,6 +399,13 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::ModelRequestStarted {
             model_profile: "fast".into(),
             model_id: "gpt-4.1-mini".into(),
+        },
+        EventPayload::ModelUsageRecorded {
+            model_profile: "fast".into(),
+            input_tokens: 123,
+            output_tokens: 45,
+            cache_creation_input_tokens: Some(10),
+            cache_read_input_tokens: Some(20),
         },
         EventPayload::ModelStreamStatus {
             phase: "stream_start".into(),

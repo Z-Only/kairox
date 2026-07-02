@@ -741,6 +741,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -768,6 +770,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -789,6 +792,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
@@ -848,6 +852,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -875,6 +881,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -895,6 +902,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -960,6 +968,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -985,6 +995,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1005,6 +1016,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1071,6 +1083,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1097,6 +1111,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1118,6 +1133,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1175,6 +1191,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1202,6 +1220,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1223,6 +1242,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1282,6 +1302,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1309,6 +1331,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1330,6 +1353,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1393,6 +1417,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       catalog_id?: never;
       checkpoint_json?: never;
       command?: never;
@@ -1419,6 +1445,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1440,6 +1467,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1503,6 +1531,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1529,6 +1559,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1550,6 +1581,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1609,6 +1641,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1634,6 +1668,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1655,6 +1690,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1719,6 +1755,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1746,6 +1784,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1767,6 +1806,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1832,6 +1872,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1858,6 +1900,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -1879,6 +1922,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -1960,6 +2004,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -1984,6 +2030,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2003,6 +2050,7 @@ export type EventPayload_Deserialize =
       options?: never;
       outcome?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2061,6 +2109,123 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      custom_response?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      input_preview?: never;
+      input_tokens?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      output_tokens?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "ModelUsageRecorded";
+      model_profile: string;
+      input_tokens: number;
+      output_tokens: number;
+      cache_creation_input_tokens?: number | null;
+      cache_read_input_tokens?: number | null;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2100,6 +2265,7 @@ export type EventPayload_Deserialize =
       message_id?: never;
       missing?: never;
       mode?: never;
+      model_id?: never;
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
@@ -2174,6 +2340,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2201,6 +2369,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2220,6 +2389,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2277,6 +2447,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2303,6 +2475,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2324,6 +2497,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2384,6 +2558,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2411,6 +2587,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2432,6 +2609,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2490,6 +2668,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2517,6 +2697,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2538,6 +2719,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2595,6 +2777,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2622,6 +2806,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2643,6 +2828,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2702,6 +2888,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2729,6 +2917,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2750,6 +2939,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2813,6 +3003,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2840,6 +3032,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2860,6 +3053,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -2923,6 +3117,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -2949,6 +3145,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -2970,6 +3167,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3033,6 +3231,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3059,6 +3259,7 @@ export type EventPayload_Deserialize =
       from_profile?: never;
       goal?: never;
       images?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -3079,6 +3280,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3148,6 +3350,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3172,6 +3376,7 @@ export type EventPayload_Deserialize =
       from_profile?: never;
       goal?: never;
       input_preview?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -3191,6 +3396,7 @@ export type EventPayload_Deserialize =
       options?: never;
       outcome?: never;
       output_limit?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3249,6 +3455,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3275,6 +3483,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -3295,6 +3504,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3354,6 +3564,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3380,6 +3592,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3401,6 +3614,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       path?: never;
       persistent?: never;
@@ -3460,6 +3674,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3487,6 +3703,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3508,6 +3725,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       path?: never;
       persistent?: never;
@@ -3573,6 +3791,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3599,6 +3819,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -3618,6 +3839,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3683,6 +3905,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3709,6 +3933,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -3728,6 +3953,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3787,6 +4013,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3814,6 +4042,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3834,6 +4063,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3893,6 +4123,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -3919,6 +4151,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -3939,6 +4172,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -3998,6 +4232,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4024,6 +4260,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4044,6 +4281,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4104,6 +4342,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4131,6 +4371,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4152,6 +4393,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4211,6 +4453,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4237,6 +4481,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4258,6 +4503,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4317,6 +4563,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4344,6 +4592,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4365,6 +4614,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       patch_id?: never;
       path?: never;
       persistent?: never;
@@ -4422,6 +4672,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4449,6 +4701,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4470,6 +4723,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4527,6 +4781,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4554,6 +4810,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4575,6 +4832,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4632,6 +4890,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4659,6 +4919,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4680,6 +4941,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4739,6 +5001,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4766,6 +5030,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4787,6 +5052,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4846,6 +5112,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4873,6 +5141,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -4894,6 +5163,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -4953,6 +5223,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -4980,6 +5252,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5001,6 +5274,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5060,6 +5334,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5087,6 +5363,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5107,6 +5384,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5165,6 +5443,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5191,6 +5471,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5212,6 +5493,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
@@ -5276,6 +5558,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5303,6 +5587,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5323,6 +5608,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5381,6 +5667,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5408,6 +5696,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5428,6 +5717,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5486,6 +5776,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5513,6 +5805,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5533,6 +5826,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5591,6 +5885,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5618,6 +5914,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5639,6 +5936,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5698,6 +5996,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5725,6 +6025,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5746,6 +6047,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5804,6 +6106,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5831,6 +6135,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5852,6 +6157,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -5911,6 +6217,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -5937,6 +6245,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -5958,6 +6267,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6017,6 +6327,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6044,6 +6356,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6065,6 +6378,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6123,6 +6437,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6149,6 +6465,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6170,6 +6487,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6228,6 +6546,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6255,6 +6575,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6276,6 +6597,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6335,6 +6657,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6362,6 +6686,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6383,6 +6708,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6442,6 +6768,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6468,6 +6796,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6489,6 +6818,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6548,6 +6878,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -6574,6 +6906,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6595,6 +6928,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6654,6 +6988,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -6680,6 +7016,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6701,6 +7038,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6759,6 +7097,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6786,6 +7126,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6807,6 +7148,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6866,6 +7208,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -6892,6 +7236,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -6912,6 +7257,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -6972,6 +7318,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -6999,6 +7347,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7020,6 +7369,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7079,6 +7429,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7105,6 +7457,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7126,6 +7479,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7190,6 +7544,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7216,6 +7572,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7237,6 +7594,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7303,6 +7661,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7328,6 +7688,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7348,6 +7709,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7406,6 +7768,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7433,6 +7797,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7452,6 +7817,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7512,6 +7878,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7539,6 +7907,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7559,6 +7928,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7618,6 +7988,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7644,6 +8016,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7664,6 +8037,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7724,6 +8098,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7751,6 +8127,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -7771,6 +8148,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7830,6 +8208,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7857,6 +8237,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -7877,6 +8258,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -7936,6 +8318,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -7963,6 +8347,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -7984,6 +8369,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8043,6 +8429,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8069,6 +8457,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8090,6 +8479,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8149,6 +8539,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8176,6 +8568,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8197,6 +8590,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8255,6 +8649,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8282,6 +8678,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8303,6 +8700,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8362,6 +8760,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8388,6 +8788,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8408,6 +8809,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8467,6 +8869,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8494,6 +8898,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8515,6 +8920,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8580,6 +8986,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8606,6 +9014,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8626,6 +9035,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8688,6 +9098,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8715,6 +9127,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8735,6 +9148,7 @@ export type EventPayload_Deserialize =
       options?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8798,6 +9212,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8825,6 +9241,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8845,6 +9262,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -8909,6 +9327,8 @@ export type EventPayload_Deserialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -8935,6 +9355,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -8956,6 +9377,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9017,6 +9439,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9043,6 +9467,7 @@ export type EventPayload_Deserialize =
       from_profile?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9063,6 +9488,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9127,6 +9553,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9154,6 +9582,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9175,6 +9604,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9239,6 +9669,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       command?: never;
@@ -9264,6 +9696,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9285,6 +9718,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9342,6 +9776,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9369,6 +9805,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9390,6 +9827,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9448,6 +9886,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9475,6 +9915,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9496,6 +9937,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9554,6 +9996,8 @@ export type EventPayload_Deserialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9581,6 +10025,7 @@ export type EventPayload_Deserialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9602,6 +10047,7 @@ export type EventPayload_Deserialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9664,6 +10110,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9691,6 +10139,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9712,6 +10161,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
@@ -9771,6 +10221,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9798,6 +10250,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9818,6 +10271,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9883,6 +10337,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -9908,6 +10364,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -9928,6 +10385,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -9994,6 +10452,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10020,6 +10480,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10041,6 +10502,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10098,6 +10560,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10125,6 +10589,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10146,6 +10611,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10205,6 +10671,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10232,6 +10700,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10253,6 +10722,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10316,6 +10786,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       catalog_id?: never;
       checkpoint_json?: never;
       command?: never;
@@ -10342,6 +10814,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10363,6 +10836,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10426,6 +10900,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10452,6 +10928,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10473,6 +10950,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10532,6 +11010,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10557,6 +11037,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10578,6 +11059,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10642,6 +11124,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10669,6 +11153,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10690,6 +11175,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10755,6 +11241,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       autonomous_task_id?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10781,6 +11269,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10802,6 +11291,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10883,6 +11373,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -10907,6 +11399,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -10926,6 +11419,7 @@ export type EventPayload_Serialize =
       options?: never;
       outcome?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -10984,6 +11478,123 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
+      candidate_event_count?: never;
+      catalog_id?: never;
+      checkpoint_json?: never;
+      command?: never;
+      concern_count?: never;
+      content?: never;
+      context_window?: never;
+      custom_response?: never;
+      delta?: never;
+      dependencies?: never;
+      description?: never;
+      diff?: never;
+      display_content?: never;
+      duration_ms?: never;
+      effective_at?: never;
+      end_reason?: never;
+      entries?: never;
+      entry_count?: never;
+      error?: never;
+      exit_code?: never;
+      fallback_used?: never;
+      file?: never;
+      finding_id?: never;
+      from_profile?: never;
+      goal?: never;
+      images?: never;
+      input_preview?: never;
+      input_tokens?: never;
+      invocation_id?: never;
+      key?: never;
+      languages?: never;
+      limit_source?: never;
+      line?: never;
+      max_retries?: never;
+      max_sessions?: never;
+      memory_id?: never;
+      message?: never;
+      message_id?: never;
+      missing?: never;
+      mode?: never;
+      monitor_id?: never;
+      name?: never;
+      observation_preview?: never;
+      options?: never;
+      outcome?: never;
+      output_limit?: never;
+      output_preview?: never;
+      output_tokens?: never;
+      parent_task_id?: never;
+      patch_id?: never;
+      path?: never;
+      persistent?: never;
+      phase?: never;
+      preview?: never;
+      program?: never;
+      prompt?: never;
+      ratio?: never;
+      reason?: never;
+      reasoning_effort?: never;
+      replaces_event_range?: never;
+      request_id?: never;
+      retry_attempt?: never;
+      retrying?: never;
+      review_id?: never;
+      role?: never;
+      scope?: never;
+      screenshot_id?: never;
+      selected_option_ids?: never;
+      server_id?: never;
+      session_id?: never;
+      session_index?: never;
+      severity?: never;
+      skill_id?: never;
+      source?: never;
+      step_count?: never;
+      step_index?: never;
+      sub_task_ids?: never;
+      summarised_by_profile?: never;
+      summary?: never;
+      summary_id?: never;
+      task_id?: never;
+      timeout_ms?: never;
+      title?: never;
+      to_profile?: never;
+      tool_call_count?: never;
+      tool_call_id?: never;
+      tool_count?: never;
+      tool_id?: never;
+      tool_name?: never;
+      total_sessions?: never;
+      trajectory_id?: never;
+      truncated?: never;
+      usage?: never;
+      verdict?: never;
+    })
+  | ({
+      type: "ModelUsageRecorded";
+      model_profile: string;
+      input_tokens: number;
+      output_tokens: number;
+      cache_creation_input_tokens?: number | null;
+      cache_read_input_tokens?: number | null;
+    } & {
+      acceptance_criteria?: never;
+      action?: never;
+      activation_mode?: never;
+      advisor_profile?: never;
+      after_tokens?: never;
+      agent_id?: never;
+      allow_custom?: never;
+      allow_multiple?: never;
+      attempt?: never;
+      autonomous_task_id?: never;
+      before_tokens?: never;
+      blocking_task_id?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11023,6 +11634,7 @@ export type EventPayload_Serialize =
       message_id?: never;
       missing?: never;
       mode?: never;
+      model_id?: never;
       monitor_id?: never;
       name?: never;
       observation_preview?: never;
@@ -11097,6 +11709,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11124,6 +11738,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11143,6 +11758,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11200,6 +11816,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11226,6 +11844,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11247,6 +11866,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11307,6 +11927,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11334,6 +11956,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11355,6 +11978,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11413,6 +12037,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11440,6 +12066,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11461,6 +12088,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11518,6 +12146,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11545,6 +12175,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11566,6 +12197,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11625,6 +12257,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11652,6 +12286,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11673,6 +12308,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11736,6 +12372,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11763,6 +12401,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11783,6 +12422,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11846,6 +12486,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11872,6 +12514,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -11893,6 +12536,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -11956,6 +12600,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -11982,6 +12628,7 @@ export type EventPayload_Serialize =
       from_profile?: never;
       goal?: never;
       images?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -12002,6 +12649,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12071,6 +12719,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12095,6 +12745,7 @@ export type EventPayload_Serialize =
       from_profile?: never;
       goal?: never;
       input_preview?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -12114,6 +12765,7 @@ export type EventPayload_Serialize =
       options?: never;
       outcome?: never;
       output_limit?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12172,6 +12824,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12198,6 +12852,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       key?: never;
       languages?: never;
       limit_source?: never;
@@ -12218,6 +12873,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12277,6 +12933,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12303,6 +12961,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12324,6 +12983,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       path?: never;
       persistent?: never;
@@ -12383,6 +13043,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12410,6 +13072,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12431,6 +13094,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       path?: never;
       persistent?: never;
@@ -12496,6 +13160,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12522,6 +13188,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -12541,6 +13208,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12606,6 +13274,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12632,6 +13302,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       languages?: never;
       limit_source?: never;
@@ -12651,6 +13322,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12710,6 +13382,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12737,6 +13411,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12757,6 +13432,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12816,6 +13492,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12842,6 +13520,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12862,6 +13541,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -12921,6 +13601,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -12947,6 +13629,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -12967,6 +13650,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13027,6 +13711,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13054,6 +13740,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13075,6 +13762,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13134,6 +13822,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13160,6 +13850,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13181,6 +13872,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13240,6 +13932,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13267,6 +13961,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13288,6 +13983,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       patch_id?: never;
       path?: never;
       persistent?: never;
@@ -13345,6 +14041,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       autonomous_task_id?: never;
       before_tokens?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13372,6 +14070,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13393,6 +14092,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13450,6 +14150,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13477,6 +14179,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13498,6 +14201,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13555,6 +14259,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13582,6 +14288,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13603,6 +14310,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13662,6 +14370,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13689,6 +14399,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13710,6 +14421,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13769,6 +14481,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13796,6 +14510,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13817,6 +14532,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13876,6 +14592,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -13903,6 +14621,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -13924,6 +14643,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -13983,6 +14703,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14010,6 +14732,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14030,6 +14753,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14088,6 +14812,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14114,6 +14840,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14135,6 +14862,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       persistent?: never;
@@ -14199,6 +14927,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14226,6 +14956,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14246,6 +14977,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14304,6 +15036,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14331,6 +15065,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14351,6 +15086,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14409,6 +15145,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14436,6 +15174,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14456,6 +15195,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14514,6 +15254,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14541,6 +15283,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14562,6 +15305,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14621,6 +15365,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14648,6 +15394,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14669,6 +15416,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14727,6 +15475,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14754,6 +15504,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14775,6 +15526,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14834,6 +15586,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14860,6 +15614,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14881,6 +15636,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -14940,6 +15696,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -14967,6 +15725,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -14988,6 +15747,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15046,6 +15806,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15072,6 +15834,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15093,6 +15856,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15151,6 +15915,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15178,6 +15944,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15199,6 +15966,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15258,6 +16026,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15285,6 +16055,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15306,6 +16077,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15365,6 +16137,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15391,6 +16165,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15412,6 +16187,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15471,6 +16247,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -15497,6 +16275,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15518,6 +16297,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15577,6 +16357,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -15603,6 +16385,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15624,6 +16407,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15682,6 +16466,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15709,6 +16495,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15730,6 +16517,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15789,6 +16577,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       checkpoint_json?: never;
       command?: never;
@@ -15815,6 +16605,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15835,6 +16626,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -15895,6 +16687,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -15922,6 +16716,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -15943,6 +16738,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16002,6 +16798,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16028,6 +16826,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16049,6 +16848,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16113,6 +16913,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16139,6 +16941,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16160,6 +16963,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16226,6 +17030,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16251,6 +17057,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16271,6 +17078,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16329,6 +17137,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16356,6 +17166,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16375,6 +17186,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16435,6 +17247,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16462,6 +17276,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16482,6 +17297,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16541,6 +17357,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16567,6 +17385,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16587,6 +17406,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16647,6 +17467,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16674,6 +17496,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -16694,6 +17517,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16753,6 +17577,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16780,6 +17606,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       limit_source?: never;
@@ -16800,6 +17627,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16859,6 +17687,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16886,6 +17716,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -16907,6 +17738,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -16966,6 +17798,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -16992,6 +17826,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17013,6 +17848,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17072,6 +17908,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17099,6 +17937,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17120,6 +17959,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17178,6 +18018,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17205,6 +18047,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17226,6 +18069,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17285,6 +18129,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17311,6 +18157,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17331,6 +18178,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17390,6 +18238,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17417,6 +18267,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17438,6 +18289,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17503,6 +18355,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17529,6 +18383,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17549,6 +18404,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17611,6 +18467,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17638,6 +18496,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17658,6 +18517,7 @@ export type EventPayload_Serialize =
       options?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17721,6 +18581,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17748,6 +18610,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17768,6 +18631,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17832,6 +18696,8 @@ export type EventPayload_Serialize =
       autonomous_task_id?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17858,6 +18724,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17879,6 +18746,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -17940,6 +18808,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -17966,6 +18836,7 @@ export type EventPayload_Serialize =
       from_profile?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -17986,6 +18857,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18050,6 +18922,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -18077,6 +18951,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -18098,6 +18973,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18162,6 +19038,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       command?: never;
@@ -18187,6 +19065,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -18208,6 +19087,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18265,6 +19145,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -18292,6 +19174,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -18313,6 +19196,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18371,6 +19255,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -18398,6 +19284,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -18419,6 +19306,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18477,6 +19365,8 @@ export type EventPayload_Serialize =
       attempt?: never;
       before_tokens?: never;
       blocking_task_id?: never;
+      cache_creation_input_tokens?: never;
+      cache_read_input_tokens?: never;
       candidate_event_count?: never;
       catalog_id?: never;
       checkpoint_json?: never;
@@ -18504,6 +19394,7 @@ export type EventPayload_Serialize =
       goal?: never;
       images?: never;
       input_preview?: never;
+      input_tokens?: never;
       invocation_id?: never;
       key?: never;
       languages?: never;
@@ -18525,6 +19416,7 @@ export type EventPayload_Serialize =
       outcome?: never;
       output_limit?: never;
       output_preview?: never;
+      output_tokens?: never;
       parent_task_id?: never;
       patch_id?: never;
       path?: never;
@@ -18805,6 +19697,24 @@ export type ModelStreamStatusDiagnosticsResponse = {
 export type ModelToolCallDiagnosticsResponse = {
   tool_call_id: string;
   tool_id: string;
+};
+
+export type ModelUsageByProfileDiagnosticsResponse = {
+  model_profile: string;
+  request_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+};
+
+export type ModelUsageDiagnosticsResponse = {
+  request_count: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cache_creation_input_tokens: number;
+  total_cache_read_input_tokens: number;
+  by_profile: ModelUsageByProfileDiagnosticsResponse[];
 };
 
 export type MonitorInfoResponse = {
@@ -19114,6 +20024,7 @@ export type SessionDiagnosticsResponse = {
   trajectory_failed_count: number;
   has_terminal_assistant_message: boolean;
   recent_model_stream_statuses: ModelStreamStatusDiagnosticsResponse[];
+  model_usage: ModelUsageDiagnosticsResponse;
 };
 
 export type SessionInfoResponse = {
