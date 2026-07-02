@@ -266,6 +266,13 @@ fn result_serde_roundtrip_with_all_fields() {
         tool_failures: 1,
         context_input_tokens: Some(5000),
         context_window: Some(128_000),
+        model_usage: Some(EvalModelUsage {
+            request_count: 2,
+            input_tokens: 1000,
+            output_tokens: 250,
+            cache_creation_input_tokens: 100,
+            cache_read_input_tokens: 400,
+        }),
         trace: None,
         turns_count: 2,
         trajectory_actions: vec!["fs.read".into()],
@@ -313,6 +320,10 @@ fn result_skip_serializing_if_omits_optional_fields() {
     assert!(
         !json.contains("\"context_window\""),
         "None context_window omitted"
+    );
+    assert!(
+        !json.contains("\"model_usage\""),
+        "None model_usage omitted"
     );
     assert!(!json.contains("\"trace\""), "None trace omitted");
     assert!(
@@ -363,6 +374,7 @@ fn summary_serde_roundtrip() {
         total_tool_invocations: 10,
         total_tool_failures: 1,
         total_context_input_tokens: Some(50_000),
+        total_model_usage: None,
     };
     let json = serde_json::to_string(&summary).unwrap();
     let back: EvalSummary = serde_json::from_str(&json).unwrap();
@@ -381,6 +393,7 @@ fn summary_serde_without_tokens() {
         total_tool_invocations: 0,
         total_tool_failures: 0,
         total_context_input_tokens: None,
+        total_model_usage: None,
     };
     let json = serde_json::to_string(&summary).unwrap();
     assert!(!json.contains("total_context_input_tokens"));
@@ -463,6 +476,47 @@ fn summary_from_results_all_none_tokens_yields_none() {
     ];
     let summary = EvalSummary::from_results(&results);
     assert_eq!(summary.total_context_input_tokens, None);
+}
+
+#[test]
+fn summary_from_results_aggregates_model_usage() {
+    let results = vec![
+        EvalResult {
+            scenario_id: "a".into(),
+            model_usage: Some(EvalModelUsage {
+                request_count: 1,
+                input_tokens: 100,
+                output_tokens: 20,
+                cache_creation_input_tokens: 10,
+                cache_read_input_tokens: 30,
+            }),
+            ..EvalResult::default()
+        },
+        EvalResult {
+            scenario_id: "b".into(),
+            model_usage: Some(EvalModelUsage {
+                request_count: 2,
+                input_tokens: 300,
+                output_tokens: 50,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 25,
+            }),
+            ..EvalResult::default()
+        },
+    ];
+
+    let summary = EvalSummary::from_results(&results);
+
+    assert_eq!(
+        summary.total_model_usage,
+        Some(EvalModelUsage {
+            request_count: 3,
+            input_tokens: 400,
+            output_tokens: 70,
+            cache_creation_input_tokens: 10,
+            cache_read_input_tokens: 55,
+        })
+    );
 }
 
 // ── EvalReport serde ─────────────────────────────────────────────────────────
