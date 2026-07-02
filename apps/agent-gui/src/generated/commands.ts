@@ -54,6 +54,11 @@ export const commands = {
     typedError<SessionDiagnosticsResponse, string>(
       __TAURI_INVOKE("export_session_diagnostics", { sessionId })
     ),
+  /**  Returns a redacted diagnostics bundle suitable for bug reports. */
+  exportSessionDiagnosticsBundle: (sessionId: string) =>
+    typedError<SessionDiagnosticsBundleResponse, string>(
+      __TAURI_INVOKE("export_session_diagnostics_bundle", { sessionId })
+    ),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
   listProjects: () => typedError<ProjectInfoResponse[], string>(__TAURI_INVOKE("list_projects")),
   createBlankProject: (displayName: string | null) =>
@@ -19999,9 +20004,23 @@ export type ServerEntryResponse = {
   default_env_json: string;
 };
 
+export type SessionDiagnosticsBundleResponse = {
+  schema_version: number;
+  generated_at: string;
+  redaction: SessionDiagnosticsRedactionResponse;
+  summary: SessionDiagnosticsResponse;
+};
+
 export type SessionDiagnosticsMessageResponse = {
   message_id: string;
   content: string;
+};
+
+export type SessionDiagnosticsRedactionResponse = {
+  applied: boolean;
+  strategy: string;
+  redacted_fields: string[];
+  max_message_preview_chars: number;
 };
 
 export type SessionDiagnosticsResponse = {

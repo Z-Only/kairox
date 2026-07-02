@@ -220,6 +220,22 @@ pub struct SessionDiagnosticsResponse {
     pub model_usage: ModelUsageDiagnosticsResponse,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct SessionDiagnosticsBundleResponse {
+    pub schema_version: u32,
+    pub generated_at: String,
+    pub redaction: SessionDiagnosticsRedactionResponse,
+    pub summary: SessionDiagnosticsResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct SessionDiagnosticsRedactionResponse {
+    pub applied: bool,
+    pub strategy: String,
+    pub redacted_fields: Vec<String>,
+    pub max_message_preview_chars: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProjectInfoResponse {
     pub project_id: String,

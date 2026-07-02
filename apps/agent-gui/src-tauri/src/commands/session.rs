@@ -70,6 +70,22 @@ pub async fn export_session_diagnostics(
     Ok(summary)
 }
 
+/// Returns a redacted diagnostics bundle suitable for bug reports.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_session_diagnostics_bundle(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<SessionDiagnosticsBundleResponse, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let trace = state
+        .runtime
+        .export_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to export session diagnostics bundle: {e}"))?;
+    Ok(build_redacted_diagnostics_bundle(&trace, &state.home_dir))
+}
+
 fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut event_type_counts = std::collections::BTreeMap::<String, u32>::new();
     let mut user_messages = Vec::new();
@@ -281,6 +297,59 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
 
 fn saturating_add_tokens(total: &mut u32, amount: u64) {
     *total = (*total).saturating_add(u32::try_from(amount).unwrap_or(u32::MAX));
+}
+
+fn build_redacted_diagnostics_bundle(
+    trace: &TraceExport,
+    data_dir: &std::path::Path,
+) -> SessionDiagnosticsBundleResponse {
+    let mut summary = summarize_trace_export(trace);
+    attach_event_db_metadata(&mut summary, data_dir);
+    let redaction = redact_diagnostics_summary(&mut summary);
+    SessionDiagnosticsBundleResponse {
+        schema_version: 1,
+        generated_at: trace.generated_at.to_rfc3339(),
+        redaction,
+        summary,
+    }
+}
+
+fn redact_diagnostics_summary(
+    summary: &mut SessionDiagnosticsResponse,
+) -> SessionDiagnosticsRedactionResponse {
+    for message in &mut summary.user_messages {
+        message.content = redacted_content_marker(&message.content);
+    }
+    for message in &mut summary.assistant_messages {
+        message.content = redacted_content_marker(&message.content);
+    }
+    for status in &mut summary.recent_model_stream_statuses {
+        status.message = redacted_content_marker(&status.message);
+    }
+    summary.event_db_path = None;
+    summary.event_db_path_source = Some("redacted".to_string());
+
+    SessionDiagnosticsRedactionResponse {
+        applied: true,
+        strategy: "fixed_length_markers".to_string(),
+        redacted_fields: vec![
+            "summary.user_messages.content".to_string(),
+            "summary.assistant_messages.content".to_string(),
+            "summary.recent_model_stream_statuses.message".to_string(),
+            "summary.event_db_path".to_string(),
+        ],
+        max_message_preview_chars: 0,
+    }
+}
+
+fn redacted_content_marker(content: &str) -> String {
+    let char_count = content.chars().count();
+    let line_count = if content.is_empty() {
+        0
+    } else {
+        content.lines().count().max(1)
+    };
+    format!("[redacted: {char_count} chars, {line_count} lines]")
 }
 
 fn attach_event_db_metadata(summary: &mut SessionDiagnosticsResponse, data_dir: &std::path::Path) {
@@ -918,7 +987,9 @@ pub async fn export_trajectory(
 
 #[cfg(test)]
 mod session_diagnostics_tests {
-    use super::{attach_event_db_metadata, summarize_trace_export};
+    use super::{
+        attach_event_db_metadata, build_redacted_diagnostics_bundle, summarize_trace_export,
+    };
     use agent_core::{
         DomainEvent, EventPayload, PrivacyClassification, SessionId, TraceExport, WorkspaceId,
     };
@@ -1081,6 +1152,57 @@ mod session_diagnostics_tests {
         assert_eq!(summary.model_usage.by_profile[0].model_profile, "fast");
         assert_eq!(summary.model_usage.by_profile[0].input_tokens, 120);
         assert_eq!(summary.model_usage.by_profile[0].output_tokens, 45);
+    }
+
+    #[test]
+    fn redacted_session_diagnostics_bundle_redacts_sensitive_fields() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::UserMessageAdded {
+                    message_id: "u_secret".into(),
+                    content: "my api key is sk-secret".into(),
+                    display_content: None,
+                }),
+                event(EventPayload::AssistantMessageCompleted {
+                    message_id: "a_secret".into(),
+                    content: "the secret value was sk-secret".into(),
+                }),
+                event(EventPayload::ModelStreamStatus {
+                    phase: "stream_error".into(),
+                    retrying: true,
+                    retry_attempt: 1,
+                    max_retries: 3,
+                    message: "provider said sk-secret failed".into(),
+                }),
+            ],
+        );
+
+        let bundle =
+            build_redacted_diagnostics_bundle(&trace, Path::new("/tmp/private/kairox-home"));
+
+        assert_eq!(bundle.schema_version, 1);
+        assert!(bundle.redaction.applied);
+        assert_eq!(bundle.summary.event_count, 3);
+        assert_eq!(bundle.summary.user_messages[0].message_id, "u_secret");
+        assert!(!bundle.summary.user_messages[0]
+            .content
+            .contains("sk-secret"));
+        assert!(!bundle.summary.assistant_messages[0]
+            .content
+            .contains("sk-secret"));
+        assert!(!bundle.summary.recent_model_stream_statuses[0]
+            .message
+            .contains("sk-secret"));
+        assert!(bundle.summary.event_db_path.is_none());
+        assert_eq!(
+            bundle.summary.event_db_path_source.as_deref(),
+            Some("redacted")
+        );
+        assert!(bundle
+            .redaction
+            .redacted_fields
+            .contains(&"summary.user_messages.content".to_string()));
     }
 
     #[test]

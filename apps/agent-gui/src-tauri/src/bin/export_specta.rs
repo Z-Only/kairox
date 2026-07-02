@@ -29,9 +29,10 @@ use agent_gui_tauri::commands::{
     ProfileDetailResponse, ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse,
     ProjectGitReviewResponse, ProjectGitStatusResponse, ProjectInfoResponse,
     ProjectInstructionSummaryResponse, SaveDraftRequest, SendMessageToSessionIfIdleResponse,
-    ServerEntryResponse, SessionDiagnosticsMessageResponse, SessionDiagnosticsResponse,
-    SessionInfoResponse, TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse,
-    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    ServerEntryResponse, SessionDiagnosticsBundleResponse, SessionDiagnosticsMessageResponse,
+    SessionDiagnosticsRedactionResponse, SessionDiagnosticsResponse, SessionInfoResponse,
+    TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse,
+    TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
@@ -60,6 +61,7 @@ fn main() {
             agent_gui_tauri::commands::send_message_to_session_if_idle,
             agent_gui_tauri::commands::export_trace,
             agent_gui_tauri::commands::export_session_diagnostics,
+            agent_gui_tauri::commands::export_session_diagnostics_bundle,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands
             agent_gui_tauri::commands::list_projects,
@@ -229,6 +231,8 @@ fn main() {
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
         .typ::<SessionDiagnosticsResponse>()
+        .typ::<SessionDiagnosticsBundleResponse>()
+        .typ::<SessionDiagnosticsRedactionResponse>()
         .typ::<EventTypeCountResponse>()
         .typ::<SessionDiagnosticsMessageResponse>()
         .typ::<ModelStreamStatusDiagnosticsResponse>()
