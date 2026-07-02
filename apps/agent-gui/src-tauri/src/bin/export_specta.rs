@@ -24,14 +24,14 @@ use agent_gui_tauri::commands::{
     EventTypeCountResponse, GuiSettingsView, InstallOutcomeResponse, InstallRequestPayload,
     InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
     McpServerStatusResponse, McpToolCallDiagnosticsResponse, McpToolDefResponse,
-    McpToolStatesResponse, MemoryEntryResponse, ModelToolCallDiagnosticsResponse,
-    MonitorInfoResponse, PermissionDeniedToolDiagnosticsResponse, ProfileDetailResponse,
-    ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
-    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    SaveDraftRequest, SendMessageToSessionIfIdleResponse, ServerEntryResponse,
-    SessionDiagnosticsMessageResponse, SessionDiagnosticsResponse, SessionInfoResponse,
-    TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse,
-    TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    McpToolStatesResponse, MemoryEntryResponse, ModelStreamStatusDiagnosticsResponse,
+    ModelToolCallDiagnosticsResponse, MonitorInfoResponse, PermissionDeniedToolDiagnosticsResponse,
+    ProfileDetailResponse, ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse,
+    ProjectGitReviewResponse, ProjectGitStatusResponse, ProjectInfoResponse,
+    ProjectInstructionSummaryResponse, SaveDraftRequest, SendMessageToSessionIfIdleResponse,
+    ServerEntryResponse, SessionDiagnosticsMessageResponse, SessionDiagnosticsResponse,
+    SessionInfoResponse, TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse,
+    TrajectoryMetaResponse, TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_gui_tauri::type_export::export_types_atomically;
 use agent_mcp::McpServerStatus;
@@ -231,6 +231,7 @@ fn main() {
         .typ::<SessionDiagnosticsResponse>()
         .typ::<EventTypeCountResponse>()
         .typ::<SessionDiagnosticsMessageResponse>()
+        .typ::<ModelStreamStatusDiagnosticsResponse>()
         .typ::<ModelToolCallDiagnosticsResponse>()
         .typ::<McpToolCallDiagnosticsResponse>()
         .typ::<PermissionDeniedToolDiagnosticsResponse>()

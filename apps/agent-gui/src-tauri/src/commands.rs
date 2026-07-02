@@ -166,6 +166,17 @@ pub struct TrajectoryCompletedDiagnosticsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct ModelStreamStatusDiagnosticsResponse {
+    pub phase: String,
+    pub retrying: bool,
+    #[specta(type = u32)]
+    pub retry_attempt: usize,
+    #[specta(type = u32)]
+    pub max_retries: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct SessionDiagnosticsResponse {
     pub session_id: String,
     pub event_count: u32,
@@ -185,6 +196,7 @@ pub struct SessionDiagnosticsResponse {
     pub running_tool_invocations: u32,
     pub trajectory_failed_count: u32,
     pub has_terminal_assistant_message: bool,
+    pub recent_model_stream_statuses: Vec<ModelStreamStatusDiagnosticsResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

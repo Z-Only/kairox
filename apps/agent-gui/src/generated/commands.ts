@@ -18794,6 +18794,14 @@ export type MemoryEntryResponse = {
   branch: string | null;
 };
 
+export type ModelStreamStatusDiagnosticsResponse = {
+  phase: string;
+  retrying: boolean;
+  retry_attempt: number;
+  max_retries: number;
+  message: string;
+};
+
 export type ModelToolCallDiagnosticsResponse = {
   tool_call_id: string;
   tool_id: string;
@@ -19105,6 +19113,7 @@ export type SessionDiagnosticsResponse = {
   running_tool_invocations: number;
   trajectory_failed_count: number;
   has_terminal_assistant_message: boolean;
+  recent_model_stream_statuses: ModelStreamStatusDiagnosticsResponse[];
 };
 
 export type SessionInfoResponse = {

@@ -74,6 +74,8 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut event_type_counts = std::collections::BTreeMap::<String, u32>::new();
     let mut user_messages = Vec::new();
     let mut assistant_messages = Vec::new();
+    let mut model_stream_statuses =
+        std::collections::VecDeque::<ModelStreamStatusDiagnosticsResponse>::new();
     let mut model_tool_calls = Vec::new();
     let mut mcp_tool_calls = Vec::new();
     let mut trajectory_started_count = 0_u32;
@@ -103,6 +105,25 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
             }),
             agent_core::EventPayload::ModelRequestStarted { .. } => {
                 running_model_requests = running_model_requests.saturating_add(1);
+            }
+            agent_core::EventPayload::ModelStreamStatus {
+                phase,
+                retrying,
+                retry_attempt,
+                max_retries,
+                message,
+            } => {
+                const RECENT_MODEL_STREAM_STATUS_LIMIT: usize = 5;
+                model_stream_statuses.push_back(ModelStreamStatusDiagnosticsResponse {
+                    phase: phase.clone(),
+                    retrying: *retrying,
+                    retry_attempt: *retry_attempt,
+                    max_retries: *max_retries,
+                    message: message.clone(),
+                });
+                while model_stream_statuses.len() > RECENT_MODEL_STREAM_STATUS_LIMIT {
+                    model_stream_statuses.pop_front();
+                }
             }
             agent_core::EventPayload::AssistantMessageCompleted {
                 message_id,
@@ -211,6 +232,7 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         running_tool_invocations,
         trajectory_failed_count,
         has_terminal_assistant_message,
+        recent_model_stream_statuses: model_stream_statuses.into_iter().collect(),
     }
 }
 
@@ -1057,6 +1079,31 @@ mod session_diagnostics_tests {
 
         assert_eq!(summary.running_model_requests, 0);
         assert!(summary.has_terminal_assistant_message);
+    }
+
+    #[test]
+    fn summarize_trace_export_keeps_recent_model_stream_statuses() {
+        let mut events = Vec::new();
+        for index in 0..7 {
+            events.push(event(EventPayload::ModelStreamStatus {
+                phase: format!("phase_{index}"),
+                retrying: index < 6,
+                retry_attempt: index,
+                max_retries: 6,
+                message: format!("status {index}"),
+            }));
+        }
+        let trace = TraceExport::new(SessionId::from_string("ses_diag".to_string()), events);
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.recent_model_stream_statuses.len(), 5);
+        assert_eq!(summary.recent_model_stream_statuses[0].phase, "phase_2");
+        assert_eq!(summary.recent_model_stream_statuses[4].phase, "phase_6");
+        assert!(!summary.recent_model_stream_statuses[4].retrying);
+        assert_eq!(summary.recent_model_stream_statuses[4].retry_attempt, 6);
+        assert_eq!(summary.recent_model_stream_statuses[4].max_retries, 6);
+        assert_eq!(summary.recent_model_stream_statuses[4].message, "status 6");
     }
 
     #[test]
