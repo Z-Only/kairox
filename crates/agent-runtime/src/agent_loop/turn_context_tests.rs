@@ -30,8 +30,17 @@ fn profile_def(
     code_execution: Option<bool>,
     web_search: Option<bool>,
 ) -> ProfileDef {
+    profile_def_for("fake", enabled, code_execution, web_search)
+}
+
+fn profile_def_for(
+    provider: &str,
+    enabled: bool,
+    code_execution: Option<bool>,
+    web_search: Option<bool>,
+) -> ProfileDef {
     ProfileDef {
-        provider: "fake".into(),
+        provider: provider.into(),
         model_id: "fake".into(),
         base_url: None,
         connect_timeout_secs: None,
@@ -171,10 +180,10 @@ fn make_request() -> SendMessageRequest {
 // ===========================================================================
 
 #[test]
-fn server_tools_returns_tools_for_matching_enabled_profile() {
+fn server_tools_returns_tools_for_anthropic_profile() {
     let config = config_with_profiles(vec![(
         "test-profile".into(),
-        profile_def(true, Some(true), Some(true)),
+        profile_def_for("anthropic", true, Some(true), Some(true)),
     )]);
 
     let tools = server_tools_for_profile(&config, "test-profile");
@@ -184,6 +193,35 @@ fn server_tools_returns_tools_for_matching_enabled_profile() {
     assert!(tools
         .iter()
         .any(|t| matches!(t, ServerTool::WebSearch { .. })));
+}
+
+#[test]
+fn server_tools_returns_tools_for_anthropic_compatible_base_url() {
+    let mut def = profile_def_for("ali-mo", true, Some(true), Some(true));
+    def.base_url = Some("https://gateway.example/v1/anthropic".into());
+    let config = config_with_profiles(vec![("test-profile".into(), def)]);
+
+    let tools = server_tools_for_profile(&config, "test-profile");
+
+    assert_eq!(tools.len(), 2);
+    assert!(tools.iter().any(|t| matches!(t, ServerTool::CodeExecution)));
+    assert!(tools
+        .iter()
+        .any(|t| matches!(t, ServerTool::WebSearch { .. })));
+}
+
+#[test]
+fn server_tools_returns_empty_for_unsupported_providers_even_when_enabled() {
+    for provider in ["openai_compatible", "ollama", "fake"] {
+        let config = config_with_profiles(vec![(
+            provider.into(),
+            profile_def_for(provider, true, Some(true), Some(true)),
+        )]);
+
+        let tools = server_tools_for_profile(&config, provider);
+
+        assert!(tools.is_empty(), "{provider} must not receive server tools");
+    }
 }
 
 #[test]
@@ -214,7 +252,7 @@ fn server_tools_returns_empty_for_disabled_profile() {
 fn server_tools_only_code_execution_when_web_search_false() {
     let config = config_with_profiles(vec![(
         "code-only".into(),
-        profile_def(true, Some(true), Some(false)),
+        profile_def_for("anthropic", true, Some(true), Some(false)),
     )]);
 
     let tools = server_tools_for_profile(&config, "code-only");
@@ -227,7 +265,7 @@ fn server_tools_only_code_execution_when_web_search_false() {
 fn server_tools_only_web_search_when_code_execution_false() {
     let config = config_with_profiles(vec![(
         "search-only".into(),
-        profile_def(true, Some(false), Some(true)),
+        profile_def_for("anthropic", true, Some(false), Some(true)),
     )]);
 
     let tools = server_tools_for_profile(&config, "search-only");
