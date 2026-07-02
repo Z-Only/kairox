@@ -7,6 +7,7 @@ import type { DomainEvent } from "@/types";
 import type { TraceEntryData } from "@/types/trace";
 
 const TOOL_TITLE_MAX_CHARS = 120;
+type ModelStreamStatusPayload = Extract<DomainEvent["payload"], { type: "ModelStreamStatus" }>;
 
 function compactPreviewLine(value: string): string {
   return value.trim().split(/\r?\n/).find(Boolean)?.trim() ?? "";
@@ -38,6 +39,19 @@ function titleFromToolPreview(toolId: string, inputPreview?: string): string {
   const summary =
     commandFromToolPreview(inputPreview) ?? truncateTitle(compactPreviewLine(inputPreview));
   return summary ? `${toolId}: ${summary}` : toolId;
+}
+
+function modelStreamStatusPreview(p: ModelStreamStatusPayload): string {
+  const hasRetryCount = p.retry_attempt > 0 || p.max_retries > 0;
+  const state = p.retrying
+    ? hasRetryCount
+      ? `retry ${p.retry_attempt}/${p.max_retries}`
+      : "retrying"
+    : hasRetryCount
+      ? `failed retry ${p.retry_attempt}/${p.max_retries}`
+      : "failed";
+  const message = compactPreviewLine(p.message);
+  return `${p.phase} ${state}${message ? `: ${message}` : ""}`;
 }
 
 export const useTraceStore = defineStore("trace", () => {
@@ -87,6 +101,20 @@ export const useTraceStore = defineStore("trace", () => {
       index++;
     }
     return `session-cancelled-${index}`;
+  }
+
+  function latestModelEntry(status?: TraceEntryData["status"]): TraceEntryData | null {
+    for (let index = entries.value.length - 1; index >= 0; index--) {
+      const entry = entries.value[index];
+      if (
+        entry.kind === "tool" &&
+        entry.toolId === "model" &&
+        (status === undefined || entry.status === status)
+      ) {
+        return entry;
+      }
+    }
+    return null;
   }
 
   function applyTraceEvent(event: DomainEvent) {
@@ -160,6 +188,35 @@ export const useTraceStore = defineStore("trace", () => {
         break;
       }
 
+      case "ModelStreamStatus": {
+        const preview = modelStreamStatusPreview(p);
+        const status = p.retrying ? "running" : "failed";
+        const now = Date.now();
+        const modelEntry = latestModelEntry("running");
+        if (modelEntry) {
+          modelEntry.status = status;
+          modelEntry.title = truncateTitle(`Model stream ${preview}`);
+          modelEntry.outputPreview = preview;
+          modelEntry.rawEvent = rawJson(event);
+          if (status === "failed") {
+            modelEntry.durationMs = now - modelEntry.startedAt;
+          }
+          break;
+        }
+        pushEntry({
+          id: `model-${now}-${Math.random().toString(36).slice(2, 6)}`,
+          kind: "tool",
+          status,
+          toolId: "model",
+          title: truncateTitle(`Model stream ${preview}`),
+          startedAt: now,
+          expanded: false,
+          outputPreview: preview,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
       case "ModelTokenDelta": {
         break;
       }
@@ -171,9 +228,7 @@ export const useTraceStore = defineStore("trace", () => {
         // running model existed has been removed: assistant turns are
         // rendered directly in ChatPanel via `useChatStream`, and the
         // pseudo entry was duplicating those rows in the unified feed.
-        const runningModel = entries.value.find(
-          (e) => e.kind === "tool" && e.toolId === "model" && e.status === "running"
-        );
+        const runningModel = latestModelEntry("running");
         if (runningModel) {
           runningModel.status = "completed";
           runningModel.durationMs = Date.now() - runningModel.startedAt;
