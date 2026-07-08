@@ -30,6 +30,24 @@ fn parses_ollama_done_line() {
     assert!(matches!(event, Some(ModelEvent::Completed { usage: None })));
 }
 
+#[test]
+fn ollama_usage_parses_prompt_and_eval_counts_from_done_line() {
+    let line = r#"{"message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":12,"eval_count":34}"#;
+    let event = parse_ollama_line(line).unwrap();
+
+    assert_eq!(
+        event,
+        Some(ModelEvent::Completed {
+            usage: Some(crate::ModelUsage {
+                input_tokens: 12,
+                output_tokens: 34,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
+            })
+        })
+    );
+}
+
 #[tokio::test]
 async fn streams_from_wiremock_server() {
     use wiremock::matchers::{method, path};

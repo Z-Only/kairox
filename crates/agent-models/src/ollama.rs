@@ -1,4 +1,4 @@
-use crate::{ModelError, ModelEvent, ModelRequest, Result};
+use crate::{ModelError, ModelEvent, ModelRequest, ModelUsage, Result};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
@@ -174,7 +174,19 @@ fn parse_ollama_line(line: &str) -> Result<Option<ModelEvent>> {
         serde_json::from_str(line).map_err(|e| ModelError::StreamParse(e.to_string()))?;
 
     if value["done"].as_bool() == Some(true) {
-        return Ok(Some(ModelEvent::Completed { usage: None }));
+        let usage = match (
+            value["prompt_eval_count"].as_u64(),
+            value["eval_count"].as_u64(),
+        ) {
+            (Some(input_tokens), Some(output_tokens)) => Some(ModelUsage {
+                input_tokens,
+                output_tokens,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
+            }),
+            _ => None,
+        };
+        return Ok(Some(ModelEvent::Completed { usage }));
     }
 
     if let Some(content) = value["message"]["content"].as_str() {

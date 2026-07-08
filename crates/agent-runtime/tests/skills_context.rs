@@ -234,6 +234,7 @@ async fn send_message_includes_profile_server_tools_in_model_request() {
         .iter_mut()
         .find(|(alias, _)| alias == "fake")
         .expect("default fake profile should exist");
+    fake_profile.provider = "anthropic".into();
     fake_profile.server_tool_code_execution = Some(true);
     fake_profile.server_tool_web_search = Some(true);
 

@@ -27,6 +27,7 @@ pub(crate) fn server_tools_for_profile(
         .profiles
         .iter()
         .find(|(alias, def)| alias == model_profile_alias && def.enabled)
+        .filter(|(_, def)| profile_supports_server_tools(def))
         .map(|(_, def)| {
             agent_models::types::server_tools_from_profile(
                 def.server_tool_code_execution.unwrap_or(false),
@@ -34,6 +35,22 @@ pub(crate) fn server_tools_for_profile(
             )
         })
         .unwrap_or_default()
+}
+
+fn profile_supports_server_tools(def: &agent_config::ProfileDef) -> bool {
+    let provider = def.provider.to_ascii_lowercase();
+    provider == "anthropic"
+        || provider.contains("anthropic")
+        || uses_anthropic_base_url(def.base_url.as_deref())
+}
+
+fn uses_anthropic_base_url(base_url: Option<&str>) -> bool {
+    base_url
+        .map(|url| {
+            let normalized = url.trim_end_matches('/').to_ascii_lowercase();
+            normalized.ends_with("/anthropic") || normalized.contains("/anthropic/")
+        })
+        .unwrap_or(false)
 }
 
 /// Prepare everything the model request needs for this turn:

@@ -118,6 +118,7 @@ test("compactSessionDiagnostics emits stable compact counts from diagnostics JSO
     permission_denied_tool_counts: {},
     forbidden_tool_denied_count: 0,
     model_token_delta_count: 5,
+    model_stream_failure: null,
     has_tool_progress: true,
     suspicious_no_tool_completion: false,
     trajectory_started_count: 2,
@@ -334,6 +335,7 @@ test("CLI writes the same compact JSON to stdout and --out", async () => {
       permission_denied_tool_counts: {},
       forbidden_tool_denied_count: 0,
       model_token_delta_count: 0,
+      model_stream_failure: null,
       has_tool_progress: false,
       suspicious_no_tool_completion: false,
       trajectory_started_count: 0,
@@ -405,6 +407,7 @@ test("CLI overlays explicit resume metadata", async () => {
     permission_denied_tool_counts: {},
     forbidden_tool_denied_count: 0,
     model_token_delta_count: 0,
+    model_stream_failure: null,
     has_tool_progress: false,
     suspicious_no_tool_completion: false,
     trajectory_started_count: 0,
@@ -413,6 +416,138 @@ test("CLI overlays explicit resume metadata", async () => {
     failure_signal: null,
     has_terminal_assistant_message: false
   });
+});
+
+test("model stream stalled after progress becomes structured failure signal", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_model_stream_stalled",
+    event_type_counts: { AgentTaskFailed: 1, TrajectoryCompleted: 1 },
+    trajectory_completed_outcomes: [{ trajectory_id: "t1", step_count: 1, outcome: "failed" }],
+    user_messages: [{ message_id: "u1", content: "secret user prompt" }],
+    recent_model_stream_statuses: [
+      {
+        phase: "stream_event",
+        retrying: false,
+        retry_attempt: 3,
+        max_retries: 3,
+        message:
+          "model stream timed out after progress last_event=tool_call_delta assistant_chars=42 emitted_tool_calls=2 model_profile=fast model_id=gpt-5 provider=openai base_url=https://models.example/v1 token_delta=SECRET"
+      }
+    ]
+  });
+
+  assert.deepEqual(compact.model_stream_failure, {
+    kind: "stalled_after_progress",
+    phase: "stream_event",
+    retry_attempt: 3,
+    max_retries: 3,
+    last_event: "tool_call_delta",
+    assistant_chars: 42,
+    emitted_tool_calls: 2,
+    model_profile: "fast",
+    model_id: "gpt-5",
+    provider: "openai",
+    base_url: "https://models.example/v1"
+  });
+  assert.equal(compact.failure_signal, "model_stream_stalled_after_progress");
+  const compactJson = JSON.stringify(compact);
+  assert.doesNotMatch(compactJson, /secret user prompt/);
+  assert.doesNotMatch(compactJson, /SECRET/);
+});
+
+test("model stream no-event timeout is not classified as stalled after progress", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_model_stream_no_event",
+    recent_model_stream_statuses: [
+      {
+        phase: "stream_start",
+        retrying: false,
+        retry_attempt: 2,
+        max_retries: 2,
+        message:
+          "model stream timed out before any events last_event=none assistant_chars=0 emitted_tool_calls=0 model_profile=slow model_id=claude provider=anthropic"
+      }
+    ]
+  });
+
+  assert.deepEqual(compact.model_stream_failure, {
+    kind: "no_event_timeout",
+    phase: "stream_start",
+    retry_attempt: 2,
+    max_retries: 2,
+    last_event: "none",
+    assistant_chars: 0,
+    emitted_tool_calls: 0,
+    model_profile: "slow",
+    model_id: "claude",
+    provider: "anthropic",
+    base_url: null
+  });
+  assert.equal(compact.failure_signal, "model_stream_no_event_timeout");
+});
+
+test("model stream retrying status alone is not promoted to failure signal", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_model_stream_retrying",
+    event_type_counts: { TrajectoryCompleted: 1 },
+    trajectory_completed_outcomes: [{ trajectory_id: "t1", step_count: 1, outcome: "failed" }],
+    recent_model_stream_statuses: [
+      {
+        phase: "stream_event",
+        retrying: true,
+        retry_attempt: 1,
+        max_retries: 3,
+        message:
+          "model stream timed out last_event=token_delta assistant_chars=11 emitted_tool_calls=0 model_profile=fast model_id=gpt-5 provider=openai"
+      }
+    ]
+  });
+
+  assert.equal(compact.model_stream_failure, null);
+  assert.equal(compact.failure_signal, "trajectory_failed");
+});
+
+test("model stream non-timeout status is not promoted to failure signal", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_model_stream_status",
+    recent_model_stream_statuses: [
+      {
+        phase: "stream_event",
+        retrying: false,
+        retry_attempt: 1,
+        max_retries: 3,
+        message: "model stream received normal completion marker"
+      }
+    ]
+  });
+
+  assert.equal(compact.model_stream_failure, null);
+  assert.equal(compact.failure_signal, null);
+});
+
+test("model stream failure omits transcript content and token deltas", () => {
+  const compact = compactSessionDiagnostics({
+    session_id: "ses_model_stream_redacted",
+    user_messages: [{ message_id: "u1", content: "USER_PRIVATE_TEXT" }],
+    assistant_messages: [{ message_id: "a1", content: "ASSISTANT_PRIVATE_TEXT" }],
+    recent_model_stream_statuses: [
+      {
+        phase: "stream_event",
+        retrying: false,
+        retry_attempt: 1,
+        max_retries: 1,
+        message:
+          "stream stalled last_event=token_delta assistant_chars=8 emitted_tool_calls=0 model_profile=fast model_id=gpt-5 provider=openai delta=TOKEN_PRIVATE_TEXT"
+      }
+    ]
+  });
+
+  const compactJson = JSON.stringify(compact);
+  assert.equal(compact.model_stream_failure.kind, "stalled_after_progress");
+  assert.doesNotMatch(compactJson, /USER_PRIVATE_TEXT/);
+  assert.doesNotMatch(compactJson, /ASSISTANT_PRIVATE_TEXT/);
+  assert.doesNotMatch(compactJson, /TOKEN_PRIVATE_TEXT/);
+  assert.doesNotMatch(compactJson, /delta=/);
 });
 
 test("CLI infers branch metadata from worktree_path", async () => {

@@ -25,6 +25,7 @@ const selectedTraceFilter = ref<TraceStatusFilter>("all");
 const selectedTraceKindFilter = ref<TraceKindFilter>("all");
 const traceSearchQuery = ref("");
 const copyingDiagnostics = ref(false);
+const copyingDiagnosticsBundle = ref(false);
 const normalizedTraceSearchQuery = computed(() => traceSearchQuery.value.trim().toLowerCase());
 const activeTraceStatuses = new Set(["pending", "running"]);
 const canOpenChangesTab = computed(() => {
@@ -139,6 +140,25 @@ async function copySessionDiagnostics() {
   }
 }
 
+async function copySessionDiagnosticsBundle() {
+  const sessionId = session.currentSessionId;
+  if (!sessionId || copyingDiagnosticsBundle.value) return;
+
+  copyingDiagnosticsBundle.value = true;
+  try {
+    const result = await commands.exportSessionDiagnosticsBundle(sessionId);
+    if (result.status === "error") {
+      throw new Error(result.error);
+    }
+    await navigator.clipboard.writeText(JSON.stringify(result.data));
+    toast.success(t("trace.diagnosticsBundleCopied"));
+  } catch (error) {
+    toast.error(t("trace.diagnosticsBundleCopyFailed", { error: String(error) }));
+  } finally {
+    copyingDiagnosticsBundle.value = false;
+  }
+}
+
 async function openChangesTab(): Promise<void> {
   if (!canOpenChangesTab.value) return;
 
@@ -221,6 +241,22 @@ async function openChangesTab(): Promise<void> {
         </KxButton>
       </div>
       <div class="trace-header-actions">
+        <KxIconButton
+          size="sm"
+          variant="default"
+          :label="t('trace.copyDiagnosticsBundle')"
+          :title="t('trace.copyDiagnosticsBundle')"
+          :disabled="!session.currentSessionId"
+          :busy="copyingDiagnosticsBundle"
+          data-test="trace-copy-diagnostics-bundle"
+          @click="copySessionDiagnosticsBundle"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path
+              d="M4 2h8l4 4v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.7V7h3.3L11 3.7ZM4 4v12h10V9H9V4H4Zm2 7h6v1.3H6V11Zm0 2.6h4.5V15H6v-1.4Z"
+            />
+          </svg>
+        </KxIconButton>
         <KxIconButton
           size="sm"
           variant="default"

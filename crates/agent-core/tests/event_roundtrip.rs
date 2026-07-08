@@ -126,6 +126,18 @@ fn model_request_started_roundtrips() {
 }
 
 #[test]
+fn model_usage_recorded_roundtrips() {
+    let event = make_event(EventPayload::ModelUsageRecorded {
+        model_profile: "fast".into(),
+        input_tokens: 123,
+        output_tokens: 45,
+        cache_creation_input_tokens: Some(10),
+        cache_read_input_tokens: Some(20),
+    });
+    assert_eq!(roundtrip(&event), event);
+}
+
+#[test]
 fn model_token_delta_roundtrips() {
     let event = make_event(EventPayload::ModelTokenDelta {
         delta: "hello".into(),

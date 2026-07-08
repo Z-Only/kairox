@@ -70,10 +70,28 @@ pub async fn export_session_diagnostics(
     Ok(summary)
 }
 
+/// Returns a redacted diagnostics bundle suitable for bug reports.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_session_diagnostics_bundle(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<SessionDiagnosticsBundleResponse, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let trace = state
+        .runtime
+        .export_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to export session diagnostics bundle: {e}"))?;
+    Ok(build_redacted_diagnostics_bundle(&trace, &state.home_dir))
+}
+
 fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut event_type_counts = std::collections::BTreeMap::<String, u32>::new();
     let mut user_messages = Vec::new();
     let mut assistant_messages = Vec::new();
+    let mut model_stream_statuses =
+        std::collections::VecDeque::<ModelStreamStatusDiagnosticsResponse>::new();
     let mut model_tool_calls = Vec::new();
     let mut mcp_tool_calls = Vec::new();
     let mut trajectory_started_count = 0_u32;
@@ -85,6 +103,9 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
     let mut has_terminal_assistant_message = false;
     let mut permission_request_tool_ids = std::collections::BTreeMap::<String, String>::new();
     let mut permission_denied_tool_counts = std::collections::BTreeMap::<String, u32>::new();
+    let mut model_usage = ModelUsageDiagnosticsResponse::default();
+    let mut model_usage_by_profile =
+        std::collections::BTreeMap::<String, ModelUsageByProfileDiagnosticsResponse>::new();
 
     for event in &trace.events {
         let count = event_type_counts
@@ -103,6 +124,62 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
             }),
             agent_core::EventPayload::ModelRequestStarted { .. } => {
                 running_model_requests = running_model_requests.saturating_add(1);
+            }
+            agent_core::EventPayload::ModelUsageRecorded {
+                model_profile,
+                input_tokens,
+                output_tokens,
+                cache_creation_input_tokens,
+                cache_read_input_tokens,
+            } => {
+                let cache_creation = cache_creation_input_tokens.unwrap_or(0);
+                let cache_read = cache_read_input_tokens.unwrap_or(0);
+                model_usage.request_count = model_usage.request_count.saturating_add(1);
+                saturating_add_tokens(&mut model_usage.total_input_tokens, *input_tokens);
+                saturating_add_tokens(&mut model_usage.total_output_tokens, *output_tokens);
+                saturating_add_tokens(
+                    &mut model_usage.total_cache_creation_input_tokens,
+                    cache_creation,
+                );
+                saturating_add_tokens(&mut model_usage.total_cache_read_input_tokens, cache_read);
+
+                let profile_usage = model_usage_by_profile
+                    .entry(model_profile.clone())
+                    .or_insert_with(|| ModelUsageByProfileDiagnosticsResponse {
+                        model_profile: model_profile.clone(),
+                        request_count: 0,
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0,
+                    });
+                profile_usage.request_count = profile_usage.request_count.saturating_add(1);
+                saturating_add_tokens(&mut profile_usage.input_tokens, *input_tokens);
+                saturating_add_tokens(&mut profile_usage.output_tokens, *output_tokens);
+                saturating_add_tokens(
+                    &mut profile_usage.cache_creation_input_tokens,
+                    cache_creation,
+                );
+                saturating_add_tokens(&mut profile_usage.cache_read_input_tokens, cache_read);
+            }
+            agent_core::EventPayload::ModelStreamStatus {
+                phase,
+                retrying,
+                retry_attempt,
+                max_retries,
+                message,
+            } => {
+                const RECENT_MODEL_STREAM_STATUS_LIMIT: usize = 5;
+                model_stream_statuses.push_back(ModelStreamStatusDiagnosticsResponse {
+                    phase: phase.clone(),
+                    retrying: *retrying,
+                    retry_attempt: *retry_attempt,
+                    max_retries: *max_retries,
+                    message: message.clone(),
+                });
+                while model_stream_statuses.len() > RECENT_MODEL_STREAM_STATUS_LIMIT {
+                    model_stream_statuses.pop_front();
+                }
             }
             agent_core::EventPayload::AssistantMessageCompleted {
                 message_id,
@@ -186,6 +263,8 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         }
     }
 
+    model_usage.by_profile = model_usage_by_profile.into_values().collect();
+
     SessionDiagnosticsResponse {
         session_id: trace.session_id.to_string(),
         event_count: trace.event_count as u32,
@@ -211,7 +290,66 @@ fn summarize_trace_export(trace: &TraceExport) -> SessionDiagnosticsResponse {
         running_tool_invocations,
         trajectory_failed_count,
         has_terminal_assistant_message,
+        recent_model_stream_statuses: model_stream_statuses.into_iter().collect(),
+        model_usage,
     }
+}
+
+fn saturating_add_tokens(total: &mut u32, amount: u64) {
+    *total = (*total).saturating_add(u32::try_from(amount).unwrap_or(u32::MAX));
+}
+
+fn build_redacted_diagnostics_bundle(
+    trace: &TraceExport,
+    data_dir: &std::path::Path,
+) -> SessionDiagnosticsBundleResponse {
+    let mut summary = summarize_trace_export(trace);
+    attach_event_db_metadata(&mut summary, data_dir);
+    let redaction = redact_diagnostics_summary(&mut summary);
+    SessionDiagnosticsBundleResponse {
+        schema_version: 1,
+        generated_at: trace.generated_at.to_rfc3339(),
+        redaction,
+        summary,
+    }
+}
+
+fn redact_diagnostics_summary(
+    summary: &mut SessionDiagnosticsResponse,
+) -> SessionDiagnosticsRedactionResponse {
+    for message in &mut summary.user_messages {
+        message.content = redacted_content_marker(&message.content);
+    }
+    for message in &mut summary.assistant_messages {
+        message.content = redacted_content_marker(&message.content);
+    }
+    for status in &mut summary.recent_model_stream_statuses {
+        status.message = redacted_content_marker(&status.message);
+    }
+    summary.event_db_path = None;
+    summary.event_db_path_source = Some("redacted".to_string());
+
+    SessionDiagnosticsRedactionResponse {
+        applied: true,
+        strategy: "fixed_length_markers".to_string(),
+        redacted_fields: vec![
+            "summary.user_messages.content".to_string(),
+            "summary.assistant_messages.content".to_string(),
+            "summary.recent_model_stream_statuses.message".to_string(),
+            "summary.event_db_path".to_string(),
+        ],
+        max_message_preview_chars: 0,
+    }
+}
+
+fn redacted_content_marker(content: &str) -> String {
+    let char_count = content.chars().count();
+    let line_count = if content.is_empty() {
+        0
+    } else {
+        content.lines().count().max(1)
+    };
+    format!("[redacted: {char_count} chars, {line_count} lines]")
 }
 
 fn attach_event_db_metadata(summary: &mut SessionDiagnosticsResponse, data_dir: &std::path::Path) {
@@ -849,7 +987,9 @@ pub async fn export_trajectory(
 
 #[cfg(test)]
 mod session_diagnostics_tests {
-    use super::{attach_event_db_metadata, summarize_trace_export};
+    use super::{
+        attach_event_db_metadata, build_redacted_diagnostics_bundle, summarize_trace_export,
+    };
     use agent_core::{
         DomainEvent, EventPayload, PrivacyClassification, SessionId, TraceExport, WorkspaceId,
     };
@@ -980,6 +1120,92 @@ mod session_diagnostics_tests {
     }
 
     #[test]
+    fn summarize_trace_export_totals_model_usage() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::ModelUsageRecorded {
+                    model_profile: "fast".into(),
+                    input_tokens: 100,
+                    output_tokens: 40,
+                    cache_creation_input_tokens: Some(7),
+                    cache_read_input_tokens: Some(11),
+                }),
+                event(EventPayload::ModelUsageRecorded {
+                    model_profile: "fast".into(),
+                    input_tokens: 20,
+                    output_tokens: 5,
+                    cache_creation_input_tokens: None,
+                    cache_read_input_tokens: Some(3),
+                }),
+            ],
+        );
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.model_usage.total_input_tokens, 120);
+        assert_eq!(summary.model_usage.total_output_tokens, 45);
+        assert_eq!(summary.model_usage.total_cache_creation_input_tokens, 7);
+        assert_eq!(summary.model_usage.total_cache_read_input_tokens, 14);
+        assert_eq!(summary.model_usage.request_count, 2);
+        assert_eq!(summary.model_usage.by_profile.len(), 1);
+        assert_eq!(summary.model_usage.by_profile[0].model_profile, "fast");
+        assert_eq!(summary.model_usage.by_profile[0].input_tokens, 120);
+        assert_eq!(summary.model_usage.by_profile[0].output_tokens, 45);
+    }
+
+    #[test]
+    fn redacted_session_diagnostics_bundle_redacts_sensitive_fields() {
+        let trace = TraceExport::new(
+            SessionId::from_string("ses_diag".to_string()),
+            vec![
+                event(EventPayload::UserMessageAdded {
+                    message_id: "u_secret".into(),
+                    content: "my api key is sk-secret".into(),
+                    display_content: None,
+                }),
+                event(EventPayload::AssistantMessageCompleted {
+                    message_id: "a_secret".into(),
+                    content: "the secret value was sk-secret".into(),
+                }),
+                event(EventPayload::ModelStreamStatus {
+                    phase: "stream_error".into(),
+                    retrying: true,
+                    retry_attempt: 1,
+                    max_retries: 3,
+                    message: "provider said sk-secret failed".into(),
+                }),
+            ],
+        );
+
+        let bundle =
+            build_redacted_diagnostics_bundle(&trace, Path::new("/tmp/private/kairox-home"));
+
+        assert_eq!(bundle.schema_version, 1);
+        assert!(bundle.redaction.applied);
+        assert_eq!(bundle.summary.event_count, 3);
+        assert_eq!(bundle.summary.user_messages[0].message_id, "u_secret");
+        assert!(!bundle.summary.user_messages[0]
+            .content
+            .contains("sk-secret"));
+        assert!(!bundle.summary.assistant_messages[0]
+            .content
+            .contains("sk-secret"));
+        assert!(!bundle.summary.recent_model_stream_statuses[0]
+            .message
+            .contains("sk-secret"));
+        assert!(bundle.summary.event_db_path.is_none());
+        assert_eq!(
+            bundle.summary.event_db_path_source.as_deref(),
+            Some("redacted")
+        );
+        assert!(bundle
+            .redaction
+            .redacted_fields
+            .contains(&"summary.user_messages.content".to_string()));
+    }
+
+    #[test]
     fn summarize_trace_export_reports_stuck_signals_without_terminal_message() {
         let trace = TraceExport::new(
             SessionId::from_string("ses_diag".to_string()),
@@ -1057,6 +1283,31 @@ mod session_diagnostics_tests {
 
         assert_eq!(summary.running_model_requests, 0);
         assert!(summary.has_terminal_assistant_message);
+    }
+
+    #[test]
+    fn summarize_trace_export_keeps_recent_model_stream_statuses() {
+        let mut events = Vec::new();
+        for index in 0..7 {
+            events.push(event(EventPayload::ModelStreamStatus {
+                phase: format!("phase_{index}"),
+                retrying: index < 6,
+                retry_attempt: index,
+                max_retries: 6,
+                message: format!("status {index}"),
+            }));
+        }
+        let trace = TraceExport::new(SessionId::from_string("ses_diag".to_string()), events);
+
+        let summary = summarize_trace_export(&trace);
+
+        assert_eq!(summary.recent_model_stream_statuses.len(), 5);
+        assert_eq!(summary.recent_model_stream_statuses[0].phase, "phase_2");
+        assert_eq!(summary.recent_model_stream_statuses[4].phase, "phase_6");
+        assert!(!summary.recent_model_stream_statuses[4].retrying);
+        assert_eq!(summary.recent_model_stream_statuses[4].retry_attempt, 6);
+        assert_eq!(summary.recent_model_stream_statuses[4].max_retries, 6);
+        assert_eq!(summary.recent_model_stream_statuses[4].message, "status 6");
     }
 
     #[test]

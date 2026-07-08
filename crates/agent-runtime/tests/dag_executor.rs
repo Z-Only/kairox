@@ -212,6 +212,7 @@ async fn dag_executor_request_model_uses_profile_server_tools() {
         .find(|(alias, _)| alias == "fake")
         .map(|(_, def)| def.clone())
         .expect("default fake profile should exist");
+    reasoning_profile.provider = "anthropic".into();
     reasoning_profile.server_tool_code_execution = Some(true);
     reasoning_profile.server_tool_web_search = Some(true);
     model_config
