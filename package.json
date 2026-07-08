@@ -35,15 +35,15 @@
     "prepare": "bun scripts/prepare.cjs"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.1.0",
-    "@commitlint/config-conventional": "^21.1.0",
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
-    "mermaid": "^11.4.1",
-    "oxfmt": "^0.56.0",
-    "oxlint": "^1.71.0",
+    "mermaid": "^11.16.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
     "postcss-html": "^1.8.1",
-    "stylelint": "^17.13.0",
+    "stylelint": "^17.14.0",
     "stylelint-config-recommended-vue": "^1.6.1",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17"
