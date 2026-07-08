@@ -74,6 +74,8 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 5. package.json (root)
 6. docs/current-release.json and public docs (run `bun run release-docs:sync`, then `bun run release-docs:check`)
 
+After regenerating Cargo.lock, verify that only workspace package versions changed. If registry package versions, checksums, or sources drift, restore the lockfile from the latest main and run `cargo update -w`.
+
 ## Common mistakes to avoid
 - Using `npm`, `pnpm`, or `yarn` instead of Bun
 - Setting `version` in individual crate Cargo.toml

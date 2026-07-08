@@ -188,7 +188,7 @@ Kairox 会按顺序解析这些 plugin manifest:`.kairox-plugin/plugin.json`、`
     "tools": ["shell.exec", "fs.read"]
   },
   "compatibility": {
-    "kairoxVersion": ">=0.42.0 <0.43.0",
+    "kairoxVersion": ">=0.43.0 <0.44.0",
     "platforms": ["macos", "linux"],
     "requires": ["node >=20", "git"]
   },
