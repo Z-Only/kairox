@@ -209,7 +209,121 @@ function snakeCaseEventType(eventType) {
   return eventType.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
-function failureSignal(eventTypeCounts, trajectoryFailedCountValue, trajectoryCancelledCountValue) {
+function stringOrNull(value) {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function numberOrNull(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.trunc(value));
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.trunc(parsed));
+    }
+  }
+  return null;
+}
+
+function parseModelStreamMessage(message) {
+  const parsed = {
+    last_event: null,
+    assistant_chars: null,
+    emitted_tool_calls: null,
+    model_profile: null,
+    model_id: null,
+    provider: null,
+    base_url: null
+  };
+  if (typeof message !== "string") {
+    return parsed;
+  }
+
+  const patterns = {
+    last_event: /(?:^|[\s,;])last_event=([^\s,;]+)/,
+    assistant_chars: /(?:^|[\s,;])assistant_chars=(\d+)/,
+    emitted_tool_calls: /(?:^|[\s,;])emitted_tool_calls=(\d+)/,
+    model_profile: /(?:^|[\s,;])model_profile=([^\s,;]+)/,
+    model_id: /(?:^|[\s,;])model_id=([^\s,;]+)/,
+    provider: /(?:^|[\s,;])provider=([^\s,;]+)/,
+    base_url: /(?:^|[\s,;])base_url=([^\s,;]+)/
+  };
+
+  for (const [key, pattern] of Object.entries(patterns)) {
+    const match = message.match(pattern);
+    if (!match) {
+      continue;
+    }
+    parsed[key] =
+      key === "assistant_chars" || key === "emitted_tool_calls" ? numberOrNull(match[1]) : match[1];
+  }
+
+  return parsed;
+}
+
+function modelStreamStatusEntries(source) {
+  const value = firstPresent(source, [
+    "recent_model_stream_statuses",
+    "recentModelStreamStatuses",
+    "model_stream_statuses",
+    "modelStreamStatuses"
+  ]);
+  return Array.isArray(value) ? value : [];
+}
+
+function modelStreamFailure(source) {
+  const statuses = modelStreamStatusEntries(source);
+  for (const status of statuses.slice().reverse()) {
+    if (!status || typeof status !== "object") {
+      continue;
+    }
+    if (firstPresent(status, ["retrying"]) === true) {
+      continue;
+    }
+
+    const phase = stringOrNull(firstPresent(status, ["phase"]));
+    const message = stringOrNull(firstPresent(status, ["message"]));
+    const parsedMessage = parseModelStreamMessage(message);
+    const assistantChars = parsedMessage.assistant_chars;
+    const emittedToolCalls = parsedMessage.emitted_tool_calls;
+    const hasProgress = (assistantChars ?? 0) > 0 || (emittedToolCalls ?? 0) > 0;
+    const timeoutLike =
+      /timeout|timed out|stalled|prematurely|without producing|no stream events|before any events/i.test(
+        message ?? ""
+      );
+    if (!timeoutLike) {
+      continue;
+    }
+
+    return {
+      kind: hasProgress ? "stalled_after_progress" : "no_event_timeout",
+      phase,
+      retry_attempt: numberOrNull(firstPresent(status, ["retry_attempt", "retryAttempt"])),
+      max_retries: numberOrNull(firstPresent(status, ["max_retries", "maxRetries"])),
+      last_event: parsedMessage.last_event,
+      assistant_chars: assistantChars,
+      emitted_tool_calls: emittedToolCalls,
+      model_profile:
+        parsedMessage.model_profile ??
+        firstPresentOrNull(source, ["model_profile", "modelProfile"]),
+      model_id: parsedMessage.model_id ?? firstPresentOrNull(source, ["model_id", "modelId"]),
+      provider: parsedMessage.provider ?? firstPresentOrNull(source, ["provider"]),
+      base_url: parsedMessage.base_url ?? firstPresentOrNull(source, ["base_url", "baseUrl"])
+    };
+  }
+  return null;
+}
+
+function failureSignal(
+  eventTypeCounts,
+  trajectoryFailedCountValue,
+  trajectoryCancelledCountValue,
+  modelStreamFailureValue
+) {
+  if (modelStreamFailureValue) {
+    return `model_stream_${modelStreamFailureValue.kind}`;
+  }
   for (const eventType of Object.keys(eventTypeCounts)) {
     if (
       countValue(eventTypeCounts[eventType]) > 0 &&
@@ -297,6 +411,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
   );
   const trajectoryFailedCountValue = trajectoryFailedCount(diagnostics);
   const trajectoryCancelledCountValue = trajectoryCancelledCount(diagnostics);
+  const modelStreamFailureValue = modelStreamFailure(diagnostics);
   const hasToolProgress =
     modelToolCallCount > 0 || mcpToolCallCount > 0 || runningToolInvocations > 0;
   const terminalAssistantMessage = hasTerminalAssistantMessage(diagnostics);
@@ -364,6 +479,7 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
       0
     ),
     model_token_delta_count: modelTokenDeltaCount,
+    model_stream_failure: modelStreamFailureValue,
     has_tool_progress: hasToolProgress,
     suspicious_no_tool_completion: terminalAssistantMessage && !hasToolProgress,
     trajectory_started_count: countValue(
@@ -378,7 +494,8 @@ export function compactSessionDiagnostics(rawDiagnostics, { sessionId } = {}) {
     failure_signal: failureSignal(
       eventTypeCounts,
       trajectoryFailedCountValue,
-      trajectoryCancelledCountValue
+      trajectoryCancelledCountValue,
+      modelStreamFailureValue
     ),
     has_terminal_assistant_message: terminalAssistantMessage
   };

@@ -210,6 +210,29 @@ impl Default for EvalRunOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct EvalModelUsage {
+    pub request_count: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_creation_input_tokens: u64,
+    pub cache_read_input_tokens: u64,
+}
+
+impl EvalModelUsage {
+    pub fn add(&mut self, other: &Self) {
+        self.request_count = self.request_count.saturating_add(other.request_count);
+        self.input_tokens = self.input_tokens.saturating_add(other.input_tokens);
+        self.output_tokens = self.output_tokens.saturating_add(other.output_tokens);
+        self.cache_creation_input_tokens = self
+            .cache_creation_input_tokens
+            .saturating_add(other.cache_creation_input_tokens);
+        self.cache_read_input_tokens = self
+            .cache_read_input_tokens
+            .saturating_add(other.cache_read_input_tokens);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct EvalResult {
     pub scenario_id: String,
     pub profile: String,
@@ -232,6 +255,8 @@ pub struct EvalResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_usage: Option<EvalModelUsage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace: Option<Vec<DomainEvent>>,
     #[serde(default)]
     pub turns_count: usize,
@@ -253,6 +278,8 @@ pub struct EvalSummary {
     pub total_tool_failures: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_context_input_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_model_usage: Option<EvalModelUsage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -285,6 +312,14 @@ impl EvalSummary {
         } else {
             Some(token_values.into_iter().sum())
         };
+        let total_model_usage = results
+            .iter()
+            .filter_map(|result| result.model_usage.as_ref())
+            .fold(None, |acc: Option<EvalModelUsage>, usage| {
+                let mut total = acc.unwrap_or_default();
+                total.add(usage);
+                Some(total)
+            });
 
         Self {
             total,
@@ -304,6 +339,7 @@ impl EvalSummary {
             total_tool_invocations,
             total_tool_failures,
             total_context_input_tokens,
+            total_model_usage,
         }
     }
 }

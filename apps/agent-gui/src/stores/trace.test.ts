@@ -200,6 +200,97 @@ describe("trace store", () => {
       expect(trace.entries[0].outputPreview).toBe("Hello, world!");
     });
 
+    it("updates the running model entry with retrying stream status", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelRequestStarted",
+          model_profile: "sonnet",
+          model_id: "claude-sonnet-4-20250514"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelStreamStatus",
+          phase: "stream_start",
+          retrying: true,
+          retry_attempt: 1,
+          max_retries: 1,
+          message: "stream_start timed out; retrying"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        kind: "tool",
+        toolId: "model",
+        status: "running"
+      });
+      expect(trace.entries[0].title).toContain("retry 1/1");
+      expect(trace.entries[0].title).toContain("stream_start");
+      expect(trace.entries[0].title).toContain("retrying");
+      expect(trace.entries[0].outputPreview).toContain("retry 1/1");
+      expect(trace.entries[0].outputPreview).toContain("stream_start");
+      expect(trace.entries[0].outputPreview).toContain("retrying");
+    });
+
+    it("marks the model entry failed for non-retrying stream status", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelRequestStarted",
+          model_profile: "sonnet",
+          model_id: "claude-sonnet-4-20250514"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelStreamStatus",
+          phase: "stream_start",
+          retrying: false,
+          retry_attempt: 1,
+          max_retries: 1,
+          message: "stream_start retry exhausted; failing turn"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        kind: "tool",
+        toolId: "model",
+        status: "failed"
+      });
+      expect(trace.entries[0].title).toContain("failed");
+      expect(trace.entries[0].outputPreview).toContain("retry 1/1");
+      expect(trace.entries[0].outputPreview).toContain("failing turn");
+    });
+
+    it("creates a model row when stream status arrives without a request row", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelStreamStatus",
+          phase: "stream_event",
+          retrying: false,
+          retry_attempt: 0,
+          max_retries: 0,
+          message: "stream_event timed out after 30000ms"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0]).toMatchObject({
+        kind: "tool",
+        toolId: "model",
+        status: "failed"
+      });
+      expect(trace.entries[0].title).toContain("stream_event");
+      expect(trace.entries[0].outputPreview).toContain("stream_event timed out");
+    });
+
     it("does nothing when no running model entry exists", () => {
       const trace = useTraceStore();
       // AssistantMessageCompleted without a preceding ModelRequestStarted

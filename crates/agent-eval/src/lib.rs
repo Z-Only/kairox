@@ -15,6 +15,9 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod lib_tests;
 mod types;
 #[cfg(test)]
 #[path = "types_tests.rs"]
@@ -22,8 +25,8 @@ mod types_tests;
 
 pub use types::{
     EvalCommandExpectation, EvalComparison, EvalError, EvalExpectation, EvalFileExpectation,
-    EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result, ScenarioImprovement,
-    ScenarioRegression,
+    EvalModelUsage, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result,
+    ScenarioImprovement, ScenarioRegression,
 };
 
 pub struct EvalHarness {
@@ -213,6 +216,7 @@ impl EvalHarness {
         let tool_failures = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::ToolInvocationFailed { .. })
         });
+        let model_usage = model_usage_from_events(&trace_events);
         let context_input_tokens = projection
             .last_context_usage
             .as_ref()
@@ -285,6 +289,7 @@ impl EvalHarness {
             tool_failures,
             context_input_tokens,
             context_window,
+            model_usage,
             trace: self.options.include_trace.then_some(trace_events),
             turns_count,
             trajectory_actions,
@@ -355,6 +360,7 @@ impl EvalHarness {
                         tool_failures: 0,
                         context_input_tokens: None,
                         context_window: None,
+                        model_usage: None,
                         trace: None,
                         turns_count: 0,
                         trajectory_actions: Vec::new(),
@@ -422,6 +428,7 @@ impl EvalHarness {
         let tool_failures = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::ToolInvocationFailed { .. })
         });
+        let model_usage = model_usage_from_events(&trace_events);
         let turns_count = count_events(&trace_events, |payload| {
             matches!(payload, EventPayload::AssistantMessageCompleted { .. })
         });
@@ -446,6 +453,7 @@ impl EvalHarness {
             tool_failures,
             context_input_tokens,
             context_window,
+            model_usage,
             trace: self.options.include_trace.then_some(trace_events),
             turns_count,
             trajectory_step_count: Some(tool_invocations as u32),
@@ -978,6 +986,29 @@ fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> boo
         .iter()
         .filter(|event| predicate(&event.payload))
         .count()
+}
+
+fn model_usage_from_events(events: &[DomainEvent]) -> Option<EvalModelUsage> {
+    events.iter().fold(None, |acc, event| match &event.payload {
+        EventPayload::ModelUsageRecorded {
+            input_tokens,
+            output_tokens,
+            cache_creation_input_tokens,
+            cache_read_input_tokens,
+            ..
+        } => {
+            let mut total = acc.unwrap_or_default();
+            total.add(&EvalModelUsage {
+                request_count: 1,
+                input_tokens: *input_tokens,
+                output_tokens: *output_tokens,
+                cache_creation_input_tokens: cache_creation_input_tokens.unwrap_or(0),
+                cache_read_input_tokens: cache_read_input_tokens.unwrap_or(0),
+            });
+            Some(total)
+        }
+        _ => acc,
+    })
 }
 
 fn trace_event(entry: TraceEntry) -> DomainEvent {

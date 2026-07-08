@@ -802,6 +802,9 @@
     "searchPlaceholder": "Search trace events",
     "densityLabel": "Detail:",
     "tabTrajectory": "Trajectory",
+    "copyDiagnosticsBundle": "Copy redacted diagnostics bundle",
+    "diagnosticsBundleCopied": "Redacted diagnostics bundle copied",
+    "diagnosticsBundleCopyFailed": "Failed to copy redacted diagnostics bundle: {error}",
     "copyDiagnostics": "Copy session diagnostics",
     "diagnosticsCopied": "Session diagnostics copied",
     "diagnosticsCopyFailed": "Failed to copy session diagnostics: {error}"

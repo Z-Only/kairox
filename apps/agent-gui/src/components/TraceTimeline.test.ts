@@ -15,6 +15,7 @@ import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 const mockGeneratedCommands = vi.hoisted(() => ({
   exportSessionDiagnostics: vi.fn(),
+  exportSessionDiagnosticsBundle: vi.fn(),
   listTrajectories: vi.fn(),
   getTrajectorySteps: vi.fn(),
   exportTrajectory: vi.fn()
@@ -124,6 +125,7 @@ beforeEach(() => {
   // well-typed.
   mockedInvoke.mockResolvedValue([]);
   mockGeneratedCommands.exportSessionDiagnostics.mockReset();
+  mockGeneratedCommands.exportSessionDiagnosticsBundle.mockReset();
   mockGeneratedCommands.listTrajectories.mockReset();
   mockGeneratedCommands.getTrajectorySteps.mockReset();
   mockGeneratedCommands.exportTrajectory.mockReset();
@@ -327,9 +329,50 @@ describe("TraceTimeline", () => {
 
     const wrapper = mountTimeline();
     const copyButton = wrapper.get('[data-test="trace-copy-diagnostics"]');
+    const copyBundleButton = wrapper.get('[data-test="trace-copy-diagnostics-bundle"]');
 
     expect(copyButton.attributes("disabled")).toBeDefined();
+    expect(copyBundleButton.attributes("disabled")).toBeDefined();
     expect(mockGeneratedCommands.exportSessionDiagnostics).not.toHaveBeenCalled();
+    expect(mockGeneratedCommands.exportSessionDiagnosticsBundle).not.toHaveBeenCalled();
+  });
+
+  it("copies active session redacted diagnostics bundle to clipboard", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_trace";
+    const ui = useUiStore();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const bundle = {
+      schema_version: 1,
+      generated_at: "2026-07-02T00:00:00Z",
+      redaction: {
+        applied: true,
+        strategy: "preview_marker",
+        redacted_fields: ["user_messages.content"],
+        max_message_preview_chars: 0
+      },
+      summary: {
+        session_id: "ses_trace",
+        event_count: 2
+      }
+    };
+    mockGeneratedCommands.exportSessionDiagnosticsBundle.mockResolvedValue({
+      status: "ok",
+      data: bundle
+    });
+
+    const wrapper = mountTimeline();
+
+    await wrapper.get('[data-test="trace-copy-diagnostics-bundle"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(mockGeneratedCommands.exportSessionDiagnosticsBundle).toHaveBeenCalledWith("ses_trace");
+    expect(writeText).toHaveBeenCalledWith(JSON.stringify(bundle));
+    expect(ui.toasts.at(-1)).toMatchObject({
+      message: "Redacted diagnostics bundle copied",
+      type: "success"
+    });
   });
 
   it("cycles density when density buttons are clicked", async () => {

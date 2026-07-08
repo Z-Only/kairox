@@ -24,12 +24,13 @@ use agent_gui_tauri::commands::{
     EventTypeCountResponse, GuiSettingsView, InstallOutcomeResponse, InstallRequestPayload,
     InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
     McpServerStatusResponse, McpToolCallDiagnosticsResponse, McpToolDefResponse,
-    McpToolStatesResponse, MemoryEntryResponse, ModelToolCallDiagnosticsResponse,
-    MonitorInfoResponse, PermissionDeniedToolDiagnosticsResponse, ProfileDetailResponse,
-    ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse, ProjectGitReviewResponse,
-    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    SaveDraftRequest, SendMessageToSessionIfIdleResponse, ServerEntryResponse,
-    SessionDiagnosticsMessageResponse, SessionDiagnosticsResponse, SessionInfoResponse,
+    McpToolStatesResponse, MemoryEntryResponse, ModelStreamStatusDiagnosticsResponse,
+    ModelToolCallDiagnosticsResponse, MonitorInfoResponse, PermissionDeniedToolDiagnosticsResponse,
+    ProfileDetailResponse, ProjectGitDiffSectionResponse, ProjectGitFileChangeResponse,
+    ProjectGitReviewResponse, ProjectGitStatusResponse, ProjectInfoResponse,
+    ProjectInstructionSummaryResponse, SaveDraftRequest, SendMessageToSessionIfIdleResponse,
+    ServerEntryResponse, SessionDiagnosticsBundleResponse, SessionDiagnosticsMessageResponse,
+    SessionDiagnosticsRedactionResponse, SessionDiagnosticsResponse, SessionInfoResponse,
     TaskSnapshotResponse, TrajectoryCompletedDiagnosticsResponse, TrajectoryMetaResponse,
     TrajectoryStepResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
@@ -60,6 +61,7 @@ fn main() {
             agent_gui_tauri::commands::send_message_to_session_if_idle,
             agent_gui_tauri::commands::export_trace,
             agent_gui_tauri::commands::export_session_diagnostics,
+            agent_gui_tauri::commands::export_session_diagnostics_bundle,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands
             agent_gui_tauri::commands::list_projects,
@@ -229,8 +231,11 @@ fn main() {
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
         .typ::<SessionDiagnosticsResponse>()
+        .typ::<SessionDiagnosticsBundleResponse>()
+        .typ::<SessionDiagnosticsRedactionResponse>()
         .typ::<EventTypeCountResponse>()
         .typ::<SessionDiagnosticsMessageResponse>()
+        .typ::<ModelStreamStatusDiagnosticsResponse>()
         .typ::<ModelToolCallDiagnosticsResponse>()
         .typ::<McpToolCallDiagnosticsResponse>()
         .typ::<PermissionDeniedToolDiagnosticsResponse>()
