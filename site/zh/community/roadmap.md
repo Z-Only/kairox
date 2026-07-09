@@ -43,9 +43,12 @@ Kairox 仍在 1.0 之前的积极开发阶段。本路线图按时间维度组�
 - `<memory>` marker 协议，支持 session / user / workspace 多种 scope，以及审批语义。
 - GUI 中的 memory 浏览器；TUI trace 面板支持删除。
 - 基于 tiktoken 的上下文 budget 控制，达到可配置阈值时自动 compaction。
+
 <!-- current-release:memory-context:start -->
+
 - Workspace RAG，包含 `WorkspaceRagIndex`、可插拔 embedding backend，以及每 turn 的 context 注入。
 - 按 profile 作用域启用的外部知识库：当前支持 SQLite FTS runtime connector，并在配置模型中覆盖 Tantivy、Bedrock Knowledge Bases、Pinecone 与 Weaviate。
+
 <!-- current-release:memory-context:end -->
 
 ### UI
