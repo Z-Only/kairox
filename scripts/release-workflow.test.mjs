@@ -42,3 +42,13 @@ test("tauri-action v1 is the single owner of updater metadata", async () => {
   assert.doesNotMatch(workflow, /^\s+publish-updater-json:$/m);
   assert.doesNotMatch(workflow, /Generate latest\.json for Tauri updater/);
 });
+
+test("release checksums cover installers without signature sidecars", async () => {
+  const workflow = await readWorkflow();
+
+  assert.match(
+    workflow,
+    /sha256sum \*\.tar\.gz \*\.zip \*\.dmg \*\.msi \*\.exe \*\.AppImage \*\.deb \*\.rpm/
+  );
+  assert.doesNotMatch(workflow, /\*\.AppImage\*/);
+});

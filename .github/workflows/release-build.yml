@@ -200,7 +200,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum *.tar.gz *.zip *.dmg *.msi *.AppImage* *.deb *.rpm 2>/dev/null \
+          sha256sum *.tar.gz *.zip *.dmg *.msi *.exe *.AppImage *.deb *.rpm 2>/dev/null \
             | sort > ../SHA256SUMS.txt
           echo "--- SHA256SUMS.txt ---"
           cat ../SHA256SUMS.txt
