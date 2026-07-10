@@ -568,9 +568,7 @@ Edit `apps/agent-gui/src/stores/mcp.test.ts` — add test:
 ```typescript
 it("fetchEffectiveServers populates effectiveServers", async () => {
   const mock = {
-    value: {
-      /* ... */
-    },
+    value: {/* ... */},
     source: "user",
     enabled: true,
     writable: true,

@@ -422,9 +422,7 @@ export function mount(comp, options = {}) {
     ...options,
     global: {
       plugins: [pinia, i18n, router],
-      stubs: {
-        /* NaiveUI stubs only when needed */
-      },
+      stubs: {/* NaiveUI stubs only when needed */},
       ...(options.global ?? {})
     }
   });
@@ -451,15 +449,7 @@ import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    AutoImport({
-      /* see 5.6 */
-    }),
-    Components({
-      /* see 5.7 */
-    })
-  ],
+  plugins: [vue(), AutoImport({/* see 5.6 */}), Components({/* see 5.7 */})],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }
   },

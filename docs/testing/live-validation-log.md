@@ -99,7 +99,7 @@ CARGO_HOME=~/.cargo RUSTUP_HOME=~/.rustup
 CARGO_TARGET_DIR=~/AIProjects/kairox/target KAIROX_DEV_PORT=1443
 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
   profile used `provider = "ali-mo"` and `api_key_env =
-  "KAIROX_VALIDATION_ALI_MO_KEY"`; the env value was supplied only to the local
+"KAIROX_VALIDATION_ALI_MO_KEY"`; the env value was supplied only to the local
   process from the user profile and was not written to temp files or logs. No
   Starpoint approval or AMFI workaround was needed.
 - Evidence: `tauri-pilot ping` returned ok through
@@ -210,7 +210,7 @@ CARGO_HOME=~/.cargo RUSTUP_HOME=~/.rustup
 CARGO_TARGET_DIR=~/AIProjects/kairox/target KAIROX_DEV_PORT=1441
 KAIROX_DEV_STRICT_PORT=1 bun run tauri -- dev --features pilot`. The temp
   profile used `provider = "ali-mo"` and `api_key_env =
-  "KAIROX_VALIDATION_ALI_MO_KEY"` with the value supplied only as a local
+"KAIROX_VALIDATION_ALI_MO_KEY"` with the value supplied only as a local
   process env var. No Starpoint approval or AMFI workaround was needed.
 - Evidence: `tauri-pilot ping` returned ok through
   `/tmp/tauri-pilot-dev.kairox.agent.dev1441.sock`. The GUI project session
@@ -366,7 +366,7 @@ pilot` compiled the app and printed the isolated pilot socket. On this machine,
   `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
   macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
   continued by running `KAIROX_DEV_PORT=1437 KAIROX_DEV_STRICT_PORT=1 bun run
-  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
   `./target/debug/agent-gui-tauri` under the same temp environment. The temp
   profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
   supplied only as a local process env var.
@@ -421,7 +421,7 @@ pilot` compiled the app and printed the isolated pilot socket. On this machine,
   `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
   macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
   continued by running `KAIROX_DEV_PORT=1436 KAIROX_DEV_STRICT_PORT=1 bun run
-  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
   `./target/debug/agent-gui-tauri` under the same temp environment. The temp
   profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
   supplied only as a local process env var.
@@ -481,7 +481,7 @@ pilot` compiled the app and printed the isolated pilot socket. On this machine,
   `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
   macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
   continued by running `KAIROX_DEV_PORT=1435 KAIROX_DEV_STRICT_PORT=1 bun run
-  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
   `./target/debug/agent-gui-tauri` under the same temp environment. The temp
   profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"` with the value
   supplied only as a local process env var.
@@ -532,7 +532,7 @@ pilot` compiled the app and printed the isolated pilot socket. On this machine,
   `cargo run` rewrote the debug binary with a linker-only ad-hoc signature and
   macOS AMFI killed `target/debug/agent-gui-tauri` before setup, so verification
   continued by running `KAIROX_DEV_PORT=1434 KAIROX_DEV_STRICT_PORT=1 bun run
-  dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
+dev`, then `codesign --force --sign - target/debug/agent-gui-tauri`, then
   `./target/debug/agent-gui-tauri` under the same temp environment. The temp
   profile used `api_key_env = "KAIROX_VALIDATION_ALI_MO_KEY"`; after one launcher
   attempt missed that env because the user profile stores a direct `api_key`, the
