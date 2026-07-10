@@ -48,8 +48,9 @@ jobs:
           else
             BODY=$(git cliff --strip header "${PREV_TAG}..${TAG}")
           fi
+          DELIMITER="KAIROX_RELEASE_$(openssl rand -hex 16)"
           {
-            echo "body<<EOF"
+            echo "body<<${DELIMITER}"
             echo "$BODY"
             echo ""
             echo "---"
@@ -68,7 +69,7 @@ jobs:
             echo "| Terminal (Windows) | \`Kairox-TUI-${TAG}-windows-x86_64.zip\` |"
             echo ""
             echo "Checksums: see the \`SHA256SUMS.txt\` asset."
-            echo "EOF"
+            echo "${DELIMITER}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub Release

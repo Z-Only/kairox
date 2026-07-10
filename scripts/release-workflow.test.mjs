@@ -30,6 +30,15 @@ test("tauri builds preserve the generated release notes", async () => {
   assert.doesNotMatch(workflow, /See the assets to download this version and install\./);
 });
 
+test("release notes use an unpredictable output delimiter", async () => {
+  const workflow = await readWorkflow();
+
+  assert.match(workflow, /DELIMITER="KAIROX_RELEASE_\$\(openssl rand -hex 16\)"/);
+  assert.match(workflow, /echo "body<<\$\{DELIMITER\}"/);
+  assert.match(workflow, /echo "\$\{DELIMITER\}"/);
+  assert.doesNotMatch(workflow, /body<<EOF/);
+});
+
 test("tauri-action v1 is the single owner of updater metadata", async () => {
   const workflow = await readWorkflow();
   const tauriAction = workflow.match(
