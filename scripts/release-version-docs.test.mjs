@@ -184,6 +184,22 @@ test("syncReleaseDocs rewrites stale release state across docs and site examples
   assert.match(await readFixture(root, "docs/current-release.json"), /"releaseDate": "2026-06-18"/);
 });
 
+test("syncReleaseDocs emits formatter-stable memory marker spacing", async () => {
+  const root = await createFixtureRepo();
+
+  await syncReleaseDocs(root, { write: true, today: "2026-06-18" });
+
+  for (const path of ["site/community/roadmap.md", "site/zh/community/roadmap.md"]) {
+    const roadmap = await readFixture(root, path);
+    assert.match(
+      roadmap,
+      /\n\n<!-- current-release:memory-context:start -->\n\n-[\s\S]*?\n\n<!-- current-release:memory-context:end -->/
+    );
+  }
+
+  assert.equal((await checkReleaseDocs(root)).ok, true);
+});
+
 test("syncReleaseDocs preserves release date when the release version already matches", async () => {
   const root = await createFixtureRepo();
   await writeFixture(

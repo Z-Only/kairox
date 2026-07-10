@@ -21,13 +21,17 @@ const EN_MEMORY_ANCHOR =
 const ZH_MEMORY_ANCHOR = "- 基于 tiktoken 的上下文 budget 控制，达到可配置阈值时自动 compaction。";
 
 const EN_MEMORY_BLOCK = `<!-- current-release:memory-context:start -->
+
 - Workspace RAG with \`WorkspaceRagIndex\`, pluggable embedding backends, and turn-time context injection.
 - Profile-scoped external knowledge bases with SQLite FTS today and config models for Tantivy, Bedrock Knowledge Bases, Pinecone, and Weaviate.
+
 <!-- current-release:memory-context:end -->`;
 
 const ZH_MEMORY_BLOCK = `<!-- current-release:memory-context:start -->
+
 - Workspace RAG，包含 \`WorkspaceRagIndex\`、可插拔 embedding backend，以及每 turn 的 context 注入。
 - 按 profile 作用域启用的外部知识库：当前支持 SQLite FTS runtime connector，并在配置模型中覆盖 Tantivy、Bedrock Knowledge Bases、Pinecone 与 Weaviate。
+
 <!-- current-release:memory-context:end -->`;
 
 export async function readWorkspaceVersion(root = repoRoot) {
@@ -98,14 +102,14 @@ function upsertCurrentVersionBlock(text, title, fields) {
 
 function replaceMemoryBlock(text, anchor, block) {
   const blockPattern =
-    /<!-- current-release:memory-context:start -->[\s\S]*?<!-- current-release:memory-context:end -->/;
+    /(?:\r?\n)*<!-- current-release:memory-context:start -->[\s\S]*?<!-- current-release:memory-context:end -->/;
   if (blockPattern.test(text)) {
-    return text.replace(blockPattern, block);
+    return text.replace(blockPattern, `\n\n${block}`);
   }
   if (!text.includes(anchor)) {
     return text;
   }
-  return text.replace(anchor, `${anchor}\n${block}`);
+  return text.replace(anchor, `${anchor}\n\n${block}`);
 }
 
 function syncText(path, text, fields) {
