@@ -299,6 +299,7 @@ When bumping the version for a release, edit these files (all must stay in sync)
 6. **`docs/current-release.json` and public docs** — run `bun run release-docs:sync`, then `bun run release-docs:check`
 
 Do NOT edit `version` in individual crate `Cargo.toml` files — they inherit from the workspace.
+After regenerating `Cargo.lock`, verify that only workspace package versions changed. If any registry package version, checksum, or source drifts, restore the lockfile from the latest `main` and run `cargo update -w`.
 
 > **⚠️ AI assistant reminder**: Bumping the version number alone is NOT sufficient. Every version bump MUST be followed by the full release flow: update CHANGELOG (`git cliff`), commit changelog, create the git tag, and push both the branch and tag to remote. Missing any of these steps will cause release artifacts (installers, CHANGELOG, GitHub Release) to be incomplete or missing. If you only bump the version without completing the release flow, the version will not have a corresponding release.
 

@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 2026-07-10
+
+### 🚀 Features
+
+- **gui**: add split diff view toggle (#1161)
+- **runtime**: record model usage (#1182)
+- **gui**: add redacted diagnostics bundle (#1183)
+- **gui**: add diagnostics bundle copy action (#1184)
+- **eval**: report model usage totals (#1185)
+
+### 🐛 Bug Fixes
+
+- **runtime**: strip think blocks from final messages (#1157)
+- **gui**: smooth eval workflow followups (#1158)
+- **gui**: clarify trace outcomes (#1159)
+- **gui**: show trajectory export feedback (#1160)
+- **gui**: load changes from sidebar tab (#1162)
+- **eval**: improve observability preflight (#1163)
+- **agent-tools**: resolve Playwright from Bun worktrees (#1165)
+- **agent-tools**: improve agent tooling diagnostics (#1166)
+- **gui**: respect manual chat scroll position (#1168)
+- **agent-tools**: accept simple Codex patch updates (#1167)
+- **agent-tools**: show stdout for shell failures (#1169)
+- **runtime**: filter think blocks from stream deltas (#1170)
+- **agent-tools**: preserve shell failure output tail (#1171)
+- **scripts**: retry dev pilot after StarPoint allow (#1172)
+- **runtime**: preserve failed tool preview tails (#1173)
+- **gui**: hide changes tab for plain chats (#1174)
+- **runtime**: clarify stalled model stream diagnostics (#1175)
+- **gui**: classify model stream diagnostics (#1179)
+- **gui**: surface model stream status rows (#1181)
+- **runtime**: guard unsupported server tools (#1180)
+
+### 📚 Documentation
+
+- refresh banner capabilities (#1164)
+
+### 📦 Dependencies
+
+- **deps**: bump tauri-apps/tauri-action from 0 to 1 (#1176)
+- **deps**: bump the bun-minor-patch group with 16 updates (#1177)
+- **deps**: bump the cargo-minor-patch group with 2 updates (#1178)
+- **deps-dev**: bump typescript in the bun-major group (#1188)
+- **deps**: bump rand in the cargo-minor-patch group (#1189)
+- **deps**: bump the bun-minor-patch group across 1 directory with 11 updates (#1187)
+
 ## [0.42.0] - 2026-06-26
 
 ### 🚀 Features

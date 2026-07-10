@@ -61,7 +61,7 @@
 
 ## When bumping versions
 
-Edit all version surfaces in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfile`), `apps/agent-gui/package.json`, `apps/agent-gui/src-tauri/tauri.conf.json`, root `package.json`, and `docs/current-release.json`/public docs via `bun run release-docs:sync`. Verify with `bun run release-docs:check`.
+Edit all version surfaces in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfile`), `apps/agent-gui/package.json`, `apps/agent-gui/src-tauri/tauri.conf.json`, root `package.json`, and `docs/current-release.json`/public docs via `bun run release-docs:sync`. Verify with `bun run release-docs:check`. Confirm that `Cargo.lock` changes only workspace package versions; if registry package versions, checksums, or sources drift, restore the lockfile from the latest `main` and run `cargo update -w`.
 
 ## Commit convention
 

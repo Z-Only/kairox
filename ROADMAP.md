@@ -1,6 +1,6 @@
 # Roadmap
 
-> Current version: **0.42.0** (2026-06-26).
+> Current version: **0.43.0** (2026-07-10).
 
 ## Near term
 
