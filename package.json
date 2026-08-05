@@ -42,9 +42,9 @@
     "mermaid": "^11.16.0",
     "oxfmt": "^0.61.0",
     "oxlint": "^1.76.0",
-    "postcss-html": "^1.8.1",
+    "postcss-html": "^2.0.0",
     "stylelint": "^17.14.1",
-    "stylelint-config-recommended-vue": "^1.6.1",
+    "stylelint-config-recommended-vue": "^2.0.0",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17"
   },
