@@ -14,7 +14,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
-dirs = "6"
+dirs = "7"
 specta = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 
