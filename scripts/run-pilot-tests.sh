@@ -406,12 +406,41 @@ console.log(buildTauriPilotSocketPath(process.env.KAIROX_PILOT_IDENTIFIER, proce
 EOF
 }
 
+# The `tauri dev` wrapper can exit while its `cargo run` child keeps compiling
+# (observed on Linux runners mid-build); that child can still finish the build
+# and launch the app. Treat a dead launcher as fatal only when nothing else is
+# building or running and app.log has stopped growing, so a wrapper crash
+# doesn't abort an otherwise healthy cold build.
 _fail_if_app_exited() {
-    if [[ -n "${APP_PID:-}" ]] && ! kill -0 "$APP_PID" 2>/dev/null; then
-        echo "ERROR: Tauri app process exited before pilot became ready" >&2
-        tail -80 "$JUNIT_DIR/app.log" >&2 || true
-        exit 1
+    if [[ -z "${APP_PID:-}" ]] || kill -0 "$APP_PID" 2>/dev/null; then
+        return 0
     fi
+
+    if pgrep -x cargo >/dev/null 2>&1 || pgrep -x rustc >/dev/null 2>&1; then
+        return 0
+    fi
+    if pgrep -f "target/debug/agent-gui-tauri" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local log_size now stalled_secs
+    log_size="$(wc -c <"$JUNIT_DIR/app.log" 2>/dev/null | tr -d '[:space:]')"
+    log_size="${log_size:-0}"
+    now="$(date +%s)"
+    if [[ "$log_size" != "$APP_LOG_SIZE" ]]; then
+        APP_LOG_SIZE="$log_size"
+        APP_LOG_CHANGED_AT="$now"
+        return 0
+    fi
+    stalled_secs=$((now - APP_LOG_CHANGED_AT))
+    if [[ "$stalled_secs" -lt 30 ]]; then
+        return 0
+    fi
+
+    echo "ERROR: Tauri app process exited before pilot became ready (app log stalled for ${stalled_secs}s)" >&2
+    ps -ef | grep -E 'cargo|tauri|agent-gui' | grep -v grep >&2 || true
+    tail -80 "$JUNIT_DIR/app.log" >&2 || true
+    exit 1
 }
 
 _cleanup() {
@@ -521,6 +550,8 @@ echo "  mcp server:  $FIXTURE_MCP_SERVER_SCRIPT"
 _backup_project_config
 APP_PID=""
 VITE_PID=""
+APP_LOG_SIZE=0
+APP_LOG_CHANGED_AT="$(date +%s)"
 trap _cleanup EXIT
 _register_pilot_fixtures
 _write_pilot_project_config
