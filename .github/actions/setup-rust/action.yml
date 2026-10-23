@@ -18,6 +18,10 @@ inputs:
     description: Skip cargo caching (e.g. format-only jobs that never compile)
     required: false
     default: "false"
+  cache-bin:
+    description: Cache the Cargo bin directory (disable for jobs that must use the rustup proxies installed in this run)
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -34,3 +38,4 @@ runs:
       with:
         cache-on-failure: true
         shared-key: ${{ inputs.cache-shared-key }}
+        cache-bin: ${{ inputs.cache-bin }}

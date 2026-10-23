@@ -489,6 +489,10 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: rust-ci-pilot-${{ matrix.os }}-v2
+          # The macOS workaround above removes Homebrew's cargo. A stale
+          # ~/.cargo/bin snapshot would shadow the rustup proxies installed
+          # in this run, leaving `cargo metadata` unable to find `cargo`.
+          cache-bin: "false"
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
@@ -559,6 +563,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: rust-ci-pilot-live-ubuntu-v2
+          cache-bin: "false"
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
