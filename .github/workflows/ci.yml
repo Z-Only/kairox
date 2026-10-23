@@ -465,6 +465,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      # Cold `pilot`-feature builds compile ~800 crates and can take well over
+      # four minutes on hosted runners; allow up to 15 minutes for the socket.
+      KAIROX_PILOT_SOCKET_TIMEOUT_SECS: "900"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -485,6 +489,10 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: rust-ci-pilot-${{ matrix.os }}-v2
+          # The macOS workaround above removes Homebrew's cargo. A stale
+          # ~/.cargo/bin snapshot would shadow the rustup proxies installed
+          # in this run, leaving `cargo metadata` unable to find `cargo`.
+          cache-bin: "false"
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
@@ -539,6 +547,8 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      KAIROX_PILOT_SOCKET_TIMEOUT_SECS: "900"
     permissions:
       contents: read
       models: read
@@ -553,6 +563,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: rust-ci-pilot-live-ubuntu-v2
+          cache-bin: "false"
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot

@@ -22,9 +22,10 @@
 #   KAIROX_DEV_PORT=1420
 #       Preferred Vite dev server port. Defaults to 1420; if occupied, the
 #       Tauri dev wrapper selects the next available port.
-#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=240
+#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=600
 #       Max seconds to wait for the Tauri app to compile/start and expose its
-#       pilot socket.
+#       pilot socket. Cold builds of the `pilot` feature compile ~800 crates
+#       and routinely exceed four minutes on CI runners.
 #
 # Exit code: 0 on all-pass, 1 on first scenario failure (or env error).
 
@@ -57,7 +58,7 @@ LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
 DEV_PORT="${KAIROX_DEV_PORT:-1420}"
-PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-240}"
+PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-600}"
 PILOT_WEBVIEW_TIMEOUT_SECS="${KAIROX_PILOT_WEBVIEW_TIMEOUT_SECS:-60}"
 PILOT_IDENTIFIER=""
 TAURI_PILOT_SOCKET="${TAURI_PILOT_SOCKET:-}"
@@ -405,12 +406,41 @@ console.log(buildTauriPilotSocketPath(process.env.KAIROX_PILOT_IDENTIFIER, proce
 EOF
 }
 
+# The `tauri dev` wrapper can exit while its `cargo run` child keeps compiling
+# (observed on Linux runners mid-build); that child can still finish the build
+# and launch the app. Treat a dead launcher as fatal only when nothing else is
+# building or running and app.log has stopped growing, so a wrapper crash
+# doesn't abort an otherwise healthy cold build.
 _fail_if_app_exited() {
-    if [[ -n "${APP_PID:-}" ]] && ! kill -0 "$APP_PID" 2>/dev/null; then
-        echo "ERROR: Tauri app process exited before pilot became ready" >&2
-        tail -80 "$JUNIT_DIR/app.log" >&2 || true
-        exit 1
+    if [[ -z "${APP_PID:-}" ]] || kill -0 "$APP_PID" 2>/dev/null; then
+        return 0
     fi
+
+    if pgrep -x cargo >/dev/null 2>&1 || pgrep -x rustc >/dev/null 2>&1; then
+        return 0
+    fi
+    if pgrep -f "target/debug/agent-gui-tauri" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local log_size now stalled_secs
+    log_size="$(wc -c <"$JUNIT_DIR/app.log" 2>/dev/null | tr -d '[:space:]')"
+    log_size="${log_size:-0}"
+    now="$(date +%s)"
+    if [[ "$log_size" != "$APP_LOG_SIZE" ]]; then
+        APP_LOG_SIZE="$log_size"
+        APP_LOG_CHANGED_AT="$now"
+        return 0
+    fi
+    stalled_secs=$((now - APP_LOG_CHANGED_AT))
+    if [[ "$stalled_secs" -lt 30 ]]; then
+        return 0
+    fi
+
+    echo "ERROR: Tauri app process exited before pilot became ready (app log stalled for ${stalled_secs}s)" >&2
+    ps -ef | grep -E 'cargo|tauri|agent-gui' | grep -v grep >&2 || true
+    tail -80 "$JUNIT_DIR/app.log" >&2 || true
+    exit 1
 }
 
 _cleanup() {
@@ -520,6 +550,8 @@ echo "  mcp server:  $FIXTURE_MCP_SERVER_SCRIPT"
 _backup_project_config
 APP_PID=""
 VITE_PID=""
+APP_LOG_SIZE=0
+APP_LOG_CHANGED_AT="$(date +%s)"
 trap _cleanup EXIT
 _register_pilot_fixtures
 _write_pilot_project_config
@@ -564,6 +596,8 @@ for i in $(seq 1 "$PILOT_SOCKET_TIMEOUT_SECS"); do
     _fail_if_app_exited
     if [[ "$i" -eq "$PILOT_SOCKET_TIMEOUT_SECS" ]]; then
         echo "ERROR: tauri-pilot ping timed out after ${PILOT_SOCKET_TIMEOUT_SECS}s" >&2
+        echo "---- $JUNIT_DIR/app.log (tail) ----" >&2
+        tail -80 "$JUNIT_DIR/app.log" >&2 || true
         exit 1
     fi
     sleep 1
