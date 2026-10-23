@@ -22,9 +22,10 @@
 #   KAIROX_DEV_PORT=1420
 #       Preferred Vite dev server port. Defaults to 1420; if occupied, the
 #       Tauri dev wrapper selects the next available port.
-#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=240
+#   KAIROX_PILOT_SOCKET_TIMEOUT_SECS=600
 #       Max seconds to wait for the Tauri app to compile/start and expose its
-#       pilot socket.
+#       pilot socket. Cold builds of the `pilot` feature compile ~800 crates
+#       and routinely exceed four minutes on CI runners.
 #
 # Exit code: 0 on all-pass, 1 on first scenario failure (or env error).
 
@@ -57,7 +58,7 @@ LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
 DEV_PORT="${KAIROX_DEV_PORT:-1420}"
-PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-240}"
+PILOT_SOCKET_TIMEOUT_SECS="${KAIROX_PILOT_SOCKET_TIMEOUT_SECS:-600}"
 PILOT_WEBVIEW_TIMEOUT_SECS="${KAIROX_PILOT_WEBVIEW_TIMEOUT_SECS:-60}"
 PILOT_IDENTIFIER=""
 TAURI_PILOT_SOCKET="${TAURI_PILOT_SOCKET:-}"
@@ -564,6 +565,8 @@ for i in $(seq 1 "$PILOT_SOCKET_TIMEOUT_SECS"); do
     _fail_if_app_exited
     if [[ "$i" -eq "$PILOT_SOCKET_TIMEOUT_SECS" ]]; then
         echo "ERROR: tauri-pilot ping timed out after ${PILOT_SOCKET_TIMEOUT_SECS}s" >&2
+        echo "---- $JUNIT_DIR/app.log (tail) ----" >&2
+        tail -80 "$JUNIT_DIR/app.log" >&2 || true
         exit 1
     fi
     sleep 1

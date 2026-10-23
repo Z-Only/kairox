@@ -465,6 +465,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      # Cold `pilot`-feature builds compile ~800 crates and can take well over
+      # four minutes on hosted runners; allow up to 15 minutes for the socket.
+      KAIROX_PILOT_SOCKET_TIMEOUT_SECS: "900"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -539,6 +543,8 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      KAIROX_PILOT_SOCKET_TIMEOUT_SECS: "900"
     permissions:
       contents: read
       models: read
